@@ -16,7 +16,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		000000000000000000000120 /* cbtipul.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = cbtipul.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000120 /* CBTipul.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CBTipul.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -53,7 +53,7 @@
 		000000000000000000000020 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				000000000000000000000120 /* cbtipul.app */,
+				000000000000000000000120 /* CBTipul.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,9 +61,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		000000000000000100000000 /* cbtipul */ = {
+		000000000000000100000000 /* CBTipul */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 000000000000000110000000 /* Build configuration list for PBXNativeTarget "cbtipul" */;
+			buildConfigurationList = 000000000000000110000000 /* Build configuration list for PBXNativeTarget "CBTipul" */;
 			buildPhases = (
 				000000000000000120000000 /* Sources */,
 				000000000000000130000000 /* Frameworks */,
@@ -74,7 +74,7 @@
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* MyApp */,
 			);
-			name = cbtipul;
+			name = CBTipul;
 			packageProductDependencies = (
 				452035CF301BA785006FC5A3 /* Auth */,
 				452035D1301BA785006FC5A3 /* Functions */,
@@ -83,8 +83,8 @@
 				452035D7301BA785006FC5A3 /* Storage */,
 				452035D9301BA785006FC5A3 /* Supabase */,
 			);
-			productName = MyApp;
-			productReference = 000000000000000000000120 /* cbtipul.app */;
+			productName = CBTipul;
+			productReference = 000000000000000000000120 /* CBTipul.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -119,7 +119,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				000000000000000100000000 /* cbtipul */,
+				000000000000000100000000 /* CBTipul */,
 			);
 		};
 /* End PBXProject section */
@@ -273,7 +273,7 @@
 			};
 			name = Release;
 		};
-		000000000000000111000000 /* Debug configuration for PBXNativeTarget "cbtipul" */ = {
+		000000000000000111000000 /* Debug configuration for PBXNativeTarget "CBTipul" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -310,7 +310,7 @@
 			};
 			name = Debug;
 		};
-		000000000000000112000000 /* Release configuration for PBXNativeTarget "cbtipul" */ = {
+		000000000000000112000000 /* Release configuration for PBXNativeTarget "CBTipul" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -358,11 +358,11 @@
 			);
 			defaultConfigurationName = Release;
 		};
-		000000000000000110000000 /* Build configuration list for PBXNativeTarget "cbtipul" */ = {
+		000000000000000110000000 /* Build configuration list for PBXNativeTarget "CBTipul" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				000000000000000111000000 /* Debug configuration for PBXNativeTarget "cbtipul" */,
-				000000000000000112000000 /* Release configuration for PBXNativeTarget "cbtipul" */,
+				000000000000000111000000 /* Debug configuration for PBXNativeTarget "CBTipul" */,
+				000000000000000112000000 /* Release configuration for PBXNativeTarget "CBTipul" */,
 			);
 			defaultConfigurationName = Release;
 		};
