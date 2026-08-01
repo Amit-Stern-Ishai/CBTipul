@@ -47,16 +47,20 @@ private nonisolated struct NewSessionRecord: Encodable {
     }
 }
 
-/// Row shape for inserts into the questionnaire tables.
+/// Row shape for inserts into the combined questionnaire table.
 private nonisolated struct NewQuestionnaireRecord: Encodable {
     let patientID: DatabaseID
     let sessionID: DatabaseID
-    let answers: [Int]
+    let gad7Answers: [Int]
+    let phq9Answers: [Int]
+    let notes: String?
 
     enum CodingKeys: String, CodingKey {
         case patientID = "patient_id"
         case sessionID = "session_id"
-        case answers
+        case gad7Answers = "gad7_answers"
+        case phq9Answers = "phq9_answers"
+        case notes
     }
 }
 
@@ -204,21 +208,23 @@ final class PatientStore {
         patient.sessions.append(session)
     }
 
-    /// Saves a completed questionnaire for a session into the table matching
-    /// its kind (`GAD7` or `Depression`).
-    func saveQuestionnaire(_ kind: QuestionnaireKind,
-                           answers: [Int],
+    /// Saves a completed combined mood questionnaire for a session as a
+    /// single row with the GAD-7 and PHQ-9 answers side by side.
+    func saveQuestionnaire(_ questionnaire: CombinedMoodQuestionnaire,
                            for patient: Patient,
                            session: Session) async throws {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
+        let trimmedNotes = questionnaire.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let record = NewQuestionnaireRecord(
             patientID: patientID,
             sessionID: sessionID,
-            answers: answers
+            gad7Answers: questionnaire.gad7Answers.compactMap { $0 },
+            phq9Answers: questionnaire.phq9Answers.compactMap { $0 },
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes
         )
-        try await client.from(kind.tableName).insert(record).execute()
+        try await client.from(CombinedMoodQuestionnaire.tableName).insert(record).execute()
     }
 }

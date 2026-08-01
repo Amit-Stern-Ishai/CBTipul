@@ -1,32 +1,14 @@
 import SwiftUI
 
-/// The GAD-7 anxiety questionnaire screen for a session.
-struct GAD7QuestionnaireView: View {
+/// The combined mood questionnaire screen for a session: the GAD-7 section
+/// first, with the PHQ-9 section below it.
+///
+/// Saving inserts one combined row into Supabase, linked to the patient and
+/// session. All wording comes from `QuestionnaireText` (placeholders for now,
+/// Hebrew later).
+struct CombinedMoodQuestionnaireView: View {
     let patient: Patient
     @Bindable var session: Session
-
-    var body: some View {
-        QuestionnaireForm(patient: patient, session: session, questionnaire: $session.gad7)
-    }
-}
-
-/// The depression questionnaire screen for a session.
-struct DepressionQuestionnaireView: View {
-    let patient: Patient
-    @Bindable var session: Session
-
-    var body: some View {
-        QuestionnaireForm(patient: patient, session: session, questionnaire: $session.depression)
-    }
-}
-
-/// Shared form UI for a single questionnaire: one row per question plus
-/// save handling. Saving inserts the answers into the questionnaire's
-/// Supabase table, linked to the patient and session.
-private struct QuestionnaireForm<Questionnaire: SessionQuestionnaire>: View {
-    let patient: Patient
-    let session: Session
-    @Binding var questionnaire: Questionnaire
 
     @Environment(PatientStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -35,18 +17,19 @@ private struct QuestionnaireForm<Questionnaire: SessionQuestionnaire>: View {
     @State private var errorMessage: String?
 
     private var canSave: Bool {
-        questionnaire.isComplete && !isSaving
+        session.questionnaire.isComplete && !isSaving
     }
 
     var body: some View {
         Form {
-            Section(Questionnaire.title) {
-                ForEach(Questionnaire.questions.indices, id: \.self) { index in
-                    QuestionRow(
-                        text: Questionnaire.questions[index],
-                        selection: $questionnaire.answers[index]
-                    )
-                }
+            gad7Section
+            phq9Section
+
+            Section(QuestionnaireText.notesSectionTitle) {
+                TextField(QuestionnaireText.notesFieldPlaceholder,
+                          text: $session.questionnaire.notes,
+                          axis: .vertical)
+                    .lineLimit(3...8)
             }
 
             if let errorMessage {
@@ -57,7 +40,7 @@ private struct QuestionnaireForm<Questionnaire: SessionQuestionnaire>: View {
                 }
             }
         }
-        .navigationTitle(Questionnaire.title)
+        .navigationTitle(QuestionnaireText.combinedTitle)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
@@ -73,17 +56,123 @@ private struct QuestionnaireForm<Questionnaire: SessionQuestionnaire>: View {
         }
     }
 
+    private var gad7Section: some View {
+        Section(QuestionnaireText.gad7Title) {
+            AnswerKeyView()
+
+            Text(QuestionnaireText.gad7MainQuestion)
+                .font(.headline)
+
+            ForEach(QuestionnaireText.gad7Questions.indices, id: \.self) { index in
+                QuestionRow(
+                    text: QuestionnaireText.gad7Questions[index],
+                    selection: $session.questionnaire.gad7Answers[index]
+                )
+            }
+
+            ScoreRow(
+                score: session.questionnaire.gad7Score,
+                classification: QuestionnaireText.label(for: session.questionnaire.gad7Severity)
+            )
+        }
+    }
+
+    private var phq9Section: some View {
+        Section(QuestionnaireText.phq9Title) {
+            ForEach(QuestionnaireText.phq9Questions.indices, id: \.self) { index in
+                QuestionRow(
+                    text: QuestionnaireText.phq9Questions[index],
+                    selection: $session.questionnaire.phq9Answers[index]
+                )
+            }
+
+            ImpairmentPicker(selection: $session.questionnaire.phq9Impairment)
+
+            ScoreRow(
+                score: session.questionnaire.phq9Score,
+                classification: QuestionnaireText.label(for: session.questionnaire.phq9Severity)
+            )
+
+            Text(QuestionnaireText.suggestion(for: session.questionnaire.phq9Severity))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private func save() {
         errorMessage = nil
         isSaving = true
         Task {
             do {
-                try await store.saveQuestionnaire(questionnaire, for: patient, session: session)
+                try await store.saveQuestionnaire(session.questionnaire, for: patient, session: session)
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
                 isSaving = false
             }
+        }
+    }
+}
+
+/// Legend explaining what each 0–3 answer value means.
+private struct AnswerKeyView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(QuestionnaireText.answerKeyTitle)
+                .font(.subheadline.weight(.semibold))
+            ForEach(QuestionnaireText.answerDescriptions.indices, id: \.self) { index in
+                Text(QuestionnaireText.answerDescriptions[index])
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// The PHQ-9 impairment question with its four worded options.
+private struct ImpairmentPicker: View {
+    @Binding var selection: Int?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(QuestionnaireText.phq9ImpairmentQuestion)
+                .font(.headline)
+
+            ForEach(QuestionnaireText.phq9ImpairmentOptions.indices, id: \.self) { index in
+                let isSelected = selection == index
+                Button {
+                    selection = index
+                } label: {
+                    HStack {
+                        Text(QuestionnaireText.phq9ImpairmentOptions[index])
+                        Spacer()
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// The live sum of a questionnaire part with its classification next to it.
+private struct ScoreRow: View {
+    let score: Int
+    let classification: String
+
+    var body: some View {
+        HStack {
+            Text("\(QuestionnaireText.scoreLabel): \(score)")
+                .font(.headline)
+            Spacer()
+            Text(classification)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
         }
     }
 }
@@ -108,7 +197,7 @@ struct AnswerScaleView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            ForEach(QuestionnaireScale.answerValues, id: \.self) { value in
+            ForEach(CombinedMoodQuestionnaire.answerValues, id: \.self) { value in
                 let isSelected = selection == value
                 Button {
                     selection = value
@@ -127,16 +216,9 @@ struct AnswerScaleView: View {
     }
 }
 
-#Preview("GAD-7") {
+#Preview {
     NavigationStack {
-        GAD7QuestionnaireView(patient: Patient(firstName: "Alex"), session: Session())
-    }
-    .environment(PatientStore(client: AuthManager().client))
-}
-
-#Preview("Depression") {
-    NavigationStack {
-        DepressionQuestionnaireView(patient: Patient(firstName: "Alex"), session: Session())
+        CombinedMoodQuestionnaireView(patient: Patient(firstName: "Alex"), session: Session())
     }
     .environment(PatientStore(client: AuthManager().client))
 }

@@ -85,13 +85,13 @@ final class Session: Identifiable {
     var databaseID: DatabaseID?
     var date: Date
     var notes: String
-    var questionnaire: Questionnaire
+    var questionnaire: CombinedMoodQuestionnaire
 
     init(id: UUID = UUID(),
          databaseID: DatabaseID? = nil,
          date: Date = .now,
          notes: String = "",
-         questionnaire: Questionnaire = Questionnaire()) {
+         questionnaire: CombinedMoodQuestionnaire = CombinedMoodQuestionnaire()) {
         self.id = id
         self.databaseID = databaseID
         self.date = date
@@ -100,80 +100,68 @@ final class Session: Identifiable {
     }
 }
 
-/// The two questionnaires that can be attached to a session.
-enum QuestionnaireKind: String, CaseIterable, Identifiable {
-    case gad7 = "GAD-7"
-    case depression = "Depression"
+/// Severity classification of a GAD-7 score.
+enum GAD7Severity {
+    case minimal      // 0–4
+    case mild         // 5–9
+    case substantial  // 10–14
+    case extreme      // 15+
 
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .gad7: return "GAD-7 Questionnaire"
-        case .depression: return "Depression Questionnaire"
-        }
-    }
-
-    var questions: [String] {
-        switch self {
-        case .gad7: return QuestionnaireContent.gad7
-        case .depression: return QuestionnaireContent.depression
-        }
-    }
-
-    /// The Supabase table this questionnaire's answers are saved to.
-    var tableName: String {
-        switch self {
-        case .gad7: return "GAD7"
-        case .depression: return "Depression"
+    init(score: Int) {
+        switch score {
+        case ..<5: self = .minimal
+        case ..<10: self = .mild
+        case ..<15: self = .substantial
+        default: self = .extreme
         }
     }
 }
 
-/// The answers for both questionnaires of a session.
+/// Severity classification of a PHQ-9 score.
+enum PHQ9Severity {
+    case minimal          // 0–4
+    case mild             // 5–9
+    case moderate         // 10–14
+    case moderatelySevere // 15–19
+    case severe           // 20+
+
+    init(score: Int) {
+        switch score {
+        case ..<5: self = .minimal
+        case ..<10: self = .mild
+        case ..<15: self = .moderate
+        case ..<20: self = .moderatelySevere
+        default: self = .severe
+        }
+    }
+}
+
+/// The combined mood questionnaire of a session: GAD-7 followed by PHQ-9.
 ///
 /// Answers are stored as optional integers so an unanswered question can be
 /// distinguished from an answer of `0`. Each answer is in the range 0...3.
-struct Questionnaire {
-    var gad7: [Int?]
-    var depression: [Int?]
+struct CombinedMoodQuestionnaire {
+    /// The Supabase table combined questionnaires are saved to.
+    static let tableName = "CombinedMood"
 
-    init(gad7: [Int?]? = nil, depression: [Int?]? = nil) {
-        self.gad7 = gad7 ?? Array(repeating: nil, count: QuestionnaireContent.gad7.count)
-        self.depression = depression ?? Array(repeating: nil, count: QuestionnaireContent.depression.count)
-    }
-
-    subscript(kind: QuestionnaireKind) -> [Int?] {
-        get {
-            switch kind {
-            case .gad7: return gad7
-            case .depression: return depression
-            }
-        }
-        set {
-            switch kind {
-            case .gad7: gad7 = newValue
-            case .depression: depression = newValue
-            }
-        }
-    }
-
-    /// True once every question of the given questionnaire has an answer.
-    func isComplete(_ kind: QuestionnaireKind) -> Bool {
-        !self[kind].contains(nil)
-    }
-
-    /// True once every question in both questionnaires has an answer.
-    var isComplete: Bool {
-        !gad7.contains(nil) && !depression.contains(nil)
-    }
-}
-
-/// Placeholder questionnaire content. The real question text will be filled in later.
-enum QuestionnaireContent {
-    static let gad7: [String] = (1...7).map { "GAD-7 – Question \($0) (placeholder)" }
-    static let depression: [String] = (1...9).map { "Depression – Question \($0) (placeholder)" }
-
-    /// The valid answer values for every question.
+    /// The valid answer values for every scored question.
     static let answerValues = Array(0...3)
+
+    var gad7Answers: [Int?] = Array(repeating: nil, count: QuestionnaireText.gad7Questions.count)
+    var phq9Answers: [Int?] = Array(repeating: nil, count: QuestionnaireText.phq9Questions.count)
+    /// Answer to the PHQ-9 functional-impairment question (0–3).
+    /// Currently kept locally only — not part of the saved row.
+    var phq9Impairment: Int?
+    var notes: String = ""
+
+    var gad7Score: Int { gad7Answers.compactMap { $0 }.reduce(0, +) }
+    var phq9Score: Int { phq9Answers.compactMap { $0 }.reduce(0, +) }
+
+    var gad7Severity: GAD7Severity { GAD7Severity(score: gad7Score) }
+    var phq9Severity: PHQ9Severity { PHQ9Severity(score: phq9Score) }
+
+    /// True once every GAD-7 and PHQ-9 question has an answer.
+    var isComplete: Bool {
+        !gad7Answers.contains(nil) && !phq9Answers.contains(nil)
+    }
 }

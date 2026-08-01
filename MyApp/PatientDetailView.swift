@@ -23,16 +23,10 @@ struct PatientDetailView: View {
         }
     }
 
-    /// Which questionnaire sheet, if any, is presented for a session.
-    private struct QuestionnaireRoute: Identifiable {
-        let session: Session
-        let kind: QuestionnaireKind
-
-        var id: String { "\(session.id)-\(kind.rawValue)" }
-    }
-
     @State private var route: SheetRoute?
-    @State private var questionnaireRoute: QuestionnaireRoute?
+
+    /// The session the questionnaire sheet is presented for.
+    @State private var questionnaireSession: Session?
 
     /// Sessions sorted by date, most recent first.
     private var sortedSessions: [Session] {
@@ -63,14 +57,9 @@ struct PatientDetailView: View {
 
                             Menu {
                                 Button {
-                                    questionnaireRoute = QuestionnaireRoute(session: session, kind: .gad7)
+                                    questionnaireSession = session
                                 } label: {
-                                    Label("Add GAD-7 Questionnaire", systemImage: "list.clipboard")
-                                }
-                                Button {
-                                    questionnaireRoute = QuestionnaireRoute(session: session, kind: .depression)
-                                } label: {
-                                    Label("Add Depression Questionnaire", systemImage: "list.clipboard")
+                                    Label(QuestionnaireText.addQuestionnaireAction, systemImage: "list.clipboard")
                                 }
                             } label: {
                                 Image(systemName: "ellipsis.circle")
@@ -94,9 +83,9 @@ struct PatientDetailView: View {
         .sheet(item: $route) { route in
             SessionEditorView(session: route.session, patient: patient, isNew: route.isNew)
         }
-        .sheet(item: $questionnaireRoute) { route in
+        .sheet(item: $questionnaireSession) { session in
             NavigationStack {
-                QuestionnaireView(kind: route.kind, patient: patient, session: route.session)
+                CombinedMoodQuestionnaireView(patient: patient, session: session)
             }
         }
     }
