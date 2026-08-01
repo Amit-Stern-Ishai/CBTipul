@@ -1,13 +1,32 @@
 import SwiftUI
 
-/// A single questionnaire (GAD-7 or depression) for a session.
-///
-/// Saving inserts the answers into the questionnaire's Supabase table,
-/// linked to the patient and session. Question text is currently a stub.
-struct QuestionnaireView: View {
-    let kind: QuestionnaireKind
+/// The GAD-7 anxiety questionnaire screen for a session.
+struct GAD7QuestionnaireView: View {
     let patient: Patient
     @Bindable var session: Session
+
+    var body: some View {
+        QuestionnaireForm(patient: patient, session: session, questionnaire: $session.gad7)
+    }
+}
+
+/// The depression questionnaire screen for a session.
+struct DepressionQuestionnaireView: View {
+    let patient: Patient
+    @Bindable var session: Session
+
+    var body: some View {
+        QuestionnaireForm(patient: patient, session: session, questionnaire: $session.depression)
+    }
+}
+
+/// Shared form UI for a single questionnaire: one row per question plus
+/// save handling. Saving inserts the answers into the questionnaire's
+/// Supabase table, linked to the patient and session.
+private struct QuestionnaireForm<Questionnaire: SessionQuestionnaire>: View {
+    let patient: Patient
+    let session: Session
+    @Binding var questionnaire: Questionnaire
 
     @Environment(PatientStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -15,24 +34,17 @@ struct QuestionnaireView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    private var answers: Binding<[Int?]> {
-        switch kind {
-        case .gad7: return $session.questionnaire.gad7
-        case .depression: return $session.questionnaire.depression
-        }
-    }
-
     private var canSave: Bool {
-        session.questionnaire.isComplete(kind) && !isSaving
+        questionnaire.isComplete && !isSaving
     }
 
     var body: some View {
         Form {
-            Section(kind.title) {
-                ForEach(kind.questions.indices, id: \.self) { index in
+            Section(Questionnaire.title) {
+                ForEach(Questionnaire.questions.indices, id: \.self) { index in
                     QuestionRow(
-                        text: kind.questions[index],
-                        selection: answers[index]
+                        text: Questionnaire.questions[index],
+                        selection: $questionnaire.answers[index]
                     )
                 }
             }
@@ -45,7 +57,7 @@ struct QuestionnaireView: View {
                 }
             }
         }
-        .navigationTitle(kind.title)
+        .navigationTitle(Questionnaire.title)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
@@ -66,12 +78,7 @@ struct QuestionnaireView: View {
         isSaving = true
         Task {
             do {
-                try await store.saveQuestionnaire(
-                    kind,
-                    answers: session.questionnaire[kind].compactMap { $0 },
-                    for: patient,
-                    session: session
-                )
+                try await store.saveQuestionnaire(questionnaire, for: patient, session: session)
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
@@ -101,7 +108,7 @@ struct AnswerScaleView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            ForEach(QuestionnaireContent.answerValues, id: \.self) { value in
+            ForEach(QuestionnaireScale.answerValues, id: \.self) { value in
                 let isSelected = selection == value
                 Button {
                     selection = value
@@ -120,9 +127,16 @@ struct AnswerScaleView: View {
     }
 }
 
-#Preview {
+#Preview("GAD-7") {
     NavigationStack {
-        QuestionnaireView(kind: .gad7, patient: Patient(firstName: "Alex"), session: Session())
+        GAD7QuestionnaireView(patient: Patient(firstName: "Alex"), session: Session())
+    }
+    .environment(PatientStore(client: AuthManager().client))
+}
+
+#Preview("Depression") {
+    NavigationStack {
+        DepressionQuestionnaireView(patient: Patient(firstName: "Alex"), session: Session())
     }
     .environment(PatientStore(client: AuthManager().client))
 }
