@@ -3,7 +3,7 @@ import SwiftUI
 /// The combined mood questionnaire screen for a session: the GAD-7 section
 /// first, with the PHQ-9 section below it.
 ///
-/// Saving inserts one combined row into Supabase, linked to the patient and
+/// Saving upserts one combined row into Supabase, linked to the patient and
 /// session. All wording comes from `QuestionnaireText` (placeholders for now,
 /// Hebrew later).
 struct CombinedMoodQuestionnaireView: View {
@@ -22,8 +22,7 @@ struct CombinedMoodQuestionnaireView: View {
 
     var body: some View {
         Form {
-            gad7Section
-            phq9Section
+            QuestionnaireSections(questionnaire: $session.questionnaire)
 
             Section(QuestionnaireText.notesSectionTitle) {
                 TextField(QuestionnaireText.notesFieldPlaceholder,
@@ -56,49 +55,6 @@ struct CombinedMoodQuestionnaireView: View {
         }
     }
 
-    private var gad7Section: some View {
-        Section(QuestionnaireText.gad7Title) {
-            AnswerKeyView()
-
-            Text(QuestionnaireText.gad7MainQuestion)
-                .font(.headline)
-
-            ForEach(QuestionnaireText.gad7Questions.indices, id: \.self) { index in
-                QuestionRow(
-                    text: QuestionnaireText.gad7Questions[index],
-                    selection: $session.questionnaire.gad7Answers[index]
-                )
-            }
-
-            ScoreRow(
-                score: session.questionnaire.gad7Score,
-                classification: QuestionnaireText.label(for: session.questionnaire.gad7Severity)
-            )
-        }
-    }
-
-    private var phq9Section: some View {
-        Section(QuestionnaireText.phq9Title) {
-            ForEach(QuestionnaireText.phq9Questions.indices, id: \.self) { index in
-                QuestionRow(
-                    text: QuestionnaireText.phq9Questions[index],
-                    selection: $session.questionnaire.phq9Answers[index]
-                )
-            }
-
-            InterferencePicker(selection: $session.questionnaire.interferenceLevel)
-
-            ScoreRow(
-                score: session.questionnaire.phq9Score,
-                classification: QuestionnaireText.label(for: session.questionnaire.phq9Severity)
-            )
-
-            Text(QuestionnaireText.suggestion(for: session.questionnaire.phq9Severity))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
     private func save() {
         errorMessage = nil
         isSaving = true
@@ -110,6 +66,72 @@ struct CombinedMoodQuestionnaireView: View {
                 errorMessage = error.localizedDescription
                 isSaving = false
             }
+        }
+    }
+}
+
+/// Read-only view of a saved questionnaire, opened from the questionnaire
+/// history list. Uses the same layout as the editing screen but ignores taps.
+struct CompletedQuestionnaireView: View {
+    let record: CompletedQuestionnaire
+
+    var body: some View {
+        Form {
+            QuestionnaireSections(questionnaire: .constant(record.questionnaire))
+
+            if !record.questionnaire.notes.isEmpty {
+                Section(QuestionnaireText.notesSectionTitle) {
+                    Text(record.questionnaire.notes)
+                }
+            }
+        }
+        .navigationTitle(record.answeredDate.formatted(date: .abbreviated, time: .omitted))
+    }
+}
+
+/// The GAD-7 and PHQ-9 form sections shared by the editing and read-only
+/// screens.
+private struct QuestionnaireSections: View {
+    @Binding var questionnaire: CombinedMoodQuestionnaire
+
+    var body: some View {
+        Section(QuestionnaireText.gad7Title) {
+            AnswerKeyView()
+
+            Text(QuestionnaireText.gad7MainQuestion)
+                .font(.headline)
+
+            ForEach(QuestionnaireText.gad7Questions.indices, id: \.self) { index in
+                QuestionRow(
+                    text: QuestionnaireText.gad7Questions[index],
+                    selection: $questionnaire.gad7Answers[index]
+                )
+            }
+
+            ScoreRow(
+                score: questionnaire.gad7Score,
+                classification: QuestionnaireText.label(for: questionnaire.gad7Severity)
+            )
+        }
+
+        Section(QuestionnaireText.phq9Title) {
+            ForEach(QuestionnaireText.phq9Questions.indices, id: \.self) { index in
+                QuestionRow(
+                    text: QuestionnaireText.phq9Questions[index],
+                    selection: $questionnaire.phq9Answers[index]
+                )
+            }
+
+            InterferencePicker(selection: $questionnaire.interferenceLevel)
+
+            ScoreRow(
+                score: questionnaire.phq9Score,
+                classification: QuestionnaireText.label(for: questionnaire.phq9Severity)
+            )
+
+            Text(QuestionnaireText.suggestion(for: questionnaire.phq9Severity))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -216,9 +238,19 @@ struct AnswerScaleView: View {
     }
 }
 
-#Preview {
+#Preview("Editing") {
     NavigationStack {
         CombinedMoodQuestionnaireView(patient: Patient(firstName: "Alex"), session: Session())
     }
     .environment(PatientStore(client: AuthManager().client))
+}
+
+#Preview("Read-only") {
+    NavigationStack {
+        CompletedQuestionnaireView(record: CompletedQuestionnaire(
+            databaseID: .integer(1),
+            answeredDate: .now,
+            questionnaire: CombinedMoodQuestionnaire()
+        ))
+    }
 }

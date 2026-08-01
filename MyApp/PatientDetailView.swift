@@ -39,6 +39,12 @@ struct PatientDetailView: View {
                 Picker("Status", selection: $patient.status) {
                     ForEach(PatientStatus.allCases) { Text($0.rawValue).tag($0) }
                 }
+
+                NavigationLink {
+                    PatientQuestionnairesView(patient: patient)
+                } label: {
+                    Label(QuestionnaireText.viewQuestionnairesAction, systemImage: "chart.xyaxis.line")
+                }
             }
 
             Section("Sessions") {

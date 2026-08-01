@@ -25,6 +25,27 @@ enum QuestionnaireText {
         "3 - כמעט כל יום",
     ]
 
+    // MARK: - Questionnaire history
+
+    static let viewQuestionnairesAction = "View Questionnaires (placeholder)"
+    static let questionnairesTitle = "Questionnaires (placeholder)"
+    static let modePickerTitle = "View (placeholder)"
+    static let listModeTitle = "List (placeholder)"
+    static let graphsModeTitle = "Graphs (placeholder)"
+    static let noQuestionnairesMessage = "No questionnaires yet (placeholder)"
+    static let loadErrorTitle = "Couldn't load questionnaires (placeholder)"
+    static let retryAction = "Retry (placeholder)"
+    static let metricPickerTitle = "Show (placeholder)"
+    static let totalOptionLabel = "Total score (placeholder)"
+
+    static func questionOptionLabel(_ number: Int) -> String {
+        "Question \(number) (placeholder)"
+    }
+
+    /// Short names used in compact rows next to scores.
+    static let gad7ShortName = "GAD-7 (placeholder)"
+    static let phq9ShortName = "PHQ-9 (placeholder)"
+
     // MARK: - GAD-7
 
     static let gad7Title = "GAD-7 שאלון לאבחון חרדה מוכללת"

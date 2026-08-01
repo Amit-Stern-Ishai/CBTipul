@@ -98,6 +98,25 @@ private nonisolated struct SessionRow: Decodable {
     }
 }
 
+/// Row shape for selects from the combined questionnaire table.
+private nonisolated struct QuestionnaireRow: Decodable {
+    let id: DatabaseID
+    let answeredDate: String?
+    let gad7Answers: [Int]?
+    let phq9Answers: [Int]?
+    let interferenceLevel: Int?
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case answeredDate = "answered_date"
+        case gad7Answers = "gad7_answers"
+        case phq9Answers = "phq9_answers"
+        case interferenceLevel = "interference_level"
+        case notes
+    }
+}
+
 /// Store of the therapist's patients, backed by the Supabase `Patients` table.
 ///
 /// Patients and their sessions are loaded from the database when the patient
@@ -237,5 +256,43 @@ final class PatientStore {
         try await client.from(CombinedMoodQuestionnaire.tableName)
             .upsert(record, onConflict: "session_id")
             .execute()
+    }
+
+    /// Loads all saved questionnaires of a patient, newest first.
+    func loadQuestionnaires(for patient: Patient) async throws -> [CompletedQuestionnaire] {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
+
+        let rows: [QuestionnaireRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
+            .select("id, answered_date, gad7_answers, phq9_answers, interference_level, notes")
+            .eq("patient_id", value: patientID.queryValue)
+            .order("answered_date", ascending: false)
+            .execute()
+            .value
+
+        return rows.map { row in
+            var questionnaire = CombinedMoodQuestionnaire()
+            questionnaire.gad7Answers = Self.paddedAnswers(row.gad7Answers, count: QuestionnaireText.gad7Questions.count)
+            questionnaire.phq9Answers = Self.paddedAnswers(row.phq9Answers, count: QuestionnaireText.phq9Questions.count)
+            questionnaire.interferenceLevel = row.interferenceLevel
+            questionnaire.notes = row.notes ?? ""
+            return CompletedQuestionnaire(
+                databaseID: row.id,
+                answeredDate: row.answeredDate.map(parseDate) ?? .now,
+                questionnaire: questionnaire
+            )
+        }
+    }
+
+    /// Fits a stored answers array to the expected question count, padding
+    /// missing slots with `nil` so old or malformed rows still display.
+    private static func paddedAnswers(_ values: [Int]?, count: Int) -> [Int?] {
+        var result: [Int?] = (values ?? []).map { $0 }
+        if result.count > count {
+            result.removeLast(result.count - count)
+        } else if result.count < count {
+            result.append(contentsOf: Array(repeating: nil, count: count - result.count))
+        }
+        return result
     }
 }

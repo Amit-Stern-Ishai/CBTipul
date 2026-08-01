@@ -24,6 +24,14 @@ nonisolated enum DatabaseID: Codable, Hashable, Sendable {
         case .text(let value): try container.encode(value)
         }
     }
+
+    /// The value used when filtering queries by this ID.
+    var queryValue: String {
+        switch self {
+        case .integer(let value): return String(value)
+        case .text(let value): return value
+        }
+    }
 }
 
 /// Whether a patient is currently in active treatment.
@@ -164,4 +172,13 @@ struct CombinedMoodQuestionnaire {
     var isComplete: Bool {
         !gad7Answers.contains(nil) && !phq9Answers.contains(nil)
     }
+}
+
+/// A filled-in questionnaire loaded back from the database.
+struct CompletedQuestionnaire: Identifiable {
+    let databaseID: DatabaseID
+    let answeredDate: Date
+    let questionnaire: CombinedMoodQuestionnaire
+
+    var id: DatabaseID { databaseID }
 }
