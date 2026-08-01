@@ -214,6 +214,9 @@ final class PatientStore {
 
     /// Saves a completed combined mood questionnaire for a session as a
     /// single row with the GAD-7 and PHQ-9 answers side by side.
+    ///
+    /// Upserts on `session_id`, so re-saving a session's questionnaire
+    /// updates its existing row instead of adding a duplicate.
     func saveQuestionnaire(_ questionnaire: CombinedMoodQuestionnaire,
                            for patient: Patient,
                            session: Session) async throws {
@@ -231,6 +234,8 @@ final class PatientStore {
             interferenceLevel: questionnaire.interferenceLevel,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes
         )
-        try await client.from(CombinedMoodQuestionnaire.tableName).insert(record).execute()
+        try await client.from(CombinedMoodQuestionnaire.tableName)
+            .upsert(record, onConflict: "session_id")
+            .execute()
     }
 }
