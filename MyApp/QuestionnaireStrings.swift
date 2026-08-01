@@ -15,21 +15,21 @@ enum QuestionnaireText {
     static let notesSectionTitle = "Notes (placeholder)"
     static let notesFieldPlaceholder = "Optional notes (placeholder)"
     static let scoreLabel = "Score (placeholder)"
-    static let answerKeyTitle = "Answer key (placeholder)"
+    static let answerKeyTitle = "מפתח תשובות"
 
     /// Descriptions of the shared 0–3 answer scale, indexed by answer value.
     static let answerDescriptions: [String] = [
-        "0 – Not at all (placeholder)",
-        "1 – Several days (placeholder)",
-        "2 – More than half the days (placeholder)",
-        "3 – Nearly every day (placeholder)",
+        "0 - כלל לא",
+        "1 - כמה ימים",
+        "2 - יותר ממחצית מהימים",
+        "3 - כמעט כל יום",
     ]
 
     // MARK: - GAD-7
 
-    static let gad7Title = "GAD-7 Questionnaire (placeholder)"
+    static let gad7Title = "GAD-7 שאלון לאבחון חרדה מוכללת"
     static let gad7MainQuestion =
-        "How much were you bothered by these in the past two weeks? (placeholder)"
+        "במהלך השבועיים האחרונים עד כמה היית מוטרד/ת מהנושאים הבאים?"
     static let gad7Questions: [String] = (1...7).map { "GAD-7 – Question \($0) (placeholder)" }
 
     static func label(for severity: GAD7Severity) -> String {
@@ -46,11 +46,11 @@ enum QuestionnaireText {
     static let phq9Title = "PHQ-9 Questionnaire (placeholder)"
     static let phq9Questions: [String] = (1...9).map { "PHQ-9 – Question \($0) (placeholder)" }
 
-    static let phq9ImpairmentQuestion =
+    static let phq9InterferenceQuestion =
         "If you noted any problems, how much did they interfere with doing your work, stuff at home, or getting along with other people? (placeholder)"
 
-    /// The four worded options for the impairment question, indexed by value.
-    static let phq9ImpairmentOptions: [String] = [
+    /// The four worded options for the interference question, indexed by value.
+    static let phq9InterferenceOptions: [String] = [
         "Not difficult at all (placeholder)",
         "Somewhat difficult (placeholder)",
         "Very difficult (placeholder)",

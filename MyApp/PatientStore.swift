@@ -51,15 +51,19 @@ private nonisolated struct NewSessionRecord: Encodable {
 private nonisolated struct NewQuestionnaireRecord: Encodable {
     let patientID: DatabaseID
     let sessionID: DatabaseID
+    let answeredDate: String
     let gad7Answers: [Int]
     let phq9Answers: [Int]
+    let interferenceLevel: Int?
     let notes: String?
 
     enum CodingKeys: String, CodingKey {
         case patientID = "patient_id"
         case sessionID = "session_id"
+        case answeredDate = "answered_date"
         case gad7Answers = "gad7_answers"
         case phq9Answers = "phq9_answers"
+        case interferenceLevel = "interference_level"
         case notes
     }
 }
@@ -221,8 +225,10 @@ final class PatientStore {
         let record = NewQuestionnaireRecord(
             patientID: patientID,
             sessionID: sessionID,
+            answeredDate: Self.dateOnlyFormatter.string(from: session.date),
             gad7Answers: questionnaire.gad7Answers.compactMap { $0 },
             phq9Answers: questionnaire.phq9Answers.compactMap { $0 },
+            interferenceLevel: questionnaire.interferenceLevel,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes
         )
         try await client.from(CombinedMoodQuestionnaire.tableName).insert(record).execute()

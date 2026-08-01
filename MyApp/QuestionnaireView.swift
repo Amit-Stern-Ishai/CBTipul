@@ -86,7 +86,7 @@ struct CombinedMoodQuestionnaireView: View {
                 )
             }
 
-            ImpairmentPicker(selection: $session.questionnaire.phq9Impairment)
+            InterferencePicker(selection: $session.questionnaire.interferenceLevel)
 
             ScoreRow(
                 score: session.questionnaire.phq9Score,
@@ -130,22 +130,22 @@ private struct AnswerKeyView: View {
     }
 }
 
-/// The PHQ-9 impairment question with its four worded options.
-private struct ImpairmentPicker: View {
+/// The PHQ-9 interference question with its four worded options.
+private struct InterferencePicker: View {
     @Binding var selection: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(QuestionnaireText.phq9ImpairmentQuestion)
+            Text(QuestionnaireText.phq9InterferenceQuestion)
                 .font(.headline)
 
-            ForEach(QuestionnaireText.phq9ImpairmentOptions.indices, id: \.self) { index in
+            ForEach(QuestionnaireText.phq9InterferenceOptions.indices, id: \.self) { index in
                 let isSelected = selection == index
                 Button {
                     selection = index
                 } label: {
                     HStack {
-                        Text(QuestionnaireText.phq9ImpairmentOptions[index])
+                        Text(QuestionnaireText.phq9InterferenceOptions[index])
                         Spacer()
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)

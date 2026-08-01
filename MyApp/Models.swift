@@ -149,9 +149,9 @@ struct CombinedMoodQuestionnaire {
 
     var gad7Answers: [Int?] = Array(repeating: nil, count: QuestionnaireText.gad7Questions.count)
     var phq9Answers: [Int?] = Array(repeating: nil, count: QuestionnaireText.phq9Questions.count)
-    /// Answer to the PHQ-9 functional-impairment question (0–3).
-    /// Currently kept locally only — not part of the saved row.
-    var phq9Impairment: Int?
+    /// Answer to the PHQ-9 interference question (0–3), saved to the
+    /// `interference_level` column.
+    var interferenceLevel: Int?
     var notes: String = ""
 
     var gad7Score: Int { gad7Answers.compactMap { $0 }.reduce(0, +) }
