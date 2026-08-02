@@ -20,6 +20,12 @@ struct PatientQuestionnairesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            Label(patient.displayName, systemImage: "person")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding([.horizontal, .top])
+
             Picker(QuestionnaireText.modePickerTitle, selection: $mode) {
                 Text(QuestionnaireText.listModeTitle).tag(Mode.list)
                 Text(QuestionnaireText.graphsModeTitle).tag(Mode.graphs)
@@ -31,7 +37,13 @@ struct PatientQuestionnairesView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle(QuestionnaireText.questionnairesTitle)
-        .task { await load() }
+        .task {
+            // Show the cache instantly, then refresh from the server.
+            if let cached = store.cachedQuestionnaires(for: patient) {
+                questionnaires = cached
+            }
+            await load()
+        }
     }
 
     @ViewBuilder
@@ -64,7 +76,7 @@ struct PatientQuestionnairesView: View {
     private var questionnaireList: some View {
         List(questionnaires) { record in
             NavigationLink {
-                CompletedQuestionnaireView(record: record)
+                CompletedQuestionnaireView(record: record, patientName: patient.displayName)
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(record.answeredDate, style: .date)

@@ -177,6 +177,7 @@ struct CombinedMoodQuestionnaire {
 /// A filled-in questionnaire loaded back from the database.
 struct CompletedQuestionnaire: Identifiable {
     let databaseID: DatabaseID
+    let sessionID: DatabaseID?
     let answeredDate: Date
     let questionnaire: CombinedMoodQuestionnaire
 

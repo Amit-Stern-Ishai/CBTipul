@@ -22,6 +22,11 @@ struct CombinedMoodQuestionnaireView: View {
 
     var body: some View {
         Form {
+            Section {
+                Label(patient.displayName, systemImage: "person")
+                    .foregroundStyle(.secondary)
+            }
+
             QuestionnaireSections(questionnaire: $session.questionnaire)
 
             Section(QuestionnaireText.notesSectionTitle) {
@@ -74,9 +79,17 @@ struct CombinedMoodQuestionnaireView: View {
 /// history list. Uses the same layout as the editing screen but ignores taps.
 struct CompletedQuestionnaireView: View {
     let record: CompletedQuestionnaire
+    var patientName: String? = nil
 
     var body: some View {
         Form {
+            if let patientName {
+                Section {
+                    Label(patientName, systemImage: "person")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             QuestionnaireSections(questionnaire: .constant(record.questionnaire))
 
             if !record.questionnaire.notes.isEmpty {
@@ -249,8 +262,9 @@ struct AnswerScaleView: View {
     NavigationStack {
         CompletedQuestionnaireView(record: CompletedQuestionnaire(
             databaseID: .integer(1),
+            sessionID: nil,
             answeredDate: .now,
             questionnaire: CombinedMoodQuestionnaire()
-        ))
+        ), patientName: "Alex Rivera")
     }
 }

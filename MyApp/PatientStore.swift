@@ -5,6 +5,7 @@ import Supabase
 enum PatientStoreError: LocalizedError {
     case patientNotSaved
     case sessionNotSaved
+    case updateRejected
 
     var errorDescription: String? {
         switch self {
@@ -12,6 +13,8 @@ enum PatientStoreError: LocalizedError {
             return "This patient hasn't been saved to the database yet."
         case .sessionNotSaved:
             return "This session hasn't been saved to the database yet."
+        case .updateRejected:
+            return "The server accepted the request but didn't change any row. Check the table's row-level security policies (UPDATE is likely missing)."
         }
     }
 }
@@ -98,9 +101,21 @@ private nonisolated struct SessionRow: Decodable {
     }
 }
 
+/// Row shape for updates of an existing `Sessions` row.
+private nonisolated struct UpdatedSessionRecord: Encodable {
+    let sessionDate: String
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case sessionDate = "session_date"
+        case notes
+    }
+}
+
 /// Row shape for selects from the combined questionnaire table.
 private nonisolated struct QuestionnaireRow: Decodable {
     let id: DatabaseID
+    let sessionID: DatabaseID?
     let answeredDate: String?
     let gad7Answers: [Int]?
     let phq9Answers: [Int]?
@@ -109,6 +124,7 @@ private nonisolated struct QuestionnaireRow: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case id
+        case sessionID = "session_id"
         case answeredDate = "answered_date"
         case gad7Answers = "gad7_answers"
         case phq9Answers = "phq9_answers"
@@ -128,8 +144,18 @@ final class PatientStore {
 
     var patients: [Patient] = []
 
+    /// Cache of each patient's saved questionnaires (newest first), keyed by
+    /// the patient's database ID. Filled by `loadQuestionnaires` and kept in
+    /// sync by `saveQuestionnaire`.
+    private(set) var questionnairesByPatient: [DatabaseID: [CompletedQuestionnaire]] = [:]
+
     init(client: SupabaseClient) {
         self.client = client
+    }
+
+    /// The cached questionnaires of a patient, if they were loaded before.
+    func cachedQuestionnaires(for patient: Patient) -> [CompletedQuestionnaire]? {
+        patient.databaseID.flatMap { questionnairesByPatient[$0] }
     }
 
     /// Replaces the in-memory patient list with the contents of the
@@ -231,6 +257,27 @@ final class PatientStore {
         patient.sessions.append(session)
     }
 
+    /// Persists date and notes changes of an already-saved session.
+    func updateSession(_ session: Session) async throws {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+
+        let trimmedNotes = session.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let record = UpdatedSessionRecord(
+            sessionDate: Self.dateOnlyFormatter.string(from: session.date),
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes
+        )
+        // Select the updated rows back: with row-level security a blocked
+        // update "succeeds" with zero rows, which must not pass as saved.
+        let updated: [InsertedRow] = try await client.from("Sessions")
+            .update(record)
+            .eq("id", value: sessionID.queryValue)
+            .select("id")
+            .execute()
+            .value
+        guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
+    }
+
     /// Saves a completed combined mood questionnaire for a session as a
     /// single row with the GAD-7 and PHQ-9 answers side by side.
     ///
@@ -253,24 +300,41 @@ final class PatientStore {
             interferenceLevel: questionnaire.interferenceLevel,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes
         )
-        try await client.from(CombinedMoodQuestionnaire.tableName)
+        let saved: InsertedRow = try await client.from(CombinedMoodQuestionnaire.tableName)
             .upsert(record, onConflict: "session_id")
+            .select("id")
+            .single()
             .execute()
+            .value
+
+        // Keep the cache in sync so the history views stay fresh offline.
+        let completed = CompletedQuestionnaire(
+            databaseID: saved.id,
+            sessionID: sessionID,
+            answeredDate: session.date,
+            questionnaire: questionnaire
+        )
+        var cached = questionnairesByPatient[patientID] ?? []
+        cached.removeAll { $0.sessionID == sessionID }
+        cached.append(completed)
+        cached.sort { $0.answeredDate > $1.answeredDate }
+        questionnairesByPatient[patientID] = cached
     }
 
-    /// Loads all saved questionnaires of a patient, newest first.
+    /// Loads all saved questionnaires of a patient, newest first, and
+    /// refreshes the cache.
     func loadQuestionnaires(for patient: Patient) async throws -> [CompletedQuestionnaire] {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
 
         let rows: [QuestionnaireRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
-            .select("id, answered_date, gad7_answers, phq9_answers, interference_level, notes")
+            .select("id, session_id, answered_date, gad7_answers, phq9_answers, interference_level, notes")
             .eq("patient_id", value: patientID.queryValue)
             .order("answered_date", ascending: false)
             .execute()
             .value
 
-        return rows.map { row in
+        let questionnaires = rows.map { row in
             var questionnaire = CombinedMoodQuestionnaire()
             questionnaire.gad7Answers = Self.paddedAnswers(row.gad7Answers, count: QuestionnaireText.gad7Questions.count)
             questionnaire.phq9Answers = Self.paddedAnswers(row.phq9Answers, count: QuestionnaireText.phq9Questions.count)
@@ -278,10 +342,13 @@ final class PatientStore {
             questionnaire.notes = row.notes ?? ""
             return CompletedQuestionnaire(
                 databaseID: row.id,
+                sessionID: row.sessionID,
                 answeredDate: row.answeredDate.map(parseDate) ?? .now,
                 questionnaire: questionnaire
             )
         }
+        questionnairesByPatient[patientID] = questionnaires
+        return questionnaires
     }
 
     /// Fits a stored answers array to the expected question count, padding

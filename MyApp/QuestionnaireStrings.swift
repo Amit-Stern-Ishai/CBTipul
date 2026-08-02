@@ -46,6 +46,9 @@ enum QuestionnaireText {
     static let gad7ShortName = "GAD-7 (placeholder)"
     static let phq9ShortName = "PHQ-9 (placeholder)"
 
+    static let questionnaireSectionTitle = "Questionnaire (placeholder)"
+    static let noQuestionnaireForSession = "No questionnaire for this session yet (placeholder)"
+
     // MARK: - GAD-7
 
     static let gad7Title = "GAD-7 שאלון לאבחון חרדה מוכללת"
