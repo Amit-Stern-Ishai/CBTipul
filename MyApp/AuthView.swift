@@ -68,6 +68,8 @@ struct AuthView: View {
                 Spacer()
             }
             .padding()
+            .contentShape(Rectangle())
+            .dismissesKeyboardOnTap()
             .overlay {
                 if isWorking { ProgressView() }
             }

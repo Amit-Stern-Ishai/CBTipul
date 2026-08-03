@@ -58,7 +58,7 @@ private nonisolated struct NewQuestionnaireRecord: Encodable {
     let gad7Answers: [Int]
     let phq9Answers: [Int]
     let interferenceLevel: Int?
-    let notes: String?
+    let combinedNotes: QuestionnaireNotes
 
     enum CodingKeys: String, CodingKey {
         case patientID = "patient_id"
@@ -67,7 +67,7 @@ private nonisolated struct NewQuestionnaireRecord: Encodable {
         case gad7Answers = "gad7_answers"
         case phq9Answers = "phq9_answers"
         case interferenceLevel = "interference_level"
-        case notes
+        case combinedNotes = "combined_notes"
     }
 }
 
@@ -120,7 +120,7 @@ private nonisolated struct QuestionnaireRow: Decodable {
     let gad7Answers: [Int]?
     let phq9Answers: [Int]?
     let interferenceLevel: Int?
-    let notes: String?
+    let combinedNotes: QuestionnaireNotes?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -129,7 +129,7 @@ private nonisolated struct QuestionnaireRow: Decodable {
         case gad7Answers = "gad7_answers"
         case phq9Answers = "phq9_answers"
         case interferenceLevel = "interference_level"
-        case notes
+        case combinedNotes = "combined_notes"
     }
 }
 
@@ -290,7 +290,6 @@ final class PatientStore {
         guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
-        let trimmedNotes = questionnaire.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let record = NewQuestionnaireRecord(
             patientID: patientID,
             sessionID: sessionID,
@@ -298,7 +297,11 @@ final class PatientStore {
             gad7Answers: questionnaire.gad7Answers.compactMap { $0 },
             phq9Answers: questionnaire.phq9Answers.compactMap { $0 },
             interferenceLevel: questionnaire.interferenceLevel,
-            notes: trimmedNotes.isEmpty ? nil : trimmedNotes
+            combinedNotes: QuestionnaireNotes(
+                gad7: questionnaire.gad7Notes.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
+                phq9: questionnaire.phq9Notes.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
+                interference: questionnaire.interferenceNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
         )
         let saved: InsertedRow = try await client.from(CombinedMoodQuestionnaire.tableName)
             .upsert(record, onConflict: "session_id")
@@ -328,7 +331,7 @@ final class PatientStore {
         guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
 
         let rows: [QuestionnaireRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
-            .select("id, session_id, answered_date, gad7_answers, phq9_answers, interference_level, notes")
+            .select("id, session_id, answered_date, gad7_answers, phq9_answers, interference_level, combined_notes")
             .eq("patient_id", value: patientID.queryValue)
             .order("answered_date", ascending: false)
             .execute()
@@ -339,7 +342,9 @@ final class PatientStore {
             questionnaire.gad7Answers = Self.paddedAnswers(row.gad7Answers, count: QuestionnaireText.gad7Questions.count)
             questionnaire.phq9Answers = Self.paddedAnswers(row.phq9Answers, count: QuestionnaireText.phq9Questions.count)
             questionnaire.interferenceLevel = row.interferenceLevel
-            questionnaire.notes = row.notes ?? ""
+            questionnaire.gad7Notes = Self.paddedNotes(row.combinedNotes?.gad7, count: QuestionnaireText.gad7Questions.count)
+            questionnaire.phq9Notes = Self.paddedNotes(row.combinedNotes?.phq9, count: QuestionnaireText.phq9Questions.count)
+            questionnaire.interferenceNote = row.combinedNotes?.interference ?? ""
             return CompletedQuestionnaire(
                 databaseID: row.id,
                 sessionID: row.sessionID,
@@ -349,6 +354,17 @@ final class PatientStore {
         }
         questionnairesByPatient[patientID] = questionnaires
         return questionnaires
+    }
+
+    /// Fits a stored notes array to the expected question count.
+    private static func paddedNotes(_ values: [String]?, count: Int) -> [String] {
+        var result = values ?? []
+        if result.count > count {
+            result.removeLast(result.count - count)
+        } else if result.count < count {
+            result.append(contentsOf: Array(repeating: "", count: count - result.count))
+        }
+        return result
     }
 
     /// Fits a stored answers array to the expected question count, padding

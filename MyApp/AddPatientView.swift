@@ -43,6 +43,7 @@ struct AddPatientView: View {
                     }
                 }
             }
+            .dismissesKeyboardOnTap()
             .navigationTitle("New Patient")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

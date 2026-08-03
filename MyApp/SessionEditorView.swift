@@ -16,8 +16,14 @@ struct SessionEditorView: View {
 
     @State private var isSaving = false
     @State private var errorMessage: String?
-    @State private var questionnaire: CompletedQuestionnaire?
     @State private var isLoadingQuestionnaire = false
+
+    /// This session's saved questionnaire, read live from the store's cache
+    /// so the section updates right after one is filled in and saved.
+    private var questionnaire: CompletedQuestionnaire? {
+        guard let sessionID = session.databaseID else { return nil }
+        return store.cachedQuestionnaires(for: patient)?.first { $0.sessionID == sessionID }
+    }
 
     var body: some View {
         NavigationStack {
@@ -48,6 +54,7 @@ struct SessionEditorView: View {
                     }
                 }
             }
+            .dismissesKeyboardOnTap()
             .navigationTitle(isNew ? "New Session" : "Session")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -69,8 +76,10 @@ struct SessionEditorView: View {
     private var questionnaireSection: some View {
         Section(QuestionnaireText.questionnaireSectionTitle) {
             if let questionnaire {
+                // Opens the editable questionnaire pre-filled with the saved
+                // answers; saving upserts the same row.
                 NavigationLink {
-                    CompletedQuestionnaireView(record: questionnaire, patientName: patient.displayName)
+                    CombinedMoodQuestionnaireView(patient: patient, session: session)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(questionnaire.answeredDate, style: .date)
@@ -83,31 +92,41 @@ struct SessionEditorView: View {
             } else if isLoadingQuestionnaire {
                 ProgressView()
             } else {
-                Text(QuestionnaireText.noQuestionnaireForSession)
-                    .foregroundStyle(.secondary)
+                NavigationLink {
+                    CombinedMoodQuestionnaireView(patient: patient, session: session)
+                } label: {
+                    Label(QuestionnaireText.addQuestionnaireAction, systemImage: "plus")
+                }
             }
         }
     }
 
-    /// Shows this session's questionnaire from the cache immediately, then
-    /// refreshes from the server in the background.
+    /// Refreshes the patient's questionnaire cache from the server; the
+    /// cached value is already shown while this runs.
     private func loadQuestionnaire() async {
-        guard !isNew, let sessionID = session.databaseID else { return }
+        guard !isNew, session.databaseID != nil else { return }
 
-        if let cached = store.cachedQuestionnaires(for: patient) {
-            questionnaire = cached.first { $0.sessionID == sessionID }
-        } else {
+        syncSessionQuestionnaire()
+        if store.cachedQuestionnaires(for: patient) == nil {
             isLoadingQuestionnaire = true
         }
-
         do {
-            let all = try await store.loadQuestionnaires(for: patient)
-            questionnaire = all.first { $0.sessionID == sessionID }
+            _ = try await store.loadQuestionnaires(for: patient)
         } catch {
-            // Keep whatever the cache had; the section shows the empty state
+            // Keep whatever the cache had; the section shows the add button
             // rather than blocking the editor on a failed refresh.
         }
         isLoadingQuestionnaire = false
+        syncSessionQuestionnaire()
+    }
+
+    /// Copies the saved answers onto the session's in-memory questionnaire so
+    /// editing starts from what was filled in before. Never overwrites
+    /// answers already entered in this run.
+    private func syncSessionQuestionnaire() {
+        if let record = questionnaire, session.questionnaire.isEmpty {
+            session.questionnaire = record.questionnaire
+        }
     }
 
     private func save() {

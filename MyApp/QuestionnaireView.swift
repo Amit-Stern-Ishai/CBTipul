@@ -27,14 +27,7 @@ struct CombinedMoodQuestionnaireView: View {
                     .foregroundStyle(.secondary)
             }
 
-            QuestionnaireSections(questionnaire: $session.questionnaire)
-
-            Section(QuestionnaireText.notesSectionTitle) {
-                TextField(QuestionnaireText.notesFieldPlaceholder,
-                          text: $session.questionnaire.notes,
-                          axis: .vertical)
-                    .lineLimit(3...8)
-            }
+            QuestionnaireSections(questionnaire: $session.questionnaire, isEditable: true)
 
             if let errorMessage {
                 Section {
@@ -76,7 +69,8 @@ struct CombinedMoodQuestionnaireView: View {
 }
 
 /// Read-only view of a saved questionnaire, opened from the questionnaire
-/// history list. Uses the same layout as the editing screen but ignores taps.
+/// history list. Uses the same layout as the editing screen (including the
+/// per-question notes) but without note icons, and taps change nothing.
 struct CompletedQuestionnaireView: View {
     let record: CompletedQuestionnaire
     var patientName: String? = nil
@@ -90,13 +84,7 @@ struct CompletedQuestionnaireView: View {
                 }
             }
 
-            QuestionnaireSections(questionnaire: .constant(record.questionnaire))
-
-            if !record.questionnaire.notes.isEmpty {
-                Section(QuestionnaireText.notesSectionTitle) {
-                    Text(record.questionnaire.notes)
-                }
-            }
+            QuestionnaireSections(questionnaire: .constant(record.questionnaire), isEditable: false)
         }
         .navigationTitle(record.answeredDate.formatted(date: .abbreviated, time: .omitted))
     }
@@ -106,6 +94,7 @@ struct CompletedQuestionnaireView: View {
 /// screens.
 private struct QuestionnaireSections: View {
     @Binding var questionnaire: CombinedMoodQuestionnaire
+    let isEditable: Bool
 
     var body: some View {
         Section(QuestionnaireText.gad7Title) {
@@ -117,7 +106,9 @@ private struct QuestionnaireSections: View {
             ForEach(QuestionnaireText.gad7Questions.indices, id: \.self) { index in
                 QuestionRow(
                     text: QuestionnaireText.gad7Questions[index],
-                    selection: $questionnaire.gad7Answers[index]
+                    selection: $questionnaire.gad7Answers[index],
+                    note: $questionnaire.gad7Notes[index],
+                    isEditable: isEditable
                 )
             }
 
@@ -131,11 +122,17 @@ private struct QuestionnaireSections: View {
             ForEach(QuestionnaireText.phq9Questions.indices, id: \.self) { index in
                 QuestionRow(
                     text: QuestionnaireText.phq9Questions[index],
-                    selection: $questionnaire.phq9Answers[index]
+                    selection: $questionnaire.phq9Answers[index],
+                    note: $questionnaire.phq9Notes[index],
+                    isEditable: isEditable
                 )
             }
 
-            InterferencePicker(selection: $questionnaire.interferenceLevel)
+            InterferencePicker(
+                selection: $questionnaire.interferenceLevel,
+                note: $questionnaire.interferenceNote,
+                isEditable: isEditable
+            )
 
             ScoreRow(
                 score: questionnaire.phq9Score,
@@ -165,14 +162,34 @@ private struct AnswerKeyView: View {
     }
 }
 
-/// The PHQ-9 interference question with its four worded options.
+/// The PHQ-9 interference question with its four worded options and note.
 private struct InterferencePicker: View {
     @Binding var selection: Int?
+    @Binding var note: String
+    let isEditable: Bool
+
+    @State private var isEditingNote = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(QuestionnaireText.phq9InterferenceQuestion)
-                .font(.headline)
+            HStack(alignment: .top) {
+                Text(QuestionnaireText.phq9InterferenceQuestion)
+                    .font(.headline)
+                Spacer()
+                if isEditable {
+                    Button {
+                        isEditingNote = true
+                    } label: {
+                        Image(systemName: note.isEmpty ? "square.and.pencil" : "note.text")
+                            .foregroundStyle(note.isEmpty ? Color.secondary : Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if !note.isEmpty {
+                NoteBox(note: note, onTap: isEditable ? { isEditingNote = true } : nil)
+            }
 
             ForEach(QuestionnaireText.phq9InterferenceOptions.indices, id: \.self) { index in
                 let isSelected = selection == index
@@ -191,6 +208,9 @@ private struct InterferencePicker: View {
             }
         }
         .padding(.vertical, 4)
+        .sheet(isPresented: $isEditingNote) {
+            QuestionNoteEditor(question: QuestionnaireText.phq9InterferenceQuestion, note: $note)
+        }
     }
 }
 
@@ -212,17 +232,110 @@ private struct ScoreRow: View {
     }
 }
 
-/// A single question with its 0–3 answer scale.
+/// A single question with its 0–3 answer scale and optional note.
+///
+/// In edit mode a note icon opens the note editor (tap again to change an
+/// existing note); the note itself is shown under the question in both modes.
 private struct QuestionRow: View {
     let text: String
     @Binding var selection: Int?
+    @Binding var note: String
+    let isEditable: Bool
+
+    @State private var isEditingNote = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(text)
+            HStack(alignment: .top) {
+                Text(text)
+                Spacer()
+                if isEditable {
+                    Button {
+                        isEditingNote = true
+                    } label: {
+                        Image(systemName: note.isEmpty ? "square.and.pencil" : "note.text")
+                            .foregroundStyle(note.isEmpty ? Color.secondary : Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if !note.isEmpty {
+                NoteBox(note: note, onTap: isEditable ? { isEditingNote = true } : nil)
+            }
+
             AnswerScaleView(selection: $selection)
         }
         .padding(.vertical, 4)
+        .sheet(isPresented: $isEditingNote) {
+            QuestionNoteEditor(question: text, note: $note)
+        }
+    }
+}
+
+/// The inline display of a question's note. In edit mode tapping it opens
+/// the note editor, same as the note icon.
+private struct NoteBox: View {
+    let note: String
+    var onTap: (() -> Void)? = nil
+
+    var body: some View {
+        if let onTap {
+            Button(action: onTap) { content }
+                .buttonStyle(.plain)
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
+        Text(note)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// Sheet for adding or editing the note of a single question.
+private struct QuestionNoteEditor: View {
+    let question: String
+    @Binding var note: String
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(question)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section(QuestionnaireText.questionNoteTitle) {
+                    TextField(QuestionnaireText.notesFieldPlaceholder, text: $draft, axis: .vertical)
+                        .lineLimit(4...10)
+                }
+            }
+            .dismissesKeyboardOnTap()
+            .navigationTitle(QuestionnaireText.questionNoteTitle)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        note = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear { draft = note }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -232,7 +345,8 @@ struct AnswerScaleView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            ForEach(CombinedMoodQuestionnaire.answerValues, id: \.self) { value in
+            // Highest value first so 0 ends up on the right.
+            ForEach(CombinedMoodQuestionnaire.answerValues.reversed(), id: \.self) { value in
                 let isSelected = selection == value
                 Button {
                     selection = value
@@ -259,12 +373,14 @@ struct AnswerScaleView: View {
 }
 
 #Preview("Read-only") {
-    NavigationStack {
+    var questionnaire = CombinedMoodQuestionnaire()
+    questionnaire.gad7Notes[0] = "Example note for the first question."
+    return NavigationStack {
         CompletedQuestionnaireView(record: CompletedQuestionnaire(
             databaseID: .integer(1),
             sessionID: nil,
             answeredDate: .now,
-            questionnaire: CombinedMoodQuestionnaire()
+            questionnaire: questionnaire
         ), patientName: "Alex Rivera")
     }
 }

@@ -14,6 +14,7 @@ enum QuestionnaireText {
     static let addQuestionnaireAction = "מלא שאלון"
     static let notesSectionTitle = "Notes (placeholder)"
     static let notesFieldPlaceholder = "Optional notes (placeholder)"
+    static let questionNoteTitle = "Question Note (placeholder)"
     static let scoreLabel = "Score (placeholder)"
     static let answerKeyTitle = "מפתח תשובות"
 

@@ -160,7 +160,12 @@ struct CombinedMoodQuestionnaire {
     /// Answer to the PHQ-9 interference question (0–3), saved to the
     /// `interference_level` column.
     var interferenceLevel: Int?
-    var notes: String = ""
+    /// Per-question notes, one slot per question (empty string = no note).
+    /// Saved together as the `combined_notes` JSON column.
+    var gad7Notes: [String] = Array(repeating: "", count: QuestionnaireText.gad7Questions.count)
+    var phq9Notes: [String] = Array(repeating: "", count: QuestionnaireText.phq9Questions.count)
+    /// Note for the PHQ-9 interference question, stored alongside the others.
+    var interferenceNote: String = ""
 
     var gad7Score: Int { gad7Answers.compactMap { $0 }.reduce(0, +) }
     var phq9Score: Int { phq9Answers.compactMap { $0 }.reduce(0, +) }
@@ -172,6 +177,21 @@ struct CombinedMoodQuestionnaire {
     var isComplete: Bool {
         !gad7Answers.contains(nil) && !phq9Answers.contains(nil)
     }
+
+    /// True while nothing has been filled in yet.
+    var isEmpty: Bool {
+        gad7Answers.allSatisfy { $0 == nil }
+            && phq9Answers.allSatisfy { $0 == nil }
+            && interferenceLevel == nil
+    }
+}
+
+/// JSON payload of the `combined_notes` column: one note per question, plus
+/// one for the interference question.
+nonisolated struct QuestionnaireNotes: Codable {
+    let gad7: [String]
+    let phq9: [String]
+    let interference: String?
 }
 
 /// A filled-in questionnaire loaded back from the database.
