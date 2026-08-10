@@ -20,6 +20,14 @@ struct CombinedMoodQuestionnaireView: View {
         session.questionnaire.isComplete && !isSaving
     }
 
+    /// The patient's most recent questionnaire from before this session,
+    /// used to indicate the previous answers alongside each question.
+    private var previousQuestionnaire: CombinedMoodQuestionnaire? {
+        guard let cached = store.cachedQuestionnaires(for: patient) else { return nil }
+        let sessionDay = Calendar.current.startOfDay(for: session.date)
+        return cached.first { $0.sessionID != session.databaseID && $0.answeredDate < sessionDay }?.questionnaire
+    }
+
     var body: some View {
         Form {
             Section {
@@ -27,7 +35,11 @@ struct CombinedMoodQuestionnaireView: View {
                     .foregroundStyle(.secondary)
             }
 
-            QuestionnaireSections(questionnaire: $session.questionnaire, isEditable: true)
+            QuestionnaireSections(
+                questionnaire: $session.questionnaire,
+                isEditable: true,
+                previous: previousQuestionnaire
+            )
 
             if let errorMessage {
                 Section {
@@ -50,6 +62,13 @@ struct CombinedMoodQuestionnaireView: View {
         }
         .overlay {
             if isSaving { ProgressView() }
+        }
+        .task {
+            // Make sure the previous questionnaire is available when this
+            // screen is opened before the cache was ever filled.
+            if store.cachedQuestionnaires(for: patient) == nil {
+                _ = try? await store.loadQuestionnaires(for: patient)
+            }
         }
     }
 
@@ -74,6 +93,8 @@ struct CombinedMoodQuestionnaireView: View {
 struct CompletedQuestionnaireView: View {
     let record: CompletedQuestionnaire
     var patientName: String? = nil
+    /// The questionnaire preceding this one, for the previous-answer marks.
+    var previous: CombinedMoodQuestionnaire? = nil
 
     var body: some View {
         Form {
@@ -84,7 +105,11 @@ struct CompletedQuestionnaireView: View {
                 }
             }
 
-            QuestionnaireSections(questionnaire: .constant(record.questionnaire), isEditable: false)
+            QuestionnaireSections(
+                questionnaire: .constant(record.questionnaire),
+                isEditable: false,
+                previous: previous
+            )
         }
         .navigationTitle(record.answeredDate.formatted(date: .abbreviated, time: .omitted))
     }
@@ -95,10 +120,16 @@ struct CompletedQuestionnaireView: View {
 private struct QuestionnaireSections: View {
     @Binding var questionnaire: CombinedMoodQuestionnaire
     let isEditable: Bool
+    var previous: CombinedMoodQuestionnaire? = nil
+
+    private func previousAnswer(_ answers: [Int?]?, at index: Int) -> Int? {
+        guard let answers, answers.indices.contains(index) else { return nil }
+        return answers[index]
+    }
 
     var body: some View {
         Section(QuestionnaireText.gad7Title) {
-            AnswerKeyView()
+            AnswerKeyView(showsPreviousLegend: previous != nil)
 
             Text(QuestionnaireText.gad7MainQuestion)
                 .font(.headline)
@@ -108,13 +139,15 @@ private struct QuestionnaireSections: View {
                     text: QuestionnaireText.gad7Questions[index],
                     selection: $questionnaire.gad7Answers[index],
                     note: $questionnaire.gad7Notes[index],
-                    isEditable: isEditable
+                    isEditable: isEditable,
+                    previousAnswer: previousAnswer(previous?.gad7Answers, at: index)
                 )
             }
 
             ScoreRow(
                 score: questionnaire.gad7Score,
-                classification: QuestionnaireText.label(for: questionnaire.gad7Severity)
+                classification: QuestionnaireText.label(for: questionnaire.gad7Severity),
+                previousScore: previous?.gad7Score
             )
         }
 
@@ -124,19 +157,22 @@ private struct QuestionnaireSections: View {
                     text: QuestionnaireText.phq9Questions[index],
                     selection: $questionnaire.phq9Answers[index],
                     note: $questionnaire.phq9Notes[index],
-                    isEditable: isEditable
+                    isEditable: isEditable,
+                    previousAnswer: previousAnswer(previous?.phq9Answers, at: index)
                 )
             }
 
             InterferencePicker(
                 selection: $questionnaire.interferenceLevel,
                 note: $questionnaire.interferenceNote,
-                isEditable: isEditable
+                isEditable: isEditable,
+                previousSelection: previous?.interferenceLevel
             )
 
             ScoreRow(
                 score: questionnaire.phq9Score,
-                classification: QuestionnaireText.label(for: questionnaire.phq9Severity)
+                classification: QuestionnaireText.label(for: questionnaire.phq9Severity),
+                previousScore: previous?.phq9Score
             )
 
             Text(QuestionnaireText.suggestion(for: questionnaire.phq9Severity))
@@ -148,6 +184,8 @@ private struct QuestionnaireSections: View {
 
 /// Legend explaining what each 0–3 answer value means.
 private struct AnswerKeyView: View {
+    var showsPreviousLegend = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(QuestionnaireText.answerKeyTitle)
@@ -156,6 +194,11 @@ private struct AnswerKeyView: View {
                 Text(QuestionnaireText.answerDescriptions[index])
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+            if showsPreviousLegend {
+                Text(QuestionnaireText.previousAnswerLegend)
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
             }
         }
         .padding(.vertical, 4)
@@ -167,6 +210,7 @@ private struct InterferencePicker: View {
     @Binding var selection: Int?
     @Binding var note: String
     let isEditable: Bool
+    var previousSelection: Int? = nil
 
     @State private var isEditingNote = false
 
@@ -198,6 +242,11 @@ private struct InterferencePicker: View {
                 } label: {
                     HStack {
                         Text(QuestionnaireText.phq9InterferenceOptions[index])
+                        if previousSelection == index {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.footnote)
+                                .foregroundStyle(.orange)
+                        }
                         Spacer()
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
@@ -214,15 +263,24 @@ private struct InterferencePicker: View {
     }
 }
 
-/// The live sum of a questionnaire part with its classification next to it.
+/// The live sum of a questionnaire part with its classification next to it,
+/// plus the previous questionnaire's sum when known.
 private struct ScoreRow: View {
     let score: Int
     let classification: String
+    var previousScore: Int? = nil
 
     var body: some View {
         HStack {
-            Text("\(QuestionnaireText.scoreLabel): \(score)")
-                .font(.headline)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(QuestionnaireText.scoreLabel): \(score)")
+                    .font(.headline)
+                if let previousScore {
+                    Text("\(QuestionnaireText.previousScoreLabel): \(previousScore)")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                }
+            }
             Spacer()
             Text(classification)
                 .font(.subheadline)
@@ -241,6 +299,7 @@ private struct QuestionRow: View {
     @Binding var selection: Int?
     @Binding var note: String
     let isEditable: Bool
+    var previousAnswer: Int? = nil
 
     @State private var isEditingNote = false
 
@@ -264,7 +323,7 @@ private struct QuestionRow: View {
                 NoteBox(note: note, onTap: isEditable ? { isEditingNote = true } : nil)
             }
 
-            AnswerScaleView(selection: $selection)
+            AnswerScaleView(selection: $selection, previousValue: previousAnswer)
         }
         .padding(.vertical, 4)
         .sheet(isPresented: $isEditingNote) {
@@ -340,8 +399,10 @@ private struct QuestionNoteEditor: View {
 }
 
 /// A segmented 0...3 selector that shows an unanswered state when nil.
+/// The previous questionnaire's answer, when known, is outlined.
 struct AnswerScaleView: View {
     @Binding var selection: Int?
+    var previousValue: Int? = nil
 
     var body: some View {
         HStack(spacing: 8) {
@@ -358,6 +419,12 @@ struct AnswerScaleView: View {
                         .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.15))
                         .foregroundStyle(isSelected ? Color.white : Color.primary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay {
+                            if previousValue == value {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(Color.orange, lineWidth: 2)
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
             }

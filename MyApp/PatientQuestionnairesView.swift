@@ -73,10 +73,19 @@ struct PatientQuestionnairesView: View {
         }
     }
 
+    /// The most recent questionnaire answered before the given one.
+    private func previousQuestionnaire(before record: CompletedQuestionnaire) -> CombinedMoodQuestionnaire? {
+        questionnaires.first { $0.id != record.id && $0.answeredDate < record.answeredDate }?.questionnaire
+    }
+
     private var questionnaireList: some View {
         List(questionnaires) { record in
             NavigationLink {
-                CompletedQuestionnaireView(record: record, patientName: patient.displayName)
+                CompletedQuestionnaireView(
+                    record: record,
+                    patientName: patient.displayName,
+                    previous: previousQuestionnaire(before: record)
+                )
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(record.answeredDate, style: .date)

@@ -48,6 +48,10 @@ enum QuestionnaireText {
     static let phq9ShortName = "PHQ-9 (placeholder)"
 
     static let questionnaireSectionTitle = "Questionnaire (placeholder)"
+
+    /// Indications of the previous questionnaire's answers.
+    static let previousAnswerLegend = "Outlined value = answer from the previous questionnaire (placeholder)"
+    static let previousScoreLabel = "Previous (placeholder)"
     static let noQuestionnaireForSession = "No questionnaire for this session yet (placeholder)"
 
     // MARK: - GAD-7
