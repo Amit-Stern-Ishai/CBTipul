@@ -74,8 +74,8 @@ struct PatientQuestionnairesView: View {
     }
 
     /// The most recent questionnaire answered before the given one.
-    private func previousQuestionnaire(before record: CompletedQuestionnaire) -> CombinedMoodQuestionnaire? {
-        questionnaires.first { $0.id != record.id && $0.answeredDate < record.answeredDate }?.questionnaire
+    private func previousQuestionnaire(before record: CompletedQuestionnaire) -> CompletedQuestionnaire? {
+        questionnaires.first { $0.id != record.id && $0.answeredDate < record.answeredDate }
     }
 
     private var questionnaireList: some View {

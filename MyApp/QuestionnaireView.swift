@@ -22,10 +22,10 @@ struct CombinedMoodQuestionnaireView: View {
 
     /// The patient's most recent questionnaire from before this session,
     /// used to indicate the previous answers alongside each question.
-    private var previousQuestionnaire: CombinedMoodQuestionnaire? {
+    private var previousQuestionnaire: CompletedQuestionnaire? {
         guard let cached = store.cachedQuestionnaires(for: patient) else { return nil }
         let sessionDay = Calendar.current.startOfDay(for: session.date)
-        return cached.first { $0.sessionID != session.databaseID && $0.answeredDate < sessionDay }?.questionnaire
+        return cached.first { $0.sessionID != session.databaseID && $0.answeredDate < sessionDay }
     }
 
     var body: some View {
@@ -94,7 +94,7 @@ struct CompletedQuestionnaireView: View {
     let record: CompletedQuestionnaire
     var patientName: String? = nil
     /// The questionnaire preceding this one, for the previous-answer marks.
-    var previous: CombinedMoodQuestionnaire? = nil
+    var previous: CompletedQuestionnaire? = nil
 
     var body: some View {
         Form {
@@ -120,7 +120,7 @@ struct CompletedQuestionnaireView: View {
 private struct QuestionnaireSections: View {
     @Binding var questionnaire: CombinedMoodQuestionnaire
     let isEditable: Bool
-    var previous: CombinedMoodQuestionnaire? = nil
+    var previous: CompletedQuestionnaire? = nil
 
     private func previousAnswer(_ answers: [Int?]?, at index: Int) -> Int? {
         guard let answers, answers.indices.contains(index) else { return nil }
@@ -129,7 +129,7 @@ private struct QuestionnaireSections: View {
 
     var body: some View {
         Section(QuestionnaireText.gad7Title) {
-            AnswerKeyView(showsPreviousLegend: previous != nil)
+            AnswerKeyView(previousDate: previous?.answeredDate)
 
             Text(QuestionnaireText.gad7MainQuestion)
                 .font(.headline)
@@ -140,14 +140,15 @@ private struct QuestionnaireSections: View {
                     selection: $questionnaire.gad7Answers[index],
                     note: $questionnaire.gad7Notes[index],
                     isEditable: isEditable,
-                    previousAnswer: previousAnswer(previous?.gad7Answers, at: index)
+                    previousAnswer: previousAnswer(previous?.questionnaire.gad7Answers, at: index)
                 )
             }
 
             ScoreRow(
                 score: questionnaire.gad7Score,
                 classification: QuestionnaireText.label(for: questionnaire.gad7Severity),
-                previousScore: previous?.gad7Score
+                previousScore: previous?.questionnaire.gad7Score,
+                previousDate: previous?.answeredDate
             )
         }
 
@@ -158,7 +159,7 @@ private struct QuestionnaireSections: View {
                     selection: $questionnaire.phq9Answers[index],
                     note: $questionnaire.phq9Notes[index],
                     isEditable: isEditable,
-                    previousAnswer: previousAnswer(previous?.phq9Answers, at: index)
+                    previousAnswer: previousAnswer(previous?.questionnaire.phq9Answers, at: index)
                 )
             }
 
@@ -166,13 +167,14 @@ private struct QuestionnaireSections: View {
                 selection: $questionnaire.interferenceLevel,
                 note: $questionnaire.interferenceNote,
                 isEditable: isEditable,
-                previousSelection: previous?.interferenceLevel
+                previousSelection: previous?.questionnaire.interferenceLevel
             )
 
             ScoreRow(
                 score: questionnaire.phq9Score,
                 classification: QuestionnaireText.label(for: questionnaire.phq9Severity),
-                previousScore: previous?.phq9Score
+                previousScore: previous?.questionnaire.phq9Score,
+                previousDate: previous?.answeredDate
             )
 
             Text(QuestionnaireText.suggestion(for: questionnaire.phq9Severity))
@@ -184,7 +186,7 @@ private struct QuestionnaireSections: View {
 
 /// Legend explaining what each 0–3 answer value means.
 private struct AnswerKeyView: View {
-    var showsPreviousLegend = false
+    var previousDate: Date? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -195,10 +197,12 @@ private struct AnswerKeyView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            if showsPreviousLegend {
-                Text(QuestionnaireText.previousAnswerLegend)
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
+            if let previousDate {
+                Text(QuestionnaireText.previousAnswerLegend(
+                    dateText: previousDate.formatted(date: .abbreviated, time: .omitted)
+                ))
+                .font(.footnote)
+                .foregroundStyle(.orange)
             }
         }
         .padding(.vertical, 4)
@@ -269,14 +273,15 @@ private struct ScoreRow: View {
     let score: Int
     let classification: String
     var previousScore: Int? = nil
+    var previousDate: Date? = nil
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(QuestionnaireText.scoreLabel): \(score)")
                     .font(.headline)
-                if let previousScore {
-                    Text("\(QuestionnaireText.previousScoreLabel): \(previousScore)")
+                if let previousScore, let previousDate {
+                    Text("\(QuestionnaireText.previousScoreLabel(dateText: previousDate.formatted(date: .abbreviated, time: .omitted))): \(previousScore)")
                         .font(.footnote)
                         .foregroundStyle(.orange)
                 }

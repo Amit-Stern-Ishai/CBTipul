@@ -50,8 +50,13 @@ enum QuestionnaireText {
     static let questionnaireSectionTitle = "Questionnaire (placeholder)"
 
     /// Indications of the previous questionnaire's answers.
-    static let previousAnswerLegend = "Outlined value = answer from the previous questionnaire (placeholder)"
-    static let previousScoreLabel = "Previous (placeholder)"
+    static func previousAnswerLegend(dateText: String) -> String {
+        "Outlined value = answer from the previous questionnaire, \(dateText) (placeholder)"
+    }
+
+    static func previousScoreLabel(dateText: String) -> String {
+        "Previous, \(dateText) (placeholder)"
+    }
     static let noQuestionnaireForSession = "No questionnaire for this session yet (placeholder)"
 
     // MARK: - GAD-7
