@@ -17,6 +17,8 @@ struct SessionEditorView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var isLoadingQuestionnaire = false
+    @State private var voiceRecorder = VoiceNoteRecorder()
+    @State private var isTranscribing = false
 
     /// This session's saved questionnaire, read live from the store's cache
     /// so the section updates right after one is filled in and saved.
@@ -41,6 +43,8 @@ struct SessionEditorView: View {
                     TextField("Optional notes", text: $session.notes, axis: .vertical)
                         .lineLimit(3...8)
                 }
+
+                voiceNoteSection
 
                 if !isNew {
                     questionnaireSection
@@ -70,6 +74,111 @@ struct SessionEditorView: View {
                 if isSaving { ProgressView() }
             }
             .task { await loadQuestionnaire() }
+        }
+    }
+
+    /// Records, plays back, and discards a voice note for the session.
+    /// Transcription (Whisper) will be attached to the recorded file next.
+    private var voiceNoteSection: some View {
+        Section(QuestionnaireText.voiceNoteSectionTitle) {
+            if voiceRecorder.isRecording {
+                HStack {
+                    Label(QuestionnaireText.recordingLabel, systemImage: "waveform")
+                        .foregroundStyle(.red)
+                    Spacer()
+                    Text(formattedDuration)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    Button {
+                        voiceRecorder.stopRecording()
+                    } label: {
+                        Image(systemName: "stop.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else if voiceRecorder.recordingURL != nil {
+                HStack {
+                    Button {
+                        voiceRecorder.togglePlayback()
+                    } label: {
+                        Image(systemName: voiceRecorder.isPlaying ? "stop.circle.fill" : "play.circle.fill")
+                            .font(.title2)
+                    }
+                    .buttonStyle(.plain)
+
+                    Text("\(QuestionnaireText.voiceNoteLabel) (\(formattedDuration))")
+
+                    Spacer()
+
+                    Button {
+                        voiceRecorder.discard()
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if isTranscribing {
+                    HStack {
+                        ProgressView()
+                        Text(QuestionnaireText.transcribingLabel)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Button {
+                        transcribe()
+                    } label: {
+                        Label(QuestionnaireText.transcribeAction, systemImage: "text.bubble")
+                    }
+                }
+            } else {
+                Button {
+                    Task { await voiceRecorder.startRecording() }
+                } label: {
+                    Label(QuestionnaireText.recordVoiceNoteAction, systemImage: "mic.fill")
+                }
+            }
+
+            if let recorderError = voiceRecorder.errorMessage {
+                Text(recorderError)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    private var formattedDuration: String {
+        Duration.seconds(voiceRecorder.duration)
+            .formatted(.time(pattern: .minuteSecond))
+    }
+
+    /// Sends the recorded voice note to Whisper and appends the resulting
+    /// text to the notes field, wrapped in marker lines.
+    private func transcribe() {
+        guard let fileURL = voiceRecorder.recordingURL else { return }
+        voiceRecorder.errorMessage = nil
+        isTranscribing = true
+        Task {
+            do {
+                let text = try await WhisperService.transcribe(fileURL: fileURL)
+                appendTranscription(text)
+            } catch {
+                voiceRecorder.errorMessage = error.localizedDescription
+            }
+            isTranscribing = false
+        }
+    }
+
+    private func appendTranscription(_ text: String) {
+        let timeText = Date.now.formatted(date: .numeric, time: .shortened)
+        let block = "\(QuestionnaireText.transcriptionHeader(timeText: timeText))\n\(text)"
+        if session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            session.notes = block
+        } else {
+            session.notes += "\n\n" + block
         }
     }
 

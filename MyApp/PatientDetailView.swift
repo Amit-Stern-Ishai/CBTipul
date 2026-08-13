@@ -45,6 +45,12 @@ struct PatientDetailView: View {
                 } label: {
                     Label(QuestionnaireText.viewQuestionnairesAction, systemImage: "chart.xyaxis.line")
                 }
+
+                NavigationLink {
+                    PatientAIView(patient: patient)
+                } label: {
+                    Label(QuestionnaireText.aiAction, systemImage: "sparkles")
+                }
             }
 
             Section("Sessions") {

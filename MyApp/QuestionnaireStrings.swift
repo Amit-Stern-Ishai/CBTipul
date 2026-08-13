@@ -14,7 +14,7 @@ enum QuestionnaireText {
     static let addQuestionnaireAction = "מלא שאלון"
     static let notesSectionTitle = "הערות"
     static let notesFieldPlaceholder = "הערות"
-    static let questionNoteTitle = "Question Note (placeholder)"
+    static let questionNoteTitle = "Question Note"
     static let scoreLabel = "ציון כולל"
     static let answerKeyTitle = "מפתח תשובות"
 
@@ -26,6 +26,34 @@ enum QuestionnaireText {
         "3 - כמעט כל יום",
     ]
 
+    // MARK: - Voice note
+
+    static let voiceNoteSectionTitle = "Voice Note"
+    static let recordVoiceNoteAction = "Record Voice Note"
+    static let recordingLabel = "Recording…"
+    static let voiceNoteLabel = "Voice note"
+    static let micPermissionDenied = "Microphone access is required to record. Enable it in Settings."
+    static let transcribeAction = "Transcribe"
+    static let transcribingLabel = "Transcribing…"
+    /// Header line inserted above transcribed text in the notes field.
+    static func transcriptionHeader(timeText: String) -> String {
+        "מהקלטה ב- \(timeText)"
+    }
+
+    // MARK: - AI assistant
+
+    static let aiTitle = "AI Assistant"
+    static let aiAction = "AI Assistant"
+    static let aiModePickerTitle = "Mode"
+    static let aiModeInsights = "Insights"
+    static let aiModeQuestionnaires = "Questionnaires"
+    static let aiModeGeneral = "General"
+    static let aiPromptPlaceholder = "Your question"
+    static let aiGenerateInsightsAction = "Generate Insights"
+    static let aiAskAction = "Ask"
+    static let aiThinkingLabel = "Thinking…"
+    static let aiResponseTitle = "Response"
+
     // MARK: - Questionnaire history
 
     static let viewQuestionnairesAction = "שאלונים"
@@ -36,7 +64,7 @@ enum QuestionnaireText {
     static let noQuestionnairesMessage = "אין שאלונים עדיין"
     static let loadErrorTitle = "לא הצלחתי לטעון שאלונים"
     static let retryAction = "נסה שנית"
-    static let metricPickerTitle = "Show (placeholder)"
+    static let metricPickerTitle = "Show"
     static let totalOptionLabel = "ציון כולל"
 
     static func questionOptionLabel(_ number: Int) -> String {
@@ -47,7 +75,7 @@ enum QuestionnaireText {
     static let gad7ShortName = "GAD-7"
     static let phq9ShortName = "PHQ-9"
 
-    static let questionnaireSectionTitle = "Questionnaire (placeholder)"
+    static let questionnaireSectionTitle = "Questionnaire"
 
     /// Indications of the previous questionnaire's answers.
 //    static func previousAnswerLegend(dateText: String) -> String {
@@ -76,7 +104,7 @@ enum QuestionnaireText {
     }
     
     static func previousScoreLabel(dateText: String) -> String {
-        "Previous, \(dateText) (placeholder)"
+        "Previous, \(dateText)"
     }
     static let noQuestionnaireForSession = "אין שאלונים לפגישה זו"
 
