@@ -356,6 +356,60 @@ final class PatientStore {
         return questionnaires
     }
 
+    /// Name of the Supabase Storage bucket holding session images. Images
+    /// live in one folder per session: `<session id>/<uuid>.jpg`.
+    private static let sessionImagesBucket = "session-images"
+
+    /// Cache of downloaded session images (file name + JPEG data), keyed by
+    /// session database ID.
+    private(set) var sessionImagesCache: [DatabaseID: [(fileName: String, data: Data)]] = [:]
+
+    /// The cached images of a session, if they were loaded before.
+    func cachedSessionImages(for session: Session) -> [(fileName: String, data: Data)]? {
+        session.databaseID.flatMap { sessionImagesCache[$0] }
+    }
+
+    /// Downloads all images stored for a session and refreshes the cache.
+    func loadSessionImages(for session: Session) async throws -> [(fileName: String, data: Data)] {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+
+        let folder = sessionID.queryValue
+        let bucket = client.storage.from(Self.sessionImagesBucket)
+        let files = try await bucket.list(path: folder)
+
+        var images: [(fileName: String, data: Data)] = []
+        for file in files where file.name.lowercased().hasSuffix(".jpg") {
+            let data = try await bucket.download(path: "\(folder)/\(file.name)")
+            images.append((file.name, data))
+        }
+        sessionImagesCache[sessionID] = images
+        return images
+    }
+
+    /// Uploads one session image and adds it to the cache.
+    func uploadSessionImage(_ data: Data, fileName: String, for session: Session) async throws {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+
+        _ = try await client.storage.from(Self.sessionImagesBucket).upload(
+            "\(sessionID.queryValue)/\(fileName)",
+            data: data,
+            options: FileOptions(contentType: "image/jpeg")
+        )
+        sessionImagesCache[sessionID, default: []].append((fileName, data))
+    }
+
+    /// Deletes one stored session image and removes it from the cache.
+    func deleteSessionImage(fileName: String, for session: Session) async throws {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+
+        _ = try await client.storage.from(Self.sessionImagesBucket)
+            .remove(paths: ["\(sessionID.queryValue)/\(fileName)"])
+        sessionImagesCache[sessionID]?.removeAll { $0.fileName == fileName }
+    }
+
     /// Fits a stored notes array to the expected question count.
     private static func paddedNotes(_ values: [String]?, count: Int) -> [String] {
         var result = values ?? []

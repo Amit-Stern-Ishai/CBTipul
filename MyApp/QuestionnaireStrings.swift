@@ -40,6 +40,18 @@ enum QuestionnaireText {
         "מהקלטה ב- \(timeText)"
     }
 
+    // MARK: - Session images
+
+    static let imagesSectionTitle = "Images (placeholder)"
+    static let uploadDocumentAction = "Upload Document (placeholder)"
+    static let addImageFromLibraryAction = "Add from Library (placeholder)"
+    static let takePhotoAction = "Take Photo (placeholder)"
+
+    /// Header line inserted above text extracted from an image.
+    static func imageTranscriptionHeader(dateText: String) -> String {
+        "מתמונה בתאריך \(dateText)"
+    }
+
     // MARK: - AI assistant
 
     static let aiTitle = "AI Assistant"

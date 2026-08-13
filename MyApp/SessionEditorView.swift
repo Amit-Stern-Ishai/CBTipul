@@ -1,4 +1,15 @@
 import SwiftUI
+import PhotosUI
+
+/// One image attached to the session, either freshly picked or loaded from
+/// Supabase Storage.
+private struct SessionImageItem: Identifiable {
+    let id = UUID()
+    let fileName: String
+    let uiImage: UIImage
+    let data: Data
+    var isUploaded: Bool
+}
 
 /// Editor for a session's date and notes.
 ///
@@ -19,6 +30,15 @@ struct SessionEditorView: View {
     @State private var isLoadingQuestionnaire = false
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
+
+    @State private var images: [SessionImageItem] = []
+    @State private var removedUploadedFileNames: [String] = []
+    @State private var photoSelection: [PhotosPickerItem] = []
+    @State private var isShowingCamera = false
+    @State private var isShowingUploadOptions = false
+    @State private var isShowingPhotoPicker = false
+    @State private var isLoadingImages = false
+    @State private var viewerItem: SessionImageItem?
 
     /// This session's saved questionnaire, read live from the store's cache
     /// so the section updates right after one is filled in and saved.
@@ -45,6 +65,8 @@ struct SessionEditorView: View {
                 }
 
                 voiceNoteSection
+
+                imagesSection
 
                 if !isNew {
                     questionnaireSection
@@ -74,6 +96,167 @@ struct SessionEditorView: View {
                 if isSaving { ProgressView() }
             }
             .task { await loadQuestionnaire() }
+            .task { await loadImages() }
+            .onChange(of: photoSelection) { _, items in
+                guard !items.isEmpty else { return }
+                photoSelection = []
+                Task {
+                    for item in items {
+                        if let data = try? await item.loadTransferable(type: Data.self),
+                           let image = UIImage(data: data) {
+                            addImage(image)
+                        }
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $isShowingCamera) {
+                CameraPicker { image in
+                    addImage(image)
+                }
+                .ignoresSafeArea()
+            }
+            .fullScreenCover(item: $viewerItem) { item in
+                SessionImageViewer(image: item.uiImage) { edited in
+                    replaceImage(item, with: edited)
+                } onTranscribed: { text in
+                    appendImageTranscription(text)
+                }
+            }
+        }
+    }
+
+    /// Picked and stored images for this session, with add/delete controls.
+    /// Changes are pushed to Supabase Storage when the session is saved.
+    private var imagesSection: some View {
+        Section(QuestionnaireText.imagesSectionTitle) {
+            if isLoadingImages {
+                ProgressView()
+            }
+
+            if !images.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 12) {
+                        ForEach(images) { item in
+                            ZStack(alignment: .topTrailing) {
+                                Button {
+                                    viewerItem = item
+                                } label: {
+                                    Image(uiImage: item.uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 96, height: 96)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                }
+                                .buttonStyle(.plain)
+                                Button {
+                                    removeImage(item)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.white, .black.opacity(0.6))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(4)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            Button {
+                isShowingUploadOptions = true
+            } label: {
+                Label(QuestionnaireText.uploadDocumentAction, systemImage: "doc.badge.plus")
+            }
+            .confirmationDialog(QuestionnaireText.uploadDocumentAction,
+                                isPresented: $isShowingUploadOptions,
+                                titleVisibility: .hidden) {
+                Button(QuestionnaireText.addImageFromLibraryAction) {
+                    isShowingPhotoPicker = true
+                }
+                if CameraPicker.isCameraAvailable {
+                    Button(QuestionnaireText.takePhotoAction) {
+                        isShowingCamera = true
+                    }
+                }
+            }
+            .photosPicker(isPresented: $isShowingPhotoPicker,
+                          selection: $photoSelection,
+                          maxSelectionCount: 10,
+                          matching: .images)
+        }
+    }
+
+    /// Compresses and stores a newly picked image locally until Save.
+    private func addImage(_ image: UIImage) {
+        guard let jpeg = image.resizedJPEGData(maxDimension: 1600, quality: 0.7),
+              let compressed = UIImage(data: jpeg) else { return }
+        images.append(SessionImageItem(
+            fileName: "\(UUID().uuidString).jpg",
+            uiImage: compressed,
+            data: jpeg,
+            isUploaded: false
+        ))
+    }
+
+    private func removeImage(_ item: SessionImageItem) {
+        images.removeAll { $0.id == item.id }
+        if item.isUploaded {
+            removedUploadedFileNames.append(item.fileName)
+        }
+    }
+
+    /// Swaps an image for its edited version. The old stored file is queued
+    /// for deletion and the new one uploads on the next session save.
+    private func replaceImage(_ item: SessionImageItem, with newImage: UIImage) {
+        guard let index = images.firstIndex(where: { $0.id == item.id }),
+              let jpeg = newImage.resizedJPEGData(maxDimension: 1600, quality: 0.7),
+              let compressed = UIImage(data: jpeg) else { return }
+        if item.isUploaded {
+            removedUploadedFileNames.append(item.fileName)
+        }
+        images[index] = SessionImageItem(
+            fileName: "\(UUID().uuidString).jpg",
+            uiImage: compressed,
+            data: jpeg,
+            isUploaded: false
+        )
+    }
+
+    /// Shows this session's stored images, from the cache when available.
+    private func loadImages() async {
+        guard !isNew, session.databaseID != nil else { return }
+
+        if let cached = store.cachedSessionImages(for: session) {
+            setImages(from: cached)
+            return
+        }
+        isLoadingImages = true
+        if let loaded = try? await store.loadSessionImages(for: session) {
+            setImages(from: loaded)
+        }
+        isLoadingImages = false
+    }
+
+    private func setImages(from pairs: [(fileName: String, data: Data)]) {
+        images = pairs.compactMap { pair in
+            UIImage(data: pair.data).map {
+                SessionImageItem(fileName: pair.fileName, uiImage: $0, data: pair.data, isUploaded: true)
+            }
+        }
+    }
+
+    /// Applies pending image changes to Supabase Storage: removals first,
+    /// then uploads of newly added images.
+    private func syncImages() async throws {
+        for fileName in removedUploadedFileNames {
+            try await store.deleteSessionImage(fileName: fileName, for: session)
+        }
+        removedUploadedFileNames = []
+
+        for index in images.indices where !images[index].isUploaded {
+            try await store.uploadSessionImage(images[index].data, fileName: images[index].fileName, for: session)
+            images[index].isUploaded = true
         }
     }
 
@@ -174,7 +357,16 @@ struct SessionEditorView: View {
 
     private func appendTranscription(_ text: String) {
         let timeText = Date.now.formatted(date: .numeric, time: .shortened)
-        let block = "\(QuestionnaireText.transcriptionHeader(timeText: timeText))\n\(text)"
+        appendNotesBlock("\(QuestionnaireText.transcriptionHeader(timeText: timeText))\n\(text)")
+    }
+
+    /// Adds text extracted from an image to the notes, under a dated header.
+    private func appendImageTranscription(_ text: String) {
+        let dateText = Date.now.formatted(date: .numeric, time: .omitted)
+        appendNotesBlock("\(QuestionnaireText.imageTranscriptionHeader(dateText: dateText))\n\(text)")
+    }
+
+    private func appendNotesBlock(_ block: String) {
         if session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             session.notes = block
         } else {
@@ -248,6 +440,8 @@ struct SessionEditorView: View {
                 } else {
                     try await store.updateSession(session)
                 }
+                // The session now has a database ID, so image changes can sync.
+                try await syncImages()
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
