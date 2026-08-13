@@ -33,6 +33,13 @@ struct CombinedMoodQuestionnaireView: View {
             Section {
                 Label(patient.displayName, systemImage: "person")
                     .foregroundStyle(.secondary)
+                // The session's date, which is saved as the answered date.
+                Label {
+                    Text(session.date, style: .date)
+                } icon: {
+                    Image(systemName: "calendar")
+                }
+                .foregroundStyle(.secondary)
             }
 
             QuestionnaireSections(
@@ -131,8 +138,8 @@ private struct QuestionnaireSections: View {
         Section(QuestionnaireText.gad7Title) {
             AnswerKeyView(previousDate: previous?.answeredDate)
 
-            Text(QuestionnaireText.gad7MainQuestion)
-                .font(.headline)
+            Text(markdown: QuestionnaireText.gad7MainQuestion)
+                .font(.body)
 
             ForEach(QuestionnaireText.gad7Questions.indices, id: \.self) { index in
                 QuestionRow(
@@ -221,8 +228,10 @@ private struct InterferencePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
-                Text(QuestionnaireText.phq9InterferenceQuestion)
-                    .font(.headline)
+                // Regular weight so the string's **bold** words stand out
+                // (headline is semibold, which drowns the emphasis).
+                Text(markdown: QuestionnaireText.phq9InterferenceQuestion)
+                    .font(.body)
                 Spacer()
                 if isEditable {
                     Button {
@@ -311,7 +320,7 @@ private struct QuestionRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
-                Text(text)
+                Text(markdown: text)
                 Spacer()
                 if isEditable {
                     Button {
@@ -374,7 +383,7 @@ private struct QuestionNoteEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    Text(question)
+                    Text(markdown: question)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -400,6 +409,19 @@ private struct QuestionNoteEditor: View {
             .onAppear { draft = note }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+private extension Text {
+    /// Renders inline markdown (e.g. `**bold**`) in wording-table strings.
+    /// `Text` with a plain `String` shows markdown literally, so strings that
+    /// carry emphasis must go through this initializer.
+    init(markdown string: String) {
+        if let attributed = try? AttributedString(markdown: string) {
+            self.init(attributed)
+        } else {
+            self.init(string)
+        }
     }
 }
 
