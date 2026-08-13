@@ -15,7 +15,7 @@ enum QuestionnaireText {
     static let notesSectionTitle = "הערות"
     static let notesFieldPlaceholder = "הערות"
     static let questionNoteTitle = "Question Note (placeholder)"
-    static let scoreLabel = "Score (placeholder)"
+    static let scoreLabel = "ציון כולל"
     static let answerKeyTitle = "מפתח תשובות"
 
     /// Descriptions of the shared 0–3 answer scale, indexed by answer value.
@@ -50,21 +50,41 @@ enum QuestionnaireText {
     static let questionnaireSectionTitle = "Questionnaire (placeholder)"
 
     /// Indications of the previous questionnaire's answers.
-    static func previousAnswerLegend(dateText: String) -> String {
-        "Outlined value = answer from the previous questionnaire, \(dateText) (placeholder)"
-    }
+//    static func previousAnswerLegend(dateText: String) -> String {
+//        "Outlined value = answer from the previous questionnaire, \(dateText) (placeholder)"
+//    }
 
+    static func previousAnswerLegend(dateText: String) -> String {
+        let hebrewDate = hebrewDate(from: dateText) ?? dateText
+        return "הערך המוקף = תשובה מהשאלון הקודם מתאריך \(hebrewDate)"
+    }
+    
+    static func hebrewDate(from dateString: String) -> String? {
+        let inputFormatter = DateFormatter()
+        inputFormatter.locale = Locale(identifier: "en_US_POSIX")
+        inputFormatter.dateFormat = "d MMM yyyy"
+
+        guard let date = inputFormatter.date(from: dateString) else {
+            return nil
+        }
+
+        let outputFormatter = DateFormatter()
+        outputFormatter.locale = Locale(identifier: "he_IL")
+        outputFormatter.dateFormat = "d 'ב'MMMM yyyy"
+
+        return outputFormatter.string(from: date)
+    }
+    
     static func previousScoreLabel(dateText: String) -> String {
         "Previous, \(dateText) (placeholder)"
     }
-    static let noQuestionnaireForSession = "No questionnaire for this session yet (placeholder)"
+    static let noQuestionnaireForSession = "אין שאלונים לפגישה זו"
 
     // MARK: - GAD-7
 
     static let gad7Title = "GAD-7 שאלון לאבחון חרדה מוכללת"
     static let gad7MainQuestion =
         "במהלך השבועיים האחרונים עד כמה היית מוטרד/ת מהנושאים הבאים?"
-//    static let gad7Questions: [String] = (1...7).map { "GAD-7 – Question \($0) (placeholder)" }
 
     static let gad7Questions: [String] = [
         "הרגשתי עצבות, חרדה או מתח רב",
@@ -78,10 +98,10 @@ enum QuestionnaireText {
     
     static func label(for severity: GAD7Severity) -> String {
         switch severity {
-        case .minimal: return "No real anxiety (placeholder)"
-        case .mild: return "Light anxiety (placeholder)"
-        case .substantial: return "Substantial anxiety (placeholder)"
-        case .extreme: return "Extreme anxiety (placeholder)"
+        case .minimal: return "ללא חרדה משמעותית"
+        case .mild: return "חרדה קלה"
+        case .substantial: return "חרדה משמעותית"
+        case .extreme: return "חרדה קשה"
         }
     }
 
@@ -105,19 +125,19 @@ enum QuestionnaireText {
 
     /// The four worded options for the interference question, indexed by value.
     static let phq9InterferenceOptions: [String] = [
-        "Not difficult at all (placeholder)",
-        "Somewhat difficult (placeholder)",
-        "Very difficult (placeholder)",
-        "Extremely difficult (placeholder)",
+        "לא הקשו בכלל",
+        "הקשו במידת מה",
+        "הקשו מאוד",
+        "הקשו באופן קיצוני",
     ]
 
     static func label(for severity: PHQ9Severity) -> String {
         switch severity {
-        case .minimal: return "Minimal depression, no need to treat (placeholder)"
-        case .mild: return "Light depression (placeholder)"
-        case .moderate: return "Medium depression (placeholder)"
-        case .moderatelySevere: return "Medium-major depression (placeholder)"
-        case .severe: return "Major depression (placeholder)"
+        case .minimal: return "דיכאוןם מינימאלי"
+        case .mild: return "דיכאון קל"
+        case .moderate: return "דיכאון בינוני"
+        case .moderatelySevere: return "דיכאון בינוני כבד"
+        case .severe: return "דיכאון כבד"
         }
     }
 
@@ -125,11 +145,11 @@ enum QuestionnaireText {
     /// Real content will be provided later.
     static func suggestion(for severity: PHQ9Severity) -> String {
         switch severity {
-        case .minimal: return "Suggestion for minimal depression (placeholder)"
-        case .mild: return "Suggestion for light depression (placeholder)"
-        case .moderate: return "Suggestion for medium depression (placeholder)"
-        case .moderatelySevere: return "Suggestion for medium-major depression (placeholder)"
-        case .severe: return "Suggestion for major depression (placeholder)"
+        case .minimal: return "אין צורך בטיפול לדיכאון"
+        case .mild: return "כדאי לשקול טיפול ע״פ דיווח הסימפטומים של המטופל וע״פ התפקוד הכללי"
+        case .moderate: return "כדאי לשקול טיפול ע״פ דיווח הסימפטומים של המטופל וע״פ התפקוד הכללי"
+        case .moderatelySevere: return "מומלץ טיפול בדיכאון בתרופות, פסיכוטרפיה או שילוב שלהם"
+        case .severe: return "מומלץ טיפול בדיכאון בתרופות, פסיכוטרפיה או שילוב שלהם"
         }
     }
 }
