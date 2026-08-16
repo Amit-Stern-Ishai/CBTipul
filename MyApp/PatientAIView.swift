@@ -110,14 +110,34 @@ struct PatientAIView: View {
         }
     }
 
+    /// Data first, the request last — models answer the final instruction,
+    /// so the therapist's question must come after the context, not before.
     private func buildUserMessage() -> String {
         switch mode {
         case .insights:
-            return "\(AIPrompts.insights)\n\n--- Patient questionnaire data ---\n\(questionnairesContext())"
+            return """
+            === Patient questionnaire data ===
+            \(questionnairesContext())
+
+            === Task ===
+            \(AIPrompts.insights)
+            """
         case .questionnaires:
-            return "\(prompt)\n\n--- Patient questionnaire data ---\n\(questionnairesContext())"
+            return """
+            === Patient questionnaire data ===
+            \(questionnairesContext())
+
+            === Therapist's question ===
+            \(prompt)
+            """
         case .general:
-            return "\(prompt)\n\n--- Patient data ---\n\(fullContext())"
+            return """
+            === Patient data ===
+            \(fullContext())
+
+            === Therapist's question ===
+            \(prompt)
+            """
         }
     }
 
@@ -147,13 +167,13 @@ struct PatientAIView: View {
         lines.append(contentsOf: answerLines(
             questions: QuestionnaireText.gad7Questions, answers: q.gad7Answers, notes: q.gad7Notes
         ))
-        lines.append("GAD-7 total: \(q.gad7Score)")
+        lines.append("GAD-7 total: \(q.gad7Score) (\(QuestionnaireText.label(for: q.gad7Severity)))")
 
         lines.append("PHQ-9 (each answer 0-3):")
         lines.append(contentsOf: answerLines(
             questions: QuestionnaireText.phq9Questions, answers: q.phq9Answers, notes: q.phq9Notes
         ))
-        lines.append("PHQ-9 total: \(q.phq9Score)")
+        lines.append("PHQ-9 total: \(q.phq9Score) (\(QuestionnaireText.label(for: q.phq9Severity)))")
 
         if let level = q.interferenceLevel,
            QuestionnaireText.phq9InterferenceOptions.indices.contains(level) {

@@ -160,6 +160,10 @@ private struct QuestionnaireSections: View {
         }
 
         Section(QuestionnaireText.phq9Title) {
+            
+            Text(markdown: QuestionnaireText.phq9MainQuestion)
+                .font(.body)
+            
             ForEach(QuestionnaireText.phq9Questions.indices, id: \.self) { index in
                 QuestionRow(
                     text: QuestionnaireText.phq9Questions[index],
