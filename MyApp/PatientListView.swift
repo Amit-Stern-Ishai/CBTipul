@@ -6,6 +6,7 @@ struct PatientListView: View {
     @Environment(PatientStore.self) private var store
 
     @State private var isAddingPatient = false
+    @State private var isShowingSettings = false
     @State private var isLoading = false
     @State private var loadError: String?
 
@@ -50,7 +51,10 @@ struct PatientListView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Sign Out") { auth.signOut() }
+                    Button("Sign Out") {
+                        store.clearCachedPatients()
+                        auth.signOut()
+                    }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -59,14 +63,25 @@ struct PatientListView: View {
                         Label("Add Patient", systemImage: "plus")
                     }
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isShowingSettings = true
+                    } label: {
+                        Label(QuestionnaireText.settingsTitle, systemImage: "gearshape")
+                    }
+                }
             }
             .sheet(isPresented: $isAddingPatient) {
                 AddPatientView()
+            }
+            .sheet(isPresented: $isShowingSettings) {
+                SettingsView()
             }
         }
     }
 
     private func load() async {
+        store.loadCachedPatients()
         isLoading = true
         loadError = nil
         do {

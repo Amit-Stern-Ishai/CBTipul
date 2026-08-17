@@ -81,18 +81,18 @@ struct SessionImageViewer: View {
                         } label: {
                             Image(systemName: "crop")
                         }
-                        if onTranscribed != nil {
-                            Spacer()
-                            if isTranscribing {
-                                ProgressView()
-                            } else {
-                                Button {
-                                    transcribeImage()
-                                } label: {
-                                    Image(systemName: "text.viewfinder")
-                                }
-                            }
-                        }
+//                        if onTranscribed != nil {
+//                            Spacer()
+//                            if isTranscribing {
+//                                ProgressView()
+//                            } else {
+//                                Button {
+//                                    transcribeImage()
+//                                } label: {
+//                                    Image(systemName: "text.viewfinder")
+//                                }
+//                            }
+//                        }
                         Spacer()
                         Button {
                             rotate(clockwise: true)
@@ -174,24 +174,24 @@ struct SessionImageViewer: View {
 
     /// Sends the current image to the AI for text extraction and hands the
     /// result to the caller.
-    private func transcribeImage() {
-        guard let onTranscribed else { return }
-        transcriptionError = nil
-        isTranscribing = true
-        Task {
-            do {
-                guard let jpeg = workingImage.jpegData(compressionQuality: 0.8) else {
-                    throw OpenAIChatError.emptyResponse
-                }
-                let text = try await OpenAIChatService.extractText(fromJPEG: jpeg)
-                onTranscribed(text)
-                dismiss()
-            } catch {
-                transcriptionError = error.localizedDescription
-            }
-            isTranscribing = false
-        }
-    }
+//    private func transcribeImage() {
+//        guard let onTranscribed else { return }
+//        transcriptionError = nil
+//        isTranscribing = true
+//        Task {
+//            do {
+//                guard let jpeg = workingImage.jpegData(compressionQuality: 0.8) else {
+//                    throw OpenAIChatError.emptyResponse
+//                }
+//                let text = try await OpenAIChatService.extractText(fromJPEG: jpeg)
+//                onTranscribed(text)
+//                dismiss()
+//            } catch {
+//                transcriptionError = error.localizedDescription
+//            }
+//            isTranscribing = false
+//        }
+//    }
 
     /// The aspect-fitted frame of an image inside a container.
     private func fittedFrame(for imageSize: CGSize, in container: CGSize) -> CGRect {

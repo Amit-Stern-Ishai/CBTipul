@@ -133,6 +133,22 @@ private nonisolated struct QuestionnaireRow: Decodable {
     }
 }
 
+/// Disk-cache snapshot of a session.
+private nonisolated struct CachedSession: Codable {
+    let databaseID: DatabaseID?
+    let date: Date
+    let notes: String
+}
+
+/// Disk-cache snapshot of a patient.
+private nonisolated struct CachedPatient: Codable {
+    let databaseID: DatabaseID?
+    let firstName: String
+    let lastName: String
+    let active: Bool
+    let sessions: [CachedSession]
+}
+
 /// Store of the therapist's patients, backed by the Supabase `Patients` table.
 ///
 /// Patients and their sessions are loaded from the database when the patient
@@ -191,6 +207,58 @@ final class PatientStore {
                 sessions: (sessionsByPatient[row.id] ?? []).sorted { $0.date < $1.date }
             )
         }
+        saveCachedPatients()
+    }
+
+    // MARK: - Patient disk cache
+
+    /// Snapshot of the patient list, kept so the list shows instantly on the
+    /// next launch (or offline) before the network load replaces it.
+    private static var patientsCacheURL: URL {
+        URL.cachesDirectory.appending(path: "patients-cache.json")
+    }
+
+    /// Fills the patient list from the last saved snapshot. Does nothing once
+    /// patients are already loaded.
+    func loadCachedPatients() {
+        guard patients.isEmpty,
+              let data = try? Data(contentsOf: Self.patientsCacheURL),
+              let cached = try? JSONDecoder().decode([CachedPatient].self, from: data)
+        else { return }
+        patients = cached.map { patient in
+            Patient(
+                databaseID: patient.databaseID,
+                firstName: patient.firstName,
+                lastName: patient.lastName,
+                status: patient.active ? .active : .inactive,
+                sessions: patient.sessions.map {
+                    Session(databaseID: $0.databaseID, date: $0.date, notes: $0.notes)
+                }
+            )
+        }
+    }
+
+    /// Writes the current patient list to the cache file. Patient data is
+    /// sensitive, so the file is written with complete file protection.
+    private func saveCachedPatients() {
+        let snapshot = patients.map { patient in
+            CachedPatient(
+                databaseID: patient.databaseID,
+                firstName: patient.firstName,
+                lastName: patient.lastName,
+                active: patient.status == .active,
+                sessions: patient.sessions.map {
+                    CachedSession(databaseID: $0.databaseID, date: $0.date, notes: $0.notes)
+                }
+            )
+        }
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        try? data.write(to: Self.patientsCacheURL, options: [.atomic, .completeFileProtection])
+    }
+
+    /// Removes the cached patient list, e.g. on sign-out.
+    func clearCachedPatients() {
+        try? FileManager.default.removeItem(at: Self.patientsCacheURL)
     }
 
     /// Parses a Postgres `date` value, falling back to timestamp formats in
@@ -224,6 +292,7 @@ final class PatientStore {
             .value
 
         patients.append(Patient(databaseID: inserted.id, firstName: firstName, lastName: lastName, status: status))
+        saveCachedPatients()
     }
 
     /// Formatter for Postgres `date` columns (no time component).
@@ -255,6 +324,7 @@ final class PatientStore {
 
         session.databaseID = inserted.id
         patient.sessions.append(session)
+        saveCachedPatients()
     }
 
     /// Persists date and notes changes of an already-saved session.

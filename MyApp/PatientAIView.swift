@@ -8,6 +8,7 @@ struct PatientAIView: View {
     let patient: Patient
 
     @Environment(PatientStore.self) private var store
+    @Environment(AuthManager.self) private var auth
 
     private enum Mode: Hashable {
         case insights
@@ -15,16 +16,35 @@ struct PatientAIView: View {
         case general
     }
 
+    /// Every mode keeps its own prompt and answer so switching modes
+    /// switches to that mode's conversation state.
+    private struct ModeState {
+        var prompt = ""
+        var displayedResponse: AttributedString?
+        var isLoading = false
+        var errorMessage: String?
+    }
+
     @State private var mode: Mode = .insights
-    @State private var prompt = ""
-    @State private var response: String?
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @State private var modeStates: [Mode: ModeState] = [
+        .insights: ModeState(), .questionnaires: ModeState(), .general: ModeState()
+    ]
+    @State private var typingTasks: [Mode: Task<Void, Never>] = [:]
+    @AppStorage("aiResponseStyle") private var responseStyle: AIResponseStyle = .typing
+
+    private var current: ModeState { modeStates[mode] ?? ModeState() }
+
+    private var promptBinding: Binding<String> {
+        Binding(
+            get: { modeStates[mode]?.prompt ?? "" },
+            set: { modeStates[mode, default: ModeState()].prompt = $0 }
+        )
+    }
 
     private var canRun: Bool {
-        guard !isLoading else { return false }
+        guard !current.isLoading else { return false }
         if mode == .insights { return true }
-        return !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return !current.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -43,14 +63,15 @@ struct PatientAIView: View {
                 .pickerStyle(.segmented)
 
                 if mode != .insights {
-                    TextField(QuestionnaireText.aiPromptPlaceholder, text: $prompt, axis: .vertical)
+                    TextField(QuestionnaireText.aiPromptPlaceholder, text: promptBinding, axis: .vertical)
                         .lineLimit(2...6)
+                        .id(mode)
                 }
 
                 Button {
                     run()
                 } label: {
-                    if isLoading {
+                    if current.isLoading {
                         HStack {
                             ProgressView()
                             Text(QuestionnaireText.aiThinkingLabel)
@@ -68,7 +89,7 @@ struct PatientAIView: View {
                 .disabled(!canRun)
             }
 
-            if let errorMessage {
+            if let errorMessage = current.errorMessage {
                 Section {
                     Text(errorMessage)
                         .font(.footnote)
@@ -76,10 +97,16 @@ struct PatientAIView: View {
                 }
             }
 
-            if let response {
+            if let response = current.displayedResponse {
                 Section(QuestionnaireText.aiResponseTitle) {
-                    Text(aiMarkdown(response))
-                        .textSelection(.enabled)
+                    // Fixed height so the row doesn't grow while the answer
+                    // streams in; scroll inside to read the rest.
+                    ScrollView {
+                        Text(response)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(height: 320)
                 }
             }
         }
@@ -94,20 +121,57 @@ struct PatientAIView: View {
     }
 
     private func run() {
-        errorMessage = nil
-        isLoading = true
+        let mode = self.mode
+        typingTasks[mode]?.cancel()
+        modeStates[mode]?.errorMessage = nil
+        modeStates[mode]?.isLoading = true
         let userMessage = buildUserMessage()
-        Task {
+        let chatService = SupabaseChatService(client: auth.client)
+        typingTasks[mode] = Task {
             do {
-                response = try await OpenAIChatService.complete(
+                let text = try await chatService.complete(
                     systemPrompt: AIPrompts.system,
                     userMessage: userMessage
                 )
+                modeStates[mode]?.isLoading = false
+                if responseStyle == .typing {
+                    await typeOut(text, for: mode)
+                } else {
+                    modeStates[mode]?.displayedResponse = aiMarkdown(text)
+                }
             } catch {
-                errorMessage = error.localizedDescription
+                modeStates[mode]?.errorMessage = error.localizedDescription
+                modeStates[mode]?.isLoading = false
             }
-            isLoading = false
         }
+    }
+
+    /// Reveals the answer word by word, ChatGPT-style. The markdown is parsed
+    /// once up front so styling never flickers while the text streams in.
+    private func typeOut(_ text: String, for mode: Mode) async {
+        let full = aiMarkdown(text)
+        var end = full.startIndex
+        while end < full.endIndex {
+            if Task.isCancelled { return }
+            end = nextWordBoundary(in: full, after: end)
+            modeStates[mode]?.displayedResponse = AttributedString(full[full.startIndex..<end])
+            try? await Task.sleep(for: .milliseconds(30))
+        }
+    }
+
+    /// Advances past the next word and its trailing whitespace.
+    private func nextWordBoundary(
+        in string: AttributedString, after start: AttributedString.Index
+    ) -> AttributedString.Index {
+        let characters = string.characters
+        var index = start
+        while index < string.endIndex, !characters[index].isWhitespace {
+            index = characters.index(after: index)
+        }
+        while index < string.endIndex, characters[index].isWhitespace {
+            index = characters.index(after: index)
+        }
+        return index
     }
 
     /// Data first, the request last — models answer the final instruction,
@@ -128,7 +192,7 @@ struct PatientAIView: View {
             \(questionnairesContext())
 
             === Therapist's question ===
-            \(prompt)
+            \(current.prompt)
             """
         case .general:
             return """
@@ -136,7 +200,7 @@ struct PatientAIView: View {
             \(fullContext())
 
             === Therapist's question ===
-            \(prompt)
+            \(current.prompt)
             """
         }
     }
@@ -226,5 +290,6 @@ struct PatientAIView: View {
     NavigationStack {
         PatientAIView(patient: Patient(firstName: "Alex", lastName: "Rivera"))
     }
+    .environment(auth)
     .environment(PatientStore(client: auth.client))
 }

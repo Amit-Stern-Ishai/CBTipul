@@ -66,6 +66,15 @@ enum QuestionnaireText {
     static let aiThinkingLabel = "Thinking…"
     static let aiResponseTitle = "Response"
 
+    // MARK: - Settings
+
+    static let settingsTitle = "Settings"
+    static let settingsAISectionTitle = "AI Assistant"
+    static let settingsResponseStyleTitle = "Response Style"
+    static let settingsResponseStyleTyping = "Typing"
+    static let settingsResponseStyleRegular = "Regular"
+    static let settingsDoneAction = "Done"
+
     // MARK: - Questionnaire history
 
     static let viewQuestionnairesAction = "שאלונים"
