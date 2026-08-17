@@ -79,9 +79,29 @@ enum QuestionnaireText {
     static let metricPickerTitle = "Show"
     static let totalOptionLabel = "ציון כולל"
 
-    static func questionOptionLabel(_ number: Int) -> String {
-        "Question \(number) (placeholder)"
-    }
+    /// Short per-question names shown in the graph metric picker,
+    /// indexed like the question arrays.
+    static let gad7QuestionShortNames: [String] = [
+        "עצבנות ומתח",
+        "שליטה בדאגה",
+        "דאגה מוגזמת",
+        "קושי להירגע",
+        "חוסר מנוחה",
+        "רגזנות",
+        "פחד מאסון",
+    ]
+
+    static let phq9QuestionShortNames: [String] = [
+        "אובדן עניין",
+        "מצב רוח ירוד",
+        "שינה",
+        "עייפות",
+        "תיאבון",
+        "ערך עצמי",
+        "ריכוז",
+        "איטיות / אי-שקט",
+        "מחשבות על פגיעה עצמית",
+    ]
 
     /// Short names used in compact rows next to scores.
     static let gad7ShortName = "GAD-7"

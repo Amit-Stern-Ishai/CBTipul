@@ -105,12 +105,12 @@ struct PatientQuestionnairesView: View {
                 QuestionnaireChart(
                     title: QuestionnaireText.gad7Title,
                     entries: chartEntries(for: \.gad7Answers),
-                    questionCount: QuestionnaireText.gad7Questions.count
+                    questionShortNames: QuestionnaireText.gad7QuestionShortNames
                 )
                 QuestionnaireChart(
                     title: QuestionnaireText.phq9Title,
                     entries: chartEntries(for: \.phq9Answers),
-                    questionCount: QuestionnaireText.phq9Questions.count
+                    questionShortNames: QuestionnaireText.phq9QuestionShortNames
                 )
             }
             .padding()
@@ -153,7 +153,8 @@ private struct QuestionnaireChart: View {
 
     let title: String
     let entries: [Entry]
-    let questionCount: Int
+    /// Short per-question names, one per question, shown in the picker.
+    let questionShortNames: [String]
 
     @State private var metric: Metric = .total
 
@@ -174,7 +175,7 @@ private struct QuestionnaireChart: View {
     /// Y-axis range: the full score range for totals, 0–3 for one question.
     private var yDomain: ClosedRange<Int> {
         switch metric {
-        case .total: return 0...(CombinedMoodQuestionnaire.answerValues.count - 1) * questionCount
+        case .total: return 0...(CombinedMoodQuestionnaire.answerValues.count - 1) * questionShortNames.count
         case .question: return 0...(CombinedMoodQuestionnaire.answerValues.count - 1)
         }
     }
@@ -187,8 +188,8 @@ private struct QuestionnaireChart: View {
                 Spacer()
                 Picker(QuestionnaireText.metricPickerTitle, selection: $metric) {
                     Text(QuestionnaireText.totalOptionLabel).tag(Metric.total)
-                    ForEach(0..<questionCount, id: \.self) { index in
-                        Text(QuestionnaireText.questionOptionLabel(index + 1)).tag(Metric.question(index))
+                    ForEach(questionShortNames.indices, id: \.self) { index in
+                        Text(questionShortNames[index]).tag(Metric.question(index))
                     }
                 }
                 .pickerStyle(.menu)
