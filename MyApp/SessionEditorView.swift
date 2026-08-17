@@ -33,6 +33,8 @@ struct SessionEditorView: View {
     @State private var isLoadingQuestionnaire = false
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
+    @State private var isShowingTranscribeDialog = false
+    @State private var isReshowingTranscribeDialog = false
 
     @State private var images: [SessionImageItem] = []
     @State private var removedUploadedFileNames: [String] = []
@@ -78,11 +80,52 @@ struct SessionEditorView: View {
                 }
 
                 Section("Notes") {
-                    TextField("Optional notes", text: $session.notes, axis: .vertical)
-                        .lineLimit(3...8)
-                }
+                    HStack(alignment: .bottom) {
+                        TextField("Optional notes", text: $session.notes, axis: .vertical)
+                            .lineLimit(3...8)
+                        recordControl
+                    }
+                    .confirmationDialog(QuestionnaireText.recordingFinishedTitle,
+                                        isPresented: $isShowingTranscribeDialog,
+                                        titleVisibility: .visible) {
+                        Button(voiceRecorder.isPlaying
+                               ? QuestionnaireText.stopPlaybackAction
+                               : QuestionnaireText.playRecordingAction) {
+                            voiceRecorder.togglePlayback()
+                            isReshowingTranscribeDialog = true
+                        }
+                        Button(QuestionnaireText.transcribeAction) { transcribe() }
+                        Button(QuestionnaireText.discardRecordingAction, role: .destructive) {
+                            voiceRecorder.discard()
+                        }
+                    }
+                    .onChange(of: isShowingTranscribeDialog) { _, isShowing in
+                        guard !isShowing else { return }
+                        if isReshowingTranscribeDialog {
+                            // Play/Stop keeps the choice open: re-present.
+                            isReshowingTranscribeDialog = false
+                            Task { isShowingTranscribeDialog = true }
+                        } else if !isTranscribing, voiceRecorder.recordingURL != nil {
+                            // Dismissing without choosing (tap outside) counts
+                            // as discard; nothing else can reach the file.
+                            voiceRecorder.discard()
+                        }
+                    }
 
-                voiceNoteSection
+                    if isTranscribing {
+                        HStack {
+                            ProgressView()
+                            Text(QuestionnaireText.transcribingLabel)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if let recorderError = voiceRecorder.errorMessage {
+                        Text(recorderError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
 
                 imagesSection
 
@@ -116,9 +159,10 @@ struct SessionEditorView: View {
                         .disabled(isSaving)
                 }
             }
-            .confirmationDialog(QuestionnaireText.discardChangesTitle,
-                                isPresented: $isShowingCancelWarning,
-                                titleVisibility: .visible) {
+            // An alert, not a confirmation dialog: iPad popover dialogs hide
+            // cancel-role buttons, and Keep Editing must always be offered.
+            .alert(QuestionnaireText.discardChangesTitle,
+                   isPresented: $isShowingCancelWarning) {
                 Button(QuestionnaireText.saveChangesAction) { save() }
                 Button(QuestionnaireText.discardChangesAction, role: .destructive) {
                     // The session object is shared, so revert the edits
@@ -181,25 +225,20 @@ struct SessionEditorView: View {
                 ScrollView(.horizontal) {
                     HStack(spacing: 12) {
                         ForEach(images) { item in
-                            ZStack(alignment: .topTrailing) {
-                                Button {
-                                    viewerItem = item
-                                } label: {
-                                    Image(uiImage: item.uiImage)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 96, height: 96)
-                                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                                }
-                                .buttonStyle(.plain)
-                                Button {
+                            Button {
+                                viewerItem = item
+                            } label: {
+                                Image(uiImage: item.uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 96, height: 96)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(QuestionnaireText.deleteImageAction, role: .destructive) {
                                     removeImage(item)
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.white, .black.opacity(0.6))
                                 }
-                                .buttonStyle(.plain)
-                                .padding(4)
                             }
                         }
                     }
@@ -304,76 +343,37 @@ struct SessionEditorView: View {
         }
     }
 
-    /// Records, plays back, and discards a voice note for the session.
-    /// Transcription (Whisper) will be attached to the recorded file next.
-    private var voiceNoteSection: some View {
-        Section(QuestionnaireText.voiceNoteSectionTitle) {
-            if voiceRecorder.isRecording {
-                HStack {
-                    Label(QuestionnaireText.recordingLabel, systemImage: "waveform")
-                        .foregroundStyle(.red)
-                    Spacer()
-                    Text(formattedDuration)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                    Button {
-                        voiceRecorder.stopRecording()
-                    } label: {
-                        Image(systemName: "stop.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                }
-            } else if voiceRecorder.recordingURL != nil {
-                HStack {
-                    Button {
-                        voiceRecorder.togglePlayback()
-                    } label: {
-                        Image(systemName: voiceRecorder.isPlaying ? "stop.circle.fill" : "play.circle.fill")
-                            .font(.title2)
-                    }
-                    .buttonStyle(.plain)
-
-                    Text("\(QuestionnaireText.voiceNoteLabel) (\(formattedDuration))")
-
-                    Spacer()
-
-                    Button {
-                        voiceRecorder.discard()
-                    } label: {
-                        Image(systemName: "trash")
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                if isTranscribing {
-                    HStack {
-                        ProgressView()
-                        Text(QuestionnaireText.transcribingLabel)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    Button {
-                        transcribe()
-                    } label: {
-                        Label(QuestionnaireText.transcribeAction, systemImage: "text.bubble")
-                    }
-                }
-            } else {
-                Button {
-                    Task { await voiceRecorder.startRecording() }
-                } label: {
-                    Label(QuestionnaireText.recordVoiceNoteAction, systemImage: "mic.fill")
-                }
-            }
-
-            if let recorderError = voiceRecorder.errorMessage {
-                Text(recorderError)
+    /// Mic button living at the edge of the notes text box. While recording it
+    /// turns into a stop button with the elapsed time; stopping asks whether
+    /// to transcribe into the notes or discard.
+    @ViewBuilder
+    private var recordControl: some View {
+        if voiceRecorder.isRecording {
+            HStack(spacing: 6) {
+                Text(formattedDuration)
                     .font(.footnote)
+                    .monospacedDigit()
                     .foregroundStyle(.red)
+                Button {
+                    voiceRecorder.stopRecording()
+                    isShowingTranscribeDialog = true
+                } label: {
+                    Image(systemName: "stop.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
             }
+        } else {
+            Button {
+                Task { await voiceRecorder.startRecording() }
+            } label: {
+                Image(systemName: "mic.fill")
+                    .font(.title3)
+                    .foregroundStyle(.tint)
+            }
+            .buttonStyle(.plain)
+            .disabled(isTranscribing)
         }
     }
 
@@ -392,10 +392,14 @@ struct SessionEditorView: View {
             do {
                 let text = try await WhisperService.transcribe(fileURL: fileURL)
                 appendTranscription(text)
+                voiceRecorder.discard()
+                isTranscribing = false
             } catch {
                 voiceRecorder.errorMessage = error.localizedDescription
+                isTranscribing = false
+                // Re-ask so the recording can be retried or discarded.
+                isShowingTranscribeDialog = true
             }
-            isTranscribing = false
         }
     }
 

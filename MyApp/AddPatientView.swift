@@ -27,6 +27,23 @@ struct AddPatientView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Image(systemName: "person.badge.plus")
+                        .font(.system(size: 30, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 64, height: 64)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.accentColor, Color.accentColor.opacity(0.65)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            in: Circle()
+                        )
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                }
+
                 Section("Patient") {
                     TextField("First name", text: $firstName)
                     TextField("Last name", text: $lastName)

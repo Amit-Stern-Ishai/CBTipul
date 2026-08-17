@@ -100,8 +100,9 @@ private struct PatientRow: View {
     let patient: Patient
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: 12) {
+            InitialsAvatar(name: patient.displayName, size: 44)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(patient.displayName)
                     .font(.headline)
                 Text(patient.sessions.isEmpty ? "No sessions yet" : "Session \(patient.currentSessionNumber)")
@@ -111,6 +112,33 @@ private struct PatientRow: View {
             Spacer()
             StatusBadge(status: patient.status)
         }
+        .padding(.vertical, 4)
+    }
+}
+
+/// A circular gradient badge showing a person's initials.
+struct InitialsAvatar: View {
+    let name: String
+    var size: CGFloat = 44
+
+    private var initials: String {
+        let letters = name.split(separator: " ").prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "?" : String(letters)
+    }
+
+    var body: some View {
+        Text(initials)
+            .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(
+                LinearGradient(
+                    colors: [Color.accentColor, Color.accentColor.opacity(0.65)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: Circle()
+            )
     }
 }
 

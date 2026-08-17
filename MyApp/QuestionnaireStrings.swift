@@ -46,6 +46,7 @@ enum QuestionnaireText {
     static let uploadDocumentAction = "Upload Document (placeholder)"
     static let addImageFromLibraryAction = "Add from Library (placeholder)"
     static let takePhotoAction = "Take Photo (placeholder)"
+    static let deleteImageAction = "Delete Image"
 
     /// Header line inserted above text extracted from an image.
     static func imageTranscriptionHeader(dateText: String) -> String {
@@ -81,6 +82,10 @@ enum QuestionnaireText {
     static let discardChangesAction = "Discard Changes"
     static let saveChangesAction = "Save"
     static let keepEditingAction = "Keep Editing"
+    static let recordingFinishedTitle = "Transcribe the recording into the notes?"
+    static let discardRecordingAction = "Discard Recording"
+    static let playRecordingAction = "Play"
+    static let stopPlaybackAction = "Stop Playback"
 
     // MARK: - Questionnaire history
 

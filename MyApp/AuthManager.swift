@@ -2,10 +2,10 @@ import SwiftUI
 import Supabase
 
 /// The third-party identity providers offered on the sign-in screen.
-enum AuthProvider: String {
-    case google = "Google"
-    case facebook = "Facebook"
-}
+//enum AuthProvider: String {
+//    case google = "Google"
+//    case facebook = "Facebook"
+//}
 
 enum AuthError: LocalizedError {
     case notConfigured
@@ -64,10 +64,10 @@ final class AuthManager {
         return response.session == nil
     }
 
-    func signIn(with provider: AuthProvider) async throws {
-        try ensureConfigured()
-        throw AuthError.notImplemented("\(provider.rawValue) sign-in")
-    }
+//    func signIn(with provider: AuthProvider) async throws {
+//        try ensureConfigured()
+//        throw AuthError.notImplemented("\(provider.rawValue) sign-in")
+//    }
 
     func signOut() {
         Task {

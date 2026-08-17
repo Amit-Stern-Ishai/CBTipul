@@ -36,20 +36,33 @@ struct PatientDetailView: View {
     var body: some View {
         List {
             Section {
-                Picker("Status", selection: $patient.status) {
+                VStack(spacing: 10) {
+                    InitialsAvatar(name: patient.displayName, size: 72)
+                    Text(patient.displayName)
+                        .font(.title2.bold())
+                    StatusBadge(status: patient.status)
+                }
+                .frame(maxWidth: .infinity)
+                .listRowBackground(Color.clear)
+            }
+
+            Section {
+                Picker(selection: $patient.status) {
                     ForEach(PatientStatus.allCases) { Text($0.rawValue).tag($0) }
+                } label: {
+                    iconChip("person.crop.circle.badge.checkmark", color: .green, title: "Status")
                 }
 
                 NavigationLink {
                     PatientQuestionnairesView(patient: patient)
                 } label: {
-                    Label(QuestionnaireText.viewQuestionnairesAction, systemImage: "chart.xyaxis.line")
+                    iconChip("chart.xyaxis.line", color: .orange, title: QuestionnaireText.viewQuestionnairesAction)
                 }
 
                 NavigationLink {
                     PatientAIView(patient: patient)
                 } label: {
-                    Label(QuestionnaireText.aiAction, systemImage: "sparkles")
+                    iconChip("sparkles", color: .purple, title: QuestionnaireText.aiAction)
                 }
             }
 
@@ -83,6 +96,7 @@ struct PatientDetailView: View {
             }
         }
         .navigationTitle(patient.displayName)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -101,6 +115,19 @@ struct PatientDetailView: View {
             }
         }
     }
+
+    /// A Settings-style row label: a small tinted icon square next to the title.
+    private func iconChip(_ systemImage: String, color: Color, title: String) -> some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(color.gradient, in: RoundedRectangle(cornerRadius: 7))
+        }
+    }
 }
 
 /// A single row in the sessions list.
@@ -109,16 +136,25 @@ private struct SessionRow: View {
     let session: Session
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Session \(number)")
-                    .font(.headline)
+        HStack(spacing: 12) {
+            Text("\(number)")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 34, height: 34)
+                .background(Color.accentColor.opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
                 Text(session.date, style: .date)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.headline)
+                if !session.notes.isEmpty {
+                    Text(session.notes)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             Spacer()
         }
+        .padding(.vertical, 2)
         .contentShape(Rectangle())
     }
 }

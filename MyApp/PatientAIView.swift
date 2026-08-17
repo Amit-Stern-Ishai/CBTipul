@@ -71,21 +71,28 @@ struct PatientAIView: View {
                 Button {
                     run()
                 } label: {
-                    if current.isLoading {
-                        HStack {
-                            ProgressView()
-                            Text(QuestionnaireText.aiThinkingLabel)
-                                .foregroundStyle(.secondary)
+                    Group {
+                        if current.isLoading {
+                            HStack {
+                                ProgressView()
+                                    .tint(.white)
+                                Text(QuestionnaireText.aiThinkingLabel)
+                            }
+                        } else {
+                            Label(
+                                mode == .insights
+                                    ? QuestionnaireText.aiGenerateInsightsAction
+                                    : QuestionnaireText.aiAskAction,
+                                systemImage: "sparkles"
+                            )
+                            .fontWeight(.semibold)
                         }
-                    } else {
-                        Label(
-                            mode == .insights
-                                ? QuestionnaireText.aiGenerateInsightsAction
-                                : QuestionnaireText.aiAskAction,
-                            systemImage: "sparkles"
-                        )
                     }
+                    .frame(maxWidth: .infinity, minHeight: 30)
                 }
+                .buttonStyle(.borderedProminent)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
                 .disabled(!canRun)
             }
 

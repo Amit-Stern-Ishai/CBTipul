@@ -17,9 +17,19 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section(QuestionnaireText.settingsAISectionTitle) {
-                    Picker(QuestionnaireText.settingsResponseStyleTitle, selection: $responseStyle) {
+                    Picker(selection: $responseStyle) {
                         Text(QuestionnaireText.settingsResponseStyleTyping).tag(AIResponseStyle.typing)
                         Text(QuestionnaireText.settingsResponseStyleRegular).tag(AIResponseStyle.regular)
+                    } label: {
+                        Label {
+                            Text(QuestionnaireText.settingsResponseStyleTitle)
+                        } icon: {
+                            Image(systemName: "text.cursor")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 28, height: 28)
+                                .background(Color.purple.gradient, in: RoundedRectangle(cornerRadius: 7))
+                        }
                     }
                 }
             }
