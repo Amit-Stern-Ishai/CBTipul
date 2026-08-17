@@ -75,6 +75,13 @@ enum QuestionnaireText {
     static let settingsResponseStyleRegular = "Regular"
     static let settingsDoneAction = "Done"
 
+    // MARK: - Session editor
+
+    static let discardChangesTitle = "You have unsaved changes. They will be deleted unless you save."
+    static let discardChangesAction = "Discard Changes"
+    static let saveChangesAction = "Save"
+    static let keepEditingAction = "Keep Editing"
+
     // MARK: - Questionnaire history
 
     static let viewQuestionnairesAction = "שאלונים"

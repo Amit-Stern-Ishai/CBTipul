@@ -27,6 +27,9 @@ struct SessionEditorView: View {
 
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var isShowingCancelWarning = false
+    @State private var initialDate: Date?
+    @State private var initialNotes: String?
     @State private var isLoadingQuestionnaire = false
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
@@ -40,6 +43,20 @@ struct SessionEditorView: View {
     @State private var isLoadingImages = false
     @State private var viewerItem: SessionImageItem?
 
+    /// Whether anything would be lost by dismissing without saving: an edited
+    /// date or notes, pending image additions/removals, or a voice note that
+    /// hasn't been transcribed into the notes yet.
+    private var hasUnsavedChanges: Bool {
+        if let initialDate, let initialNotes,
+           initialDate != session.date || initialNotes != session.notes {
+            return true
+        }
+        if !removedUploadedFileNames.isEmpty { return true }
+        if images.contains(where: { !$0.isUploaded }) { return true }
+        if voiceRecorder.recordingURL != nil { return true }
+        return false
+    }
+
     /// This session's saved questionnaire, read live from the store's cache
     /// so the section updates right after one is filled in and saved.
     private var questionnaire: CompletedQuestionnaire? {
@@ -51,12 +68,13 @@ struct SessionEditorView: View {
         NavigationStack {
             Form {
                 Section {
-                    Label(patient.displayName, systemImage: "person")
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("Session") {
-                    DatePicker("Date", selection: $session.date, displayedComponents: [.date])
+                    HStack {
+                        Label(patient.displayName, systemImage: "person")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        DatePicker("Date", selection: $session.date, displayedComponents: [.date])
+                            .labelsHidden()
+                    }
                 }
 
                 Section("Notes") {
@@ -84,16 +102,42 @@ struct SessionEditorView: View {
             .navigationTitle(isNew ? "New Session" : "Session")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .disabled(isSaving)
+                    Button("Cancel") {
+                        if hasUnsavedChanges {
+                            isShowingCancelWarning = true
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(isSaving)
                 }
             }
+            .confirmationDialog(QuestionnaireText.discardChangesTitle,
+                                isPresented: $isShowingCancelWarning,
+                                titleVisibility: .visible) {
+                Button(QuestionnaireText.saveChangesAction) { save() }
+                Button(QuestionnaireText.discardChangesAction, role: .destructive) {
+                    // The session object is shared, so revert the edits
+                    // instead of leaving them in memory unsaved.
+                    if let initialDate { session.date = initialDate }
+                    if let initialNotes { session.notes = initialNotes }
+                    dismiss()
+                }
+                Button(QuestionnaireText.keepEditingAction, role: .cancel) {}
+            }
+            .interactiveDismissDisabled(hasUnsavedChanges)
             .overlay {
                 if isSaving { ProgressView() }
+            }
+            .onAppear {
+                if initialDate == nil {
+                    initialDate = session.date
+                    initialNotes = session.notes
+                }
             }
             .task { await loadQuestionnaire() }
             .task { await loadImages() }
