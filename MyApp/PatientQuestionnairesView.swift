@@ -17,6 +17,9 @@ struct PatientQuestionnairesView: View {
     @State private var questionnaires: [CompletedQuestionnaire] = []
     @State private var isLoading = false
     @State private var loadError: String?
+    /// Graphs are shown one beat after switching to them, so the charts'
+    /// expensive first layout doesn't happen mid-transition and jitter.
+    @State private var isPreparingGraphs = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,8 +40,15 @@ struct PatientQuestionnairesView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .animation(.easeInOut(duration: 0.25), value: isLoading)
                 .animation(.easeInOut(duration: 0.25), value: mode)
+                .animation(.easeInOut(duration: 0.25), value: isPreparingGraphs)
         }
         .navigationTitle(QuestionnaireText.questionnairesTitle)
+        .task(id: mode) {
+            guard mode == .graphs else { return }
+            isPreparingGraphs = true
+            try? await Task.sleep(for: .milliseconds(300))
+            isPreparingGraphs = false
+        }
         .task {
             // Show the cache instantly, then refresh from the server.
             if let cached = store.cachedQuestionnaires(for: patient) {
@@ -69,8 +79,14 @@ struct PatientQuestionnairesView: View {
             }
         } else {
             switch mode {
-            case .list: questionnaireList
-            case .graphs: graphs
+            case .list:
+                questionnaireList
+            case .graphs:
+                if isPreparingGraphs {
+                    ProgressView()
+                } else {
+                    graphs
+                }
             }
         }
     }

@@ -1,37 +1,9 @@
 import SwiftUI
 
-/// Shows a patient's status and their list of sessions.
+/// Shows a patient's status and links to their sessions, questionnaires,
+/// and AI assistant.
 struct PatientDetailView: View {
     @Bindable var patient: Patient
-
-    /// Which session editor sheet, if any, is presented.
-    private enum SheetRoute: Identifiable {
-        case new(Session)
-        case edit(Session)
-
-        var id: UUID { session.id }
-
-        var session: Session {
-            switch self {
-            case .new(let session), .edit(let session): return session
-            }
-        }
-
-        var isNew: Bool {
-            if case .new = self { return true }
-            return false
-        }
-    }
-
-    @State private var route: SheetRoute?
-
-    /// The session the questionnaire sheet is presented for.
-    @State private var questionnaireSession: Session?
-
-    /// Sessions sorted by date, most recent first.
-    private var sortedSessions: [Session] {
-        patient.sessions.sorted { $0.date > $1.date }
-    }
 
     var body: some View {
         List {
@@ -54,6 +26,12 @@ struct PatientDetailView: View {
                 }
 
                 NavigationLink {
+                    PatientSessionsView(patient: patient)
+                } label: {
+                    iconChip("calendar", color: .blue, title: "Sessions")
+                }
+
+                NavigationLink {
                     PatientQuestionnairesView(patient: patient)
                 } label: {
                     iconChip("chart.xyaxis.line", color: .orange, title: QuestionnaireText.viewQuestionnairesAction)
@@ -65,55 +43,9 @@ struct PatientDetailView: View {
                     iconChip("sparkles", color: .purple, title: QuestionnaireText.aiAction)
                 }
             }
-
-            Section("Sessions") {
-                if patient.sessions.isEmpty {
-                    Text("No sessions yet")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(Array(sortedSessions.enumerated()), id: \.element.id) { index, session in
-                        HStack {
-                            Button {
-                                route = .edit(session)
-                            } label: {
-                                SessionRow(number: sortedSessions.count - index, session: session)
-                            }
-                            .buttonStyle(.plain)
-
-                            Menu {
-                                Button {
-                                    questionnaireSession = session
-                                } label: {
-                                    Label(QuestionnaireText.addQuestionnaireAction, systemImage: "list.clipboard")
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            }
         }
         .navigationTitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    route = .new(Session())
-                } label: {
-                    Label("Add Session", systemImage: "plus")
-                }
-            }
-        }
-        .sheet(item: $route) { route in
-            SessionEditorView(session: route.session, patient: patient, isNew: route.isNew)
-        }
-        .sheet(item: $questionnaireSession) { session in
-            NavigationStack {
-                CombinedMoodQuestionnaireView(patient: patient, session: session)
-            }
-        }
     }
 
     /// A Settings-style row label: a small tinted icon square next to the title.
@@ -127,35 +59,6 @@ struct PatientDetailView: View {
                 .frame(width: 28, height: 28)
                 .background(color.gradient, in: RoundedRectangle(cornerRadius: 7))
         }
-    }
-}
-
-/// A single row in the sessions list.
-private struct SessionRow: View {
-    let number: Int
-    let session: Session
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Text("\(number)")
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 34, height: 34)
-                .background(Color.accentColor.opacity(0.12), in: Circle())
-            VStack(alignment: .leading, spacing: 2) {
-                Text(session.date, style: .date)
-                    .font(.headline)
-                if !session.notes.isEmpty {
-                    Text(session.notes)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer()
-        }
-        .padding(.vertical, 2)
-        .contentShape(Rectangle())
     }
 }
 
