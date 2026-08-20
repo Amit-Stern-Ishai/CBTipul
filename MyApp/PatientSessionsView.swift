@@ -5,6 +5,8 @@ import SwiftUI
 struct PatientSessionsView: View {
     let patient: Patient
 
+    @Environment(PatientStore.self) private var store
+
     /// Which session editor sheet, if any, is presented.
     private enum SheetRoute: Identifiable {
         case new(Session)
@@ -45,7 +47,11 @@ struct PatientSessionsView: View {
                         Button {
                             route = .edit(session)
                         } label: {
-                            SessionRow(number: sortedSessions.count - index, session: session)
+                            SessionRow(
+                                number: sortedSessions.count - index,
+                                session: session,
+                                subtitle: subtitle(for: session)
+                            )
                         }
                         .buttonStyle(.plain)
 
@@ -82,6 +88,22 @@ struct PatientSessionsView: View {
                 CombinedMoodQuestionnaireView(patient: patient, session: session)
             }
         }
+        .task {
+            // The score previews need the questionnaire cache filled.
+            if store.cachedQuestionnaires(for: patient) == nil {
+                _ = try? await store.loadQuestionnaires(for: patient)
+            }
+        }
+    }
+
+    /// The row's preview line: the session's questionnaire scores when one
+    /// was filled in, otherwise the first line of the notes.
+    private func subtitle(for session: Session) -> String? {
+        if let record = store.cachedQuestionnaires(for: patient)?
+            .first(where: { $0.sessionID == session.databaseID }) {
+            return "\(QuestionnaireText.gad7ShortName): \(record.questionnaire.gad7Score) · \(QuestionnaireText.phq9ShortName): \(record.questionnaire.phq9Score)"
+        }
+        return nil
     }
 }
 
@@ -89,6 +111,7 @@ struct PatientSessionsView: View {
 private struct SessionRow: View {
     let number: Int
     let session: Session
+    let subtitle: String?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -100,12 +123,12 @@ private struct SessionRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(session.date, style: .date)
                     .font(.headline)
-                if !session.notes.isEmpty {
-                    Text(session.notes)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+                // Always present so the row height doesn't jump when the
+                // questionnaire scores finish loading.
+                Text(subtitle ?? " ")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             Spacer()
         }
