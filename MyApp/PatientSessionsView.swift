@@ -70,6 +70,7 @@ struct PatientSessionsView: View {
             }
         }
         .navigationTitle("Sessions")
+        .navigationSubtitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
