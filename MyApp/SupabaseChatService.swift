@@ -8,6 +8,17 @@
 import Foundation
 import Supabase
 
+/// One turn of an AI chat conversation.
+nonisolated struct ChatTurn {
+    enum Role: String {
+        case user
+        case assistant
+    }
+
+    let role: Role
+    let content: String
+}
+
 enum OpenAIChatError: LocalizedError {
     case emptyResponse
 
@@ -49,12 +60,19 @@ nonisolated struct SupabaseChatService {
     }
 
     func complete(systemPrompt: String, userMessage: String) async throws -> String {
+        try await complete(
+            systemPrompt: systemPrompt,
+            turns: [ChatTurn(role: .user, content: userMessage)]
+        )
+    }
+
+    /// Multi-turn variant: sends the whole conversation so the model can
+    /// answer follow-up questions in context.
+    func complete(systemPrompt: String, turns: [ChatTurn]) async throws -> String {
         let body = GatewayRequest(
             model: "gpt-4o-mini",
-            messages: [
-                .init(role: "system", content: systemPrompt),
-                .init(role: "user", content: userMessage),
-            ],
+            messages: [GatewayRequest.Message(role: "system", content: systemPrompt)]
+                + turns.map { .init(role: $0.role.rawValue, content: $0.content) },
             temperature: 0.4
         )
 

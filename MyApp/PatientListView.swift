@@ -43,6 +43,8 @@ struct PatientListView: View {
                     }
                 }
             }
+            .animation(.easeInOut(duration: 0.25), value: isLoading)
+            .animation(.easeInOut(duration: 0.25), value: loadError)
             .navigationTitle("Patients")
             .task { await load() }
             .refreshable { await load() }

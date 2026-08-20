@@ -67,9 +67,8 @@ struct CombinedMoodQuestionnaireView: View {
                     .disabled(!canSave)
             }
         }
-        .overlay {
-            if isSaving { ProgressView() }
-        }
+        .busyOverlay(isSaving)
+        .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .task {
             // Make sure the previous questionnaire is available when this
             // screen is opened before the cache was ever filled.
@@ -393,8 +392,8 @@ private struct QuestionNoteEditor: View {
                 }
 
                 Section(QuestionnaireText.questionNoteTitle) {
-                    TextField(QuestionnaireText.notesFieldPlaceholder, text: $draft, axis: .vertical)
-                        .lineLimit(4...10)
+                    NotesField(text: $draft, placeholder: QuestionnaireText.notesFieldPlaceholder,
+                               minLines: 4, maxLines: 10)
                 }
             }
             .dismissesKeyboardOnTap()

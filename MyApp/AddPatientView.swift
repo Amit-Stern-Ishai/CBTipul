@@ -61,6 +61,7 @@ struct AddPatientView: View {
                 }
             }
             .dismissesKeyboardOnTap()
+            .animation(.easeInOut(duration: 0.2), value: errorMessage)
             .navigationTitle("New Patient")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -72,9 +73,7 @@ struct AddPatientView: View {
                         .disabled(!canSave)
                 }
             }
-            .overlay {
-                if isSaving { ProgressView() }
-            }
+            .busyOverlay(isSaving)
         }
     }
 

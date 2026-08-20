@@ -35,6 +35,8 @@ struct PatientQuestionnairesView: View {
 
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(.easeInOut(duration: 0.25), value: isLoading)
+                .animation(.easeInOut(duration: 0.25), value: mode)
         }
         .navigationTitle(QuestionnaireText.questionnairesTitle)
         .task {

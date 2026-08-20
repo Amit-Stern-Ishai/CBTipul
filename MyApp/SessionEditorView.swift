@@ -82,8 +82,8 @@ struct SessionEditorView: View {
 
                 Section("Notes") {
                     HStack(alignment: .bottom) {
-                        TextField("Optional notes", text: $session.notes, axis: .vertical)
-                            .lineLimit(3...8)
+                        NotesField(text: $session.notes, placeholder: "Optional notes",
+                                   minLines: 3, maxLines: 8)
                         recordControl
                     }
                     .confirmationDialog(QuestionnaireText.recordingFinishedTitle,
@@ -175,9 +175,9 @@ struct SessionEditorView: View {
                 Button(QuestionnaireText.keepEditingAction, role: .cancel) {}
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
-            .overlay {
-                if isSaving { ProgressView() }
-            }
+            .busyOverlay(isSaving)
+            .animation(.easeInOut(duration: 0.2), value: errorMessage)
+            .animation(.easeInOut(duration: 0.2), value: isTranscribing)
             .onAppear {
                 if initialDate == nil {
                     initialDate = session.date
