@@ -30,16 +30,6 @@ struct CombinedMoodQuestionnaireView: View {
 
     var body: some View {
         Form {
-            Section {
-                // The session's date, which is saved as the answered date.
-                Label {
-                    Text(session.date, style: .date)
-                } icon: {
-                    Image(systemName: "calendar")
-                }
-                .foregroundStyle(.secondary)
-            }
-
             QuestionnaireSections(
                 questionnaire: $session.questionnaire,
                 isEditable: true,
@@ -54,8 +44,9 @@ struct CombinedMoodQuestionnaireView: View {
                 }
             }
         }
-        .navigationTitle(QuestionnaireText.combinedTitle)
-        .navigationSubtitle(patient.displayName)
+        .navigationTitle(patient.displayName)
+        // The session's date, which is saved as the answered date.
+        .navigationSubtitle(session.date.formatted(date: .abbreviated, time: .omitted))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
@@ -103,20 +94,14 @@ struct CompletedQuestionnaireView: View {
 
     var body: some View {
         Form {
-            if let patientName {
-                Section {
-                    Label(patientName, systemImage: "person")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
             QuestionnaireSections(
                 questionnaire: .constant(record.questionnaire),
                 isEditable: false,
                 previous: previous
             )
         }
-        .navigationTitle(record.answeredDate.formatted(date: .abbreviated, time: .omitted))
+        .navigationTitle(patientName ?? "")
+        .navigationSubtitle(record.answeredDate.formatted(date: .abbreviated, time: .omitted))
     }
 }
 
