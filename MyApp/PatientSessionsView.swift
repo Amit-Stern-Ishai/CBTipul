@@ -123,11 +123,11 @@ private struct SessionRow: View {
                 .frame(width: 34, height: 34)
                 .background(Color.accentColor.opacity(0.12), in: Circle())
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.date, style: .date)
+                Text("Session \(number)")
                     .font(.headline)
                 // Always present so the row height doesn't jump when the
                 // questionnaire scores finish loading.
-                Text(subtitle ?? " ")
+                Text(session.date, style: .date)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -142,7 +142,7 @@ private struct SessionRow: View {
 #Preview {
     let auth = AuthManager()
     NavigationStack {
-        PatientSessionsView(patient: Patient(firstName: "Alex", lastName: "Rivera", sessions: [Session()]))
+        PatientSessionsView(patient: Patient(firstName: "ישראלה", lastName: "ישראלית", sessions: [Session()]))
     }
     .environment(PatientStore(client: auth.client))
 }
