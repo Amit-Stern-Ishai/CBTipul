@@ -1,9 +1,31 @@
 import SwiftUI
 
-/// Shows a patient's status and links to their sessions, questionnaires,
-/// and AI assistant.
+/// Shows a patient's status, links to their sessions, questionnaires, and
+/// AI assistant, and the patient's own notes (with voice transcription,
+/// same behavior as session notes).
 struct PatientDetailView: View {
     @Bindable var patient: Patient
+
+    @Environment(AuthManager.self) private var auth
+    @Environment(PatientStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @State private var isShowingBackWarning = false
+    @State private var initialNotes: String?
+    @State private var voiceRecorder = VoiceNoteRecorder()
+    @State private var isTranscribing = false
+    @State private var isShowingTranscribeDialog = false
+    @State private var isReshowingTranscribeDialog = false
+
+    /// Whether anything would be lost by leaving without saving: edited
+    /// notes or a voice note that hasn't been transcribed yet.
+    private var hasUnsavedChanges: Bool {
+        if let initialNotes, initialNotes != patient.notes { return true }
+        if voiceRecorder.recordingURL != nil { return true }
+        return false
+    }
 
     var body: some View {
         List {
@@ -43,9 +65,192 @@ struct PatientDetailView: View {
                     iconChip("sparkles", color: .purple, title: QuestionnaireText.aiAction)
                 }
             }
+
+            Section("Notes") {
+                HStack(alignment: .bottom) {
+                    NotesField(text: $patient.notes, placeholder: "Optional notes",
+                               minLines: 3, maxLines: 8)
+                    recordControl
+                }
+                .confirmationDialog(QuestionnaireText.recordingFinishedTitle,
+                                    isPresented: $isShowingTranscribeDialog,
+                                    titleVisibility: .visible) {
+                    Button(voiceRecorder.isPlaying
+                           ? QuestionnaireText.stopPlaybackAction
+                           : QuestionnaireText.playRecordingAction) {
+                        voiceRecorder.togglePlayback()
+                        isReshowingTranscribeDialog = true
+                    }
+                    Button(QuestionnaireText.transcribeAction) { transcribe() }
+                    Button(QuestionnaireText.discardRecordingAction, role: .destructive) {
+                        voiceRecorder.discard()
+                    }
+                }
+                .onChange(of: isShowingTranscribeDialog) { _, isShowing in
+                    guard !isShowing else { return }
+                    if isReshowingTranscribeDialog {
+                        // Play/Stop keeps the choice open: re-present.
+                        isReshowingTranscribeDialog = false
+                        Task { isShowingTranscribeDialog = true }
+                    } else if !isTranscribing, voiceRecorder.recordingURL != nil {
+                        // Dismissing without choosing (tap outside) counts
+                        // as discard; nothing else can reach the file.
+                        voiceRecorder.discard()
+                    }
+                }
+
+                if isTranscribing {
+                    HStack {
+                        ProgressView()
+                        Text(QuestionnaireText.transcribingLabel)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let recorderError = voiceRecorder.errorMessage {
+                    Text(recorderError)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            if let errorMessage {
+                Section {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            }
         }
         .navigationTitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    if hasUnsavedChanges {
+                        isShowingBackWarning = true
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    Label("Back", systemImage: "chevron.backward")
+                }
+                .disabled(isSaving)
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") { save() }
+                    .disabled(isSaving || !hasUnsavedChanges)
+            }
+        }
+        // An alert, not a confirmation dialog: iPad popover dialogs hide
+        // cancel-role buttons, and Keep Editing must always be offered.
+        .alert(QuestionnaireText.discardChangesTitle,
+               isPresented: $isShowingBackWarning) {
+            Button(QuestionnaireText.saveChangesAction) { save(thenDismiss: true) }
+            Button(QuestionnaireText.discardChangesAction, role: .destructive) {
+                // The patient object is shared, so revert the edits instead
+                // of leaving them in memory unsaved.
+                if let initialNotes { patient.notes = initialNotes }
+                voiceRecorder.discard()
+                dismiss()
+            }
+            Button(QuestionnaireText.keepEditingAction, role: .cancel) {}
+        }
+        .busyOverlay(isSaving)
+        .animation(.easeInOut(duration: 0.2), value: errorMessage)
+        .animation(.easeInOut(duration: 0.2), value: isTranscribing)
+        .onAppear {
+            if initialNotes == nil {
+                initialNotes = patient.notes
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var recordControl: some View {
+        if voiceRecorder.isRecording {
+            HStack(spacing: 6) {
+                Text(formattedDuration)
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(.red)
+                Button {
+                    voiceRecorder.stopRecording()
+                    isShowingTranscribeDialog = true
+                } label: {
+                    Image(systemName: "stop.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+            }
+        } else {
+            Button {
+                Task { await voiceRecorder.startRecording() }
+            } label: {
+                Image(systemName: "mic.fill")
+                    .font(.title3)
+                    .foregroundStyle(.tint)
+            }
+            .buttonStyle(.plain)
+            .disabled(isTranscribing)
+        }
+    }
+
+    private var formattedDuration: String {
+        Duration.seconds(voiceRecorder.duration)
+            .formatted(.time(pattern: .minuteSecond))
+    }
+
+    /// Sends the recorded voice note to Whisper and appends the resulting
+    /// text to the notes field, wrapped in marker lines.
+    private func transcribe() {
+        guard let fileURL = voiceRecorder.recordingURL else { return }
+        let whisperService = WhisperService(client: auth.client)
+        voiceRecorder.errorMessage = nil
+        isTranscribing = true
+        Task {
+            do {
+                let text = try await whisperService.transcribe(fileURL: fileURL)
+                appendTranscription(text)
+                voiceRecorder.discard()
+                isTranscribing = false
+            } catch {
+                voiceRecorder.errorMessage = error.localizedDescription
+                isTranscribing = false
+                // Re-ask so the recording can be retried or discarded.
+                isShowingTranscribeDialog = true
+            }
+        }
+    }
+
+    private func appendTranscription(_ text: String) {
+        let timeText = Date.now.formatted(date: .numeric, time: .shortened)
+        appendNotesBlock("\(QuestionnaireText.transcriptionHeader(timeText: timeText))\n\(text)")
+    }
+
+    private func appendNotesBlock(_ block: String) {
+        if patient.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            patient.notes = block
+        } else {
+            patient.notes += "\n\n" + block
+        }
+    }
+
+    private func save(thenDismiss: Bool = false) {
+        errorMessage = nil
+        isSaving = true
+        Task {
+            do {
+                try await store.updatePatientNotes(patient)
+                initialNotes = patient.notes
+                if thenDismiss { dismiss() }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isSaving = false
+        }
     }
 
     /// A Settings-style row label: a small tinted icon square next to the title.
@@ -67,5 +272,6 @@ struct PatientDetailView: View {
     NavigationStack {
         PatientDetailView(patient: Patient(firstName: "Alex", lastName: "Rivera", sessions: [Session()]))
     }
+    .environment(auth)
     .environment(PatientStore(client: auth.client))
 }

@@ -251,6 +251,11 @@ struct PatientAIView: View {
         var parts: [String] = []
         parts.append("Patient: \(patient.displayName), status: \(patient.status.rawValue)")
 
+        let patientNotes = patient.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !patientNotes.isEmpty {
+            parts.append("Patient notes (general, not tied to a session):\n\(patientNotes)")
+        }
+
         let sessions = patient.sessions.sorted { $0.date < $1.date }
         if sessions.isEmpty {
             parts.append("No sessions yet.")

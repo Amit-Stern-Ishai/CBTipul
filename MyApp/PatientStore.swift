@@ -77,12 +77,14 @@ private nonisolated struct PatientRow: Decodable {
     let firstName: String?
     let lastName: String?
     let active: Bool?
+    let notes: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case firstName = "first_name"
         case lastName = "last_name"
         case active
+        case notes
     }
 }
 
@@ -99,6 +101,11 @@ private nonisolated struct SessionRow: Decodable {
         case sessionDate = "session_date"
         case notes
     }
+}
+
+/// Row shape for updates of a patient's notes.
+private nonisolated struct UpdatedPatientNotesRecord: Encodable {
+    let notes: String?
 }
 
 /// Row shape for updates of an existing `Sessions` row.
@@ -146,6 +153,8 @@ private nonisolated struct CachedPatient: Codable {
     let firstName: String
     let lastName: String
     let active: Bool
+    /// Optional so cache files written before notes existed still decode.
+    let notes: String?
     let sessions: [CachedSession]
 }
 
@@ -180,7 +189,7 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
         let patientRows: [PatientRow] = try await client.from("Patients")
-            .select("id, first_name, last_name, active")
+            .select("id, first_name, last_name, active, notes")
             .execute()
             .value
         let sessionRows: [SessionRow] = try await client.from("Sessions")
@@ -204,6 +213,7 @@ final class PatientStore {
                 firstName: row.firstName ?? "",
                 lastName: row.lastName ?? "",
                 status: (row.active ?? true) ? .active : .inactive,
+                notes: row.notes ?? "",
                 sessions: (sessionsByPatient[row.id] ?? []).sorted { $0.date < $1.date }
             )
         }
@@ -231,6 +241,7 @@ final class PatientStore {
                 firstName: patient.firstName,
                 lastName: patient.lastName,
                 status: patient.active ? .active : .inactive,
+                notes: patient.notes ?? "",
                 sessions: patient.sessions.map {
                     Session(databaseID: $0.databaseID, date: $0.date, notes: $0.notes)
                 }
@@ -247,6 +258,7 @@ final class PatientStore {
                 firstName: patient.firstName,
                 lastName: patient.lastName,
                 active: patient.status == .active,
+                notes: patient.notes,
                 sessions: patient.sessions.map {
                     CachedSession(databaseID: $0.databaseID, date: $0.date, notes: $0.notes)
                 }
@@ -333,6 +345,24 @@ final class PatientStore {
 
         session.databaseID = inserted.id
         patient.sessions.append(session)
+        saveCachedPatients()
+    }
+
+    /// Persists notes changes of an already-saved patient.
+    func updatePatientNotes(_ patient: Patient) async throws {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
+
+        let trimmed = patient.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Select the updated rows back: with row-level security a blocked
+        // update "succeeds" with zero rows, which must not pass as saved.
+        let updated: [InsertedRow] = try await client.from("Patients")
+            .update(UpdatedPatientNotesRecord(notes: trimmed.isEmpty ? nil : trimmed))
+            .eq("id", value: patientID.queryValue)
+            .select("id")
+            .execute()
+            .value
+        guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
         saveCachedPatients()
     }
 

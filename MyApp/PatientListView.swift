@@ -36,7 +36,7 @@ struct PatientListView: View {
                             .buttonStyle(.borderedProminent)
                     }
                 } else {
-                    List(store.patients) { patient in
+                    List(sortedPatients) { patient in
                         NavigationLink(value: patient) {
                             PatientRow(patient: patient)
                         }
@@ -79,6 +79,14 @@ struct PatientListView: View {
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView()
             }
+        }
+    }
+
+    /// Patients in a stable alphabetical order, independent of the order
+    /// the database returns them in.
+    private var sortedPatients: [Patient] {
+        store.patients.sorted {
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
     }
 

@@ -51,6 +51,7 @@ final class Patient: Identifiable {
     var firstName: String
     var lastName: String
     var status: PatientStatus
+    var notes: String
     var sessions: [Session]
 
     init(id: UUID = UUID(),
@@ -58,12 +59,14 @@ final class Patient: Identifiable {
          firstName: String = "",
          lastName: String = "",
          status: PatientStatus = .active,
+         notes: String = "",
          sessions: [Session] = []) {
         self.id = id
         self.databaseID = databaseID
         self.firstName = firstName
         self.lastName = lastName
         self.status = status
+        self.notes = notes
         self.sessions = sessions
     }
 
