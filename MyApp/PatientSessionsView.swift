@@ -54,17 +54,6 @@ struct PatientSessionsView: View {
                             )
                         }
                         .buttonStyle(.plain)
-
-                        Menu {
-                            Button {
-                                questionnaireSession = session
-                            } label: {
-                                Label(QuestionnaireText.addQuestionnaireAction, systemImage: "list.clipboard")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .foregroundStyle(.secondary)
-                        }
                     }
                 }
             }
@@ -82,7 +71,12 @@ struct PatientSessionsView: View {
             }
         }
         .sheet(item: $route) { route in
-            SessionEditorView(session: route.session, patient: patient, isNew: route.isNew)
+            SessionEditorView(
+                session: route.session,
+                patient: patient,
+                isNew: route.isNew,
+                sessionNumber: route.isNew ? nil : sessionNumber(for: route.session)
+            )
         }
         .sheet(item: $questionnaireSession) { session in
             NavigationStack {
@@ -96,6 +90,13 @@ struct PatientSessionsView: View {
                 _ = try? await store.loadQuestionnaires(for: patient)
             }
         }
+    }
+
+    /// The session's 1-based number in the patient's history (oldest = 1),
+    /// matching the numbers shown in the list rows.
+    private func sessionNumber(for session: Session) -> Int? {
+        sortedSessions.firstIndex { $0.id == session.id }
+            .map { sortedSessions.count - $0 }
     }
 
     /// The row's preview line: the session's questionnaire scores when one

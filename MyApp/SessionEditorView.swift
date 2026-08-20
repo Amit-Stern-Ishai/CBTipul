@@ -21,6 +21,9 @@ struct SessionEditorView: View {
     @Bindable var session: Session
     let patient: Patient
     var isNew: Bool
+    /// The session's 1-based number in the patient's history, shown in the
+    /// title when editing an existing session.
+    var sessionNumber: Int? = nil
     
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
@@ -71,13 +74,7 @@ struct SessionEditorView: View {
         NavigationStack {
             Form {
                 Section {
-                    HStack {
-                        Label(patient.displayName, systemImage: "person")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        DatePicker("Date", selection: $session.date, displayedComponents: [.date])
-                            .labelsHidden()
-                    }
+                    DatePicker("Date", selection: $session.date, displayedComponents: [.date])
                 }
 
                 Section("Notes") {
@@ -143,7 +140,10 @@ struct SessionEditorView: View {
                 }
             }
             .dismissesKeyboardOnTap()
-            .navigationTitle(isNew ? "New Session" : "Session")
+            .navigationTitle(isNew
+                             ? "New Session"
+                             : "Session\(sessionNumber.map { " \($0)" } ?? "")")
+            .navigationSubtitle(patient.displayName)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
