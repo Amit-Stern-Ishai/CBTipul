@@ -21,7 +21,8 @@ struct SessionEditorView: View {
     @Bindable var session: Session
     let patient: Patient
     var isNew: Bool
-
+    
+    @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
@@ -386,11 +387,12 @@ struct SessionEditorView: View {
     /// text to the notes field, wrapped in marker lines.
     private func transcribe() {
         guard let fileURL = voiceRecorder.recordingURL else { return }
+        let whisperService = WhisperService(client: auth.client)
         voiceRecorder.errorMessage = nil
         isTranscribing = true
         Task {
             do {
-                let text = try await WhisperService.transcribe(fileURL: fileURL)
+                let text = try await whisperService.transcribe(fileURL: fileURL)
                 appendTranscription(text)
                 voiceRecorder.discard()
                 isTranscribing = false

@@ -1,4 +1,5 @@
 import Foundation
+import Supabase
 
 /// Errors from the Whisper transcription API.
 nonisolated enum WhisperError: LocalizedError {
@@ -12,46 +13,57 @@ nonisolated enum WhisperError: LocalizedError {
     }
 }
 
-/// Sends recorded audio to OpenAI Whisper and returns the transcribed text.
-nonisolated enum WhisperService {
-    private static let endpoint = URL(string: "https://api.openai.com/v1/audio/transcriptions")!
+/// Sends recorded audio to the Supabase Edge Function,
+/// which forwards it to OpenAI Whisper.
+nonisolated struct WhisperService {
+    
+    let client: SupabaseClient
+    
+    private let functionName = "whisper-transcribe"
 
-    /// Transcribes the audio file at `fileURL`. `language` is an ISO-639-1
-    /// code; Hebrew by default since that's what sessions are held in.
-    static func transcribe(fileURL: URL, language: String = "he") async throws -> String {
-        let boundary = "Boundary-\(UUID().uuidString)"
+    /// Transcribes the audio file at `fileURL`.
+    /// `language` is an ISO-639-1 code; Hebrew by default.
+    func transcribe(
+        fileURL: URL,
+        language: String = "he"
+    ) async throws -> String {
 
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(OpenAIConfig.apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        let audioData: Data
 
-        var body = Data()
-        body.appendText("--\(boundary)\r\n")
-        body.appendText("Content-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n")
-        body.appendText("--\(boundary)\r\n")
-        body.appendText("Content-Disposition: form-data; name=\"language\"\r\n\r\n\(language)\r\n")
-        body.appendText("--\(boundary)\r\n")
-        body.appendText("Content-Disposition: form-data; name=\"file\"; filename=\"voice-note.m4a\"\r\n")
-        body.appendText("Content-Type: audio/m4a\r\n\r\n")
-        body.append(try Data(contentsOf: fileURL))
-        body.appendText("\r\n--\(boundary)--\r\n")
-
-        let (data, response) = try await URLSession.shared.upload(for: request, from: body)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            let message = String(data: data, encoding: .utf8) ?? "Unknown server error"
-            throw WhisperError.requestFailed(message)
+        do {
+            audioData = try Data(contentsOf: fileURL)
+        } catch {
+            throw WhisperError.requestFailed(
+                "Could not read audio file: \(error.localizedDescription)"
+            )
         }
 
-        struct TranscriptionResponse: Decodable {
-            let text: String
+        do {
+            let response: TranscriptionResponse =
+                try await client.functions.invoke(
+                    functionName,
+                    options: FunctionInvokeOptions(
+                        headers: [
+                            "Content-Type": "audio/m4a",
+                            "x-language": language
+                        ],
+                        body: audioData
+                    )
+                )
+
+            return response.text
+
+        } catch let error as WhisperError {
+            throw error
+
+        } catch {
+            throw WhisperError.requestFailed(
+                error.localizedDescription
+            )
         }
-        return try JSONDecoder().decode(TranscriptionResponse.self, from: data).text
     }
-}
 
-private extension Data {
-    mutating func appendText(_ string: String) {
-        append(Data(string.utf8))
+    private struct TranscriptionResponse: Decodable {
+        let text: String
     }
 }
