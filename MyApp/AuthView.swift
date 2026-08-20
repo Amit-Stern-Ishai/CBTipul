@@ -110,6 +110,12 @@ struct AuthView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(email.isEmpty || password.isEmpty || isWorking)
+
+            if mode == .signIn {
+                Button("Forgot password?", action: forgotPassword)
+                    .font(.footnote)
+                    .disabled(isWorking)
+            }
         }
         .padding(20)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28))
@@ -174,6 +180,17 @@ struct AuthView: View {
                     ? "Account created. Check your email to confirm your address, then sign in."
                     : nil
             }
+        }
+    }
+
+    private func forgotPassword() {
+        guard !email.isEmpty else {
+            errorMessage = "Enter your email address first, then tap Forgot password."
+            return
+        }
+        authenticate {
+            try await auth.resetPassword(email: email)
+            return "Password reset email sent. Check your inbox for a link to set a new password."
         }
     }
 

@@ -8,6 +8,17 @@
 import Foundation
 import Supabase
 
+enum OpenAIChatError: LocalizedError {
+    case emptyResponse
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyResponse:
+            return "The AI service returned an empty response."
+        }
+    }
+}
+
 /// Calls OpenAI chat through the `openai-gateway` Supabase Edge Function,
 /// so the OpenAI API key stays on the server instead of in the app.
 /// (Image text extraction still calls OpenAI directly.)

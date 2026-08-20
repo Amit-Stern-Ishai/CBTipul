@@ -64,6 +64,12 @@ final class AuthManager {
         return response.session == nil
     }
 
+    /// Sends a password-reset email to the given address.
+    func resetPassword(email: String) async throws {
+        try ensureConfigured()
+        try await client.auth.resetPasswordForEmail(email)
+    }
+
 //    func signIn(with provider: AuthProvider) async throws {
 //        try ensureConfigured()
 //        throw AuthError.notImplemented("\(provider.rawValue) sign-in")

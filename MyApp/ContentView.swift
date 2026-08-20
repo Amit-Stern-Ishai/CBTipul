@@ -25,11 +25,28 @@ struct MyApp: App {
 struct ContentView: View {
     @Environment(AuthManager.self) private var auth
 
+    @State private var isShowingSplash = true
+
     var body: some View {
-        if auth.isAuthenticated {
-            PatientListView()
-        } else {
-            AuthView()
+        ZStack {
+            if auth.isAuthenticated {
+                PatientListView()
+            } else {
+                AuthView()
+            }
+
+            if isShowingSplash {
+                SplashView()
+                    .transition(.opacity)
+            }
+        }
+        .task {
+            // Keep the splash up briefly so the session can be restored
+            // without flashing the sign-in screen.
+            try? await Task.sleep(for: .seconds(1.5))
+            withAnimation(.easeOut(duration: 0.4)) {
+                isShowingSplash = false
+            }
         }
     }
 }

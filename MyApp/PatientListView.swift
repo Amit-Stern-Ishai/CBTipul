@@ -52,7 +52,7 @@ struct PatientListView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Sign Out") {
-                        store.clearCachedPatients()
+                        store.clearAllCaches()
                         auth.signOut()
                     }
                 }

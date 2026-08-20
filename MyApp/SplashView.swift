@@ -7,6 +7,9 @@ struct SplashView: View {
 
     var body: some View {
         ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+
             LinearGradient(
                 colors: [
                     Color.accentColor.opacity(0.18),

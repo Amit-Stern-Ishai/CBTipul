@@ -261,6 +261,15 @@ final class PatientStore {
         try? FileManager.default.removeItem(at: Self.patientsCacheURL)
     }
 
+    /// Clears everything cached for the signed-in user (disk snapshot and all
+    /// in-memory data), so nothing leaks into the next session on sign-out.
+    func clearAllCaches() {
+        clearCachedPatients()
+        patients = []
+        questionnairesByPatient = [:]
+        sessionImagesCache = [:]
+    }
+
     /// Parses a Postgres `date` value, falling back to timestamp formats in
     /// case the column was created as `timestamp`/`timestamptz`.
     private func parseDate(_ raw: String) -> Date {
