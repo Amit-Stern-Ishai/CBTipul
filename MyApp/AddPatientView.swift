@@ -75,6 +75,7 @@ struct AddPatientView: View {
             }
             .busyOverlay(isSaving)
         }
+        .appTextSize()
     }
 
     private func save() {

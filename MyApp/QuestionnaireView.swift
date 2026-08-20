@@ -411,6 +411,7 @@ private struct QuestionNoteEditor: View {
             .onAppear { draft = note }
         }
         .presentationDetents([.medium, .large])
+        .appTextSize()
     }
 }
 

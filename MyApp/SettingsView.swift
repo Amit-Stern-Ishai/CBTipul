@@ -46,6 +46,23 @@ enum AppTextSize: String, CaseIterable {
     }
 }
 
+/// Applies the app's text-size setting. Needed at the root of every sheet
+/// and full-screen cover (besides the app root), because presented screens
+/// don't inherit the presenting view's dynamic-type override.
+private struct AppTextSizeModifier: ViewModifier {
+    @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
+
+    func body(content: Content) -> some View {
+        content.dynamicTypeSize(textSize.dynamicTypeSize)
+    }
+}
+
+extension View {
+    func appTextSize() -> some View {
+        modifier(AppTextSizeModifier())
+    }
+}
+
 /// App-wide settings.
 struct SettingsView: View {
     @AppStorage("aiResponseStyle") private var responseStyle: AIResponseStyle = .typing
@@ -100,11 +117,7 @@ struct SettingsView: View {
                 }
             }
         }
-        // Sheets don't reliably inherit the root's dynamic-type override,
-        // so apply the setting here too — picking a size rerenders this
-        // screen immediately. The picker's preview rows use explicit fonts
-        // and are unaffected.
-        .dynamicTypeSize(textSize.dynamicTypeSize)
+        .appTextSize()
     }
 }
 

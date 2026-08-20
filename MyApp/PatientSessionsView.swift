@@ -88,6 +88,7 @@ struct PatientSessionsView: View {
             NavigationStack {
                 CombinedMoodQuestionnaireView(patient: patient, session: session)
             }
+            .appTextSize()
         }
         .task {
             // The score previews need the questionnaire cache filled.

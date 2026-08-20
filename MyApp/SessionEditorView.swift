@@ -210,8 +210,10 @@ struct SessionEditorView: View {
                 } onTranscribed: { text in
                     appendImageTranscription(text)
                 }
+                .appTextSize()
             }
         }
+        .appTextSize()
     }
 
     /// Picked and stored images for this session, with add/delete controls.
