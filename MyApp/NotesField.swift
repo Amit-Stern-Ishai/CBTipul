@@ -1,10 +1,10 @@
 import SwiftUI
 import UIKit
 
-/// A multiline notes field that shows the end of long text while idle and
-/// puts the cursor at the absolute end when the user taps into it.
-/// SwiftUI's `TextField` can do neither (no scroll control while unfocused,
-/// and a tap places the caret at the tap point), so this wraps `UITextView`.
+/// A multiline notes field that shows the end of long text while idle.
+/// SwiftUI's `TextField` cannot control its scroll position while unfocused,
+/// so this wraps `UITextView`. Editing behaves like any text view — the
+/// cursor lands wherever the user taps.
 struct NotesField: UIViewRepresentable {
     @Binding var text: String
     let placeholder: String
@@ -79,15 +79,6 @@ struct NotesField: UIViewRepresentable {
         func textViewDidChange(_ textView: UITextView) {
             text.wrappedValue = textView.text
             placeholderLabel.isHidden = !textView.text.isEmpty
-        }
-
-        func textViewDidBeginEditing(_ textView: UITextView) {
-            // Deferred so it wins over the caret position set by the tap.
-            DispatchQueue.main.async {
-                let end = textView.endOfDocument
-                textView.selectedTextRange = textView.textRange(from: end, to: end)
-                NotesField.jumpToEnd(textView)
-            }
         }
     }
 }
