@@ -8,9 +8,48 @@ enum AIResponseStyle: String, CaseIterable {
     case regular
 }
 
+/// App-wide text size, applied on top of Dynamic Type from ContentView.
+enum AppTextSize: String, CaseIterable {
+    case small
+    case standard
+    case large
+    case extraLarge
+    case huge
+
+    var dynamicTypeSize: DynamicTypeSize {
+        switch self {
+        case .small: .small
+        case .standard: .large
+        case .large: .xLarge
+        case .extraLarge: .xxxLarge
+        case .huge: .accessibility2
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .small: QuestionnaireText.settingsTextSizeSmall
+        case .standard: QuestionnaireText.settingsTextSizeStandard
+        case .large: QuestionnaireText.settingsTextSizeLarge
+        case .extraLarge: QuestionnaireText.settingsTextSizeExtraLarge
+        case .huge: QuestionnaireText.settingsTextSizeHuge
+        }
+    }
+
+    /// The body font at this size, resolved explicitly so previews show the
+    /// real size regardless of the surrounding environment.
+    var previewFont: Font {
+        Font(UIFont.preferredFont(
+            forTextStyle: .body,
+            compatibleWith: UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+        ))
+    }
+}
+
 /// App-wide settings.
 struct SettingsView: View {
     @AppStorage("aiResponseStyle") private var responseStyle: AIResponseStyle = .typing
+    @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -32,6 +71,27 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                Section(QuestionnaireText.settingsAccessibilitySectionTitle) {
+                    NavigationLink {
+                        TextSizePickerView()
+                    } label: {
+                        HStack {
+                            Label {
+                                Text(QuestionnaireText.settingsTextSizeTitle)
+                            } icon: {
+                                Image(systemName: "textformat.size")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 28, height: 28)
+                                    .background(Color.blue.gradient, in: RoundedRectangle(cornerRadius: 7))
+                            }
+                            Spacer()
+                            Text(textSize.label)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
             .navigationTitle(QuestionnaireText.settingsTitle)
             .toolbar {
@@ -40,6 +100,42 @@ struct SettingsView: View {
                 }
             }
         }
+        // Sheets don't reliably inherit the root's dynamic-type override,
+        // so apply the setting here too — picking a size rerenders this
+        // screen immediately. The picker's preview rows use explicit fonts
+        // and are unaffected.
+        .dynamicTypeSize(textSize.dynamicTypeSize)
+    }
+}
+
+/// Text size selection, each option shown at the size it represents.
+private struct TextSizePickerView: View {
+    @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(AppTextSize.allCases, id: \.self) { size in
+                    Button {
+                        textSize = size
+                    } label: {
+                        HStack {
+                            Text(size.label)
+                                .font(size.previewFont)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if textSize == size {
+                                Image(systemName: "checkmark")
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(QuestionnaireText.settingsTextSizeTitle)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

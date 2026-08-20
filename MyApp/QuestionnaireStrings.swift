@@ -78,6 +78,13 @@ enum QuestionnaireText {
     static let settingsResponseStyleTyping = "Typing"
     static let settingsResponseStyleRegular = "Regular"
     static let settingsDoneAction = "Done"
+    static let settingsAccessibilitySectionTitle = "Accessibility"
+    static let settingsTextSizeTitle = "Text Size"
+    static let settingsTextSizeSmall = "Small"
+    static let settingsTextSizeStandard = "Standard"
+    static let settingsTextSizeLarge = "Large"
+    static let settingsTextSizeExtraLarge = "Extra Large"
+    static let settingsTextSizeHuge = "Huge"
 
     // MARK: - Session editor
 

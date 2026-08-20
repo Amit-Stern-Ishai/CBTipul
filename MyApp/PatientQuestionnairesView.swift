@@ -23,12 +23,6 @@ struct PatientQuestionnairesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Label(patient.displayName, systemImage: "person")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding([.horizontal, .top])
-
             Picker(QuestionnaireText.modePickerTitle, selection: $mode) {
                 Text(QuestionnaireText.listModeTitle).tag(Mode.list)
                 Text(QuestionnaireText.graphsModeTitle).tag(Mode.graphs)
@@ -43,6 +37,7 @@ struct PatientQuestionnairesView: View {
                 .animation(.easeInOut(duration: 0.25), value: isPreparingGraphs)
         }
         .navigationTitle(QuestionnaireText.questionnairesTitle)
+        .navigationSubtitle(patient.displayName)
         .task(id: mode) {
             guard mode == .graphs else { return }
             isPreparingGraphs = true

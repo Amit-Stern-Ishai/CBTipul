@@ -68,7 +68,8 @@ struct PatientAIView: View {
         .safeAreaInset(edge: .bottom) {
             inputBar
         }
-        .navigationTitle("Chat about \(patient.displayName)")
+        .navigationTitle("AI Chat")
+        .navigationSubtitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .task {
             // The questionnaire context needs the cache filled.

@@ -26,6 +26,7 @@ struct ContentView: View {
     @Environment(AuthManager.self) private var auth
 
     @State private var isShowingSplash = true
+    @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
 
     var body: some View {
         ZStack {
@@ -40,6 +41,7 @@ struct ContentView: View {
                     .transition(.opacity)
             }
         }
+        .dynamicTypeSize(textSize.dynamicTypeSize)
         .task {
             // Keep the splash up briefly so the session can be restored
             // without flashing the sign-in screen.

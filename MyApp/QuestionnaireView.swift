@@ -31,8 +31,6 @@ struct CombinedMoodQuestionnaireView: View {
     var body: some View {
         Form {
             Section {
-                Label(patient.displayName, systemImage: "person")
-                    .foregroundStyle(.secondary)
                 // The session's date, which is saved as the answered date.
                 Label {
                     Text(session.date, style: .date)
@@ -57,6 +55,7 @@ struct CombinedMoodQuestionnaireView: View {
             }
         }
         .navigationTitle(QuestionnaireText.combinedTitle)
+        .navigationSubtitle(patient.displayName)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
