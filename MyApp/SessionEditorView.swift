@@ -72,9 +72,74 @@ struct SessionEditorView: View {
         return store.cachedQuestionnaires(for: patient)?.first { $0.sessionID == sessionID }
     }
 
+    /// The store's current instance of this patient. Reloads replace the
+    /// store's patient objects, so a view that was navigated to before a
+    /// reload may hold a stale instance whose sessions miss recent data
+    /// (e.g. structured notes); previous-session lookups must use the fresh one.
+    private var storePatient: Patient {
+        guard let databaseID = patient.databaseID else { return patient }
+        return store.patients.first { $0.databaseID == databaseID } ?? patient
+    }
+
+    /// The patient's most recent session before this one.
+    private var previousSession: Session? {
+        storePatient.sessions
+            .filter { $0.id != session.id && $0.date <= session.date }
+            .max { $0.date < $1.date }
+    }
+
+    /// Indices into the previous session's follow-up questions that the
+    /// therapist marked "Follow up", surfaced at the top of this editor.
+    /// Indices (not copies) so the questions can be marked discussed in place.
+    private var previousFollowUpIndices: [Int] {
+        guard let questions = previousSession?.structuredNotes?.followUpQuestions else { return [] }
+        return questions.indices.filter { questions[$0].status == .followUp }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
+                if !previousFollowUpIndices.isEmpty {
+                    Section {
+                        ForEach(previousFollowUpIndices, id: \.self) { questionIndex in
+                            if let item = previousSession?.structuredNotes?.followUpQuestions[questionIndex] {
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(item.question)
+                                            .font(.subheadline.weight(.semibold))
+                                        if !item.reason.isEmpty {
+                                            Text(item.reason)
+                                                .font(.footnote)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    Button {
+                                        appendNotesBlock(item.question)
+                                    } label: {
+                                        Image(systemName: "text.badge.plus")
+                                            .font(.title3)
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .accessibilityLabel("Add to notes")
+                                    Button {
+                                        markPreviousFollowUpDiscussed(questionIndex)
+                                    } label: {
+                                        Image(systemName: "checkmark.circle")
+                                            .font(.title3)
+                                            .foregroundStyle(.green)
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .accessibilityLabel("Mark discussed")
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                    } header: {
+                        Label("From Last Session", systemImage: "arrow.uturn.forward")
+                    }
+                }
+
                 Section {
                     DatePicker("Date", selection: $session.date, displayedComponents: [.date])
                 }
@@ -244,9 +309,8 @@ struct SessionEditorView: View {
             }
             .sheet(item: $analysisResult) { result in
                 SessionAnalysisView(analysis: result.analysis,
-                                    onSave: result.requiresSaveDecision
-                                        ? { saveStructuredNotes($0) }
-                                        : nil)
+                                    requiresSaveDecision: result.requiresSaveDecision,
+                                    onSave: { saveStructuredNotes($0) })
             }
             .fullScreenCover(item: $viewerItem) { item in
                 SessionImageViewer(image: item.uiImage) { edited in
@@ -469,6 +533,22 @@ struct SessionEditorView: View {
                 errorMessage = error.localizedDescription
             }
             isAnalyzing = false
+        }
+    }
+
+    /// Marks a follow-up question of the previous session as discussed and
+    /// persists the previous session's review; the row leaves this editor's
+    /// From Last Session list immediately.
+    private func markPreviousFollowUpDiscussed(_ questionIndex: Int) {
+        guard let previous = previousSession else { return }
+        previous.structuredNotes?.followUpQuestions[questionIndex].status = .discussed
+        guard previous.databaseID != nil else { return }
+        Task {
+            do {
+                try await store.updateSession(previous)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

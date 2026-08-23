@@ -205,26 +205,36 @@ final class PatientStore {
             .execute()
             .value
 
-        var sessionsByPatient: [DatabaseID: [Session]] = [:]
+        var sessionRowsByPatient: [DatabaseID: [SessionRow]] = [:]
         for row in sessionRows {
-            let session = Session(
-                databaseID: row.id,
-                date: parseDate(row.sessionDate),
-                notes: row.notes ?? "",
-                structuredNotes: row.structuredNotes
-            )
-            sessionsByPatient[row.patientID, default: []].append(session)
+            sessionRowsByPatient[row.patientID, default: []].append(row)
         }
 
+        // Update existing objects in place instead of replacing them: views
+        // hold Patient/Session references across reloads, and replacing the
+        // instances splits the object graph — edits land on an object the
+        // store no longer shows (or vice versa).
+        let existingPatients = patients
         patients = patientRows.map { row in
-            Patient(
-                databaseID: row.id,
-                firstName: row.firstName ?? "",
-                lastName: row.lastName ?? "",
-                status: (row.active ?? true) ? .active : .inactive,
-                notes: row.notes ?? "",
-                sessions: (sessionsByPatient[row.id] ?? []).sorted { $0.date < $1.date }
-            )
+            let patient = existingPatients.first { $0.databaseID == row.id }
+                ?? Patient(databaseID: row.id)
+            patient.firstName = row.firstName ?? ""
+            patient.lastName = row.lastName ?? ""
+            patient.status = (row.active ?? true) ? .active : .inactive
+            patient.notes = row.notes ?? ""
+
+            let existingSessions = patient.sessions
+            patient.sessions = (sessionRowsByPatient[row.id] ?? [])
+                .map { sessionRow in
+                    let session = existingSessions.first { $0.databaseID == sessionRow.id }
+                        ?? Session(databaseID: sessionRow.id)
+                    session.date = parseDate(sessionRow.sessionDate)
+                    session.notes = sessionRow.notes ?? ""
+                    session.structuredNotes = sessionRow.structuredNotes
+                    return session
+                }
+                .sorted { $0.date < $1.date }
+            return patient
         }
         saveCachedPatients()
     }

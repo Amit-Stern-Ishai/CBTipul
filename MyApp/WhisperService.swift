@@ -63,36 +63,36 @@ nonisolated struct WhisperService {
         }
     }
 
-    private struct TranscriptionResponse: Codable {
+    private struct TranscriptionResponse: Codable, Equatable {
         let text: String
     }
     
-    struct SessionReviewResponse: Codable {
+    struct SessionReviewResponse: Codable, Equatable {
 
             let analysis: CBTSessionAnalysis
             let usage: Usage
 
-            struct Usage: Codable {
+            struct Usage: Codable, Equatable {
                 let totalTokens: Int
             }
         }
 
         // MARK: - CBT Session Analysis
 
-        struct CBTSessionAnalysis: Codable {
+        struct CBTSessionAnalysis: Codable, Equatable {
 
-            let sessionSummary: String
+            var sessionSummary: String
 
-            let keySituations: [KeySituation]
+            var keySituations: [KeySituation]
             let emotions: [Emotion]
-            let possibleNats: [PossibleNAT]
+            var possibleNats: [PossibleNAT]
             let behaviors: [Behavior]
             let cbtPatterns: [CBTPattern]
             let maintainingCycles: [MaintainingCycle]
             let developments: [Development]
             let therapistHypotheses: [TherapistHypothesis]
-            let therapistReflections: [TherapistReflection]
-            let followUpQuestions: [FollowUpQuestion]
+            var therapistReflections: [TherapistReflection]
+            var followUpQuestions: [FollowUpQuestion]
             let unresolvedIssues: [String]
 
             enum CodingKeys: String, CodingKey {
@@ -113,14 +113,14 @@ nonisolated struct WhisperService {
 
         // MARK: - Key Situation
 
-        struct KeySituation: Codable {
-            let situation: String
-            let importance: String
+        struct KeySituation: Codable, Equatable {
+            var situation: String
+            var importance: String
         }
 
         // MARK: - Emotion
 
-        struct Emotion: Codable {
+        struct Emotion: Codable, Equatable {
             let emotion: String
             let context: String
             let evidence: String
@@ -128,15 +128,18 @@ nonisolated struct WhisperService {
 
         // MARK: - NAT
 
-        struct PossibleNAT: Codable {
+        struct PossibleNAT: Codable, Equatable {
 
-            let thought: String
-            let situation: String
-            let emotion: String
-            let behavior: String
+            var thought: String
+            var situation: String
+            var emotion: String
+            var behavior: String
             let source: String
             let confidence: String
             let possibleCognitivePatterns: [String]
+            /// What the behavior leads to (e.g. brief relief that reinforces
+            /// the cycle). Optional: older analyses were saved without it.
+            var possibleConsequence: String?
 
             enum CodingKeys: String, CodingKey {
                 case thought
@@ -147,12 +150,14 @@ nonisolated struct WhisperService {
                 case confidence
                 case possibleCognitivePatterns =
                     "possible_cognitive_patterns"
+                case possibleConsequence =
+                    "possible_consequence"
             }
         }
 
         // MARK: - Behavior
 
-        struct Behavior: Codable {
+        struct Behavior: Codable, Equatable {
 
             let behavior: String
             let type: String
@@ -170,7 +175,7 @@ nonisolated struct WhisperService {
 
         // MARK: - CBT Pattern
 
-        struct CBTPattern: Codable {
+        struct CBTPattern: Codable, Equatable {
             let pattern: String
             let evidence: String
             let confidence: String
@@ -178,7 +183,7 @@ nonisolated struct WhisperService {
 
         // MARK: - Maintaining Cycle
 
-        struct MaintainingCycle: Codable {
+        struct MaintainingCycle: Codable, Equatable {
             let cycle: String
             let evidence: String
             let confidence: String
@@ -186,14 +191,14 @@ nonisolated struct WhisperService {
 
         // MARK: - Development
 
-        struct Development: Codable {
+        struct Development: Codable, Equatable {
             let development: String
             let significance: String
         }
 
         // MARK: - Therapist Hypothesis
 
-        struct TherapistHypothesis: Codable {
+        struct TherapistHypothesis: Codable, Equatable {
             let hypothesis: String
             let evidence: String
             let confidence: String
@@ -201,11 +206,11 @@ nonisolated struct WhisperService {
 
         // MARK: - Therapist Reflection
 
-        struct TherapistReflection: Codable {
+        struct TherapistReflection: Codable, Equatable {
 
-            let observation: String
-            let whyItMayMatter: String
-            let questionToExplore: String
+            var observation: String
+            var whyItMayMatter: String
+            var questionToExplore: String
             let confidence: String
 
             enum CodingKeys: String, CodingKey {
@@ -220,12 +225,21 @@ nonisolated struct WhisperService {
 
         // MARK: - Follow-up Question
 
-        struct FollowUpQuestion: Codable {
+        struct FollowUpQuestion: Codable, Equatable {
 
-            let question: String
-            let reason: String
+            var question: String
+            var reason: String
             let category: String
             let priority: String
+            /// The therapist's triage of the question, set in the app after
+            /// the session — never returned by the AI.
+            var status: Status?
+
+            enum Status: String, Codable, Equatable {
+                case discussed
+                case followUp = "follow_up"
+                case notRelevant = "not_relevant"
+            }
         }
 
         // MARK: - Analyze Session
@@ -380,7 +394,7 @@ nonisolated struct WhisperService {
     }
     
     
-    struct APIErrorResponse: Codable {
+    struct APIErrorResponse: Codable, Equatable {
 
         let error: String
     }
