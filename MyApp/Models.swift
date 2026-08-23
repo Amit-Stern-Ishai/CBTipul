@@ -97,17 +97,21 @@ final class Session: Identifiable {
     var date: Date
     var notes: String
     var questionnaire: CombinedMoodQuestionnaire
+    /// AI-generated structured summary of the notes, once one has been saved.
+    var structuredNotes: WhisperService.CBTSessionAnalysis?
 
     init(id: UUID = UUID(),
          databaseID: DatabaseID? = nil,
          date: Date = .now,
          notes: String = "",
-         questionnaire: CombinedMoodQuestionnaire = CombinedMoodQuestionnaire()) {
+         questionnaire: CombinedMoodQuestionnaire = CombinedMoodQuestionnaire(),
+         structuredNotes: WhisperService.CBTSessionAnalysis? = nil) {
         self.id = id
         self.databaseID = databaseID
         self.date = date
         self.notes = notes
         self.questionnaire = questionnaire
+        self.structuredNotes = structuredNotes
     }
 }
 

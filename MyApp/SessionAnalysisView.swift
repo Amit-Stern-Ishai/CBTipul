@@ -4,14 +4,22 @@ import SwiftUI
 struct SessionAnalysisResult: Identifiable {
     let id = UUID()
     let analysis: WhisperService.CBTSessionAnalysis
+    /// True for a freshly generated summary that hasn't been saved yet, so
+    /// closing the screen asks whether to keep it.
+    let requiresSaveDecision: Bool
 }
 
 /// Read-only presentation of an AI session analysis, one section per part
 /// of the response. Empty sections are hidden.
+///
+/// When `onSave` is provided the summary is unsaved: closing the screen asks
+/// whether to save it to the session or discard it.
 struct SessionAnalysisView: View {
     let analysis: WhisperService.CBTSessionAnalysis
+    var onSave: ((WhisperService.CBTSessionAnalysis) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @State private var isShowingSaveAsk = false
 
     var body: some View {
         NavigationStack {
@@ -158,10 +166,26 @@ struct SessionAnalysisView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        if onSave != nil {
+                            isShowingSaveAsk = true
+                        } else {
+                            dismiss()
+                        }
+                    }
                 }
             }
+            .alert("Save this summary to the session?",
+                   isPresented: $isShowingSaveAsk) {
+                Button("Save") {
+                    onSave?(analysis)
+                    dismiss()
+                }
+                Button("Don't Save", role: .destructive) { dismiss() }
+                Button("Keep Viewing", role: .cancel) {}
+            }
         }
+        .interactiveDismissDisabled(onSave != nil)
         .appTextSize()
     }
 

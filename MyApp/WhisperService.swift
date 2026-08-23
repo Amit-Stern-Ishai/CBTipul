@@ -63,23 +63,23 @@ nonisolated struct WhisperService {
         }
     }
 
-    private struct TranscriptionResponse: Decodable {
+    private struct TranscriptionResponse: Codable {
         let text: String
     }
     
-    struct SessionReviewResponse: Decodable {
+    struct SessionReviewResponse: Codable {
 
             let analysis: CBTSessionAnalysis
             let usage: Usage
 
-            struct Usage: Decodable {
+            struct Usage: Codable {
                 let totalTokens: Int
             }
         }
 
         // MARK: - CBT Session Analysis
 
-        struct CBTSessionAnalysis: Decodable {
+        struct CBTSessionAnalysis: Codable {
 
             let sessionSummary: String
 
@@ -113,14 +113,14 @@ nonisolated struct WhisperService {
 
         // MARK: - Key Situation
 
-        struct KeySituation: Decodable {
+        struct KeySituation: Codable {
             let situation: String
             let importance: String
         }
 
         // MARK: - Emotion
 
-        struct Emotion: Decodable {
+        struct Emotion: Codable {
             let emotion: String
             let context: String
             let evidence: String
@@ -128,7 +128,7 @@ nonisolated struct WhisperService {
 
         // MARK: - NAT
 
-        struct PossibleNAT: Decodable {
+        struct PossibleNAT: Codable {
 
             let thought: String
             let situation: String
@@ -152,7 +152,7 @@ nonisolated struct WhisperService {
 
         // MARK: - Behavior
 
-        struct Behavior: Decodable {
+        struct Behavior: Codable {
 
             let behavior: String
             let type: String
@@ -170,7 +170,7 @@ nonisolated struct WhisperService {
 
         // MARK: - CBT Pattern
 
-        struct CBTPattern: Decodable {
+        struct CBTPattern: Codable {
             let pattern: String
             let evidence: String
             let confidence: String
@@ -178,7 +178,7 @@ nonisolated struct WhisperService {
 
         // MARK: - Maintaining Cycle
 
-        struct MaintainingCycle: Decodable {
+        struct MaintainingCycle: Codable {
             let cycle: String
             let evidence: String
             let confidence: String
@@ -186,14 +186,14 @@ nonisolated struct WhisperService {
 
         // MARK: - Development
 
-        struct Development: Decodable {
+        struct Development: Codable {
             let development: String
             let significance: String
         }
 
         // MARK: - Therapist Hypothesis
 
-        struct TherapistHypothesis: Decodable {
+        struct TherapistHypothesis: Codable {
             let hypothesis: String
             let evidence: String
             let confidence: String
@@ -201,7 +201,7 @@ nonisolated struct WhisperService {
 
         // MARK: - Therapist Reflection
 
-        struct TherapistReflection: Decodable {
+        struct TherapistReflection: Codable {
 
             let observation: String
             let whyItMayMatter: String
@@ -220,7 +220,7 @@ nonisolated struct WhisperService {
 
         // MARK: - Follow-up Question
 
-        struct FollowUpQuestion: Decodable {
+        struct FollowUpQuestion: Codable {
 
             let question: String
             let reason: String
@@ -380,7 +380,7 @@ nonisolated struct WhisperService {
     }
     
     
-    struct APIErrorResponse: Decodable {
+    struct APIErrorResponse: Codable {
 
         let error: String
     }

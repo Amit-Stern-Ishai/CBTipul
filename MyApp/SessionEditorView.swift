@@ -140,12 +140,30 @@ struct SessionEditorView: View {
                         }
                         .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-                }
 
-                imagesSection
+                    if let structuredNotes = session.structuredNotes {
+                        Button {
+                            analysisResult = SessionAnalysisResult(analysis: structuredNotes,
+                                                                   requiresSaveDecision: false)
+                        } label: {
+                            Label("Show Structured Summary", systemImage: "doc.text.magnifyingglass")
+                        }
+                    }
+                }
 
                 if !isNew {
                     questionnaireSection
+                }
+
+                if isLoadingImages || !images.isEmpty {
+                    Section {
+                        if isLoadingImages {
+                            ProgressView()
+                        }
+                        if !images.isEmpty {
+                            imagesRow
+                        }
+                    }
                 }
 
                 if let errorMessage {
@@ -157,6 +175,9 @@ struct SessionEditorView: View {
                 }
             }
             .dismissesKeyboardOnTap()
+            .overlay(alignment: .bottomTrailing) {
+                floatingUploadButton
+            }
             .navigationTitle(isNew
                              ? "New Session"
                              : "Session\(sessionNumber.map { " \($0)" } ?? "")")
@@ -222,7 +243,10 @@ struct SessionEditorView: View {
                 .ignoresSafeArea()
             }
             .sheet(item: $analysisResult) { result in
-                SessionAnalysisView(analysis: result.analysis)
+                SessionAnalysisView(analysis: result.analysis,
+                                    onSave: result.requiresSaveDecision
+                                        ? { saveStructuredNotes($0) }
+                                        : nil)
             }
             .fullScreenCover(item: $viewerItem) { item in
                 SessionImageViewer(image: item.uiImage) { edited in
@@ -236,61 +260,64 @@ struct SessionEditorView: View {
         .appTextSize()
     }
 
-    /// Picked and stored images for this session, with add/delete controls.
+    /// Picked and stored images for this session, shown under the notes.
     /// Changes are pushed to Supabase Storage when the session is saved.
-    private var imagesSection: some View {
-        Section(QuestionnaireText.imagesSectionTitle) {
-            if isLoadingImages {
-                ProgressView()
-            }
-
-            if !images.isEmpty {
-                ScrollView(.horizontal) {
-                    HStack(spacing: 12) {
-                        ForEach(images) { item in
-                            Button {
-                                viewerItem = item
-                            } label: {
-                                Image(uiImage: item.uiImage)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 96, height: 96)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                Button(QuestionnaireText.deleteImageAction, role: .destructive) {
-                                    removeImage(item)
-                                }
-                            }
+    private var imagesRow: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 12) {
+                ForEach(images) { item in
+                    Button {
+                        viewerItem = item
+                    } label: {
+                        Image(uiImage: item.uiImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 96, height: 96)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button(QuestionnaireText.deleteImageAction, role: .destructive) {
+                            removeImage(item)
                         }
                     }
-                    .padding(.vertical, 4)
                 }
             }
-
-            Button {
-                isShowingUploadOptions = true
-            } label: {
-                Label(QuestionnaireText.uploadDocumentAction, systemImage: "doc.badge.plus")
-            }
-            .confirmationDialog(QuestionnaireText.uploadDocumentAction,
-                                isPresented: $isShowingUploadOptions,
-                                titleVisibility: .hidden) {
-                Button(QuestionnaireText.addImageFromLibraryAction) {
-                    isShowingPhotoPicker = true
-                }
-                if CameraPicker.isCameraAvailable {
-                    Button(QuestionnaireText.takePhotoAction) {
-                        isShowingCamera = true
-                    }
-                }
-            }
-            .photosPicker(isPresented: $isShowingPhotoPicker,
-                          selection: $photoSelection,
-                          maxSelectionCount: 10,
-                          matching: .images)
+            .padding(.vertical, 4)
         }
+    }
+
+    /// Small floating button that offers the image upload options.
+    private var floatingUploadButton: some View {
+        Button {
+            isShowingUploadOptions = true
+        } label: {
+            Image(systemName: "doc.badge.plus")
+                .font(.title3)
+                .foregroundStyle(.white)
+                .frame(width: 48, height: 48)
+                .background(Circle().fill(.tint))
+                .shadow(radius: 4, y: 2)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(QuestionnaireText.uploadDocumentAction)
+        .padding()
+        .confirmationDialog(QuestionnaireText.uploadDocumentAction,
+                            isPresented: $isShowingUploadOptions,
+                            titleVisibility: .hidden) {
+            Button(QuestionnaireText.addImageFromLibraryAction) {
+                isShowingPhotoPicker = true
+            }
+            if CameraPicker.isCameraAvailable {
+                Button(QuestionnaireText.takePhotoAction) {
+                    isShowingCamera = true
+                }
+            }
+        }
+        .photosPicker(isPresented: $isShowingPhotoPicker,
+                      selection: $photoSelection,
+                      maxSelectionCount: 10,
+                      matching: .images)
     }
 
     /// Compresses and stores a newly picked image locally until Save.
@@ -436,11 +463,26 @@ struct SessionEditorView: View {
         Task {
             do {
                 let analysis = try await whisperService.analyzeSession(sessionNotes: session.notes)
-                analysisResult = SessionAnalysisResult(analysis: analysis)
+                analysisResult = SessionAnalysisResult(analysis: analysis,
+                                                       requiresSaveDecision: true)
             } catch {
                 errorMessage = error.localizedDescription
             }
             isAnalyzing = false
+        }
+    }
+
+    /// Keeps a generated summary on the session and persists it. For a new
+    /// session the summary is inserted together with the session on Save.
+    private func saveStructuredNotes(_ analysis: WhisperService.CBTSessionAnalysis) {
+        session.structuredNotes = analysis
+        guard session.databaseID != nil else { return }
+        Task {
+            do {
+                try await store.updateSession(session)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

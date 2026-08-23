@@ -42,11 +42,13 @@ private nonisolated struct NewSessionRecord: Encodable {
     let patientID: DatabaseID
     let sessionDate: String
     let notes: String?
+    let structuredNotes: WhisperService.CBTSessionAnalysis?
 
     enum CodingKeys: String, CodingKey {
         case patientID = "patient_id"
         case sessionDate = "session_date"
         case notes
+        case structuredNotes = "structured_notes"
     }
 }
 
@@ -94,12 +96,14 @@ private nonisolated struct SessionRow: Decodable {
     let patientID: DatabaseID
     let sessionDate: String
     let notes: String?
+    let structuredNotes: WhisperService.CBTSessionAnalysis?
 
     enum CodingKeys: String, CodingKey {
         case id
         case patientID = "patient_id"
         case sessionDate = "session_date"
         case notes
+        case structuredNotes = "structured_notes"
     }
 }
 
@@ -112,10 +116,12 @@ private nonisolated struct UpdatedPatientNotesRecord: Encodable {
 private nonisolated struct UpdatedSessionRecord: Encodable {
     let sessionDate: String
     let notes: String?
+    let structuredNotes: WhisperService.CBTSessionAnalysis?
 
     enum CodingKeys: String, CodingKey {
         case sessionDate = "session_date"
         case notes
+        case structuredNotes = "structured_notes"
     }
 }
 
@@ -145,6 +151,8 @@ private nonisolated struct CachedSession: Codable {
     let databaseID: DatabaseID?
     let date: Date
     let notes: String
+    /// Optional so cache files written before structured notes existed decode.
+    let structuredNotes: WhisperService.CBTSessionAnalysis?
 }
 
 /// Disk-cache snapshot of a patient.
@@ -193,7 +201,7 @@ final class PatientStore {
             .execute()
             .value
         let sessionRows: [SessionRow] = try await client.from("Sessions")
-            .select("id, patient_id, session_date, notes")
+            .select("id, patient_id, session_date, notes, structured_notes")
             .execute()
             .value
 
@@ -202,7 +210,8 @@ final class PatientStore {
             let session = Session(
                 databaseID: row.id,
                 date: parseDate(row.sessionDate),
-                notes: row.notes ?? ""
+                notes: row.notes ?? "",
+                structuredNotes: row.structuredNotes
             )
             sessionsByPatient[row.patientID, default: []].append(session)
         }
@@ -243,7 +252,8 @@ final class PatientStore {
                 status: patient.active ? .active : .inactive,
                 notes: patient.notes ?? "",
                 sessions: patient.sessions.map {
-                    Session(databaseID: $0.databaseID, date: $0.date, notes: $0.notes)
+                    Session(databaseID: $0.databaseID, date: $0.date, notes: $0.notes,
+                            structuredNotes: $0.structuredNotes)
                 }
             )
         }
@@ -260,7 +270,8 @@ final class PatientStore {
                 active: patient.status == .active,
                 notes: patient.notes,
                 sessions: patient.sessions.map {
-                    CachedSession(databaseID: $0.databaseID, date: $0.date, notes: $0.notes)
+                    CachedSession(databaseID: $0.databaseID, date: $0.date, notes: $0.notes,
+                                  structuredNotes: $0.structuredNotes)
                 }
             )
         }
@@ -334,7 +345,8 @@ final class PatientStore {
         let record = NewSessionRecord(
             patientID: patientID,
             sessionDate: Self.dateOnlyFormatter.string(from: session.date),
-            notes: trimmedNotes.isEmpty ? nil : trimmedNotes
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+            structuredNotes: session.structuredNotes
         )
         let inserted: InsertedRow = try await client.from("Sessions")
             .insert(record)
@@ -374,7 +386,8 @@ final class PatientStore {
         let trimmedNotes = session.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let record = UpdatedSessionRecord(
             sessionDate: Self.dateOnlyFormatter.string(from: session.date),
-            notes: trimmedNotes.isEmpty ? nil : trimmedNotes
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+            structuredNotes: session.structuredNotes
         )
         // Select the updated rows back: with row-level security a blocked
         // update "succeeds" with zero rows, which must not pass as saved.
@@ -385,6 +398,7 @@ final class PatientStore {
             .execute()
             .value
         guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
+        saveCachedPatients()
     }
 
     /// Saves a completed combined mood questionnaire for a session as a
