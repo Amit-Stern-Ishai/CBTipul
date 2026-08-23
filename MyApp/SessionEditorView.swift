@@ -37,6 +37,8 @@ struct SessionEditorView: View {
     @State private var isLoadingQuestionnaire = false
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
+    @State private var isAnalyzing = false
+    @State private var analysisResult: SessionAnalysisResult?
     @State private var isShowingTranscribeDialog = false
     @State private var isReshowingTranscribeDialog = false
 
@@ -123,6 +125,21 @@ struct SessionEditorView: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
+
+                    if isAnalyzing {
+                        HStack {
+                            ProgressView()
+                            Text("Analyzing…")
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Button {
+                            analyze()
+                        } label: {
+                            Label("AI Summary", systemImage: "sparkles")
+                        }
+                        .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
                 }
 
                 imagesSection
@@ -203,6 +220,9 @@ struct SessionEditorView: View {
                     addImage(image)
                 }
                 .ignoresSafeArea()
+            }
+            .sheet(item: $analysisResult) { result in
+                SessionAnalysisView(analysis: result.analysis)
             }
             .fullScreenCover(item: $viewerItem) { item in
                 SessionImageViewer(image: item.uiImage) { edited in
@@ -404,6 +424,23 @@ struct SessionEditorView: View {
                 // Re-ask so the recording can be retried or discarded.
                 isShowingTranscribeDialog = true
             }
+        }
+    }
+
+    /// Sends the notes text to the AI analysis Edge Function and presents
+    /// the full response in a sheet.
+    private func analyze() {
+        let whisperService = WhisperService(client: auth.client)
+        errorMessage = nil
+        isAnalyzing = true
+        Task {
+            do {
+                let analysis = try await whisperService.analyzeSession(sessionNotes: session.notes)
+                analysisResult = SessionAnalysisResult(analysis: analysis)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isAnalyzing = false
         }
     }
 
