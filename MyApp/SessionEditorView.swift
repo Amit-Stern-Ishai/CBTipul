@@ -136,7 +136,7 @@ struct SessionEditorView: View {
                                 .font(.title3)
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel("Edit date")
+                        .accessibilityLabel(L10n.editDateAccessibilityLabel)
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
@@ -149,32 +149,32 @@ struct SessionEditorView: View {
                             Button {
                                 isShowingAllFollowUps = true
                             } label: {
-                                Label("More (\(pendingFollowUps.count - 1))",
+                                Label(L10n.moreFollowUps(pendingFollowUps.count - 1),
                                       systemImage: "ellipsis.circle")
                             }
                         }
                     } header: {
-                        Label("From Last Session", systemImage: "arrow.uturn.forward")
+                        Label(L10n.fromLastSessionHeader, systemImage: "arrow.uturn.forward")
                     }
                 }
 
-                Section("Notes") {
+                Section(L10n.notesSection) {
                     HStack(alignment: .bottom) {
-                        NotesField(text: $session.notes, placeholder: "Optional notes",
+                        NotesField(text: $session.notes, placeholder: L10n.optionalNotesPlaceholder,
                                    minLines: 3, maxLines: 8)
                         recordControl
                     }
-                    .confirmationDialog(QuestionnaireText.recordingFinishedTitle,
+                    .confirmationDialog(L10n.recordingFinishedTitle,
                                         isPresented: $isShowingTranscribeDialog,
                                         titleVisibility: .visible) {
                         Button(voiceRecorder.isPlaying
-                               ? QuestionnaireText.stopPlaybackAction
-                               : QuestionnaireText.playRecordingAction) {
+                               ? L10n.stopPlaybackAction
+                               : L10n.playRecordingAction) {
                             voiceRecorder.togglePlayback()
                             isReshowingTranscribeDialog = true
                         }
-                        Button(QuestionnaireText.transcribeAction) { transcribe() }
-                        Button(QuestionnaireText.discardRecordingAction, role: .destructive) {
+                        Button(L10n.transcribeAction) { transcribe() }
+                        Button(L10n.discardRecordingAction, role: .destructive) {
                             voiceRecorder.discard()
                         }
                     }
@@ -194,7 +194,7 @@ struct SessionEditorView: View {
                     if isTranscribing {
                         HStack {
                             ProgressView()
-                            Text(QuestionnaireText.transcribingLabel)
+                            Text(L10n.transcribingLabel)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -208,14 +208,14 @@ struct SessionEditorView: View {
                     if isAnalyzing {
                         HStack {
                             ProgressView()
-                            Text("Analyzing…")
+                            Text(L10n.analyzingLabel)
                                 .foregroundStyle(.secondary)
                         }
                     } else {
                         Button {
                             analyze()
                         } label: {
-                            Label("AI Summary", systemImage: "sparkles")
+                            Label(L10n.aiSummaryAction, systemImage: "sparkles")
                         }
                         .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
@@ -225,7 +225,7 @@ struct SessionEditorView: View {
                             analysisResult = SessionAnalysisResult(analysis: structuredNotes,
                                                                    requiresSaveDecision: false)
                         } label: {
-                            Label("Show Structured Summary", systemImage: "doc.text.magnifyingglass")
+                            Label(L10n.showStructuredSummaryAction, systemImage: "doc.text.magnifyingglass")
                         }
                     }
                 }
@@ -258,12 +258,12 @@ struct SessionEditorView: View {
                 floatingUploadButton
             }
             .navigationTitle(isNew
-                             ? "New Session"
-                             : "Session\(sessionNumber.map { " \($0)" } ?? "")")
+                             ? L10n.newSessionTitle
+                             : L10n.sessionEditorTitle(sessionNumber))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(L10n.cancel) {
                         if hasUnsavedChanges {
                             isShowingCancelWarning = true
                         } else {
@@ -273,23 +273,23 @@ struct SessionEditorView: View {
                     .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
+                    Button(L10n.save) { save() }
                         .disabled(isSaving)
                 }
             }
             // An alert, not a confirmation dialog: iPad popover dialogs hide
             // cancel-role buttons, and Keep Editing must always be offered.
-            .alert(QuestionnaireText.discardChangesTitle,
+            .alert(L10n.discardChangesTitle,
                    isPresented: $isShowingCancelWarning) {
-                Button(QuestionnaireText.saveChangesAction) { save() }
-                Button(QuestionnaireText.discardChangesAction, role: .destructive) {
+                Button(L10n.saveChangesAction) { save() }
+                Button(L10n.discardChangesAction, role: .destructive) {
                     // The session object is shared, so revert the edits
                     // instead of leaving them in memory unsaved.
                     if let initialDate { session.date = initialDate }
                     if let initialNotes { session.notes = initialNotes }
                     dismiss()
                 }
-                Button(QuestionnaireText.keepEditingAction, role: .cancel) {}
+                Button(L10n.keepEditingAction, role: .cancel) {}
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
             .busyOverlay(isSaving)
@@ -323,14 +323,14 @@ struct SessionEditorView: View {
             }
             .sheet(isPresented: $isEditingDate) {
                 NavigationStack {
-                    DatePicker("Date", selection: $session.date, displayedComponents: [.date])
+                    DatePicker(L10n.dateLabel, selection: $session.date, displayedComponents: [.date])
                         .datePickerStyle(.graphical)
                         .padding()
-                        .navigationTitle("Session Date")
+                        .navigationTitle(L10n.sessionDateTitle)
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
                             ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") { isEditingDate = false }
+                                Button(L10n.done) { isEditingDate = false }
                             }
                         }
                 }
@@ -344,11 +344,11 @@ struct SessionEditorView: View {
                             followUpRow(item)
                         }
                     }
-                    .navigationTitle("Open Questions")
+                    .navigationTitle(L10n.openQuestionsTitle)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { isShowingAllFollowUps = false }
+                            Button(L10n.done) { isShowingAllFollowUps = false }
                         }
                     }
                 }
@@ -391,7 +391,7 @@ struct SessionEditorView: View {
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        Button(QuestionnaireText.deleteImageAction, role: .destructive) {
+                        Button(L10n.deleteImageAction, role: .destructive) {
                             removeImage(item)
                         }
                     }
@@ -414,16 +414,16 @@ struct SessionEditorView: View {
                 .shadow(radius: 4, y: 2)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(QuestionnaireText.uploadDocumentAction)
+        .accessibilityLabel(L10n.uploadDocumentAction)
         .padding()
-        .confirmationDialog(QuestionnaireText.uploadDocumentAction,
+        .confirmationDialog(L10n.uploadDocumentAction,
                             isPresented: $isShowingUploadOptions,
                             titleVisibility: .hidden) {
-            Button(QuestionnaireText.addImageFromLibraryAction) {
+            Button(L10n.addImageFromLibraryAction) {
                 isShowingPhotoPicker = true
             }
             if CameraPicker.isCameraAvailable {
-                Button(QuestionnaireText.takePhotoAction) {
+                Button(L10n.takePhotoAction) {
                     isShowingCamera = true
                 }
             }
@@ -616,7 +616,7 @@ struct SessionEditorView: View {
                     .foregroundStyle(.green)
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Mark discussed")
+            .accessibilityLabel(L10n.markDiscussedAccessibilityLabel)
         }
         .padding(.vertical, 2)
     }
@@ -652,13 +652,13 @@ struct SessionEditorView: View {
 
     private func appendTranscription(_ text: String) {
         let timeText = Date.now.formatted(date: .numeric, time: .shortened)
-        appendNotesBlock("\(QuestionnaireText.transcriptionHeader(timeText: timeText))\n\(text)")
+        appendNotesBlock("\(L10n.transcriptionHeader(timeText: timeText))\n\(text)")
     }
 
     /// Adds text extracted from an image to the notes, under a dated header.
     private func appendImageTranscription(_ text: String) {
         let dateText = Date.now.formatted(date: .numeric, time: .omitted)
-        appendNotesBlock("\(QuestionnaireText.imageTranscriptionHeader(dateText: dateText))\n\(text)")
+        appendNotesBlock("\(L10n.imageTranscriptionHeader(dateText: dateText))\n\(text)")
     }
 
     private func appendNotesBlock(_ block: String) {
@@ -670,7 +670,7 @@ struct SessionEditorView: View {
     }
 
     private var questionnaireSection: some View {
-        Section(QuestionnaireText.questionnaireSectionTitle) {
+        Section(L10n.questionnaireSectionTitle) {
             if let questionnaire {
                 // Opens the editable questionnaire pre-filled with the saved
                 // answers; saving upserts the same row.
@@ -680,7 +680,7 @@ struct SessionEditorView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(questionnaire.answeredDate, style: .date)
                             .font(.headline)
-                        Text("\(QuestionnaireText.gad7ShortName): \(questionnaire.questionnaire.gad7Score) · \(QuestionnaireText.phq9ShortName): \(questionnaire.questionnaire.phq9Score)")
+                        Text(L10n.gadPhqScores(gad7: questionnaire.questionnaire.gad7Score, phq9: questionnaire.questionnaire.phq9Score))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -691,7 +691,7 @@ struct SessionEditorView: View {
                 NavigationLink {
                     CombinedMoodQuestionnaireView(patient: patient, session: session)
                 } label: {
-                    Label(QuestionnaireText.addQuestionnaireAction, systemImage: "plus")
+                    Label(L10n.addQuestionnaireAction, systemImage: "plus")
                 }
             }
         }

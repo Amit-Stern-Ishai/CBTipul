@@ -64,12 +64,12 @@ struct AuthView: View {
                 )
                 .shadow(color: Color.accentColor.opacity(0.35), radius: 16, y: 10)
 
-            Text("Therapy Notes")
+            Text(L10n.appTitle)
                 .font(.largeTitle.bold())
 
             Text(mode == .signIn
-                 ? "Welcome back — sign in to continue"
-                 : "Create an account to get started")
+                 ? L10n.authWelcomeSignIn
+                 : L10n.authWelcomeSignUp)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -77,7 +77,7 @@ struct AuthView: View {
 
     private var card: some View {
         VStack(spacing: 16) {
-            Picker("Mode", selection: $mode) {
+            Picker(L10n.authModePickerTitle, selection: $mode) {
                 ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
@@ -111,7 +111,7 @@ struct AuthView: View {
             .disabled(email.isEmpty || password.isEmpty || isWorking)
 
             if mode == .signIn {
-                Button("Forgot password?", action: forgotPassword)
+                Button(L10n.forgotPasswordAction, action: forgotPassword)
                     .font(.footnote)
                     .disabled(isWorking)
             }
@@ -145,7 +145,7 @@ struct AuthView: View {
     }
 
     private var emailField: some View {
-        let field = TextField("Email", text: $email)
+        let field = TextField(L10n.emailPlaceholder, text: $email)
             .autocorrectionDisabled()
         #if os(iOS)
         return field
@@ -158,7 +158,7 @@ struct AuthView: View {
     }
 
     private var passwordField: some View {
-        let field = SecureField("Password", text: $password)
+        let field = SecureField(L10n.passwordPlaceholder, text: $password)
         #if os(iOS)
         return field
             .textContentType(mode == .signUp ? .newPassword : .password)
@@ -176,7 +176,7 @@ struct AuthView: View {
             case .signUp:
                 let needsConfirmation = try await auth.signUp(email: email, password: password)
                 return needsConfirmation
-                    ? "Account created. Check your email to confirm your address, then sign in."
+                    ? L10n.accountCreatedMessage
                     : nil
             }
         }
@@ -184,12 +184,12 @@ struct AuthView: View {
 
     private func forgotPassword() {
         guard !email.isEmpty else {
-            errorMessage = "Enter your email address first, then tap Forgot password."
+            errorMessage = L10n.enterEmailFirstMessage
             return
         }
         authenticate {
             try await auth.resetPassword(email: email)
-            return "Password reset email sent. Check your inbox for a link to set a new password."
+            return L10n.passwordResetSentMessage
         }
     }
 

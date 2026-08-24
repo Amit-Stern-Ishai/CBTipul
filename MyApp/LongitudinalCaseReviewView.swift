@@ -37,9 +37,9 @@ struct LongitudinalCaseReviewView: View {
 
         var label: String {
             switch self {
-            case .high: return "High confidence"
-            case .medium: return "Medium confidence"
-            case .low: return "Low confidence"
+            case .high: return L10n.highConfidenceLabel
+            case .medium: return L10n.mediumConfidenceLabel
+            case .low: return L10n.lowConfidenceLabel
             }
         }
     }
@@ -68,41 +68,41 @@ struct LongitudinalCaseReviewView: View {
                         insufficientEvidenceCard
                     }
 
-                    section("✅ Improvements",
+                    section(L10n.improvementsSection,
                             items: response.improvements) { item in
                         improvementCard(item)
                     }
 
-                    section("⚠️ Persistent Difficulties",
-                            subtitle: "Things that do not appear to have changed sufficiently yet",
+                    section(L10n.persistentDifficultiesSection,
+                            subtitle: L10n.persistentDifficultiesSubtitle,
                             items: response.persistentDifficulties) { item in
                         findingCard(item, outlined: true)
                     }
 
-                    section("🔄 Recurring Patterns",
-                            subtitle: "What keeps coming back across the treatment",
+                    section(L10n.recurringPatternsSection,
+                            subtitle: L10n.recurringPatternsSubtitle,
                             items: response.recurringPatterns) { item in
                         findingCard(item)
                     }
 
-                    section("🔀 Important Changes",
+                    section(L10n.importantChangesSection,
                             items: response.importantChanges) { item in
                         findingCard(item)
                     }
 
-                    section("🎯 Treatment Goal Progress",
+                    section(L10n.treatmentGoalProgressSection,
                             items: response.treatmentGoalProgress) { item in
                         goalCard(item)
                     }
 
-                    section("🧠 Formulation Evolution",
-                            subtitle: "What appears to be becoming clearer? Hypotheses and interpretations, not established facts",
+                    section(L10n.formulationEvolutionSection,
+                            subtitle: L10n.formulationEvolutionSubtitle,
                             items: response.formulationEvolution) { item in
                         findingCard(item, showsHypothesisBadge: true)
                     }
 
-                    section("👀 Worth Paying Attention To",
-                            subtitle: "Areas the therapist may want to investigate — not instructions",
+                    section(L10n.worthAttentionSection,
+                            subtitle: L10n.worthAttentionSubtitle,
                             items: response.clinicalAttentionPoints,
                             prominent: true) { item in
                         findingCard(item, outlined: true, showsHypothesisBadge: true)
@@ -110,7 +110,7 @@ struct LongitudinalCaseReviewView: View {
 
                     questionsSection
 
-                    Text("AI-generated clinical support. Use your professional judgment.")
+                    Text(L10n.aiDisclaimer)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
@@ -119,11 +119,11 @@ struct LongitudinalCaseReviewView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("📈 Longitudinal Case Review")
+            .navigationTitle(L10n.longitudinalCaseReviewTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L10n.done) { dismiss() }
                 }
             }
         }
@@ -134,9 +134,9 @@ struct LongitudinalCaseReviewView: View {
 
     private var disclaimerHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("AI-generated supervision")
+            Text(L10n.aiGeneratedSupervisionLabel)
                 .font(.footnote.weight(.semibold))
-            Text("These are hypotheses for clinical reflection, not established conclusions.")
+            Text(L10n.supervisionDisclaimerBody)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -152,7 +152,7 @@ struct LongitudinalCaseReviewView: View {
     private var trajectorySection: some View {
         if !response.overallTrajectory.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                Text("📈 Overall Trajectory")
+                Text(L10n.overallTrajectorySection)
                     .font(.title3.bold())
                 card {
                     Text(response.overallTrajectory)
@@ -165,7 +165,7 @@ struct LongitudinalCaseReviewView: View {
 
     /// Shown when the history supported no conclusions beyond the trajectory.
     private var insufficientEvidenceCard: some View {
-        Text("אין מספיק מידע לאורך זמן כדי להסיק מסקנות נוספות בשלב זה.")
+        Text(L10n.insufficientLongitudinalDataMessage)
             .font(.subheadline)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,16 +182,16 @@ struct LongitudinalCaseReviewView: View {
     private func improvementCard(_ item: LongitudinalFinding) -> some View {
         card {
             VStack(alignment: .leading, spacing: 2) {
-                Text("מה השתפר")
+                Text(L10n.whatImprovedLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Text(item.observation)
                     .font(.headline)
             }
             if !item.interpretation.isEmpty {
-                labeledText("פרשנות אפשרית", item.interpretation)
+                labeledText(L10n.possibleInterpretationHebrewLabel, item.interpretation)
             }
-            evidenceDisclosure(item.evidence, label: "למה אנחנו חושבים כך")
+            evidenceDisclosure(item.evidence, label: L10n.whyWeThinkSoLabel)
             confidenceText(item.confidence)
         }
     }
@@ -211,7 +211,7 @@ struct LongitudinalCaseReviewView: View {
                 }
             }
             if !item.interpretation.isEmpty {
-                labeledText("Possible interpretation", item.interpretation)
+                labeledText(L10n.possibleInterpretationLabel, item.interpretation)
             }
             evidenceDisclosure(item.evidence)
             confidenceText(item.confidence)
@@ -239,10 +239,10 @@ struct LongitudinalCaseReviewView: View {
                 statusBadge(item.status)
             }
             if !item.currentEstimate.isEmpty {
-                labeledText("Current estimate", item.currentEstimate)
+                labeledText(L10n.currentEstimateLabel, item.currentEstimate)
             }
             if !item.suggestion.isEmpty {
-                labeledText("Possible next step to consider", item.suggestion)
+                labeledText(L10n.possibleNextStepLabel, item.suggestion)
             }
             evidenceDisclosure(item.evidence)
             confidenceText(item.confidence)
@@ -254,9 +254,9 @@ struct LongitudinalCaseReviewView: View {
         if !response.questionsForTherapist.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("❓ Questions for Therapist")
+                    Text(L10n.questionsForTherapistSection)
                         .font(.title2.bold())
-                    Text("For reflective supervision — there are no required answers")
+                    Text(L10n.questionsForTherapistSubtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -316,7 +316,7 @@ struct LongitudinalCaseReviewView: View {
 
     /// Marks content the AI inferred, so hypotheses never read as facts.
     private var hypothesisBadge: some View {
-        Label("Hypothesis", systemImage: "lightbulb")
+        Label(L10n.hypothesisBadge, systemImage: "lightbulb")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.orange)
             .padding(.horizontal, 8)
@@ -330,12 +330,12 @@ struct LongitudinalCaseReviewView: View {
     private func statusBadge(_ raw: String) -> some View {
         let (label, color): (String, Color) = {
             switch raw.lowercased() {
-            case "progressing": return ("Progressing", .green)
-            case "partially_progressing": return ("Partially progressing", .green)
-            case "unchanged": return ("Unchanged", .secondary)
-            case "worsening": return ("Worsening", .orange)
-            case "achieved": return ("Achieved", .green)
-            case "unclear": return ("Unclear", .secondary)
+            case "progressing": return (L10n.goalStatusProgressing, .green)
+            case "partially_progressing": return (L10n.goalStatusPartiallyProgressing, .green)
+            case "unchanged": return (L10n.goalStatusUnchanged, .secondary)
+            case "worsening": return (L10n.goalStatusWorsening, .orange)
+            case "achieved": return (L10n.goalStatusAchieved, .green)
+            case "unclear": return (L10n.goalStatusUnclear, .secondary)
             default:
                 return (raw.replacingOccurrences(of: "_", with: " ").capitalized, .secondary)
             }
@@ -355,7 +355,7 @@ struct LongitudinalCaseReviewView: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         } else if !raw.isEmpty {
-            Text("Confidence: \(raw.capitalized)")
+            Text(L10n.confidenceLine(raw.capitalized))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -374,7 +374,7 @@ struct LongitudinalCaseReviewView: View {
     /// Evidence stays one tap away so cards remain scannable.
     @ViewBuilder
     private func evidenceDisclosure(_ evidence: String,
-                                    label: String = "Evidence") -> some View {
+                                    label: String = L10n.evidenceLabel) -> some View {
         if !evidence.isEmpty {
             DisclosureGroup {
                 Text(evidence)

@@ -8,7 +8,7 @@ nonisolated enum WhisperError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .requestFailed(let message):
-            return "Transcription failed: \(message)"
+            return L10n.transcriptionFailed(message)
         }
     }
 }
@@ -34,7 +34,7 @@ nonisolated struct WhisperService {
             audioData = try Data(contentsOf: fileURL)
         } catch {
             throw WhisperError.requestFailed(
-                "Could not read audio file: \(error.localizedDescription)"
+                L10n.couldNotReadAudioFile(error.localizedDescription)
             )
         }
 
@@ -352,7 +352,7 @@ nonisolated struct WhisperService {
                 }
 
                 throw APIError.server(
-                    "Session analysis failed"
+                    L10n.sessionAnalysisFailedError
                 )
             }
 
@@ -646,10 +646,10 @@ nonisolated struct WhisperService {
             switch self {
 
             case .invalidInput:
-                return "Invalid input."
+                return L10n.invalidInputError
 
             case .invalidResponse:
-                return "Invalid response from server."
+                return L10n.invalidServerResponseError
 
             case .server(let message):
                 return message

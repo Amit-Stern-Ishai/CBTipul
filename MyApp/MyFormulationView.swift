@@ -44,27 +44,27 @@ struct MyFormulationView: View {
     var body: some View {
         Form {
             Section {
-                TextField("No treatment goal defined — add one",
+                TextField(L10n.noTreatmentGoalPlaceholder,
                           text: optionalBinding($formulation.treatmentGoal),
                           axis: .vertical)
                 if !isGoalFormatValid {
-                    Text("Expected format: “Reduce X emotion from Y% to Z% in situations of …”")
+                    Text(L10n.goalFormatWarning)
                         .font(.footnote)
                         .foregroundStyle(.orange)
                 }
             } header: {
-                Text("🎯 Treatment Goal")
+                Text(L10n.treatmentGoalSection)
             }
 
-            Section("🧠 Core Belief") {
-                TextField("No core belief defined",
+            Section(L10n.coreBeliefSection) {
+                TextField(L10n.noCoreBeliefPlaceholder,
                           text: optionalBinding($formulation.coreBelief),
                           axis: .vertical)
             }
 
-            Section("💭 Key Automatic Thoughts") {
+            Section(L10n.keyAutomaticThoughtsSection) {
                 ForEach(formulation.keyAutomaticThoughts.indices, id: \.self) { index in
-                    TextField("Automatic thought",
+                    TextField(L10n.automaticThoughtLabel,
                               text: $formulation.keyAutomaticThoughts[index],
                               axis: .vertical)
                 }
@@ -74,13 +74,13 @@ struct MyFormulationView: View {
                 Button {
                     formulation.keyAutomaticThoughts.append("")
                 } label: {
-                    Label("Add Thought", systemImage: "plus")
+                    Label(L10n.addThoughtAction, systemImage: "plus")
                 }
             }
 
-            Section("🔄 Maintaining Behaviors") {
+            Section(L10n.maintainingBehaviorsSection) {
                 ForEach(formulation.maintainingBehaviors.indices, id: \.self) { index in
-                    TextField("Behavior",
+                    TextField(L10n.behaviorLabel,
                               text: $formulation.maintainingBehaviors[index],
                               axis: .vertical)
                 }
@@ -90,18 +90,18 @@ struct MyFormulationView: View {
                 Button {
                     formulation.maintainingBehaviors.append("")
                 } label: {
-                    Label("Add Behavior", systemImage: "plus")
+                    Label(L10n.addBehaviorAction, systemImage: "plus")
                 }
             }
 
-            Section("🔁 Key CBT Cycle") {
+            Section(L10n.keyCBTCycleSection) {
                 if formulation.keyCBTCycle != nil {
                     cycleEditor
-                    Button("Remove Cycle", role: .destructive) {
+                    Button(L10n.removeCycleAction, role: .destructive) {
                         formulation.keyCBTCycle = nil
                     }
                 } else {
-                    Text("No key CBT cycle defined")
+                    Text(L10n.noKeyCBTCycleLabel)
                         .foregroundStyle(.secondary)
                     Button {
                         formulation.keyCBTCycle = CBTCycle(
@@ -115,14 +115,14 @@ struct MyFormulationView: View {
                             confidence: ""
                         )
                     } label: {
-                        Label("Add CBT Cycle", systemImage: "plus")
+                        Label(L10n.addCBTCycleAction, systemImage: "plus")
                     }
                 }
             }
 
-            Section("🧩 Therapist Hypothesis") {
+            Section(L10n.therapistHypothesisSection) {
                 NotesField(text: optionalBinding($formulation.therapistHypothesis),
-                           placeholder: "Your working hypothesis about what maintains the problem",
+                           placeholder: L10n.therapistHypothesisPlaceholder,
                            minLines: 4, maxLines: 12)
             }
 
@@ -131,7 +131,7 @@ struct MyFormulationView: View {
                     challengeFormulation()
                 } label: {
                     HStack {
-                        Label("Challenge My Formulation", systemImage: "wand.and.stars")
+                        Label(L10n.challengeFormulationAction, systemImage: "wand.and.stars")
                         if isChallenging {
                             Spacer()
                             ProgressView()
@@ -140,11 +140,11 @@ struct MyFormulationView: View {
                 }
                 .disabled(isRunningSupervision || !formulationHasContent)
                 if isChallenging {
-                    Text("Analyzing your formulation...")
+                    Text(L10n.analyzingFormulationLabel)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else if !formulationHasContent {
-                    Text("Add some formulation information before asking AI to challenge it.")
+                    Text(L10n.addFormulationContentHint)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -153,7 +153,7 @@ struct MyFormulationView: View {
                     whatAmIMissing()
                 } label: {
                     HStack {
-                        Label("What Am I Missing?", systemImage: "text.magnifyingglass")
+                        Label(L10n.whatAmIMissingAction, systemImage: "text.magnifyingglass")
                         if isLookingForMissing {
                             Spacer()
                             ProgressView()
@@ -162,14 +162,14 @@ struct MyFormulationView: View {
                 }
                 .disabled(isRunningSupervision)
                 if isLookingForMissing {
-                    Text("Looking across the patient's history...")
+                    Text(L10n.lookingAcrossHistoryLabel)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             } header: {
-                Text("🧠 AI Supervision")
+                Text(L10n.aiSupervisionSection)
             } footer: {
-                Text("The AI reviews your formulation and the patient's history. It never changes your formulation.")
+                Text(L10n.aiSupervisionFooter)
             }
 
             Section {
@@ -177,7 +177,7 @@ struct MyFormulationView: View {
                     longitudinalCaseReview()
                 } label: {
                     HStack {
-                        Label("סקירה לאורך זמן", systemImage: "chart.line.uptrend.xyaxis")
+                        Label(L10n.longitudinalReviewAction, systemImage: "chart.line.uptrend.xyaxis")
                         if isReviewingCase {
                             Spacer()
                             ProgressView()
@@ -186,14 +186,14 @@ struct MyFormulationView: View {
                 }
                 .disabled(isRunningSupervision)
                 if isReviewingCase {
-                    Text("מנתח את התהליך לאורך זמן...")
+                    Text(L10n.analyzingOverTimeLabel)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             } header: {
-                Text("📈 Longitudinal Case Review")
+                Text(L10n.longitudinalCaseReviewTitle)
             } footer: {
-                Text("תמונה לאורך זמן: מה השתנה, מה נשאר ומה דורש תשומת לב.")
+                Text(L10n.longitudinalReviewFooter)
             }
 
             if let errorMessage {
@@ -205,7 +205,7 @@ struct MyFormulationView: View {
             }
         }
         .dismissesKeyboardOnTap()
-        .navigationTitle("My Formulation")
+        .navigationTitle(L10n.myFormulationTitle)
         .navigationSubtitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -218,24 +218,24 @@ struct MyFormulationView: View {
                         dismiss()
                     }
                 } label: {
-                    Label("Back", systemImage: "chevron.backward")
+                    Label(L10n.back, systemImage: "chevron.backward")
                 }
                 .disabled(isSaving)
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { save() }
+                Button(L10n.save) { save() }
                     .disabled(isSaving || !hasUnsavedChanges)
             }
         }
         // An alert, not a confirmation dialog: iPad popover dialogs hide
         // cancel-role buttons, and Keep Editing must always be offered.
-        .alert(QuestionnaireText.discardChangesTitle,
+        .alert(L10n.discardChangesTitle,
                isPresented: $isShowingBackWarning) {
-            Button(QuestionnaireText.saveChangesAction) { save(thenDismiss: true) }
-            Button(QuestionnaireText.discardChangesAction, role: .destructive) {
+            Button(L10n.saveChangesAction) { save(thenDismiss: true) }
+            Button(L10n.discardChangesAction, role: .destructive) {
                 dismiss()
             }
-            Button(QuestionnaireText.keepEditingAction, role: .cancel) {}
+            Button(L10n.keepEditingAction, role: .cancel) {}
         }
         .sheet(item: $supervisionResult) { result in
             FormulationSupervisionView(supervision: result.supervision)
@@ -362,17 +362,17 @@ struct MyFormulationView: View {
     /// The same vertical chain the preparation screen renders, editable.
     private var cycleEditor: some View {
         VStack(alignment: .leading, spacing: 4) {
-            cycleStage("Situation", \.triggerSituation)
+            cycleStage(L10n.situationLabel, \.triggerSituation)
             cycleArrow
-            cycleStage("Automatic Thought", \.automaticThought)
+            cycleStage(L10n.automaticThoughtTitle, \.automaticThought)
             cycleArrow
-            cycleStage("Emotion", \.emotion)
+            cycleStage(L10n.emotionLabel, \.emotion)
             cycleArrow
-            cycleStage("Behavior", \.behavior)
+            cycleStage(L10n.behaviorLabel, \.behavior)
             cycleArrow
-            cycleStage("Short-term consequence", \.shortTermConsequence)
+            cycleStage(L10n.shortTermConsequenceLabel, \.shortTermConsequence)
             cycleArrow
-            cycleStage("Long-term consequence", \.longTermConsequence)
+            cycleStage(L10n.longTermConsequenceLabel, \.longTermConsequence)
         }
         .padding(.vertical, 4)
     }

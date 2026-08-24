@@ -71,9 +71,9 @@ struct NextSessionPreparationView: View {
 
         var label: String {
             switch self {
-            case .high: return "High"
-            case .medium: return "Medium"
-            case .low: return "Low"
+            case .high: return L10n.priorityHigh
+            case .medium: return L10n.priorityMedium
+            case .low: return L10n.priorityLow
             }
         }
     }
@@ -83,7 +83,7 @@ struct NextSessionPreparationView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     if isOutdated {
-                        Label("Outdated — a session has taken place since this was prepared.",
+                        Label(L10n.preparationOutdatedMessage,
                               systemImage: "clock.badge.exclamationmark")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(.orange)
@@ -103,13 +103,13 @@ struct NextSessionPreparationView: View {
                         }
                     }
 
-                    section("💭 Recurring Automatic Thoughts",
+                    section(L10n.recurringNatsSection,
                             items: preparation.recurringNats) { item in
                         natCard(item)
                     }
 
-                    section("🔄 Possible Maintenance Cycles",
-                            subtitle: "AI hypotheses — mechanisms worth testing, not facts",
+                    section(L10n.maintenanceCyclesSection,
+                            subtitle: L10n.maintenanceCyclesSubtitle,
                             items: preparation.cbtCycles) { item in
                         cycleCard(item)
                     }
@@ -118,19 +118,19 @@ struct NextSessionPreparationView: View {
                         coreBeliefSection(coreBelief)
                     }
 
-                    section("What Changed",
+                    section(L10n.whatChangedSection,
                             items: preparation.whatChanged) { item in
                         card {
                             Text(item.observation)
                                 .font(.headline)
                             if !item.significance.isEmpty {
-                                labeledText("Why it matters", item.significance)
+                                labeledText(L10n.whyItMattersLabel, item.significance)
                             }
                             evidenceDisclosure(item.evidence)
                         }
                     }
 
-                    section("📊 Questionnaire Insights",
+                    section(L10n.questionnaireInsightsSection,
                             items: preparation.questionnaireInsights) { item in
                         card {
                             Text(item.observation)
@@ -144,12 +144,12 @@ struct NextSessionPreparationView: View {
                         }
                     }
 
-                    section("🧠 Supervision — Things to Consider",
+                    section(L10n.supervisionConsiderSection,
                             items: preparation.supervisoryObservations) { item in
                         supervisionCard(item)
                     }
 
-                    section("🔎 Priority Follow-ups",
+                    section(L10n.priorityFollowUpsSection,
                             items: preparation.priorityFollowUps) { item in
                         card {
                             HStack(alignment: .firstTextBaseline) {
@@ -164,15 +164,15 @@ struct NextSessionPreparationView: View {
                                     .foregroundStyle(.secondary)
                             }
                             if !item.source.isEmpty {
-                                Text("Source: \(item.source)")
+                                Text(L10n.sourceLine(item.source))
                                     .font(.caption)
                                     .foregroundStyle(.tertiary)
                             }
                         }
                     }
 
-                    section("🎯 Possible Treatment Focus",
-                            subtitle: "Suggested areas to consider — not instructions",
+                    section(L10n.treatmentFocusSection,
+                            subtitle: L10n.treatmentFocusSubtitle,
                             items: preparation.possibleTreatmentFocus) { item in
                         card {
                             HStack(alignment: .firstTextBaseline) {
@@ -189,7 +189,7 @@ struct NextSessionPreparationView: View {
                         }
                     }
 
-                    section("❓ Suggested Questions",
+                    section(L10n.suggestedQuestionsSection,
                             items: preparation.suggestedQuestions) { item in
                         card {
                             HStack(alignment: .firstTextBaseline) {
@@ -208,11 +208,11 @@ struct NextSessionPreparationView: View {
 
                     if !preparation.unresolvedIssues.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("📌 Unresolved Issues")
+                            Text(L10n.unresolvedIssuesPreparationSection)
                                 .font(.title3.bold())
                             card {
                                 ForEach(preparation.unresolvedIssues.indices, id: \.self) { index in
-                                    Text("•  \(preparation.unresolvedIssues[index])")
+                                    Text(L10n.bulleted(preparation.unresolvedIssues[index]))
                                         .font(.subheadline)
                                 }
                             }
@@ -220,10 +220,10 @@ struct NextSessionPreparationView: View {
                     }
 
                     VStack(spacing: 4) {
-                        Text("AI-generated clinical support. Use your professional judgment.")
+                        Text(L10n.aiDisclaimer)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                        Text("Tokens used: \(response.usage.totalTokens)")
+                        Text(L10n.tokensUsed(response.usage.totalTokens))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -233,11 +233,11 @@ struct NextSessionPreparationView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Session Preparation")
+            .navigationTitle(L10n.sessionPreparationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L10n.done) { dismiss() }
                 }
             }
         }
@@ -258,11 +258,11 @@ struct NextSessionPreparationView: View {
                 hypothesisBadge
             }
             if !item.situations.isEmpty {
-                labeledText("Situations", item.situations.joined(separator: " · "))
+                labeledText(L10n.situationsLabel, item.situations.joined(separator: " · "))
             }
             if !item.cognitivePatterns.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Possible thinking patterns")
+                    Text(L10n.possibleThinkingPatternsLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(item.cognitivePatterns.joined(separator: " · "))
@@ -281,7 +281,7 @@ struct NextSessionPreparationView: View {
         let stages = cycleStages(of: cycle)
         return card {
             HStack {
-                Text("Possible maintenance cycle")
+                Text(L10n.possibleMaintenanceCycleLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -316,12 +316,12 @@ struct NextSessionPreparationView: View {
     private func cycleStages(of cycle: WhisperService.NextSessionPreparation.CBTCycle)
         -> [(title: String, text: String)] {
         let pairs: [(String, String?)] = [
-            ("Situation", cycle.triggerSituation),
-            ("Automatic thought", cycle.automaticThought),
-            ("Emotion", cycle.emotion),
-            ("Behavior", cycle.behavior),
-            ("Short-term consequence", cycle.shortTermConsequence),
-            ("Long-term consequence", cycle.longTermConsequence),
+            (L10n.situationLabel, cycle.triggerSituation),
+            (L10n.automaticThoughtLabel, cycle.automaticThought),
+            (L10n.emotionLabel, cycle.emotion),
+            (L10n.behaviorLabel, cycle.behavior),
+            (L10n.shortTermConsequenceLabel, cycle.shortTermConsequence),
+            (L10n.longTermConsequenceLabel, cycle.longTermConsequence),
         ]
         return pairs.compactMap { title, text in
             guard let text, !text.isEmpty else { return nil }
@@ -335,9 +335,9 @@ struct NextSessionPreparationView: View {
     private func coreBeliefSection(_ item: WhisperService.NextSessionPreparation.CoreBeliefHypothesis) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Possible Core Belief")
+                Text(L10n.possibleCoreBeliefSection)
                     .font(.title3.bold())
-                Text("AI hypothesis — discuss and test, don't assume")
+                Text(L10n.coreBeliefSubtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -351,11 +351,11 @@ struct NextSessionPreparationView: View {
                 }
                 if !item.evidence.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Evidence")
+                        Text(L10n.evidenceLabel)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                         ForEach(item.evidence.indices, id: \.self) { index in
-                            Text("•  \(item.evidence[index])")
+                            Text(L10n.bulleted(item.evidence[index]))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -395,7 +395,7 @@ struct NextSessionPreparationView: View {
             }
             if !item.questionForTherapist.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Label("Question to consider", systemImage: "magnifyingglass")
+                    Label(L10n.questionToConsiderLabel, systemImage: "magnifyingglass")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.tint)
                     Text(item.questionForTherapist)
@@ -452,7 +452,7 @@ struct NextSessionPreparationView: View {
 
     /// Marks content the AI inferred, so hypotheses never read as facts.
     private var hypothesisBadge: some View {
-        Label("Hypothesis", systemImage: "lightbulb")
+        Label(L10n.hypothesisBadge, systemImage: "lightbulb")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.orange)
             .padding(.horizontal, 8)
@@ -465,21 +465,21 @@ struct NextSessionPreparationView: View {
     private func priorityBadge(_ raw: String) -> some View {
         switch Level(raw) {
         case .high:
-            Text("High")
+            Text(L10n.priorityHigh)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(.orange))
         case .medium:
-            Text("Medium")
+            Text(L10n.priorityMedium)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(Color(.tertiarySystemFill)))
         case .low:
-            Text("Low")
+            Text(L10n.priorityLow)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         case nil:
@@ -494,11 +494,11 @@ struct NextSessionPreparationView: View {
     @ViewBuilder
     private func confidenceText(_ raw: String) -> some View {
         if let level = Level(raw) {
-            Text("Confidence: \(level.label)")
+            Text(L10n.confidenceLine(level.label))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         } else if !raw.isEmpty {
-            Text("Confidence: \(raw.capitalized)")
+            Text(L10n.confidenceLine(raw.capitalized))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -525,7 +525,7 @@ struct NextSessionPreparationView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
             } label: {
-                Text("Evidence")
+                Text(L10n.evidenceLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }

@@ -23,7 +23,7 @@ final class VoiceNoteRecorder {
         errorMessage = nil
 
         guard await AVAudioApplication.requestRecordPermission() else {
-            errorMessage = QuestionnaireText.micPermissionDenied
+            errorMessage = L10n.micPermissionDenied
             return
         }
 

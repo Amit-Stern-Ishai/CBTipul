@@ -54,38 +54,38 @@ struct PatientDetailView: View {
                 Picker(selection: $patient.status) {
                     ForEach(PatientStatus.allCases) { Text($0.rawValue).tag($0) }
                 } label: {
-                    iconChip("person.crop.circle.badge.checkmark", color: .green, title: "Status")
+                    iconChip("person.crop.circle.badge.checkmark", color: .green, title: L10n.statusLabel)
                 }
 
                 NavigationLink {
                     PatientSessionsView(patient: patient)
                 } label: {
-                    iconChip("calendar", color: .blue, title: "Sessions")
+                    iconChip("calendar", color: .blue, title: L10n.sessionsTitle)
                 }
 
                 NavigationLink {
                     PatientQuestionnairesView(patient: patient)
                 } label: {
-                    iconChip("chart.xyaxis.line", color: .orange, title: QuestionnaireText.viewQuestionnairesAction)
+                    iconChip("chart.xyaxis.line", color: .orange, title: L10n.viewQuestionnairesAction)
                 }
 
                 NavigationLink {
                     MyFormulationView(patient: patient)
                 } label: {
-                    iconChip("brain.head.profile", color: .pink, title: "My Formulation")
+                    iconChip("brain.head.profile", color: .pink, title: L10n.myFormulationTitle)
                 }
 
                 NavigationLink {
                     PatientAIView(patient: patient)
                 } label: {
-                    iconChip("sparkles", color: .purple, title: QuestionnaireText.aiAction)
+                    iconChip("sparkles", color: .purple, title: L10n.aiAction)
                 }
 
                 Button {
                     prepareNextSession()
                 } label: {
                     HStack {
-                        iconChip("wand.and.stars", color: .indigo, title: "Prepare Next Session")
+                        iconChip("wand.and.stars", color: .indigo, title: L10n.prepareNextSessionAction)
                         if isPreparing {
                             Spacer()
                             ProgressView()
@@ -102,7 +102,7 @@ struct PatientDetailView: View {
                         )
                     } label: {
                         HStack {
-                            iconChip("doc.text.magnifyingglass", color: .teal, title: "Last Preparation")
+                            iconChip("doc.text.magnifyingglass", color: .teal, title: L10n.lastPreparationAction)
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
                                 Text(savedPreparation.generatedAt,
@@ -110,7 +110,7 @@ struct PatientDetailView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 if isSavedPreparationOutdated {
-                                    Text("Outdated")
+                                    Text(L10n.outdatedBadge)
                                         .font(.caption2.weight(.semibold))
                                         .foregroundStyle(.orange)
                                         .padding(.horizontal, 6)
@@ -123,23 +123,23 @@ struct PatientDetailView: View {
                 }
             }
 
-            Section("Notes") {
+            Section(L10n.notesSection) {
                 HStack(alignment: .bottom) {
-                    NotesField(text: $patient.notes, placeholder: "Optional notes",
+                    NotesField(text: $patient.notes, placeholder: L10n.optionalNotesPlaceholder,
                                minLines: 3, maxLines: 8)
                     recordControl
                 }
-                .confirmationDialog(QuestionnaireText.recordingFinishedTitle,
+                .confirmationDialog(L10n.recordingFinishedTitle,
                                     isPresented: $isShowingTranscribeDialog,
                                     titleVisibility: .visible) {
                     Button(voiceRecorder.isPlaying
-                           ? QuestionnaireText.stopPlaybackAction
-                           : QuestionnaireText.playRecordingAction) {
+                           ? L10n.stopPlaybackAction
+                           : L10n.playRecordingAction) {
                         voiceRecorder.togglePlayback()
                         isReshowingTranscribeDialog = true
                     }
-                    Button(QuestionnaireText.transcribeAction) { transcribe() }
-                    Button(QuestionnaireText.discardRecordingAction, role: .destructive) {
+                    Button(L10n.transcribeAction) { transcribe() }
+                    Button(L10n.discardRecordingAction, role: .destructive) {
                         voiceRecorder.discard()
                     }
                 }
@@ -159,7 +159,7 @@ struct PatientDetailView: View {
                 if isTranscribing {
                     HStack {
                         ProgressView()
-                        Text(QuestionnaireText.transcribingLabel)
+                        Text(L10n.transcribingLabel)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -191,28 +191,28 @@ struct PatientDetailView: View {
                         dismiss()
                     }
                 } label: {
-                    Label("Back", systemImage: "chevron.backward")
+                    Label(L10n.back, systemImage: "chevron.backward")
                 }
                 .disabled(isSaving)
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { save() }
+                Button(L10n.save) { save() }
                     .disabled(isSaving || !hasUnsavedChanges)
             }
         }
         // An alert, not a confirmation dialog: iPad popover dialogs hide
         // cancel-role buttons, and Keep Editing must always be offered.
-        .alert(QuestionnaireText.discardChangesTitle,
+        .alert(L10n.discardChangesTitle,
                isPresented: $isShowingBackWarning) {
-            Button(QuestionnaireText.saveChangesAction) { save(thenDismiss: true) }
-            Button(QuestionnaireText.discardChangesAction, role: .destructive) {
+            Button(L10n.saveChangesAction) { save(thenDismiss: true) }
+            Button(L10n.discardChangesAction, role: .destructive) {
                 // The patient object is shared, so revert the edits instead
                 // of leaving them in memory unsaved.
                 if let initialNotes { patient.notes = initialNotes }
                 voiceRecorder.discard()
                 dismiss()
             }
-            Button(QuestionnaireText.keepEditingAction, role: .cancel) {}
+            Button(L10n.keepEditingAction, role: .cancel) {}
         }
         .sheet(item: $preparationResult) { result in
             NextSessionPreparationView(response: result.response)
@@ -290,7 +290,7 @@ struct PatientDetailView: View {
 
     private func appendTranscription(_ text: String) {
         let timeText = Date.now.formatted(date: .numeric, time: .shortened)
-        appendNotesBlock("\(QuestionnaireText.transcriptionHeader(timeText: timeText))\n\(text)")
+        appendNotesBlock("\(L10n.transcriptionHeader(timeText: timeText))\n\(text)")
     }
 
     private func appendNotesBlock(_ block: String) {

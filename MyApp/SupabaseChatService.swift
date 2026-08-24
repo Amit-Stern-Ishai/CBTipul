@@ -25,7 +25,7 @@ enum OpenAIChatError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .emptyResponse:
-            return "The AI service returned an empty response."
+            return L10n.emptyAIResponseError
         }
     }
 }

@@ -39,7 +39,7 @@ struct PatientSessionsView: View {
     var body: some View {
         List {
             if patient.sessions.isEmpty {
-                Text("No sessions yet")
+                Text(L10n.noSessionsYetLabel)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(Array(sortedSessions.enumerated()), id: \.element.id) { index, session in
@@ -58,7 +58,7 @@ struct PatientSessionsView: View {
                 }
             }
         }
-        .navigationTitle("Sessions")
+        .navigationTitle(L10n.sessionsTitle)
         .navigationSubtitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -66,7 +66,7 @@ struct PatientSessionsView: View {
                 Button {
                     route = .new(Session())
                 } label: {
-                    Label("Add Session", systemImage: "plus")
+                    Label(L10n.addSessionAction, systemImage: "plus")
                 }
             }
         }
@@ -104,7 +104,7 @@ struct PatientSessionsView: View {
     private func subtitle(for session: Session) -> String? {
         if let record = store.cachedQuestionnaires(for: patient)?
             .first(where: { $0.sessionID == session.databaseID }) {
-            return "\(QuestionnaireText.gad7ShortName): \(record.questionnaire.gad7Score) · \(QuestionnaireText.phq9ShortName): \(record.questionnaire.phq9Score)"
+            return L10n.gadPhqScores(gad7: record.questionnaire.gad7Score, phq9: record.questionnaire.phq9Score)
         }
         return nil
     }
@@ -124,7 +124,7 @@ private struct SessionRow: View {
                 .frame(width: 34, height: 34)
                 .background(Color.accentColor.opacity(0.12), in: Circle())
             VStack(alignment: .leading, spacing: 2) {
-                Text("Session \(number)")
+                Text(L10n.session(number))
                     .font(.headline)
                 // Always present so the row height doesn't jump when the
                 // questionnaire scores finish loading.

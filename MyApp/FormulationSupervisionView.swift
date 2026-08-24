@@ -36,9 +36,9 @@ struct FormulationSupervisionView: View {
 
         var label: String {
             switch self {
-            case .high: return "High"
-            case .medium: return "Medium"
-            case .low: return "Low"
+            case .high: return L10n.priorityHigh
+            case .medium: return L10n.priorityMedium
+            case .low: return L10n.priorityLow
             }
         }
     }
@@ -49,37 +49,37 @@ struct FormulationSupervisionView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     disclaimerHeader
 
-                    section("✓ What supports your formulation?",
+                    section(L10n.supportsFormulationSection,
                             items: supervision.supportingEvidence) { item in
                         pointCard(item)
                     }
 
-                    section("⚠ What may not fit?",
-                            subtitle: "Evidence that may not fully fit the current formulation — something to weigh, not a verdict",
+                    section(L10n.mayNotFitSection,
+                            subtitle: L10n.mayNotFitSubtitle,
                             items: supervision.challengingEvidence) { item in
                         pointCard(item)
                     }
 
                     blindSpotsSection
 
-                    section("🔄 Alternative Formulations",
-                            subtitle: "Alternatives to consider — not diagnoses or conclusions",
+                    section(L10n.alternativeFormulationsSection,
+                            subtitle: L10n.alternativeFormulationsSubtitle,
                             items: supervision.alternativeFormulations) { item in
                         alternativeCard(item)
                     }
 
-                    section("❓ Questions to Explore",
+                    section(L10n.questionsToExploreSection,
                             items: supervision.questionsToExplore) { item in
                         questionCard(item)
                     }
 
-                    section("🎯 Possible Treatment Implications",
-                            subtitle: "Possible areas to consider — not instructions",
+                    section(L10n.treatmentImplicationsSection,
+                            subtitle: L10n.treatmentImplicationsSubtitle,
                             items: supervision.treatmentImplications) { item in
                         implicationCard(item)
                     }
 
-                    Text("AI-generated clinical support. Use your professional judgment.")
+                    Text(L10n.aiDisclaimer)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
@@ -88,11 +88,11 @@ struct FormulationSupervisionView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("🧠 AI Supervision")
+            .navigationTitle(L10n.aiSupervisionSection)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L10n.done) { dismiss() }
                 }
             }
         }
@@ -103,9 +103,9 @@ struct FormulationSupervisionView: View {
 
     private var disclaimerHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("AI-generated supervision")
+            Text(L10n.aiGeneratedSupervisionLabel)
                 .font(.footnote.weight(.semibold))
-            Text("These are hypotheses for clinical reflection, not established conclusions.")
+            Text(L10n.supervisionDisclaimerBody)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -136,9 +136,9 @@ struct FormulationSupervisionView: View {
         if !supervision.possibleBlindSpots.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("👁 Possible Blind Spots")
+                    Text(L10n.possibleBlindSpotsSection)
                         .font(.title2.bold())
-                    Text("Hypotheses, not facts — areas the formulation may not be covering")
+                    Text(L10n.blindSpotsSubtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -176,7 +176,7 @@ struct FormulationSupervisionView: View {
         card {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Possible formulation")
+                    Text(L10n.possibleFormulationLabel)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(item.formulation)
@@ -186,7 +186,7 @@ struct FormulationSupervisionView: View {
                 hypothesisBadge
             }
             if !item.whatItWouldExplain.isEmpty {
-                labeledText("What this might explain", item.whatItWouldExplain)
+                labeledText(L10n.whatThisMightExplainLabel, item.whatItWouldExplain)
             }
             evidenceDisclosure(item.evidence)
             confidenceText(item.confidence)
@@ -202,7 +202,7 @@ struct FormulationSupervisionView: View {
                 priorityBadge(item.priority)
             }
             if !item.purpose.isEmpty {
-                Text("Purpose: \(item.purpose)")
+                Text(L10n.purposeLine(item.purpose))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -212,7 +212,7 @@ struct FormulationSupervisionView: View {
     private func implicationCard(_ item: TreatmentImplication) -> some View {
         card {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Possible area to consider")
+                Text(L10n.possibleAreaToConsiderLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 HStack(alignment: .firstTextBaseline) {
@@ -270,7 +270,7 @@ struct FormulationSupervisionView: View {
 
     /// Marks content the AI inferred, so hypotheses never read as facts.
     private var hypothesisBadge: some View {
-        Label("Hypothesis", systemImage: "lightbulb")
+        Label(L10n.hypothesisBadge, systemImage: "lightbulb")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.orange)
             .padding(.horizontal, 8)
@@ -283,21 +283,21 @@ struct FormulationSupervisionView: View {
     private func priorityBadge(_ raw: String) -> some View {
         switch Level(raw) {
         case .high:
-            Text("High")
+            Text(L10n.priorityHigh)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(.orange))
         case .medium:
-            Text("Medium")
+            Text(L10n.priorityMedium)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(Color(.tertiarySystemFill)))
         case .low:
-            Text("Low")
+            Text(L10n.priorityLow)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         case nil:
@@ -312,11 +312,11 @@ struct FormulationSupervisionView: View {
     @ViewBuilder
     private func confidenceText(_ raw: String) -> some View {
         if let level = Level(raw) {
-            Text("Confidence: \(level.label)")
+            Text(L10n.confidenceLine(level.label))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         } else if !raw.isEmpty {
-            Text("Confidence: \(raw.capitalized)")
+            Text(L10n.confidenceLine(raw.capitalized))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -343,7 +343,7 @@ struct FormulationSupervisionView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
             } label: {
-                Text("Evidence")
+                Text(L10n.evidenceLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }

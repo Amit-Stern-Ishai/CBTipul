@@ -23,9 +23,9 @@ struct PatientQuestionnairesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker(QuestionnaireText.modePickerTitle, selection: $mode) {
-                Text(QuestionnaireText.listModeTitle).tag(Mode.list)
-                Text(QuestionnaireText.graphsModeTitle).tag(Mode.graphs)
+            Picker(L10n.modePickerTitle, selection: $mode) {
+                Text(L10n.listModeTitle).tag(Mode.list)
+                Text(L10n.graphsModeTitle).tag(Mode.graphs)
             }
             .pickerStyle(.segmented)
             .padding([.horizontal, .top])
@@ -36,7 +36,7 @@ struct PatientQuestionnairesView: View {
                 .animation(.easeInOut(duration: 0.25), value: mode)
                 .animation(.easeInOut(duration: 0.25), value: isPreparingGraphs)
         }
-        .navigationTitle(QuestionnaireText.questionnairesTitle)
+        .navigationTitle(L10n.questionnairesTitle)
         .navigationSubtitle(patient.displayName)
         .task(id: mode) {
             guard mode == .graphs else { return }
@@ -59,18 +59,18 @@ struct PatientQuestionnairesView: View {
             ProgressView()
         } else if let loadError, questionnaires.isEmpty {
             ContentUnavailableView {
-                Label(QuestionnaireText.loadErrorTitle, systemImage: "exclamationmark.triangle")
+                Label(L10n.loadErrorTitle, systemImage: "exclamationmark.triangle")
             } description: {
                 Text(loadError)
             } actions: {
-                Button(QuestionnaireText.retryAction) {
+                Button(L10n.retryAction) {
                     Task { await load() }
                 }
                 .buttonStyle(.borderedProminent)
             }
         } else if questionnaires.isEmpty {
             ContentUnavailableView {
-                Label(QuestionnaireText.noQuestionnairesMessage, systemImage: "list.clipboard")
+                Label(L10n.noQuestionnairesMessage, systemImage: "list.clipboard")
             }
         } else {
             switch mode {
@@ -103,7 +103,7 @@ struct PatientQuestionnairesView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(record.answeredDate, style: .date)
                         .font(.headline)
-                    Text("\(QuestionnaireText.gad7ShortName): \(record.questionnaire.gad7Score) · \(QuestionnaireText.phq9ShortName): \(record.questionnaire.phq9Score)")
+                    Text(L10n.gadPhqScores(gad7: record.questionnaire.gad7Score, phq9: record.questionnaire.phq9Score))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -116,14 +116,14 @@ struct PatientQuestionnairesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
                 QuestionnaireChart(
-                    title: QuestionnaireText.gad7Title,
+                    title: L10n.gad7Title,
                     entries: chartEntries(for: \.gad7Answers),
-                    questionShortNames: QuestionnaireText.gad7QuestionShortNames
+                    questionShortNames: L10n.gad7QuestionShortNames
                 )
                 QuestionnaireChart(
-                    title: QuestionnaireText.phq9Title,
+                    title: L10n.phq9Title,
                     entries: chartEntries(for: \.phq9Answers),
-                    questionShortNames: QuestionnaireText.phq9QuestionShortNames
+                    questionShortNames: L10n.phq9QuestionShortNames
                 )
             }
             .padding()
@@ -199,8 +199,8 @@ private struct QuestionnaireChart: View {
                 Text(title)
                     .font(.headline)
                 Spacer()
-                Picker(QuestionnaireText.metricPickerTitle, selection: $metric) {
-                    Text(QuestionnaireText.totalOptionLabel).tag(Metric.total)
+                Picker(L10n.metricPickerTitle, selection: $metric) {
+                    Text(L10n.totalOptionLabel).tag(Metric.total)
                     ForEach(questionShortNames.indices, id: \.self) { index in
                         Text(questionShortNames[index]).tag(Metric.question(index))
                     }
@@ -210,12 +210,12 @@ private struct QuestionnaireChart: View {
 
             Chart(Array(points.enumerated()), id: \.offset) { item in
                 LineMark(
-                    x: .value("Date", item.element.date),
-                    y: .value("Score", item.element.value)
+                    x: .value(L10n.chartDateLabel, item.element.date),
+                    y: .value(L10n.chartScoreLabel, item.element.value)
                 )
                 PointMark(
-                    x: .value("Date", item.element.date),
-                    y: .value("Score", item.element.value)
+                    x: .value(L10n.chartDateLabel, item.element.date),
+                    y: .value(L10n.chartScoreLabel, item.element.value)
                 )
             }
             .chartYScale(domain: yDomain)

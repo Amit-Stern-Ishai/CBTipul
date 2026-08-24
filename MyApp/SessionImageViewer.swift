@@ -46,11 +46,11 @@ struct SessionImageViewer: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L10n.cancel) { dismiss() }
                         .disabled(isCropping)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(L10n.save) {
                         onSave(workingImage)
                         dismiss()
                     }

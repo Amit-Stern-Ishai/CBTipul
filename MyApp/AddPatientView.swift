@@ -44,10 +44,10 @@ struct AddPatientView: View {
                         .listRowBackground(Color.clear)
                 }
 
-                Section("Patient") {
-                    TextField("First name", text: $firstName)
-                    TextField("Last name", text: $lastName)
-                    Picker("Status", selection: $status) {
+                Section(L10n.patientSectionTitle) {
+                    TextField(L10n.firstNamePlaceholder, text: $firstName)
+                    TextField(L10n.lastNamePlaceholder, text: $lastName)
+                    Picker(L10n.statusLabel, selection: $status) {
                         ForEach(PatientStatus.allCases) { Text($0.rawValue).tag($0) }
                     }
                 }
@@ -62,14 +62,14 @@ struct AddPatientView: View {
             }
             .dismissesKeyboardOnTap()
             .animation(.easeInOut(duration: 0.2), value: errorMessage)
-            .navigationTitle("New Patient")
+            .navigationTitle(L10n.newPatientTitle)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L10n.cancel) { dismiss() }
                         .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") { save() }
+                    Button(L10n.add) { save() }
                         .disabled(!canSave)
                 }
             }

@@ -10,11 +10,11 @@ enum PatientStoreError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .patientNotSaved:
-            return "This patient hasn't been saved to the database yet."
+            return L10n.patientNotSavedError
         case .sessionNotSaved:
-            return "This session hasn't been saved to the database yet."
+            return L10n.sessionNotSavedError
         case .updateRejected:
-            return "The server accepted the request but didn't change any row. Check the table's row-level security policies (UPDATE is likely missing)."
+            return L10n.updateRejectedError
         }
     }
 }
@@ -515,11 +515,11 @@ final class PatientStore {
 
         let questionnaires = rows.map { row in
             var questionnaire = CombinedMoodQuestionnaire()
-            questionnaire.gad7Answers = Self.paddedAnswers(row.gad7Answers, count: QuestionnaireText.gad7Questions.count)
-            questionnaire.phq9Answers = Self.paddedAnswers(row.phq9Answers, count: QuestionnaireText.phq9Questions.count)
+            questionnaire.gad7Answers = Self.paddedAnswers(row.gad7Answers, count: L10n.gad7Questions.count)
+            questionnaire.phq9Answers = Self.paddedAnswers(row.phq9Answers, count: L10n.phq9Questions.count)
             questionnaire.interferenceLevel = row.interferenceLevel
-            questionnaire.gad7Notes = Self.paddedNotes(row.combinedNotes?.gad7, count: QuestionnaireText.gad7Questions.count)
-            questionnaire.phq9Notes = Self.paddedNotes(row.combinedNotes?.phq9, count: QuestionnaireText.phq9Questions.count)
+            questionnaire.gad7Notes = Self.paddedNotes(row.combinedNotes?.gad7, count: L10n.gad7Questions.count)
+            questionnaire.phq9Notes = Self.paddedNotes(row.combinedNotes?.phq9, count: L10n.phq9Questions.count)
             questionnaire.interferenceNote = row.combinedNotes?.interference ?? ""
             return CompletedQuestionnaire(
                 databaseID: row.id,

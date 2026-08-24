@@ -36,7 +36,7 @@ struct SplashView: View {
                     )
                     .shadow(color: Color.accentColor.opacity(0.35), radius: 16, y: 10)
 
-                Text("Therapy Notes")
+                Text(L10n.appTitle)
                     .font(.largeTitle.bold())
             }
             .scaleEffect(isVisible ? 1 : 0.85)

@@ -36,9 +36,9 @@ struct WhatAmIMissingView: View {
 
         var label: String {
             switch self {
-            case .high: return "High"
-            case .medium: return "Medium"
-            case .low: return "Low"
+            case .high: return L10n.priorityHigh
+            case .medium: return L10n.priorityMedium
+            case .low: return L10n.priorityLow
             }
         }
     }
@@ -57,7 +57,7 @@ struct WhatAmIMissingView: View {
                         }
                     }
 
-                    Text("AI-generated clinical support. Use your professional judgment.")
+                    Text(L10n.aiDisclaimer)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
@@ -66,11 +66,11 @@ struct WhatAmIMissingView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("🔎 What Am I Missing?")
+            .navigationTitle(L10n.whatAmIMissingTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L10n.done) { dismiss() }
                 }
             }
         }
@@ -81,9 +81,9 @@ struct WhatAmIMissingView: View {
 
     private var disclaimerHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("AI-generated supervision")
+            Text(L10n.aiGeneratedSupervisionLabel)
                 .font(.footnote.weight(.semibold))
-            Text("These are hypotheses for clinical reflection, not established conclusions.")
+            Text(L10n.supervisionDisclaimerBody)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -101,7 +101,7 @@ struct WhatAmIMissingView: View {
             Image(systemName: "checkmark.circle")
                 .font(.title2)
                 .foregroundStyle(.green)
-            Text("No additional significant patterns were identified from the available information.")
+            Text(L10n.noAdditionalPatternsMessage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -137,7 +137,7 @@ struct WhatAmIMissingView: View {
             }
             if !finding.whyItMightMatter.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Why this might matter")
+                    Text(L10n.whyThisMightMatterLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(finding.whyItMightMatter)
@@ -147,7 +147,7 @@ struct WhatAmIMissingView: View {
             }
             if !finding.questionForTherapist.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Label("Question for therapist", systemImage: "magnifyingglass")
+                    Label(L10n.questionForTherapistLabel, systemImage: "magnifyingglass")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.tint)
                     Text(finding.questionForTherapist)
@@ -178,17 +178,17 @@ struct WhatAmIMissingView: View {
     /// Friendly label for a machine category; raw values are never shown.
     private func categoryLabel(_ category: String) -> String {
         switch category {
-        case "recurring_nat": return "Recurring Automatic Thought"
-        case "cognitive_pattern": return "Thinking Pattern"
-        case "maintaining_behavior": return "Maintaining Behavior"
-        case "cbt_cycle": return "CBT Cycle"
-        case "discrepancy": return "Possible Discrepancy"
-        case "persistent_symptom": return "Persistent Symptom"
-        case "repeated_situation": return "Repeated Situation"
-        case "unexplored_theme": return "Possible Unexplored Theme"
-        case "possible_connection": return "Possible Connection"
-        case "treatment_opportunity": return "Possible Treatment Opportunity"
-        case "risk_review": return "Risk Review"
+        case "recurring_nat": return L10n.categoryRecurringNat
+        case "cognitive_pattern": return L10n.categoryCognitivePattern
+        case "maintaining_behavior": return L10n.categoryMaintainingBehavior
+        case "cbt_cycle": return L10n.cbtCycleSection
+        case "discrepancy": return L10n.categoryDiscrepancy
+        case "persistent_symptom": return L10n.categoryPersistentSymptom
+        case "repeated_situation": return L10n.categoryRepeatedSituation
+        case "unexplored_theme": return L10n.categoryUnexploredTheme
+        case "possible_connection": return L10n.categoryPossibleConnection
+        case "treatment_opportunity": return L10n.categoryTreatmentOpportunity
+        case "risk_review": return L10n.categoryRiskReview
         default:
             return category
                 .replacingOccurrences(of: "_", with: " ")
@@ -200,7 +200,7 @@ struct WhatAmIMissingView: View {
 
     /// Marks content the AI inferred, so hypotheses never read as facts.
     private var hypothesisBadge: some View {
-        Label("Hypothesis", systemImage: "lightbulb")
+        Label(L10n.hypothesisBadge, systemImage: "lightbulb")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.orange)
             .padding(.horizontal, 8)
@@ -213,21 +213,21 @@ struct WhatAmIMissingView: View {
     private func priorityBadge(_ raw: String) -> some View {
         switch Level(raw) {
         case .high:
-            Text("High")
+            Text(L10n.priorityHigh)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(.orange))
         case .medium:
-            Text("Medium")
+            Text(L10n.priorityMedium)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(Color(.tertiarySystemFill)))
         case .low:
-            Text("Low")
+            Text(L10n.priorityLow)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         case nil:
@@ -242,11 +242,11 @@ struct WhatAmIMissingView: View {
     @ViewBuilder
     private func confidenceText(_ raw: String) -> some View {
         if let level = Level(raw) {
-            Text("Confidence: \(level.label)")
+            Text(L10n.confidenceLine(level.label))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         } else if !raw.isEmpty {
-            Text("Confidence: \(raw.capitalized)")
+            Text(L10n.confidenceLine(raw.capitalized))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -263,7 +263,7 @@ struct WhatAmIMissingView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
             } label: {
-                Text("Evidence")
+                Text(L10n.evidenceLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }

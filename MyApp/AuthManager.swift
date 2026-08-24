@@ -14,9 +14,9 @@ enum AuthError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            return "Supabase is not configured. Fill in your project URL and anon key in SupabaseConfig.swift."
+            return L10n.supabaseNotConfiguredError
         case .notImplemented(let feature):
-            return "\(feature) is not implemented yet."
+            return L10n.notImplementedError(feature)
         }
     }
 }

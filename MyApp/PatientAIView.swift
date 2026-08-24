@@ -41,7 +41,7 @@ struct PatientAIView: View {
                     HStack {
                         HStack(spacing: 8) {
                             ProgressView()
-                            Text(QuestionnaireText.aiThinkingLabel)
+                            Text(L10n.aiThinkingLabel)
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.horizontal, 14)
@@ -68,7 +68,7 @@ struct PatientAIView: View {
         .safeAreaInset(edge: .bottom) {
             inputBar
         }
-        .navigationTitle("AI Chat")
+        .navigationTitle(L10n.aiChatNavigationTitle)
         .navigationSubtitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -82,7 +82,7 @@ struct PatientAIView: View {
     /// The message field with a send icon, pinned above the keyboard.
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            TextField(QuestionnaireText.aiPromptPlaceholder, text: $prompt, axis: .vertical)
+            TextField(L10n.aiPromptPlaceholder, text: $prompt, axis: .vertical)
                 .lineLimit(1...5)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
@@ -215,19 +215,19 @@ struct PatientAIView: View {
 
         lines.append("GAD-7 (each answer 0-3):")
         lines.append(contentsOf: answerLines(
-            questions: QuestionnaireText.gad7Questions, answers: q.gad7Answers, notes: q.gad7Notes
+            questions: L10n.gad7Questions, answers: q.gad7Answers, notes: q.gad7Notes
         ))
-        lines.append("GAD-7 total: \(q.gad7Score) (\(QuestionnaireText.label(for: q.gad7Severity)))")
+        lines.append("GAD-7 total: \(q.gad7Score) (\(L10n.label(for: q.gad7Severity)))")
 
         lines.append("PHQ-9 (each answer 0-3):")
         lines.append(contentsOf: answerLines(
-            questions: QuestionnaireText.phq9Questions, answers: q.phq9Answers, notes: q.phq9Notes
+            questions: L10n.phq9Questions, answers: q.phq9Answers, notes: q.phq9Notes
         ))
-        lines.append("PHQ-9 total: \(q.phq9Score) (\(QuestionnaireText.label(for: q.phq9Severity)))")
+        lines.append("PHQ-9 total: \(q.phq9Score) (\(L10n.label(for: q.phq9Severity)))")
 
         if let level = q.interferenceLevel,
-           QuestionnaireText.phq9InterferenceOptions.indices.contains(level) {
-            var line = "Interference: \(QuestionnaireText.phq9InterferenceOptions[level]) (\(level))"
+           L10n.phq9InterferenceOptions.indices.contains(level) {
+            var line = "Interference: \(L10n.phq9InterferenceOptions[level]) (\(level))"
             if !q.interferenceNote.isEmpty {
                 line += " [note: \(q.interferenceNote)]"
             }

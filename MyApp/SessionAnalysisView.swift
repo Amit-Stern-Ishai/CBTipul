@@ -45,14 +45,14 @@ struct SessionAnalysisView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    TextField("Session summary", text: $edited.sessionSummary, axis: .vertical)
+                    TextField(L10n.sessionSummaryPlaceholder, text: $edited.sessionSummary, axis: .vertical)
                         .font(.body)
                         .lineSpacing(4)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     if !edited.keySituations.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Key Situations")
+                            Text(L10n.keySituationsSection)
                                 .font(.title3.bold())
 
                             ForEach(edited.keySituations.indices, id: \.self) { index in
@@ -63,7 +63,7 @@ struct SessionAnalysisView: View {
 
                     if !edited.possibleNats.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Possible Automatic Thoughts")
+                            Text(L10n.possibleAutomaticThoughtsSection)
                                 .font(.title3.bold())
 
                             ForEach(edited.possibleNats.indices, id: \.self) { index in
@@ -74,7 +74,7 @@ struct SessionAnalysisView: View {
 
                     if !edited.possibleNats.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("CBT Cycle")
+                            Text(L10n.cbtCycleSection)
                                 .font(.title3.bold())
 
                             ForEach(edited.possibleNats.indices, id: \.self) { index in
@@ -85,7 +85,7 @@ struct SessionAnalysisView: View {
 
                     if !edited.therapistReflections.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Things Worth Exploring")
+                            Text(L10n.thingsWorthExploringSection)
                                 .font(.title3.bold())
 
                             ForEach(edited.therapistReflections.indices, id: \.self) { index in
@@ -96,7 +96,7 @@ struct SessionAnalysisView: View {
 
                     if !edited.followUpQuestions.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Questions You May Want to Revisit")
+                            Text(L10n.questionsToRevisitSection)
                                 .font(.title3.bold())
 
                             ForEach(edited.followUpQuestions.indices, id: \.self) { index in
@@ -109,7 +109,7 @@ struct SessionAnalysisView: View {
                         SessionAnalysisDetailView(analysis: edited)
                     } label: {
                         HStack {
-                            Label("Full Analysis", systemImage: "list.bullet.rectangle")
+                            Label(L10n.fullAnalysisTitle, systemImage: "list.bullet.rectangle")
                             Spacer()
                             Image(systemName: "chevron.forward")
                                 .font(.footnote.weight(.semibold))
@@ -126,10 +126,10 @@ struct SessionAnalysisView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Session Summary")
+            .navigationTitle(L10n.sessionSummaryTitle)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
+                    Button(L10n.done) {
                         if needsSaveDecision {
                             isShowingSaveAsk = true
                         } else {
@@ -138,14 +138,14 @@ struct SessionAnalysisView: View {
                     }
                 }
             }
-            .alert("Save this summary to the session?",
+            .alert(L10n.saveSummaryPrompt,
                    isPresented: $isShowingSaveAsk) {
-                Button("Save") {
+                Button(L10n.save) {
                     onSave?(edited)
                     dismiss()
                 }
-                Button("Don't Save", role: .destructive) { dismiss() }
-                Button("Keep Viewing", role: .cancel) {}
+                Button(L10n.dontSaveAction, role: .destructive) { dismiss() }
+                Button(L10n.keepViewingAction, role: .cancel) {}
             }
         }
         .interactiveDismissDisabled(needsSaveDecision)
@@ -166,19 +166,19 @@ struct SessionAnalysisView: View {
                 }
             }
 
-            TextField("Thought", text: $edited.possibleNats[index].thought, axis: .vertical)
+            TextField(L10n.thoughtLabel, text: $edited.possibleNats[index].thought, axis: .vertical)
                 .font(.body.weight(.semibold).italic())
 
             Divider()
 
             HStack(alignment: .top, spacing: 16) {
-                labeledField("Situation", text: $edited.possibleNats[index].situation)
-                labeledField("Emotion", text: $edited.possibleNats[index].emotion)
+                labeledField(L10n.situationLabel, text: $edited.possibleNats[index].situation)
+                labeledField(L10n.emotionLabel, text: $edited.possibleNats[index].emotion)
             }
 
             if !edited.possibleNats[index].possibleCognitivePatterns.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Possible cognitive patterns")
+                    Text(L10n.possibleCognitivePatternsLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(edited.possibleNats[index].possibleCognitivePatterns
@@ -209,14 +209,14 @@ struct SessionAnalysisView: View {
     @ViewBuilder
     private func sourceBadge(for source: String) -> some View {
         if isPatientStated(source) {
-            Label("Patient said", systemImage: "quote.opening")
+            Label(L10n.patientSaidBadge, systemImage: "quote.opening")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.tint)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(.tint.opacity(0.12)))
         } else {
-            Label("Possible inference", systemImage: "lightbulb")
+            Label(L10n.possibleInferenceBadge, systemImage: "lightbulb")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.orange)
                 .padding(.horizontal, 8)
@@ -241,16 +241,16 @@ struct SessionAnalysisView: View {
     /// The steps edit the same fields as the thought's card above.
     private func cycleCard(index: Int) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            cycleStep("Situation", text: $edited.possibleNats[index].situation)
+            cycleStep(L10n.situationLabel, text: $edited.possibleNats[index].situation)
             cycleArrow
-            cycleStep("Thought", text: $edited.possibleNats[index].thought)
+            cycleStep(L10n.thoughtLabel, text: $edited.possibleNats[index].thought)
             cycleArrow
-            cycleStep("Emotion", text: $edited.possibleNats[index].emotion)
+            cycleStep(L10n.emotionLabel, text: $edited.possibleNats[index].emotion)
             cycleArrow
-            cycleStep("Behavior", text: $edited.possibleNats[index].behavior)
+            cycleStep(L10n.behaviorLabel, text: $edited.possibleNats[index].behavior)
             if edited.possibleNats[index].possibleConsequence != nil {
                 cycleArrow
-                cycleStep("Possible consequence", text: Binding(
+                cycleStep(L10n.possibleConsequenceLabel, text: Binding(
                     get: { edited.possibleNats[index].possibleConsequence ?? "" },
                     set: { edited.possibleNats[index].possibleConsequence = $0 }
                 ))
@@ -288,7 +288,7 @@ struct SessionAnalysisView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Label("The AI noticed", systemImage: "eye")
+                    Label(L10n.aiNoticedLabel, systemImage: "eye")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -299,12 +299,12 @@ struct SessionAnalysisView: View {
                     }
                 }
 
-                TextField("Observation",
+                TextField(L10n.observationPlaceholder,
                           text: $edited.therapistReflections[index].observation,
                           axis: .vertical)
                     .font(.body)
 
-                TextField("Why it may matter",
+                TextField(L10n.whyItMayMatterPlaceholder,
                           text: $edited.therapistReflections[index].whyItMayMatter,
                           axis: .vertical)
                     .font(.subheadline)
@@ -312,11 +312,11 @@ struct SessionAnalysisView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Label("Worth exploring", systemImage: "magnifyingglass")
+                Label(L10n.worthExploringLabel, systemImage: "magnifyingglass")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tint)
 
-                TextField("Question to explore",
+                TextField(L10n.questionToExplorePlaceholder,
                           text: $edited.therapistReflections[index].questionToExplore,
                           axis: .vertical)
                     .font(.body.weight(.medium).italic())
@@ -344,17 +344,17 @@ struct SessionAnalysisView: View {
                 Text("\(index + 1).")
                     .font(.headline)
                     .foregroundStyle(.secondary)
-                TextField("Question",
+                TextField(L10n.questionPlaceholder,
                           text: $edited.followUpQuestions[index].question,
                           axis: .vertical)
                     .font(.headline)
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Why it matters")
+                Text(L10n.whyItMattersLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                TextField("Reason",
+                TextField(L10n.reasonPlaceholder,
                           text: $edited.followUpQuestions[index].reason,
                           axis: .vertical)
                     .font(.subheadline)
@@ -362,11 +362,11 @@ struct SessionAnalysisView: View {
             }
 
             HStack(spacing: 8) {
-                statusChip("Discussed", systemImage: "checkmark",
+                statusChip(L10n.discussedAction, systemImage: "checkmark",
                            status: .discussed, index: index, color: .green)
-                statusChip("Follow up", systemImage: "arrow.forward",
+                statusChip(L10n.followUpAction, systemImage: "arrow.forward",
                            status: .followUp, index: index, color: .blue)
-                statusChip("Not relevant", systemImage: "xmark",
+                statusChip(L10n.notRelevantAction, systemImage: "xmark",
                            status: .notRelevant, index: index, color: .red)
             }
         }
@@ -400,9 +400,9 @@ struct SessionAnalysisView: View {
 
     private func keySituationCard(index: Int) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            TextField("Situation", text: $edited.keySituations[index].situation, axis: .vertical)
+            TextField(L10n.situationLabel, text: $edited.keySituations[index].situation, axis: .vertical)
                 .font(.headline)
-            TextField("Importance", text: $edited.keySituations[index].importance, axis: .vertical)
+            TextField(L10n.importancePlaceholder, text: $edited.keySituations[index].importance, axis: .vertical)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -423,28 +423,28 @@ private struct SessionAnalysisDetailView: View {
     var body: some View {
         List {
             if !analysis.emotions.isEmpty {
-                Section("Emotions") {
+                Section(L10n.emotionsSection) {
                     ForEach(analysis.emotions.indices, id: \.self) { index in
                         let item = analysis.emotions[index]
                         entry(title: item.emotion, details: [
-                            ("Context", item.context),
-                            ("Evidence", item.evidence)
+                            (L10n.contextLabel, item.context),
+                            (L10n.evidenceLabel, item.evidence)
                         ])
                     }
                 }
             }
 
             if !analysis.possibleNats.isEmpty {
-                Section("Possible Negative Automatic Thoughts") {
+                Section(L10n.possibleNatsSection) {
                     ForEach(analysis.possibleNats.indices, id: \.self) { index in
                         let item = analysis.possibleNats[index]
                         entry(title: item.thought, details: [
-                            ("Situation", item.situation),
-                            ("Emotion", item.emotion),
-                            ("Behavior", item.behavior),
-                            ("Source", item.source),
-                            ("Confidence", item.confidence),
-                            ("Possible cognitive patterns",
+                            (L10n.situationLabel, item.situation),
+                            (L10n.emotionLabel, item.emotion),
+                            (L10n.behaviorLabel, item.behavior),
+                            (L10n.sourceLabel, item.source),
+                            (L10n.confidenceLabel, item.confidence),
+                            (L10n.possibleCognitivePatternsLabel,
                              item.possibleCognitivePatterns.joined(separator: ", "))
                         ])
                     }
@@ -452,100 +452,100 @@ private struct SessionAnalysisDetailView: View {
             }
 
             if !analysis.behaviors.isEmpty {
-                Section("Behaviors") {
+                Section(L10n.behaviorsSection) {
                     ForEach(analysis.behaviors.indices, id: \.self) { index in
                         let item = analysis.behaviors[index]
                         entry(title: item.behavior, details: [
-                            ("Type", item.type),
-                            ("Context", item.context),
-                            ("Possible function", item.possibleFunction)
+                            (L10n.typeLabel, item.type),
+                            (L10n.contextLabel, item.context),
+                            (L10n.possibleFunctionLabel, item.possibleFunction)
                         ])
                     }
                 }
             }
 
             if !analysis.cbtPatterns.isEmpty {
-                Section("CBT Patterns") {
+                Section(L10n.cbtPatternsSection) {
                     ForEach(analysis.cbtPatterns.indices, id: \.self) { index in
                         let item = analysis.cbtPatterns[index]
                         entry(title: item.pattern, details: [
-                            ("Evidence", item.evidence),
-                            ("Confidence", item.confidence)
+                            (L10n.evidenceLabel, item.evidence),
+                            (L10n.confidenceLabel, item.confidence)
                         ])
                     }
                 }
             }
 
             if !analysis.maintainingCycles.isEmpty {
-                Section("Maintaining Cycles") {
+                Section(L10n.maintainingCyclesSection) {
                     ForEach(analysis.maintainingCycles.indices, id: \.self) { index in
                         let item = analysis.maintainingCycles[index]
                         entry(title: item.cycle, details: [
-                            ("Evidence", item.evidence),
-                            ("Confidence", item.confidence)
+                            (L10n.evidenceLabel, item.evidence),
+                            (L10n.confidenceLabel, item.confidence)
                         ])
                     }
                 }
             }
 
             if !analysis.developments.isEmpty {
-                Section("Developments") {
+                Section(L10n.developmentsSection) {
                     ForEach(analysis.developments.indices, id: \.self) { index in
                         let item = analysis.developments[index]
                         entry(title: item.development, details: [
-                            ("Significance", item.significance)
+                            (L10n.significanceLabel, item.significance)
                         ])
                     }
                 }
             }
 
             if !analysis.therapistHypotheses.isEmpty {
-                Section("Therapist Hypotheses") {
+                Section(L10n.therapistHypothesesSection) {
                     ForEach(analysis.therapistHypotheses.indices, id: \.self) { index in
                         let item = analysis.therapistHypotheses[index]
                         entry(title: item.hypothesis, details: [
-                            ("Evidence", item.evidence),
-                            ("Confidence", item.confidence)
+                            (L10n.evidenceLabel, item.evidence),
+                            (L10n.confidenceLabel, item.confidence)
                         ])
                     }
                 }
             }
 
             if !analysis.therapistReflections.isEmpty {
-                Section("Therapist Reflections") {
+                Section(L10n.therapistReflectionsSection) {
                     ForEach(analysis.therapistReflections.indices, id: \.self) { index in
                         let item = analysis.therapistReflections[index]
                         entry(title: item.observation, details: [
-                            ("Why it may matter", item.whyItMayMatter),
-                            ("Question to explore", item.questionToExplore),
-                            ("Confidence", item.confidence)
+                            (L10n.whyItMayMatterPlaceholder, item.whyItMayMatter),
+                            (L10n.questionToExplorePlaceholder, item.questionToExplore),
+                            (L10n.confidenceLabel, item.confidence)
                         ])
                     }
                 }
             }
 
             if !analysis.followUpQuestions.isEmpty {
-                Section("Follow-up Questions") {
+                Section(L10n.followUpQuestionsSection) {
                     ForEach(analysis.followUpQuestions.indices, id: \.self) { index in
                         let item = analysis.followUpQuestions[index]
                         entry(title: item.question, details: [
-                            ("Reason", item.reason),
-                            ("Category", item.category),
-                            ("Priority", item.priority)
+                            (L10n.reasonPlaceholder, item.reason),
+                            (L10n.categoryLabel, item.category),
+                            (L10n.priorityLabel, item.priority)
                         ])
                     }
                 }
             }
 
             if !analysis.unresolvedIssues.isEmpty {
-                Section("Unresolved Issues") {
+                Section(L10n.unresolvedIssuesSection) {
                     ForEach(analysis.unresolvedIssues.indices, id: \.self) { index in
                         Text(analysis.unresolvedIssues[index])
                     }
                 }
             }
         }
-        .navigationTitle("Full Analysis")
+        .navigationTitle(L10n.fullAnalysisTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 

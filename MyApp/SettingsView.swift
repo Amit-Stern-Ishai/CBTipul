@@ -28,11 +28,11 @@ enum AppTextSize: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .small: QuestionnaireText.settingsTextSizeSmall
-        case .standard: QuestionnaireText.settingsTextSizeStandard
-        case .large: QuestionnaireText.settingsTextSizeLarge
-        case .extraLarge: QuestionnaireText.settingsTextSizeExtraLarge
-        case .huge: QuestionnaireText.settingsTextSizeHuge
+        case .small: L10n.settingsTextSizeSmall
+        case .standard: L10n.settingsTextSizeStandard
+        case .large: L10n.settingsTextSizeLarge
+        case .extraLarge: L10n.settingsTextSizeExtraLarge
+        case .huge: L10n.settingsTextSizeHuge
         }
     }
 
@@ -72,13 +72,13 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(QuestionnaireText.settingsAISectionTitle) {
+                Section(L10n.settingsAISectionTitle) {
                     Picker(selection: $responseStyle) {
-                        Text(QuestionnaireText.settingsResponseStyleTyping).tag(AIResponseStyle.typing)
-                        Text(QuestionnaireText.settingsResponseStyleRegular).tag(AIResponseStyle.regular)
+                        Text(L10n.settingsResponseStyleTyping).tag(AIResponseStyle.typing)
+                        Text(L10n.settingsResponseStyleRegular).tag(AIResponseStyle.regular)
                     } label: {
                         Label {
-                            Text(QuestionnaireText.settingsResponseStyleTitle)
+                            Text(L10n.settingsResponseStyleTitle)
                         } icon: {
                             Image(systemName: "text.cursor")
                                 .font(.footnote.weight(.semibold))
@@ -89,13 +89,13 @@ struct SettingsView: View {
                     }
                 }
 
-                Section(QuestionnaireText.settingsAccessibilitySectionTitle) {
+                Section(L10n.settingsAccessibilitySectionTitle) {
                     NavigationLink {
                         TextSizePickerView()
                     } label: {
                         HStack {
                             Label {
-                                Text(QuestionnaireText.settingsTextSizeTitle)
+                                Text(L10n.settingsTextSizeTitle)
                             } icon: {
                                 Image(systemName: "textformat.size")
                                     .font(.footnote.weight(.semibold))
@@ -110,10 +110,10 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle(QuestionnaireText.settingsTitle)
+            .navigationTitle(L10n.settingsTitle)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(QuestionnaireText.settingsDoneAction) { dismiss() }
+                    Button(L10n.settingsDoneAction) { dismiss() }
                 }
             }
         }
@@ -147,7 +147,7 @@ private struct TextSizePickerView: View {
                 }
             }
         }
-        .navigationTitle(QuestionnaireText.settingsTextSizeTitle)
+        .navigationTitle(L10n.settingsTextSizeTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

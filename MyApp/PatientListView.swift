@@ -14,25 +14,25 @@ struct PatientListView: View {
         NavigationStack {
             Group {
                 if isLoading && store.patients.isEmpty {
-                    ProgressView("Loading patients…")
+                    ProgressView(L10n.loadingPatientsLabel)
                 } else if let loadError, store.patients.isEmpty {
                     ContentUnavailableView {
-                        Label("Couldn't Load Patients", systemImage: "exclamationmark.triangle")
+                        Label(L10n.couldntLoadPatientsTitle, systemImage: "exclamationmark.triangle")
                     } description: {
                         Text(loadError)
                     } actions: {
-                        Button("Retry") {
+                        Button(L10n.retry) {
                             Task { await load() }
                         }
                         .buttonStyle(.borderedProminent)
                     }
                 } else if store.patients.isEmpty {
                     ContentUnavailableView {
-                        Label("No Patients", systemImage: "person.crop.circle.badge.plus")
+                        Label(L10n.noPatientsTitle, systemImage: "person.crop.circle.badge.plus")
                     } description: {
-                        Text("Add your first patient to get started.")
+                        Text(L10n.addFirstPatientMessage)
                     } actions: {
-                        Button("Add Patient") { isAddingPatient = true }
+                        Button(L10n.addPatientAction) { isAddingPatient = true }
                             .buttonStyle(.borderedProminent)
                     }
                 } else {
@@ -45,7 +45,7 @@ struct PatientListView: View {
             }
             .animation(.easeInOut(duration: 0.25), value: isLoading)
             .animation(.easeInOut(duration: 0.25), value: loadError)
-            .navigationTitle("Patients")
+            .navigationTitle(L10n.patientsTitle)
             .task { await load() }
             .refreshable { await load() }
             .navigationDestination(for: Patient.self) { patient in
@@ -53,7 +53,7 @@ struct PatientListView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Sign Out") {
+                    Button(L10n.signOutAction) {
                         store.clearAllCaches()
                         auth.signOut()
                     }
@@ -62,14 +62,14 @@ struct PatientListView: View {
                     Button {
                         isAddingPatient = true
                     } label: {
-                        Label("Add Patient", systemImage: "plus")
+                        Label(L10n.addPatientAction, systemImage: "plus")
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         isShowingSettings = true
                     } label: {
-                        Label(QuestionnaireText.settingsTitle, systemImage: "gearshape")
+                        Label(L10n.settingsTitle, systemImage: "gearshape")
                     }
                 }
             }
@@ -115,7 +115,7 @@ private struct PatientRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(patient.displayName)
                     .font(.headline)
-                Text(patient.sessions.isEmpty ? "No sessions yet" : "Session \(patient.currentSessionNumber)")
+                Text(patient.sessions.isEmpty ? L10n.noSessionsYetLabel : L10n.session(patient.currentSessionNumber))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

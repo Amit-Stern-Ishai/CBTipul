@@ -4,7 +4,7 @@ import SwiftUI
 /// first, with the PHQ-9 section below it.
 ///
 /// Saving upserts one combined row into Supabase, linked to the patient and
-/// session. All wording comes from `QuestionnaireText` (placeholders for now,
+/// session. All wording comes from `L10n` (placeholders for now,
 /// Hebrew later).
 struct CombinedMoodQuestionnaireView: View {
     let patient: Patient
@@ -49,11 +49,11 @@ struct CombinedMoodQuestionnaireView: View {
         .navigationSubtitle(session.date.formatted(date: .abbreviated, time: .omitted))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
+                Button(L10n.cancel) { dismiss() }
                     .disabled(isSaving)
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { save() }
+                Button(L10n.save) { save() }
                     .disabled(!canSave)
             }
         }
@@ -118,15 +118,15 @@ private struct QuestionnaireSections: View {
     }
 
     var body: some View {
-        Section(QuestionnaireText.gad7Title) {
+        Section(L10n.gad7Title) {
             AnswerKeyView(previousDate: previous?.answeredDate)
 
-            Text(markdown: QuestionnaireText.gad7MainQuestion)
+            Text(markdown: L10n.gad7MainQuestion)
                 .font(.body)
 
-            ForEach(QuestionnaireText.gad7Questions.indices, id: \.self) { index in
+            ForEach(L10n.gad7Questions.indices, id: \.self) { index in
                 QuestionRow(
-                    text: QuestionnaireText.gad7Questions[index],
+                    text: L10n.gad7Questions[index],
                     selection: $questionnaire.gad7Answers[index],
                     note: $questionnaire.gad7Notes[index],
                     isEditable: isEditable,
@@ -136,20 +136,20 @@ private struct QuestionnaireSections: View {
 
             ScoreRow(
                 score: questionnaire.gad7Score,
-                classification: QuestionnaireText.label(for: questionnaire.gad7Severity),
+                classification: L10n.label(for: questionnaire.gad7Severity),
                 previousScore: previous?.questionnaire.gad7Score,
                 previousDate: previous?.answeredDate
             )
         }
 
-        Section(QuestionnaireText.phq9Title) {
+        Section(L10n.phq9Title) {
             
-            Text(markdown: QuestionnaireText.phq9MainQuestion)
+            Text(markdown: L10n.phq9MainQuestion)
                 .font(.body)
             
-            ForEach(QuestionnaireText.phq9Questions.indices, id: \.self) { index in
+            ForEach(L10n.phq9Questions.indices, id: \.self) { index in
                 QuestionRow(
-                    text: QuestionnaireText.phq9Questions[index],
+                    text: L10n.phq9Questions[index],
                     selection: $questionnaire.phq9Answers[index],
                     note: $questionnaire.phq9Notes[index],
                     isEditable: isEditable,
@@ -166,12 +166,12 @@ private struct QuestionnaireSections: View {
 
             ScoreRow(
                 score: questionnaire.phq9Score,
-                classification: QuestionnaireText.label(for: questionnaire.phq9Severity),
+                classification: L10n.label(for: questionnaire.phq9Severity),
                 previousScore: previous?.questionnaire.phq9Score,
                 previousDate: previous?.answeredDate
             )
 
-            Text(QuestionnaireText.suggestion(for: questionnaire.phq9Severity))
+            Text(L10n.suggestion(for: questionnaire.phq9Severity))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -184,15 +184,15 @@ private struct AnswerKeyView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(QuestionnaireText.answerKeyTitle)
+            Text(L10n.answerKeyTitle)
                 .font(.subheadline.weight(.semibold))
-            ForEach(QuestionnaireText.answerDescriptions.indices, id: \.self) { index in
-                Text(QuestionnaireText.answerDescriptions[index])
+            ForEach(L10n.answerDescriptions.indices, id: \.self) { index in
+                Text(L10n.answerDescriptions[index])
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             if let previousDate {
-                Text(QuestionnaireText.previousAnswerLegend(
+                Text(L10n.previousAnswerLegend(
                     dateText: previousDate.formatted(date: .abbreviated, time: .omitted)
                 ))
                 .font(.footnote)
@@ -217,7 +217,7 @@ private struct InterferencePicker: View {
             HStack(alignment: .top) {
                 // Regular weight so the string's **bold** words stand out
                 // (headline is semibold, which drowns the emphasis).
-                Text(markdown: QuestionnaireText.phq9InterferenceQuestion)
+                Text(markdown: L10n.phq9InterferenceQuestion)
                     .font(.body)
                 Spacer()
                 if isEditable {
@@ -235,13 +235,13 @@ private struct InterferencePicker: View {
                 NoteBox(note: note, onTap: isEditable ? { isEditingNote = true } : nil)
             }
 
-            ForEach(QuestionnaireText.phq9InterferenceOptions.indices, id: \.self) { index in
+            ForEach(L10n.phq9InterferenceOptions.indices, id: \.self) { index in
                 let isSelected = selection == index
                 Button {
                     selection = index
                 } label: {
                     HStack {
-                        Text(QuestionnaireText.phq9InterferenceOptions[index])
+                        Text(L10n.phq9InterferenceOptions[index])
                         if previousSelection == index {
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.footnote)
@@ -258,7 +258,7 @@ private struct InterferencePicker: View {
         }
         .padding(.vertical, 4)
         .sheet(isPresented: $isEditingNote) {
-            QuestionNoteEditor(question: QuestionnaireText.phq9InterferenceQuestion, note: $note)
+            QuestionNoteEditor(question: L10n.phq9InterferenceQuestion, note: $note)
         }
     }
 }
@@ -274,10 +274,10 @@ private struct ScoreRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(QuestionnaireText.scoreLabel): \(score)")
+                Text(L10n.totalScoreLine(score))
                     .font(.headline)
                 if let previousScore, let previousDate {
-                    Text("\(QuestionnaireText.previousScoreLabel(dateText: previousDate.formatted(date: .abbreviated, time: .omitted))): \(previousScore)")
+                    Text(L10n.previousScoreLine(dateText: previousDate.formatted(date: .abbreviated, time: .omitted), score: previousScore))
                         .font(.footnote)
                         .foregroundStyle(.orange)
                 }
@@ -375,19 +375,19 @@ private struct QuestionNoteEditor: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Section(QuestionnaireText.questionNoteTitle) {
-                    NotesField(text: $draft, placeholder: QuestionnaireText.notesFieldPlaceholder,
+                Section(L10n.questionNoteTitle) {
+                    NotesField(text: $draft, placeholder: L10n.notesFieldPlaceholder,
                                minLines: 4, maxLines: 10)
                 }
             }
             .dismissesKeyboardOnTap()
-            .navigationTitle(QuestionnaireText.questionNoteTitle)
+            .navigationTitle(L10n.questionNoteTitle)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L10n.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(L10n.save) {
                         note = draft.trimmingCharacters(in: .whitespacesAndNewlines)
                         dismiss()
                     }

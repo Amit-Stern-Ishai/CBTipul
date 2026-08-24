@@ -104,7 +104,7 @@ final class Patient: Identifiable {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-        return full.isEmpty ? "Unnamed Patient" : full
+        return full.isEmpty ? L10n.unnamedPatient : full
     }
 
     /// The number of the most recent session (0 when there are none yet).
@@ -190,15 +190,15 @@ struct CombinedMoodQuestionnaire {
     /// The valid answer values for every scored question.
     static let answerValues = Array(0...3)
 
-    var gad7Answers: [Int?] = Array(repeating: nil, count: QuestionnaireText.gad7Questions.count)
-    var phq9Answers: [Int?] = Array(repeating: nil, count: QuestionnaireText.phq9Questions.count)
+    var gad7Answers: [Int?] = Array(repeating: nil, count: L10n.gad7Questions.count)
+    var phq9Answers: [Int?] = Array(repeating: nil, count: L10n.phq9Questions.count)
     /// Answer to the PHQ-9 interference question (0–3), saved to the
     /// `interference_level` column.
     var interferenceLevel: Int?
     /// Per-question notes, one slot per question (empty string = no note).
     /// Saved together as the `combined_notes` JSON column.
-    var gad7Notes: [String] = Array(repeating: "", count: QuestionnaireText.gad7Questions.count)
-    var phq9Notes: [String] = Array(repeating: "", count: QuestionnaireText.phq9Questions.count)
+    var gad7Notes: [String] = Array(repeating: "", count: L10n.gad7Questions.count)
+    var phq9Notes: [String] = Array(repeating: "", count: L10n.phq9Questions.count)
     /// Note for the PHQ-9 interference question, stored alongside the others.
     var interferenceNote: String = ""
 
