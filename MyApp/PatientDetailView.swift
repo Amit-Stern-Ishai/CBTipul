@@ -18,6 +18,8 @@ struct PatientDetailView: View {
     @State private var isTranscribing = false
     @State private var isShowingTranscribeDialog = false
     @State private var isReshowingTranscribeDialog = false
+    @State private var isPreparing = false
+    @State private var preparationResult: NextSessionPreparationResult?
 
     /// Whether anything would be lost by leaving without saving: edited
     /// notes or a voice note that hasn't been transcribed yet.
@@ -64,6 +66,19 @@ struct PatientDetailView: View {
                 } label: {
                     iconChip("sparkles", color: .purple, title: QuestionnaireText.aiAction)
                 }
+
+                Button {
+                    prepareNextSession()
+                } label: {
+                    HStack {
+                        iconChip("wand.and.stars", color: .indigo, title: "Prepare Next Session")
+                        if isPreparing {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isPreparing)
             }
 
             Section("Notes") {
@@ -157,6 +172,9 @@ struct PatientDetailView: View {
             }
             Button(QuestionnaireText.keepEditingAction, role: .cancel) {}
         }
+        .sheet(item: $preparationResult) { result in
+            NextSessionPreparationView(response: result.response)
+        }
         .busyOverlay(isSaving)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .animation(.easeInOut(duration: 0.2), value: isTranscribing)
@@ -235,6 +253,30 @@ struct PatientDetailView: View {
             patient.notes = block
         } else {
             patient.notes += "\n\n" + block
+        }
+    }
+
+    /// Builds the compact patient context and asks the AI to prepare the
+    /// next session, then presents the result.
+    private func prepareNextSession() {
+        errorMessage = nil
+        isPreparing = true
+        Task {
+            do {
+                let questionnaires: [CompletedQuestionnaire]
+                if let cached = store.cachedQuestionnaires(for: patient) {
+                    questionnaires = cached
+                } else {
+                    questionnaires = try await store.loadQuestionnaires(for: patient)
+                }
+                let context = PatientContext.make(for: patient, questionnaires: questionnaires)
+                let response = try await WhisperService(client: auth.client)
+                    .prepareNextSession(patientContext: context)
+                preparationResult = NextSessionPreparationResult(response: response)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isPreparing = false
         }
     }
 

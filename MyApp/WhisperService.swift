@@ -372,6 +372,171 @@ nonisolated struct WhisperService {
             return result.analysis
         }
     
+    // MARK: - Prepare Next Session
+
+    /// The Edge Function's preparation for the patient's next session,
+    /// matching the prepare-session response schema exactly.
+    struct NextSessionPreparation: Decodable {
+
+        let executiveSummary: String
+        let whatChanged: [WhatChanged]
+        let priorityFollowUps: [PriorityFollowUp]
+        let recurringNats: [RecurringNAT]
+        let cbtCycles: [CBTCycle]
+        let questionnaireInsights: [QuestionnaireInsight]
+        let supervisoryObservations: [SupervisoryObservation]
+        let possibleTreatmentFocus: [TreatmentFocus]
+        let suggestedQuestions: [SuggestedQuestion]
+        let unresolvedIssues: [String]
+        let coreBeliefHypothesis: CoreBeliefHypothesis?
+
+        enum CodingKeys: String, CodingKey {
+            case executiveSummary = "executive_summary"
+            case whatChanged = "what_changed"
+            case priorityFollowUps = "priority_follow_ups"
+            case recurringNats = "recurring_nats"
+            case cbtCycles = "cbt_cycles"
+            case questionnaireInsights = "questionnaire_insights"
+            case supervisoryObservations = "supervisory_observations"
+            case possibleTreatmentFocus = "possible_treatment_focus"
+            case suggestedQuestions = "suggested_questions"
+            case unresolvedIssues = "unresolved_issues"
+            case coreBeliefHypothesis = "core_belief_hypothesis"
+        }
+
+        struct WhatChanged: Decodable {
+            let observation: String
+            let evidence: String
+            let significance: String
+        }
+
+        struct PriorityFollowUp: Decodable {
+            let item: String
+            let reason: String
+            let source: String
+            let priority: String
+        }
+
+        struct RecurringNAT: Decodable {
+            let thought: String
+            let situations: [String]
+            let cognitivePatterns: [String]
+            let evidence: String
+            let confidence: String
+
+            enum CodingKeys: String, CodingKey {
+                case thought
+                case situations
+                case cognitivePatterns = "cognitive_patterns"
+                case evidence
+                case confidence
+            }
+        }
+
+        struct CoreBeliefHypothesis: Decodable {
+            let belief: String
+            let evidence: [String]
+            let confidence: String
+        }
+
+        /// One hypothesized maintenance cycle. Stages the AI could not
+        /// evidence are null and simply omitted from display.
+        struct CBTCycle: Decodable {
+            let triggerSituation: String?
+            let automaticThought: String?
+            let emotion: String?
+            let behavior: String?
+            let shortTermConsequence: String?
+            let longTermConsequence: String?
+            let evidence: String
+            let confidence: String
+
+            enum CodingKeys: String, CodingKey {
+                case triggerSituation = "trigger_situation"
+                case automaticThought = "automatic_thought"
+                case emotion
+                case behavior
+                case shortTermConsequence = "short_term_consequence"
+                case longTermConsequence = "long_term_consequence"
+                case evidence
+                case confidence
+            }
+        }
+
+        struct QuestionnaireInsight: Decodable {
+            let observation: String
+            let evidence: String
+            let clinicalRelevance: String
+
+            enum CodingKeys: String, CodingKey {
+                case observation
+                case evidence
+                case clinicalRelevance = "clinical_relevance"
+            }
+        }
+
+        struct SupervisoryObservation: Decodable {
+            let observation: String
+            let whyItMatters: String
+            let questionForTherapist: String
+            let confidence: String
+
+            enum CodingKeys: String, CodingKey {
+                case observation
+                case whyItMatters = "why_it_matters"
+                case questionForTherapist = "question_for_therapist"
+                case confidence
+            }
+        }
+
+        struct TreatmentFocus: Decodable {
+            let focus: String
+            let rationale: String
+            let priority: String
+        }
+
+        struct SuggestedQuestion: Decodable {
+            let question: String
+            let purpose: String
+            let priority: String
+        }
+    }
+
+    struct PrepareSessionResponse: Decodable {
+        let preparation: NextSessionPreparation
+        let usage: Usage
+
+        struct Usage: Decodable {
+            let totalTokens: Int
+        }
+    }
+
+    /// Asks the Edge Function to prepare the therapist for the patient's
+    /// next session from the compact patient context. Returns the full
+    /// response so callers can also show the token usage.
+    func prepareNextSession(patientContext: PatientContext) async throws -> PrepareSessionResponse {
+        do {
+            let response: PrepareSessionResponse =
+                try await client.functions.invoke(
+                    "prepare-session",
+                    options: FunctionInvokeOptions(
+                        body: ["patientContext": patientContext]
+                    )
+                )
+            return response
+        } catch let error as APIError {
+            throw error
+        } catch let error as FunctionsError {
+            if case .httpError(_, let data) = error,
+               let serverError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
+                throw APIError.server(serverError.error)
+            }
+            throw APIError.server(error.localizedDescription)
+        } catch {
+            throw APIError.server(error.localizedDescription)
+        }
+    }
+
     enum APIError: LocalizedError {
 
         case invalidInput
