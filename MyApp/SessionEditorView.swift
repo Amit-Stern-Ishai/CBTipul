@@ -564,14 +564,14 @@ struct SessionEditorView: View {
                 }
             }
             Spacer()
-            Button {
-                appendNotesBlock(item.question.question)
-            } label: {
-                Image(systemName: "text.badge.plus")
-                    .font(.title3)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Add to notes")
+//            Button {
+//                appendNotesBlock(item.question.question)
+//            } label: {
+//                Image(systemName: "text.badge.plus")
+//                    .font(.title3)
+//            }
+//            .buttonStyle(.borderless)
+//            .accessibilityLabel("Add to notes")
             Button {
                 markFollowUpDiscussed(item)
             } label: {
