@@ -40,6 +40,7 @@ struct SessionEditorView: View {
     @State private var isAnalyzing = false
     @State private var analysisResult: SessionAnalysisResult?
     @State private var isShowingAllFollowUps = false
+    @State private var isEditingDate = false
     @State private var isShowingTranscribeDialog = false
     @State private var isReshowingTranscribeDialog = false
 
@@ -118,6 +119,29 @@ struct SessionEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(patient.displayName)
+                                .font(.title2.bold())
+                            Text(session.date.formatted(date: .abbreviated, time: .omitted))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button {
+                            isEditingDate = true
+                        } label: {
+                            Image(systemName: "calendar")
+                                .font(.title3)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Edit date")
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                }
+
                 if let firstFollowUp = pendingFollowUps.first {
                     Section {
                         followUpRow(firstFollowUp)
@@ -132,10 +156,6 @@ struct SessionEditorView: View {
                     } header: {
                         Label("From Last Session", systemImage: "arrow.uturn.forward")
                     }
-                }
-
-                Section {
-                    DatePicker("Date", selection: $session.date, displayedComponents: [.date])
                 }
 
                 Section("Notes") {
@@ -240,7 +260,7 @@ struct SessionEditorView: View {
             .navigationTitle(isNew
                              ? "New Session"
                              : "Session\(sessionNumber.map { " \($0)" } ?? "")")
-            .navigationSubtitle(patient.displayName)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -300,6 +320,22 @@ struct SessionEditorView: View {
                     addImage(image)
                 }
                 .ignoresSafeArea()
+            }
+            .sheet(isPresented: $isEditingDate) {
+                NavigationStack {
+                    DatePicker("Date", selection: $session.date, displayedComponents: [.date])
+                        .datePickerStyle(.graphical)
+                        .padding()
+                        .navigationTitle("Session Date")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { isEditingDate = false }
+                            }
+                        }
+                }
+                .presentationDetents([.medium])
+                .appTextSize()
             }
             .sheet(isPresented: $isShowingAllFollowUps) {
                 NavigationStack {

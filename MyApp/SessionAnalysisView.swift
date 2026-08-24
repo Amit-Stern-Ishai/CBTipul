@@ -175,6 +175,18 @@ struct SessionAnalysisView: View {
                 labeledField("Situation", text: $edited.possibleNats[index].situation)
                 labeledField("Emotion", text: $edited.possibleNats[index].emotion)
             }
+
+            if !edited.possibleNats[index].possibleCognitivePatterns.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Possible cognitive patterns")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(edited.possibleNats[index].possibleCognitivePatterns
+                        .joined(separator: " · "))
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.tint)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
