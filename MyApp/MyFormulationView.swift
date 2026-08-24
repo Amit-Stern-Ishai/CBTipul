@@ -8,6 +8,7 @@ import SwiftUI
 struct MyFormulationView: View {
     let patient: Patient
 
+    @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
@@ -17,6 +18,8 @@ struct MyFormulationView: View {
     @State private var isSaving = false
     @State private var isShowingBackWarning = false
     @State private var errorMessage: String?
+    @State private var isChallenging = false
+    @State private var supervisionResult: FormulationSupervisionResult?
 
     init(patient: Patient) {
         self.patient = patient
@@ -114,6 +117,34 @@ struct MyFormulationView: View {
                            minLines: 4, maxLines: 12)
             }
 
+            Section {
+                Button {
+                    challengeFormulation()
+                } label: {
+                    HStack {
+                        Label("Challenge My Formulation", systemImage: "wand.and.stars")
+                        if isChallenging {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isChallenging || !formulationHasContent)
+                if isChallenging {
+                    Text("Analyzing your formulation...")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else if !formulationHasContent {
+                    Text("Add some formulation information before asking AI to challenge it.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("🧠 AI Supervision")
+            } footer: {
+                Text("The AI critically reviews your formulation against the patient's history. It never changes your formulation.")
+            }
+
             if let errorMessage {
                 Section {
                     Text(errorMessage)
@@ -155,9 +186,58 @@ struct MyFormulationView: View {
             }
             Button(QuestionnaireText.keepEditingAction, role: .cancel) {}
         }
+        .sheet(item: $supervisionResult) { result in
+            FormulationSupervisionView(supervision: result.supervision)
+        }
         .busyOverlay(isSaving)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .appTextSize()
+    }
+
+    /// True once any formulation field contains real content — the minimum
+    /// needed to make an AI challenge worthwhile.
+    private var formulationHasContent: Bool {
+        func filled(_ text: String?) -> Bool {
+            !(text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        if filled(formulation.treatmentGoal)
+            || filled(formulation.coreBelief)
+            || filled(formulation.therapistHypothesis) { return true }
+        if formulation.keyAutomaticThoughts.contains(where: { filled($0) }) { return true }
+        if formulation.maintainingBehaviors.contains(where: { filled($0) }) { return true }
+        if let cycle = formulation.keyCBTCycle {
+            return filled(cycle.triggerSituation) || filled(cycle.automaticThought)
+                || filled(cycle.emotion) || filled(cycle.behavior)
+                || filled(cycle.shortTermConsequence) || filled(cycle.longTermConsequence)
+        }
+        return false
+    }
+
+    /// Builds the patient context from locally available data and asks the
+    /// AI to challenge the formulation as shown on screen. Read-only: the
+    /// result is presented for reflection and never saved into the
+    /// formulation.
+    private func challengeFormulation() {
+        guard !isChallenging else { return }
+        errorMessage = nil
+        isChallenging = true
+        Task {
+            do {
+                let questionnaires: [CompletedQuestionnaire]
+                if let cached = store.cachedQuestionnaires(for: patient) {
+                    questionnaires = cached
+                } else {
+                    questionnaires = try await store.loadQuestionnaires(for: patient)
+                }
+                let context = PatientContext.make(for: patient, questionnaires: questionnaires)
+                let supervision = try await WhisperService(client: auth.client)
+                    .challengeFormulation(patientContext: context, formulation: formulation)
+                supervisionResult = FormulationSupervisionResult(supervision: supervision)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isChallenging = false
+        }
     }
 
     private func save(thenDismiss: Bool = false) {

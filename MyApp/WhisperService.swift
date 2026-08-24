@@ -538,6 +538,41 @@ nonisolated struct WhisperService {
         }
     }
 
+    // MARK: - Challenge My Formulation
+
+    /// Asks the Edge Function to critically examine the therapist's own
+    /// formulation against the patient's longitudinal context. Read-only
+    /// supervision: the result is never written back into the formulation.
+    /// The function returns the supervision object directly (no envelope).
+    func challengeFormulation(
+        patientContext: PatientContext,
+        formulation: PatientFormulation
+    ) async throws -> FormulationSupervision {
+        do {
+            let supervision: FormulationSupervision =
+                try await client.functions.invoke(
+                    "challenge-formulation",
+                    options: FunctionInvokeOptions(
+                        body: ChallengeFormulationRequest(
+                            patientContext: patientContext,
+                            formulation: formulation
+                        )
+                    )
+                )
+            return supervision
+        } catch let error as APIError {
+            throw error
+        } catch let error as FunctionsError {
+            if case .httpError(_, let data) = error,
+               let serverError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
+                throw APIError.server(serverError.error)
+            }
+            throw APIError.server(error.localizedDescription)
+        } catch {
+            throw APIError.server(error.localizedDescription)
+        }
+    }
+
     enum APIError: LocalizedError {
 
         case invalidInput
@@ -565,3 +600,64 @@ nonisolated struct WhisperService {
         let error: String
     }
 }
+// MARK: - Challenge My Formulation models
+
+/// Request body of the `challenge-formulation` Edge Function.
+nonisolated struct ChallengeFormulationRequest: Encodable {
+    let patientContext: PatientContext
+    let formulation: PatientFormulation
+}
+
+/// The AI's supervision of the therapist's formulation. Read-only clinical
+/// reflection: never merged back into `PatientFormulation`. Any array may
+/// be empty — finding little to challenge is a valid result.
+nonisolated struct FormulationSupervision: Decodable {
+    let supportingEvidence: [SupervisionPoint]
+    let challengingEvidence: [SupervisionPoint]
+    let possibleBlindSpots: [SupervisionPoint]
+    let alternativeFormulations: [AlternativeFormulation]
+    let questionsToExplore: [SuggestedQuestion]
+    let treatmentImplications: [TreatmentImplication]
+
+    enum CodingKeys: String, CodingKey {
+        case supportingEvidence = "supporting_evidence"
+        case challengingEvidence = "challenging_evidence"
+        case possibleBlindSpots = "possible_blind_spots"
+        case alternativeFormulations = "alternative_formulations"
+        case questionsToExplore = "questions_to_explore"
+        case treatmentImplications = "treatment_implications"
+    }
+}
+
+nonisolated struct SupervisionPoint: Decodable {
+    let observation: String
+    let evidence: String
+    let confidence: String
+}
+
+nonisolated struct AlternativeFormulation: Decodable {
+    let formulation: String
+    let evidence: String
+    let whatItWouldExplain: String
+    let confidence: String
+
+    enum CodingKeys: String, CodingKey {
+        case formulation
+        case evidence
+        case whatItWouldExplain = "what_it_would_explain"
+        case confidence
+    }
+}
+
+nonisolated struct SuggestedQuestion: Decodable {
+    let question: String
+    let purpose: String
+    let priority: String
+}
+
+nonisolated struct TreatmentImplication: Decodable {
+    let implication: String
+    let rationale: String
+    let priority: String
+}
+
