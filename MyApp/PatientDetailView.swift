@@ -70,6 +70,12 @@ struct PatientDetailView: View {
                 }
 
                 NavigationLink {
+                    MyFormulationView(patient: patient)
+                } label: {
+                    iconChip("brain.head.profile", color: .pink, title: "My Formulation")
+                }
+
+                NavigationLink {
                     PatientAIView(patient: patient)
                 } label: {
                     iconChip("sparkles", color: .purple, title: QuestionnaireText.aiAction)

@@ -42,6 +42,31 @@ enum PatientStatus: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// The app-wide CBT cycle shape, defined by the AI response models and
+/// reused for the therapist's own formulation.
+typealias CBTCycle = WhisperService.NextSessionPreparation.CBTCycle
+
+/// The therapist's own clinical formulation of a patient. Therapist-owned:
+/// the AI never writes into it — future AI suggestions must be explicitly
+/// accepted by the therapist. Stored in the local patient cache, not the DB.
+nonisolated struct PatientFormulation: Codable, Equatable {
+    var treatmentGoal: String?
+    var coreBelief: String?
+    var keyAutomaticThoughts: [String]
+    var maintainingBehaviors: [String]
+    var keyCBTCycle: CBTCycle?
+    var therapistHypothesis: String?
+
+    static let empty = PatientFormulation(
+        treatmentGoal: nil,
+        coreBelief: nil,
+        keyAutomaticThoughts: [],
+        maintainingBehaviors: [],
+        keyCBTCycle: nil,
+        therapistHypothesis: nil
+    )
+}
+
 /// A patient tracked by the therapist.
 @Observable
 final class Patient: Identifiable {
@@ -53,6 +78,9 @@ final class Patient: Identifiable {
     var status: PatientStatus
     var notes: String
     var sessions: [Session]
+    /// The therapist's own clinical formulation; kept out of `init` because
+    /// it is loaded from the local cache, never from the database.
+    var formulation: PatientFormulation?
 
     init(id: UUID = UUID(),
          databaseID: DatabaseID? = nil,

@@ -440,14 +440,15 @@ nonisolated struct WhisperService {
         }
 
         /// One hypothesized maintenance cycle. Stages the AI could not
-        /// evidence are null and simply omitted from display.
-        struct CBTCycle: Codable {
-            let triggerSituation: String?
-            let automaticThought: String?
-            let emotion: String?
-            let behavior: String?
-            let shortTermConsequence: String?
-            let longTermConsequence: String?
+        /// evidence are null and simply omitted from display. Stage fields
+        /// are mutable so the therapist's formulation can edit its own copy.
+        struct CBTCycle: Codable, Equatable {
+            var triggerSituation: String?
+            var automaticThought: String?
+            var emotion: String?
+            var behavior: String?
+            var shortTermConsequence: String?
+            var longTermConsequence: String?
             let evidence: String
             let confidence: String
 

@@ -80,6 +80,7 @@ private nonisolated struct PatientRow: Decodable {
     let lastName: String?
     let active: Bool?
     let notes: String?
+    let patientFormulation: PatientFormulation?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -87,6 +88,16 @@ private nonisolated struct PatientRow: Decodable {
         case lastName = "last_name"
         case active
         case notes
+        case patientFormulation = "formulation"
+    }
+}
+
+/// Row shape for updates of a patient's formulation.
+private nonisolated struct UpdatedPatientFormulationRecord: Encodable {
+    let patientFormulation: PatientFormulation
+
+    enum CodingKeys: String, CodingKey {
+        case patientFormulation = "formulation"
     }
 }
 
@@ -164,6 +175,9 @@ private nonisolated struct CachedPatient: Codable {
     /// Optional so cache files written before notes existed still decode.
     let notes: String?
     let sessions: [CachedSession]
+    /// The therapist's formulation lives only in this cache, never in the
+    /// database. Optional so older cache files still decode.
+    let formulation: PatientFormulation?
 }
 
 /// Store of the therapist's patients, backed by the Supabase `Patients` table.
@@ -197,7 +211,7 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
         let patientRows: [PatientRow] = try await client.from("Patients")
-            .select("id, first_name, last_name, active, notes")
+            .select("id, first_name, last_name, active, notes, formulation")
             .execute()
             .value
         let sessionRows: [SessionRow] = try await client.from("Sessions")
@@ -222,6 +236,12 @@ final class PatientStore {
             patient.lastName = row.lastName ?? ""
             patient.status = (row.active ?? true) ? .active : .inactive
             patient.notes = row.notes ?? ""
+            // A null column never clears a local formulation: the app never
+            // deletes formulations server-side, so null just means "not
+            // saved to the DB yet" (e.g. written before this column existed).
+            if let formulation = row.patientFormulation {
+                patient.formulation = formulation
+            }
 
             let existingSessions = patient.sessions
             patient.sessions = (sessionRowsByPatient[row.id] ?? [])
@@ -254,18 +274,20 @@ final class PatientStore {
               let data = try? Data(contentsOf: Self.patientsCacheURL),
               let cached = try? JSONDecoder().decode([CachedPatient].self, from: data)
         else { return }
-        patients = cached.map { patient in
-            Patient(
-                databaseID: patient.databaseID,
-                firstName: patient.firstName,
-                lastName: patient.lastName,
-                status: patient.active ? .active : .inactive,
-                notes: patient.notes ?? "",
-                sessions: patient.sessions.map {
+        patients = cached.map { cachedPatient in
+            let patient = Patient(
+                databaseID: cachedPatient.databaseID,
+                firstName: cachedPatient.firstName,
+                lastName: cachedPatient.lastName,
+                status: cachedPatient.active ? .active : .inactive,
+                notes: cachedPatient.notes ?? "",
+                sessions: cachedPatient.sessions.map {
                     Session(databaseID: $0.databaseID, date: $0.date, notes: $0.notes,
                             structuredNotes: $0.structuredNotes)
                 }
             )
+            patient.formulation = cachedPatient.formulation
+            return patient
         }
     }
 
@@ -282,7 +304,8 @@ final class PatientStore {
                 sessions: patient.sessions.map {
                     CachedSession(databaseID: $0.databaseID, date: $0.date, notes: $0.notes,
                                   structuredNotes: $0.structuredNotes)
-                }
+                },
+                formulation: patient.formulation
             )
         }
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
@@ -368,6 +391,26 @@ final class PatientStore {
         session.databaseID = inserted.id
         patient.sessions.append(session)
         saveCachedPatients()
+    }
+
+    /// Persists the therapist's formulation: in memory and the local cache
+    /// immediately, then the patient's `patient_formulation` column.
+    func saveFormulation(_ formulation: PatientFormulation, for patient: Patient) async throws {
+        patient.formulation = formulation
+        saveCachedPatients()
+
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
+
+        // Select the updated rows back: with row-level security a blocked
+        // update "succeeds" with zero rows, which must not pass as saved.
+        let updated: [InsertedRow] = try await client.from("Patients")
+            .update(UpdatedPatientFormulationRecord(patientFormulation: formulation))
+            .eq("id", value: patientID.queryValue)
+            .select("id")
+            .execute()
+            .value
+        guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
     }
 
     /// Persists notes changes of an already-saved patient.
