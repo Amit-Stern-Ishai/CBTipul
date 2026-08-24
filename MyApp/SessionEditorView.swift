@@ -39,6 +39,7 @@ struct SessionEditorView: View {
     @State private var isTranscribing = false
     @State private var isAnalyzing = false
     @State private var analysisResult: SessionAnalysisResult?
+    @State private var isShowingAllFollowUps = false
     @State private var isShowingTranscribeDialog = false
     @State private var isReshowingTranscribeDialog = false
 
@@ -81,58 +82,51 @@ struct SessionEditorView: View {
         return store.patients.first { $0.databaseID == databaseID } ?? patient
     }
 
-    /// The patient's most recent session before this one.
+    /// A follow-up question still marked "Follow up" in an earlier session's
+    /// review, paired with that session so it can be marked discussed in place.
+    private struct PendingFollowUp: Identifiable {
+        let id: String
+        let session: Session
+        let questionIndex: Int
+        let question: WhisperService.FollowUpQuestion
+    }
+
+    /// The patient's session immediately before this one, by date.
     private var previousSession: Session? {
         storePatient.sessions
             .filter { $0.id != session.id && $0.date <= session.date }
-            .max { $0.date < $1.date }
+            .sorted { $0.date > $1.date }
+            .first
     }
 
-    /// Indices into the previous session's follow-up questions that the
-    /// therapist marked "Follow up", surfaced at the top of this editor.
-    /// Indices (not copies) so the questions can be marked discussed in place.
-    private var previousFollowUpIndices: [Int] {
-        guard let questions = previousSession?.structuredNotes?.followUpQuestions else { return [] }
-        return questions.indices.filter { questions[$0].status == .followUp }
+    /// Follow-up questions from the previous session's structured summary.
+    /// All questions are surfaced — no "Follow up" mark needed — until one
+    /// is marked discussed or not relevant.
+    private var pendingFollowUps: [PendingFollowUp] {
+        guard let previous = previousSession,
+              let questions = previous.structuredNotes?.followUpQuestions else { return [] }
+        return questions.indices.compactMap { index in
+            let question = questions[index]
+            guard question.status != .discussed, question.status != .notRelevant else { return nil }
+            return PendingFollowUp(id: "\(previous.id)-\(index)",
+                                   session: previous,
+                                   questionIndex: index,
+                                   question: question)
+        }
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                if !previousFollowUpIndices.isEmpty {
+                if let firstFollowUp = pendingFollowUps.first {
                     Section {
-                        ForEach(previousFollowUpIndices, id: \.self) { questionIndex in
-                            if let item = previousSession?.structuredNotes?.followUpQuestions[questionIndex] {
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(item.question)
-                                            .font(.subheadline.weight(.semibold))
-                                        if !item.reason.isEmpty {
-                                            Text(item.reason)
-                                                .font(.footnote)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    Spacer()
-                                    Button {
-                                        appendNotesBlock(item.question)
-                                    } label: {
-                                        Image(systemName: "text.badge.plus")
-                                            .font(.title3)
-                                    }
-                                    .buttonStyle(.borderless)
-                                    .accessibilityLabel("Add to notes")
-                                    Button {
-                                        markPreviousFollowUpDiscussed(questionIndex)
-                                    } label: {
-                                        Image(systemName: "checkmark.circle")
-                                            .font(.title3)
-                                            .foregroundStyle(.green)
-                                    }
-                                    .buttonStyle(.borderless)
-                                    .accessibilityLabel("Mark discussed")
-                                }
-                                .padding(.vertical, 2)
+                        followUpRow(firstFollowUp)
+                        if pendingFollowUps.count > 1 {
+                            Button {
+                                isShowingAllFollowUps = true
+                            } label: {
+                                Label("More (\(pendingFollowUps.count - 1))",
+                                      systemImage: "ellipsis.circle")
                             }
                         }
                     } header: {
@@ -306,6 +300,26 @@ struct SessionEditorView: View {
                     addImage(image)
                 }
                 .ignoresSafeArea()
+            }
+            .sheet(isPresented: $isShowingAllFollowUps) {
+                NavigationStack {
+                    List {
+                        ForEach(pendingFollowUps) { item in
+                            followUpRow(item)
+                        }
+                    }
+                    .navigationTitle("Open Questions")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { isShowingAllFollowUps = false }
+                        }
+                    }
+                }
+                .appTextSize()
+            }
+            .onChange(of: pendingFollowUps.isEmpty) { _, isEmpty in
+                if isEmpty { isShowingAllFollowUps = false }
             }
             .sheet(item: $analysisResult) { result in
                 SessionAnalysisView(analysis: result.analysis,
@@ -536,16 +550,50 @@ struct SessionEditorView: View {
         }
     }
 
-    /// Marks a follow-up question of the previous session as discussed and
-    /// persists the previous session's review; the row leaves this editor's
+    /// One open question from the previous session, with add-to-notes and
+    /// mark-discussed controls. Used in the editor and the Open Questions sheet.
+    private func followUpRow(_ item: PendingFollowUp) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.question.question)
+                    .font(.subheadline.weight(.semibold))
+                if !item.question.reason.isEmpty {
+                    Text(item.question.reason)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Button {
+                appendNotesBlock(item.question.question)
+            } label: {
+                Image(systemName: "text.badge.plus")
+                    .font(.title3)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Add to notes")
+            Button {
+                markFollowUpDiscussed(item)
+            } label: {
+                Image(systemName: "checkmark.circle")
+                    .font(.title3)
+                    .foregroundStyle(.green)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Mark discussed")
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// Marks a follow-up question of an earlier session as discussed and
+    /// persists that session's review; the row leaves this editor's
     /// From Last Session list immediately.
-    private func markPreviousFollowUpDiscussed(_ questionIndex: Int) {
-        guard let previous = previousSession else { return }
-        previous.structuredNotes?.followUpQuestions[questionIndex].status = .discussed
-        guard previous.databaseID != nil else { return }
+    private func markFollowUpDiscussed(_ item: PendingFollowUp) {
+        item.session.structuredNotes?.followUpQuestions[item.questionIndex].status = .discussed
+        guard item.session.databaseID != nil else { return }
         Task {
             do {
-                try await store.updateSession(previous)
+                try await store.updateSession(item.session)
             } catch {
                 errorMessage = error.localizedDescription
             }
