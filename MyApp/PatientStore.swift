@@ -206,7 +206,7 @@ final class PatientStore {
 
     /// The cached questionnaires of a patient, if they were loaded before.
     func cachedQuestionnaires(for patient: Patient) -> [CompletedQuestionnaire]? {
-        patient.databaseID.flatMap { questionnairesByPatient[$0] }
+        questionnairesByPatient[patient.id]
     }
 
     /// Replaces the in-memory patient list with the contents of the
@@ -234,8 +234,8 @@ final class PatientStore {
         // store no longer shows (or vice versa).
         let existingPatients = patients
         patients = patientRows.map { row in
-            let patient = existingPatients.first { $0.databaseID == row.id }
-                ?? Patient(databaseID: row.id)
+            let patient = existingPatients.first { $0.id == row.id }
+                ?? Patient(id: row.id)
             patient.firstName = row.firstName ?? ""
             patient.lastName = row.lastName ?? ""
             patient.status = (row.active ?? true) ? .active : .inactive
@@ -282,9 +282,13 @@ final class PatientStore {
               let data = try? Data(contentsOf: Self.patientsCacheURL),
               let cached = try? JSONDecoder().decode([CachedPatient].self, from: data)
         else { return }
-        patients = cached.map { cachedPatient in
+        // Entries without a database ID (pre-migration cache formats) are
+        // dropped: patient identity is always server-assigned, and the next
+        // network load restores them anyway.
+        patients = cached.compactMap { cachedPatient in
+            guard let id = cachedPatient.databaseID else { return nil }
             let patient = Patient(
-                databaseID: cachedPatient.databaseID,
+                id: id,
                 firstName: cachedPatient.firstName,
                 lastName: cachedPatient.lastName,
                 status: cachedPatient.active ? .active : .inactive,
@@ -304,7 +308,7 @@ final class PatientStore {
     private func saveCachedPatients() {
         let snapshot = patients.map { patient in
             CachedPatient(
-                databaseID: patient.databaseID,
+                databaseID: patient.id,
                 firstName: patient.firstName,
                 lastName: patient.lastName,
                 active: patient.status == .active,
@@ -364,7 +368,7 @@ final class PatientStore {
             .execute()
             .value
 
-        patients.append(Patient(databaseID: inserted.id, firstName: firstName, lastName: lastName, status: status))
+        patients.append(Patient(id: inserted.id, firstName: firstName, lastName: lastName, status: status))
         saveCachedPatients()
     }
 
@@ -380,7 +384,7 @@ final class PatientStore {
     /// it to the patient with the database ID returned by Supabase.
     func addSession(_ session: Session, for patient: Patient) async throws {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
+        let patientID = patient.id
 
         let trimmedNotes = session.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let record = NewSessionRecord(
@@ -408,7 +412,7 @@ final class PatientStore {
         saveCachedPatients()
 
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
+        let patientID = patient.id
 
         // Select the updated rows back: with row-level security a blocked
         // update "succeeds" with zero rows, which must not pass as saved.
@@ -424,7 +428,7 @@ final class PatientStore {
     /// Persists notes changes of an already-saved patient.
     func updatePatientNotes(_ patient: Patient) async throws {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
+        let patientID = patient.id
 
         let trimmed = patient.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         // Select the updated rows back: with row-level security a blocked
@@ -471,7 +475,7 @@ final class PatientStore {
                            for patient: Patient,
                            session: Session) async throws {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
+        let patientID = patient.id
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
         let record = NewQuestionnaireRecord(
@@ -512,7 +516,7 @@ final class PatientStore {
     /// refreshes the cache.
     func loadQuestionnaires(for patient: Patient) async throws -> [CompletedQuestionnaire] {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let patientID = patient.databaseID else { throw PatientStoreError.patientNotSaved }
+        let patientID = patient.id
 
         let rows: [QuestionnaireRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
             .select("id, session_id, answered_date, gad7_answers, phq9_answers, interference_level, combined_notes")

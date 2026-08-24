@@ -224,8 +224,8 @@ struct PatientDetailView: View {
             if initialNotes == nil {
                 initialNotes = patient.notes
             }
-            if savedPreparation == nil, let patientID = patient.databaseID {
-                savedPreparation = SavedPreparation.load(for: patientID)
+            if savedPreparation == nil {
+                savedPreparation = SavedPreparation.load(for: patient.id)
             }
         }
     }
@@ -317,9 +317,7 @@ struct PatientDetailView: View {
                 let context = PatientContext.make(for: patient, questionnaires: questionnaires)
                 let response = try await WhisperService(client: auth.client)
                     .prepareNextSession(patientContext: context)
-                if let patientID = patient.databaseID {
-                    savedPreparation = SavedPreparation.save(response, for: patientID)
-                }
+                savedPreparation = SavedPreparation.save(response, for: patient.id)
                 preparationResult = NextSessionPreparationResult(response: response)
             } catch {
                 errorMessage = error.localizedDescription
@@ -360,7 +358,7 @@ struct PatientDetailView: View {
 #Preview {
     let auth = AuthManager()
     NavigationStack {
-        PatientDetailView(patient: Patient(firstName: "Alex", lastName: "Rivera", sessions: [Session()]))
+        PatientDetailView(patient: Patient(id: .integer(1), firstName: "Alex", lastName: "Rivera", sessions: [Session()]))
     }
     .environment(auth)
     .environment(PatientStore(client: auth.client))

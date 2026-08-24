@@ -79,8 +79,7 @@ struct SessionEditorView: View {
     /// reload may hold a stale instance whose sessions miss recent data
     /// (e.g. structured notes); previous-session lookups must use the fresh one.
     private var storePatient: Patient {
-        guard let databaseID = patient.databaseID else { return patient }
-        return store.patients.first { $0.databaseID == databaseID } ?? patient
+        store.patients.first { $0.id == patient.id } ?? patient
     }
 
     /// A follow-up question still marked "Follow up" in an earlier session's
@@ -747,6 +746,6 @@ struct SessionEditorView: View {
 }
 
 #Preview {
-    SessionEditorView(session: Session(), patient: Patient(firstName: "Alex"), isNew: true)
+    SessionEditorView(session: Session(), patient: Patient(id: .integer(1), firstName: "Alex"), isNew: true)
         .environment(PatientStore(client: AuthManager().client))
 }

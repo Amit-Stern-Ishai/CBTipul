@@ -449,7 +449,7 @@ struct AnswerScaleView: View {
 
 #Preview("Editing") {
     NavigationStack {
-        CombinedMoodQuestionnaireView(patient: Patient(firstName: "Alex"), session: Session())
+        CombinedMoodQuestionnaireView(patient: Patient(id: .integer(1), firstName: "Alex"), session: Session())
     }
     .environment(PatientStore(client: AuthManager().client))
 }

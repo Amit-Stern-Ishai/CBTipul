@@ -173,8 +173,8 @@ struct StatusBadge: View {
     let auth = AuthManager()
     let store = PatientStore(client: auth.client)
     store.patients = [
-        Patient(firstName: "Alex", lastName: "Rivera"),
-        Patient(firstName: "Jordan", lastName: "Lee", status: .inactive),
+        Patient(id: .integer(1), firstName: "Alex", lastName: "Rivera"),
+        Patient(id: .integer(2), firstName: "Jordan", lastName: "Lee", status: .inactive),
     ]
     return PatientListView()
         .environment(auth)

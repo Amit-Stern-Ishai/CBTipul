@@ -70,9 +70,9 @@ nonisolated struct PatientFormulation: Codable, Equatable {
 /// A patient tracked by the therapist.
 @Observable
 final class Patient: Identifiable {
-    let id: UUID
-    /// The row's primary key in the Supabase `Patients` table, once saved.
-    var databaseID: DatabaseID?
+    /// The row's primary key in the Supabase `Patients` table. Always
+    /// assigned by the server; a patient object never exists without one.
+    let id: DatabaseID
     var firstName: String
     var lastName: String
     var status: PatientStatus
@@ -82,15 +82,13 @@ final class Patient: Identifiable {
     /// it is loaded from the local cache, never from the database.
     var formulation: PatientFormulation?
 
-    init(id: UUID = UUID(),
-         databaseID: DatabaseID? = nil,
+    init(id: DatabaseID,
          firstName: String = "",
          lastName: String = "",
          status: PatientStatus = .active,
          notes: String = "",
          sessions: [Session] = []) {
         self.id = id
-        self.databaseID = databaseID
         self.firstName = firstName
         self.lastName = lastName
         self.status = status

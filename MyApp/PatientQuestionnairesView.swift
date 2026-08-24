@@ -227,7 +227,7 @@ private struct QuestionnaireChart: View {
 #Preview {
     let auth = AuthManager()
     NavigationStack {
-        PatientQuestionnairesView(patient: Patient(firstName: "Alex", lastName: "Rivera"))
+        PatientQuestionnairesView(patient: Patient(id: .integer(1), firstName: "Alex", lastName: "Rivera"))
     }
     .environment(PatientStore(client: auth.client))
 }

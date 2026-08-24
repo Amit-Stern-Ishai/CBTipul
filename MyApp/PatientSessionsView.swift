@@ -143,7 +143,7 @@ private struct SessionRow: View {
 #Preview {
     let auth = AuthManager()
     NavigationStack {
-        PatientSessionsView(patient: Patient(firstName: "ישראלה", lastName: "ישראלית", sessions: [Session()]))
+        PatientSessionsView(patient: Patient(id: .integer(1), firstName: "ישראלה", lastName: "ישראלית", sessions: [Session()]))
     }
     .environment(PatientStore(client: auth.client))
 }

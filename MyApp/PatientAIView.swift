@@ -279,7 +279,7 @@ struct PatientAIView: View {
 #Preview {
     let auth = AuthManager()
     NavigationStack {
-        PatientAIView(patient: Patient(firstName: "Alex", lastName: "Rivera"))
+        PatientAIView(patient: Patient(id: .integer(1), firstName: "Alex", lastName: "Rivera"))
     }
     .environment(auth)
     .environment(PatientStore(client: auth.client))
