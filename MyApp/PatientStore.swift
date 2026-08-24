@@ -191,6 +191,10 @@ final class PatientStore {
 
     var patients: [Patient] = []
 
+    /// Local patientID → name store, populated whenever the patient list
+    /// loads (Phase 1 of moving patient names off the backend).
+    private let identityStore = PatientIdentityStore()
+
     /// Cache of each patient's saved questionnaires (newest first), keyed by
     /// the patient's database ID. Filled by `loadQuestionnaires` and kept in
     /// sync by `saveQuestionnaire`.
@@ -257,6 +261,10 @@ final class PatientStore {
             return patient
         }
         saveCachedPatients()
+        // Phase 1 migration: mirror every loaded patient's name into the
+        // local identity store. Logs failures instead of throwing so a
+        // persistence problem never blocks the patient list.
+        identityStore.upsertIdentities(for: patients)
     }
 
     // MARK: - Patient disk cache
