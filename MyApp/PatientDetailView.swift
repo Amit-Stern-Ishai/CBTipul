@@ -20,6 +20,14 @@ struct PatientDetailView: View {
     @State private var isReshowingTranscribeDialog = false
     @State private var isPreparing = false
     @State private var preparationResult: NextSessionPreparationResult?
+    @State private var savedPreparation: SavedPreparation?
+
+    /// A saved preparation goes stale once a session dated after its
+    /// generation exists — it prepared for a session that already happened.
+    private var isSavedPreparationOutdated: Bool {
+        guard let savedPreparation else { return false }
+        return patient.sessions.contains { $0.date > savedPreparation.generatedAt }
+    }
 
     /// Whether anything would be lost by leaving without saving: edited
     /// notes or a voice note that hasn't been transcribed yet.
@@ -79,6 +87,34 @@ struct PatientDetailView: View {
                     }
                 }
                 .disabled(isPreparing)
+
+                if let savedPreparation {
+                    Button {
+                        preparationResult = NextSessionPreparationResult(
+                            response: savedPreparation.response,
+                            isOutdated: isSavedPreparationOutdated
+                        )
+                    } label: {
+                        HStack {
+                            iconChip("doc.text.magnifyingglass", color: .teal, title: "Last Preparation")
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(savedPreparation.generatedAt,
+                                     format: .dateTime.day().month().year())
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                if isSavedPreparationOutdated {
+                                    Text("Outdated")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(.orange)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(.orange.opacity(0.12)))
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Section("Notes") {
@@ -182,6 +218,9 @@ struct PatientDetailView: View {
             if initialNotes == nil {
                 initialNotes = patient.notes
             }
+            if savedPreparation == nil, let patientID = patient.databaseID {
+                savedPreparation = SavedPreparation.load(for: patientID)
+            }
         }
     }
 
@@ -272,6 +311,9 @@ struct PatientDetailView: View {
                 let context = PatientContext.make(for: patient, questionnaires: questionnaires)
                 let response = try await WhisperService(client: auth.client)
                     .prepareNextSession(patientContext: context)
+                if let patientID = patient.databaseID {
+                    savedPreparation = SavedPreparation.save(response, for: patientID)
+                }
                 preparationResult = NextSessionPreparationResult(response: response)
             } catch {
                 errorMessage = error.localizedDescription

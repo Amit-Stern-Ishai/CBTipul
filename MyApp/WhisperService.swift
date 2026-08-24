@@ -376,7 +376,7 @@ nonisolated struct WhisperService {
 
     /// The Edge Function's preparation for the patient's next session,
     /// matching the prepare-session response schema exactly.
-    struct NextSessionPreparation: Decodable {
+    struct NextSessionPreparation: Codable {
 
         let executiveSummary: String
         let whatChanged: [WhatChanged]
@@ -404,20 +404,20 @@ nonisolated struct WhisperService {
             case coreBeliefHypothesis = "core_belief_hypothesis"
         }
 
-        struct WhatChanged: Decodable {
+        struct WhatChanged: Codable {
             let observation: String
             let evidence: String
             let significance: String
         }
 
-        struct PriorityFollowUp: Decodable {
+        struct PriorityFollowUp: Codable {
             let item: String
             let reason: String
             let source: String
             let priority: String
         }
 
-        struct RecurringNAT: Decodable {
+        struct RecurringNAT: Codable {
             let thought: String
             let situations: [String]
             let cognitivePatterns: [String]
@@ -433,7 +433,7 @@ nonisolated struct WhisperService {
             }
         }
 
-        struct CoreBeliefHypothesis: Decodable {
+        struct CoreBeliefHypothesis: Codable {
             let belief: String
             let evidence: [String]
             let confidence: String
@@ -441,7 +441,7 @@ nonisolated struct WhisperService {
 
         /// One hypothesized maintenance cycle. Stages the AI could not
         /// evidence are null and simply omitted from display.
-        struct CBTCycle: Decodable {
+        struct CBTCycle: Codable {
             let triggerSituation: String?
             let automaticThought: String?
             let emotion: String?
@@ -463,7 +463,7 @@ nonisolated struct WhisperService {
             }
         }
 
-        struct QuestionnaireInsight: Decodable {
+        struct QuestionnaireInsight: Codable {
             let observation: String
             let evidence: String
             let clinicalRelevance: String
@@ -475,7 +475,7 @@ nonisolated struct WhisperService {
             }
         }
 
-        struct SupervisoryObservation: Decodable {
+        struct SupervisoryObservation: Codable {
             let observation: String
             let whyItMatters: String
             let questionForTherapist: String
@@ -489,24 +489,24 @@ nonisolated struct WhisperService {
             }
         }
 
-        struct TreatmentFocus: Decodable {
+        struct TreatmentFocus: Codable {
             let focus: String
             let rationale: String
             let priority: String
         }
 
-        struct SuggestedQuestion: Decodable {
+        struct SuggestedQuestion: Codable {
             let question: String
             let purpose: String
             let priority: String
         }
     }
 
-    struct PrepareSessionResponse: Decodable {
+    struct PrepareSessionResponse: Codable {
         let preparation: NextSessionPreparation
         let usage: Usage
 
-        struct Usage: Decodable {
+        struct Usage: Codable {
             let totalTokens: Int
         }
     }

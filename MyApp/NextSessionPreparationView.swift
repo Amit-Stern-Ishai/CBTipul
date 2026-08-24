@@ -4,6 +4,35 @@ import SwiftUI
 struct NextSessionPreparationResult: Identifiable {
     let id = UUID()
     let response: WhisperService.PrepareSessionResponse
+    var isOutdated: Bool = false
+}
+
+/// The latest "prepare next session" result, stored locally per patient
+/// (device only, never synced to the database). Patient data is sensitive,
+/// so the file is written with complete file protection.
+nonisolated struct SavedPreparation: Codable {
+    let generatedAt: Date
+    let response: WhisperService.PrepareSessionResponse
+
+    private static func fileURL(for patientID: DatabaseID) -> URL {
+        URL.cachesDirectory.appending(path: "preparation-\(patientID.queryValue).json")
+    }
+
+    static func load(for patientID: DatabaseID) -> SavedPreparation? {
+        guard let data = try? Data(contentsOf: fileURL(for: patientID)) else { return nil }
+        return try? JSONDecoder().decode(SavedPreparation.self, from: data)
+    }
+
+    @discardableResult
+    static func save(_ response: WhisperService.PrepareSessionResponse,
+                     for patientID: DatabaseID) -> SavedPreparation {
+        let saved = SavedPreparation(generatedAt: .now, response: response)
+        if let data = try? JSONEncoder().encode(saved) {
+            try? data.write(to: fileURL(for: patientID),
+                            options: [.atomic, .completeFileProtection])
+        }
+        return saved
+    }
 }
 
 /// Pre-session CBT supervision/formulation briefing.
@@ -17,6 +46,7 @@ struct NextSessionPreparationResult: Identifiable {
 /// language as the session review screen.
 struct NextSessionPreparationView: View {
     let response: WhisperService.PrepareSessionResponse
+    var isOutdated: Bool = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -52,6 +82,19 @@ struct NextSessionPreparationView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
+                    if isOutdated {
+                        Label("Outdated — a session has taken place since this was prepared.",
+                              systemImage: "clock.badge.exclamationmark")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.orange)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.orange.opacity(0.12))
+                            )
+                    }
+
                     if !preparation.executiveSummary.isEmpty {
                         card {
                             Text(preparation.executiveSummary)
