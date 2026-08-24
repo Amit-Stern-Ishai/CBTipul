@@ -118,6 +118,10 @@ private struct PatientRow: View {
                 Text(patient.sessions.isEmpty ? L10n.noSessionsYetLabel : L10n.session(patient.currentSessionNumber))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                // Temporary check of the server-assigned patient ID.
+                Text(patient.id.queryValue)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
             }
             Spacer()
             StatusBadge(status: patient.status)

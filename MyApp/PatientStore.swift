@@ -368,8 +368,13 @@ final class PatientStore {
             .execute()
             .value
 
-        patients.append(Patient(id: inserted.id, firstName: firstName, lastName: lastName, status: status))
+        let patient = Patient(id: inserted.id, firstName: firstName, lastName: lastName, status: status)
+        patients.append(patient)
         saveCachedPatients()
+        // The local store will eventually be the only place the name exists
+        // (it is being removed from the backend), so it must be written the
+        // moment the patient is created, not on the next list reload.
+        identityStore.upsertIdentities(for: [patient])
     }
 
     /// Formatter for Postgres `date` columns (no time component).
