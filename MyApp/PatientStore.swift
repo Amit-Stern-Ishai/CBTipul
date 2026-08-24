@@ -233,7 +233,7 @@ final class PatientStore {
         // instances splits the object graph — edits land on an object the
         // store no longer shows (or vice versa).
         let existingPatients = patients
-        patients = patientRows.map { row in
+        let loadedPatients = patientRows.map { row in
             let patient = existingPatients.first { $0.id == row.id }
                 ?? Patient(id: row.id)
             patient.firstName = row.firstName ?? ""
@@ -260,11 +260,15 @@ final class PatientStore {
                 .sorted { $0.date < $1.date }
             return patient
         }
+        // Save the loaded names into the identity store first, and only
+        // then read the names back — the store is on its way to becoming
+        // the only source of patient names.
+        identityStore.upsertIdentities(for: loadedPatients)
+        for patient in loadedPatients {
+            patient.localName = identityStore.name(for: patient.id)
+        }
+        patients = loadedPatients
         saveCachedPatients()
-        // Phase 1 migration: mirror every loaded patient's name into the
-        // local identity store. Logs failures instead of throwing so a
-        // persistence problem never blocks the patient list.
-        identityStore.upsertIdentities(for: patients)
     }
 
     // MARK: - Patient disk cache
@@ -299,6 +303,9 @@ final class PatientStore {
                 }
             )
             patient.formulation = cachedPatient.formulation
+            // Cache loads only read names, never write them: the identity
+            // store is filled exclusively from fresh server data.
+            patient.localName = identityStore.name(for: patient.id)
             return patient
         }
     }
@@ -369,12 +376,13 @@ final class PatientStore {
             .value
 
         let patient = Patient(id: inserted.id, firstName: firstName, lastName: lastName, status: status)
-        patients.append(patient)
-        saveCachedPatients()
         // The local store will eventually be the only place the name exists
         // (it is being removed from the backend), so it must be written the
-        // moment the patient is created, not on the next list reload.
+        // moment the patient is created — before the name is read back.
         identityStore.upsertIdentities(for: [patient])
+        patient.localName = identityStore.name(for: patient.id)
+        patients.append(patient)
+        saveCachedPatients()
     }
 
     /// Formatter for Postgres `date` columns (no time component).

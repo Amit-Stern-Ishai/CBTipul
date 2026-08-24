@@ -81,6 +81,10 @@ final class Patient: Identifiable {
     /// The therapist's own clinical formulation; kept out of `init` because
     /// it is loaded from the local cache, never from the database.
     var formulation: PatientFormulation?
+    /// The name from the local identity store (Keychain); kept out of `init`
+    /// because it is resolved after the store is updated, never passed in.
+    /// Will become the only name once names are removed from the backend.
+    var localName: String?
 
     init(id: DatabaseID,
          firstName: String = "",
@@ -96,13 +100,22 @@ final class Patient: Identifiable {
         self.sessions = sessions
     }
 
-    /// Full name for display, falling back when both parts are empty.
-    var displayName: String {
-        let full = [firstName, lastName]
+    /// Full name as loaded from the backend; empty once the backend no
+    /// longer stores names. This is what gets saved to the identity store,
+    /// so it must never be derived from `localName`.
+    var backendName: String {
+        [firstName, lastName]
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-        return full.isEmpty ? L10n.unnamedPatient : full
+    }
+
+    /// Full name for display: only the locally stored name. Deliberately no
+    /// backend fallback (temporary), so a failing Keychain read is visible
+    /// immediately instead of being masked by the server name.
+    var displayName: String {
+        if let localName, !localName.isEmpty { return localName }
+        return L10n.unnamedPatient
     }
 
     /// The number of the most recent session (0 when there are none yet).
