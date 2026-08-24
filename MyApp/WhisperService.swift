@@ -573,6 +573,69 @@ nonisolated struct WhisperService {
         }
     }
 
+    // MARK: - What Am I Missing?
+
+    /// Asks the Edge Function to look independently across the patient's
+    /// longitudinal context for clinically meaningful patterns the therapist
+    /// might be overlooking. Unlike `challengeFormulation`, the formulation
+    /// is not the analytical target — the context is the primary input.
+    /// Read-only supervision; an empty findings list is a valid result.
+    func whatAmIMissing(
+        patientContext: PatientContext
+    ) async throws -> WhatAmIMissingResponse {
+        do {
+            let response: WhatAmIMissingResponse =
+                try await client.functions.invoke(
+                    "what-am-i-missing",
+                    options: FunctionInvokeOptions(
+                        body: WhatAmIMissingRequest(patientContext: patientContext)
+                    )
+                )
+            return response
+        } catch let error as APIError {
+            throw error
+        } catch let error as FunctionsError {
+            if case .httpError(_, let data) = error,
+               let serverError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
+                throw APIError.server(serverError.error)
+            }
+            throw APIError.server(error.localizedDescription)
+        } catch {
+            throw APIError.server(error.localizedDescription)
+        }
+    }
+
+    // MARK: - Longitudinal Case Review
+
+    /// Asks the Edge Function what has changed in this case over time, what
+    /// has not, and what deserves attention now. Explicitly longitudinal —
+    /// distinct from session preparation and the formulation supervision
+    /// features. Read-only supervision; nothing is written back anywhere.
+    func longitudinalCaseReview(
+        patientContext: PatientContext
+    ) async throws -> LongitudinalCaseReviewResponse {
+        do {
+            let response: LongitudinalCaseReviewResponse =
+                try await client.functions.invoke(
+                    "longitudinal-case-review",
+                    options: FunctionInvokeOptions(
+                        body: ["patientContext": patientContext]
+                    )
+                )
+            return response
+        } catch let error as APIError {
+            throw error
+        } catch let error as FunctionsError {
+            if case .httpError(_, let data) = error,
+               let serverError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
+                throw APIError.server(serverError.error)
+            }
+            throw APIError.server(error.localizedDescription)
+        } catch {
+            throw APIError.server(error.localizedDescription)
+        }
+    }
+
     enum APIError: LocalizedError {
 
         case invalidInput
@@ -659,5 +722,109 @@ nonisolated struct TreatmentImplication: Decodable {
     let implication: String
     let rationale: String
     let priority: String
+}
+
+// MARK: - What Am I Missing? models
+
+/// Request body of the `what-am-i-missing` Edge Function. Deliberately just
+/// the context: the formulation is not a separate analytical target here.
+nonisolated struct WhatAmIMissingRequest: Encodable {
+    let patientContext: PatientContext
+}
+
+/// The AI's independent look across the patient's history. Read-only
+/// supervision: never merged back into `PatientFormulation`. An empty
+/// findings list means nothing significant stood out — a valid result.
+nonisolated struct WhatAmIMissingResponse: Decodable {
+    let findings: [MissingFinding]
+}
+
+/// One pattern, connection, discrepancy, or unanswered question the
+/// therapist might be overlooking. `category` is one of the machine values
+/// (recurring_nat, cognitive_pattern, maintaining_behavior, cbt_cycle,
+/// discrepancy, persistent_symptom, repeated_situation, unexplored_theme,
+/// possible_connection, treatment_opportunity, risk_review); the UI maps
+/// them to friendly labels.
+nonisolated struct MissingFinding: Decodable {
+    let title: String
+    let observation: String
+    let evidence: String
+    let whyItMightMatter: String
+    let questionForTherapist: String
+    let category: String
+    let confidence: String
+    let priority: String
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case observation
+        case evidence
+        case whyItMightMatter = "why_it_might_matter"
+        case questionForTherapist = "question_for_therapist"
+        case category
+        case confidence
+        case priority
+    }
+}
+
+// MARK: - Longitudinal Case Review models
+
+/// The AI's longitudinal view of the case: what changed, what didn't, and
+/// what deserves attention now. Read-only supervision — never persisted and
+/// never merged into the patient's data or formulation. Any array may be
+/// empty when the history doesn't support further conclusions.
+nonisolated struct LongitudinalCaseReviewResponse: Decodable {
+    let overallTrajectory: String
+    let improvements: [LongitudinalFinding]
+    let persistentDifficulties: [LongitudinalFinding]
+    let recurringPatterns: [LongitudinalFinding]
+    let importantChanges: [LongitudinalFinding]
+    let treatmentGoalProgress: [TreatmentGoalProgress]
+    let formulationEvolution: [LongitudinalFinding]
+    let clinicalAttentionPoints: [LongitudinalFinding]
+    let questionsForTherapist: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case overallTrajectory = "overall_trajectory"
+        case improvements
+        case persistentDifficulties = "persistent_difficulties"
+        case recurringPatterns = "recurring_patterns"
+        case importantChanges = "important_changes"
+        case treatmentGoalProgress = "treatment_goal_progress"
+        case formulationEvolution = "formulation_evolution"
+        case clinicalAttentionPoints = "clinical_attention_points"
+        case questionsForTherapist = "questions_for_therapist"
+    }
+}
+
+/// One longitudinal observation with its evidence and a possible (never
+/// authoritative) interpretation.
+nonisolated struct LongitudinalFinding: Decodable {
+    let observation: String
+    let evidence: String
+    let interpretation: String
+    let confidence: String
+}
+
+/// Progress on one treatment goal. `status` is a machine value
+/// (progressing, partially_progressing, unchanged, worsening, achieved,
+/// unclear); the UI maps it to a friendly label. The suggestion is an area
+/// to consider, not an instruction.
+nonisolated struct TreatmentGoalProgress: Decodable {
+    let goal: String
+    let status: String
+    let currentEstimate: String
+    let evidence: String
+    let suggestion: String
+    let confidence: String
+
+    enum CodingKeys: String, CodingKey {
+        case goal
+        case status
+        case currentEstimate = "current_estimate"
+        case evidence
+        case suggestion
+        case confidence
+    }
 }
 

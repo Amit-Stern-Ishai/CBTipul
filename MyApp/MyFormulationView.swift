@@ -20,6 +20,15 @@ struct MyFormulationView: View {
     @State private var errorMessage: String?
     @State private var isChallenging = false
     @State private var supervisionResult: FormulationSupervisionResult?
+    @State private var isLookingForMissing = false
+    @State private var missingResult: WhatAmIMissingResult?
+    @State private var isReviewingCase = false
+    @State private var caseReviewResult: LongitudinalCaseReviewResult?
+
+    /// One AI supervision request at a time, across all features.
+    private var isRunningSupervision: Bool {
+        isChallenging || isLookingForMissing || isReviewingCase
+    }
 
     init(patient: Patient) {
         self.patient = patient
@@ -129,7 +138,7 @@ struct MyFormulationView: View {
                         }
                     }
                 }
-                .disabled(isChallenging || !formulationHasContent)
+                .disabled(isRunningSupervision || !formulationHasContent)
                 if isChallenging {
                     Text("Analyzing your formulation...")
                         .font(.footnote)
@@ -139,10 +148,52 @@ struct MyFormulationView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+
+                Button {
+                    whatAmIMissing()
+                } label: {
+                    HStack {
+                        Label("What Am I Missing?", systemImage: "text.magnifyingglass")
+                        if isLookingForMissing {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isRunningSupervision)
+                if isLookingForMissing {
+                    Text("Looking across the patient's history...")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             } header: {
                 Text("🧠 AI Supervision")
             } footer: {
-                Text("The AI critically reviews your formulation against the patient's history. It never changes your formulation.")
+                Text("The AI reviews your formulation and the patient's history. It never changes your formulation.")
+            }
+
+            Section {
+                Button {
+                    longitudinalCaseReview()
+                } label: {
+                    HStack {
+                        Label("סקירה לאורך זמן", systemImage: "chart.line.uptrend.xyaxis")
+                        if isReviewingCase {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isRunningSupervision)
+                if isReviewingCase {
+                    Text("מנתח את התהליך לאורך זמן...")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("📈 Longitudinal Case Review")
+            } footer: {
+                Text("תמונה לאורך זמן: מה השתנה, מה נשאר ומה דורש תשומת לב.")
             }
 
             if let errorMessage {
@@ -189,6 +240,12 @@ struct MyFormulationView: View {
         .sheet(item: $supervisionResult) { result in
             FormulationSupervisionView(supervision: result.supervision)
         }
+        .sheet(item: $missingResult) { result in
+            WhatAmIMissingView(response: result.response)
+        }
+        .sheet(item: $caseReviewResult) { result in
+            LongitudinalCaseReviewView(response: result.response)
+        }
         .busyOverlay(isSaving)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .appTextSize()
@@ -218,18 +275,12 @@ struct MyFormulationView: View {
     /// result is presented for reflection and never saved into the
     /// formulation.
     private func challengeFormulation() {
-        guard !isChallenging else { return }
+        guard !isRunningSupervision else { return }
         errorMessage = nil
         isChallenging = true
         Task {
             do {
-                let questionnaires: [CompletedQuestionnaire]
-                if let cached = store.cachedQuestionnaires(for: patient) {
-                    questionnaires = cached
-                } else {
-                    questionnaires = try await store.loadQuestionnaires(for: patient)
-                }
-                let context = PatientContext.make(for: patient, questionnaires: questionnaires)
+                let context = try await makePatientContext()
                 let supervision = try await WhisperService(client: auth.client)
                     .challengeFormulation(patientContext: context, formulation: formulation)
                 supervisionResult = FormulationSupervisionResult(supervision: supervision)
@@ -238,6 +289,59 @@ struct MyFormulationView: View {
             }
             isChallenging = false
         }
+    }
+
+    /// Asks the AI to look independently across the patient's history for
+    /// patterns the therapist might be overlooking. Unlike the challenge,
+    /// the formulation is not the analytical target. Read-only: findings
+    /// are presented for reflection and never saved into the formulation.
+    private func whatAmIMissing() {
+        guard !isRunningSupervision else { return }
+        errorMessage = nil
+        isLookingForMissing = true
+        Task {
+            do {
+                let context = try await makePatientContext()
+                let response = try await WhisperService(client: auth.client)
+                    .whatAmIMissing(patientContext: context)
+                missingResult = WhatAmIMissingResult(response: response)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isLookingForMissing = false
+        }
+    }
+
+    /// Asks the AI what has changed in this case over time, what has not,
+    /// and what deserves attention now. Read-only: the review is presented
+    /// live and never persisted or written into the patient's data.
+    private func longitudinalCaseReview() {
+        guard !isRunningSupervision else { return }
+        errorMessage = nil
+        isReviewingCase = true
+        Task {
+            do {
+                let context = try await makePatientContext()
+                let response = try await WhisperService(client: auth.client)
+                    .longitudinalCaseReview(patientContext: context)
+                caseReviewResult = LongitudinalCaseReviewResult(response: response)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isReviewingCase = false
+        }
+    }
+
+    /// The compact patient context from locally available data, loading the
+    /// questionnaire history only when it isn't cached yet.
+    private func makePatientContext() async throws -> PatientContext {
+        let questionnaires: [CompletedQuestionnaire]
+        if let cached = store.cachedQuestionnaires(for: patient) {
+            questionnaires = cached
+        } else {
+            questionnaires = try await store.loadQuestionnaires(for: patient)
+        }
+        return PatientContext.make(for: patient, questionnaires: questionnaires)
     }
 
     private func save(thenDismiss: Bool = false) {
