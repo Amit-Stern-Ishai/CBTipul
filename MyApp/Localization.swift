@@ -217,6 +217,34 @@ enum L10n {
         "\(gad7ShortName): \(gad7) · \(phq9ShortName): \(phq9)"
     }
 
+    /// A single compact score in a session row, e.g. "GAD-7: 12".
+    static func scoreBadge(name: String, score: Int) -> String {
+        "\(name): \(score)"
+    }
+
+    /// Accessibility label for the icon marking sessions that have an
+    /// AI structured summary.
+    static let hasStructuredSummaryLabel = "כולל סיכום מובנה"
+
+    // MARK: - Session type
+
+    static let sessionTypeLabel = "סוג פגישה"
+    static let sessionTypeNone = "ללא"
+
+    static func label(for type: SessionType) -> String {
+        switch type {
+        case .firstPhoneCall: return "שיחת טלפון ראשונה"
+        case .intake: return "אינטייק"
+        case .psychoEducation: return "פסיכו-חינוכי"
+        case .diaryOne: return "יומן 1"
+        case .diaryTwo: return "יומן 2"
+        case .diaryThree: return "יומן 3"
+        case .caseFormulation: return "המשגה"
+        case .behavioralInterventions: return "חשיפות"
+        case .relapsePreventionAndTermination: return "סיכום טיפול והישנות"
+        }
+    }
+
     /// The live total score line of a questionnaire part.
     static func totalScoreLine(_ score: Int) -> String {
         "\(scoreLabel): \(score)"

@@ -34,6 +34,7 @@ struct SessionEditorView: View {
     @State private var isShowingCancelWarning = false
     @State private var initialDate: Date?
     @State private var initialNotes: String?
+    @State private var initialType: SessionType?
     @State private var isLoadingQuestionnaire = false
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
@@ -58,7 +59,8 @@ struct SessionEditorView: View {
     /// hasn't been transcribed into the notes yet.
     private var hasUnsavedChanges: Bool {
         if let initialDate, let initialNotes,
-           initialDate != session.date || initialNotes != session.notes {
+           initialDate != session.date || initialNotes != session.notes
+            || initialType != session.type {
             return true
         }
         if !removedUploadedFileNames.isEmpty { return true }
@@ -139,6 +141,15 @@ struct SessionEditorView: View {
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                }
+
+                Section {
+                    Picker(L10n.sessionTypeLabel, selection: $session.type) {
+                        Text(L10n.sessionTypeNone).tag(SessionType?.none)
+                        ForEach(SessionType.allCases, id: \.self) { type in
+                            Text(L10n.label(for: type)).tag(SessionType?.some(type))
+                        }
+                    }
                 }
 
 //                if let firstFollowUp = pendingFollowUps.first {
@@ -262,12 +273,15 @@ struct SessionEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.cancel) {
+                    Button {
                         if hasUnsavedChanges {
                             isShowingCancelWarning = true
                         } else {
                             dismiss()
                         }
+                    } label: {
+                        Label(L10n.back, systemImage: "chevron.backward")
+                            .labelStyle(.titleAndIcon)
                     }
                     .disabled(isSaving)
                 }
@@ -286,6 +300,7 @@ struct SessionEditorView: View {
                     // instead of leaving them in memory unsaved.
                     if let initialDate { session.date = initialDate }
                     if let initialNotes { session.notes = initialNotes }
+                    session.type = initialType
                     dismiss()
                 }
                 Button(L10n.keepEditingAction, role: .cancel) {}
@@ -298,6 +313,7 @@ struct SessionEditorView: View {
                 if initialDate == nil {
                     initialDate = session.date
                     initialNotes = session.notes
+                    initialType = session.type
                 }
             }
             .task { await loadQuestionnaire() }

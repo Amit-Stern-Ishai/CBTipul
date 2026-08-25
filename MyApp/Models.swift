@@ -127,6 +127,20 @@ extension Patient: Hashable {
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
+/// The stage of the treatment protocol a session belongs to. Raw values are
+/// stored in the `type` column of the Supabase `Sessions` table.
+nonisolated enum SessionType: String, Codable, CaseIterable {
+    case firstPhoneCall = "first_phone_call"
+    case intake
+    case psychoEducation = "psycho_education"
+    case diaryOne = "diary_one"
+    case diaryTwo = "diary_two"
+    case diaryThree = "diary_three"
+    case caseFormulation = "case_formulation"
+    case behavioralInterventions = "behavioral_interventions"
+    case relapsePreventionAndTermination = "relapse_prevention_and_termination"
+}
+
 /// A single therapy session for a patient.
 @Observable
 final class Session: Identifiable {
@@ -135,6 +149,8 @@ final class Session: Identifiable {
     var databaseID: DatabaseID?
     var date: Date
     var notes: String
+    /// The protocol stage of the session, once one has been picked.
+    var type: SessionType?
     var questionnaire: CombinedMoodQuestionnaire
     /// AI-generated structured summary of the notes, once one has been saved.
     var structuredNotes: WhisperService.CBTSessionAnalysis?
@@ -143,12 +159,14 @@ final class Session: Identifiable {
          databaseID: DatabaseID? = nil,
          date: Date = .now,
          notes: String = "",
+         type: SessionType? = nil,
          questionnaire: CombinedMoodQuestionnaire = CombinedMoodQuestionnaire(),
          structuredNotes: WhisperService.CBTSessionAnalysis? = nil) {
         self.id = id
         self.databaseID = databaseID
         self.date = date
         self.notes = notes
+        self.type = type
         self.questionnaire = questionnaire
         self.structuredNotes = structuredNotes
     }

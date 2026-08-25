@@ -108,7 +108,7 @@ private struct PatientRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(patient.displayName)
                     .font(.headline)
-                Text(patient.sessions.isEmpty ? L10n.noSessionsYetLabel : L10n.session(patient.currentSessionNumber))
+                Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -116,6 +116,17 @@ private struct PatientRow: View {
             StatusBadge(status: patient.status)
         }
         .padding(.vertical, 4)
+    }
+
+    /// The last session's type; its date when no type was picked.
+    private var subtitle: String {
+        guard let lastSession = patient.sessions.max(by: { $0.date < $1.date }) else {
+            return L10n.noSessionsYetLabel
+        }
+        if let type = lastSession.type {
+            return L10n.label(for: type)
+        }
+        return lastSession.date.formatted(date: .abbreviated, time: .omitted)
     }
 }
 

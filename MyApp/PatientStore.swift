@@ -35,12 +35,14 @@ private nonisolated struct NewSessionRecord: Encodable {
     let patientID: DatabaseID
     let sessionDate: String
     let notes: String?
+    let sessionType: SessionType?
     let structuredNotes: WhisperService.CBTSessionAnalysis?
 
     enum CodingKeys: String, CodingKey {
         case patientID = "patient_id"
         case sessionDate = "session_date"
         case notes
+        case sessionType = "type"
         case structuredNotes = "structured_notes"
     }
 }
@@ -98,6 +100,7 @@ private nonisolated struct SessionRow: Decodable {
     let patientID: DatabaseID
     let sessionDate: String
     let notes: String?
+    let sessionType: SessionType?
     let structuredNotes: WhisperService.CBTSessionAnalysis?
 
     enum CodingKeys: String, CodingKey {
@@ -105,6 +108,7 @@ private nonisolated struct SessionRow: Decodable {
         case patientID = "patient_id"
         case sessionDate = "session_date"
         case notes
+        case sessionType = "type"
         case structuredNotes = "structured_notes"
     }
 }
@@ -118,12 +122,24 @@ private nonisolated struct UpdatedPatientNotesRecord: Encodable {
 private nonisolated struct UpdatedSessionRecord: Encodable {
     let sessionDate: String
     let notes: String?
+    let sessionType: SessionType?
     let structuredNotes: WhisperService.CBTSessionAnalysis?
 
     enum CodingKeys: String, CodingKey {
         case sessionDate = "session_date"
         case notes
+        case sessionType = "type"
         case structuredNotes = "structured_notes"
+    }
+
+    // Encode the type explicitly so clearing it writes NULL instead of
+    // leaving the column untouched (synthesized encoding skips nil keys).
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(sessionDate, forKey: .sessionDate)
+        try container.encodeIfPresent(notes, forKey: .notes)
+        try container.encode(sessionType, forKey: .sessionType)
+        try container.encodeIfPresent(structuredNotes, forKey: .structuredNotes)
     }
 }
 
@@ -153,6 +169,8 @@ private nonisolated struct CachedSession: Codable {
     let databaseID: DatabaseID?
     let date: Date
     let notes: String
+    /// Optional so cache files written before session types existed decode.
+    let type: SessionType?
     /// Optional so cache files written before structured notes existed decode.
     let structuredNotes: WhisperService.CBTSessionAnalysis?
 }
@@ -210,7 +228,7 @@ final class PatientStore {
             .execute()
             .value
         let sessionRows: [SessionRow] = try await client.from("Sessions")
-            .select("id, patient_id, session_date, notes, structured_notes")
+            .select("id, patient_id, session_date, notes, type, structured_notes")
             .execute()
             .value
 
@@ -243,6 +261,7 @@ final class PatientStore {
                         ?? Session(databaseID: sessionRow.id)
                     session.date = parseDate(sessionRow.sessionDate)
                     session.notes = sessionRow.notes ?? ""
+                    session.type = sessionRow.sessionType
                     session.structuredNotes = sessionRow.structuredNotes
                     return session
                 }
@@ -288,7 +307,7 @@ final class PatientStore {
                 notes: cachedPatient.notes ?? "",
                 sessions: cachedPatient.sessions.map {
                     Session(databaseID: $0.databaseID, date: $0.date, notes: $0.notes,
-                            structuredNotes: $0.structuredNotes)
+                            type: $0.type, structuredNotes: $0.structuredNotes)
                 }
             )
             patient.formulation = cachedPatient.formulation
@@ -311,7 +330,7 @@ final class PatientStore {
                 notes: patient.notes,
                 sessions: patient.sessions.map {
                     CachedSession(databaseID: $0.databaseID, date: $0.date, notes: $0.notes,
-                                  structuredNotes: $0.structuredNotes)
+                                  type: $0.type, structuredNotes: $0.structuredNotes)
                 },
                 formulation: patient.formulation
             )
@@ -389,6 +408,7 @@ final class PatientStore {
             patientID: patientID,
             sessionDate: Self.dateOnlyFormatter.string(from: session.date),
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+            sessionType: session.type,
             structuredNotes: session.structuredNotes
         )
         let inserted: InsertedRow = try await client.from("Sessions")
@@ -450,6 +470,7 @@ final class PatientStore {
         let record = UpdatedSessionRecord(
             sessionDate: Self.dateOnlyFormatter.string(from: session.date),
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+            sessionType: session.type,
             structuredNotes: session.structuredNotes
         )
         // Select the updated rows back: with row-level security a blocked
