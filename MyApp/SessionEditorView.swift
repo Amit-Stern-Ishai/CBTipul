@@ -230,7 +230,14 @@ struct SessionEditorView: View {
                         .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
 
-                    if let structuredNotes = session.structuredNotes {
+                }
+
+                if let structuredNotes = session.structuredNotes {
+                    Section(L10n.structuredSummarySection) {
+                        NotesField(text: .constant(structuredNotes.sessionSummary),
+                                   placeholder: "",
+                                   minLines: 3, maxLines: 8,
+                                   isEditable: false)
                         Button {
                             analysisResult = SessionAnalysisResult(analysis: structuredNotes,
                                                                    requiresSaveDecision: false)

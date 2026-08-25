@@ -74,6 +74,7 @@ enum L10n {
     static let analyzingLabel = "Analyzing…"
     static let aiSummaryAction = "AI Summary"
     static let showStructuredSummaryAction = "Show Structured Summary"
+    static let structuredSummarySection = "Structured Summary"
     static let dateLabel = "Date"
     static let sessionDateTitle = "Session Date"
 

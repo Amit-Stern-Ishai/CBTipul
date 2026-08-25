@@ -10,6 +10,9 @@ struct NotesField: UIViewRepresentable {
     let placeholder: String
     var minLines: Int = 3
     var maxLines: Int = 8
+    /// Read-only fields (e.g. the structured summary preview) still scroll
+    /// and allow selection, but can't be edited and show the text's start.
+    var isEditable: Bool = true
 
     /// Tracked so the field follows the in-app text size setting, which
     /// overrides the environment rather than the system content size.
@@ -29,6 +32,7 @@ struct NotesField: UIViewRepresentable {
     func makeUIView(context: Context) -> UITextView {
         let view = UITextView()
         view.delegate = context.coordinator
+        view.isEditable = isEditable
         view.font = font
         view.backgroundColor = .clear
         view.textContainerInset = .zero
@@ -57,7 +61,7 @@ struct NotesField: UIViewRepresentable {
         uiView.text = text
         // Idle fields show the latest notes, i.e. the end of the text.
         // Deferred so the jump happens after the new text is laid out.
-        if !uiView.isFirstResponder {
+        if isEditable && !uiView.isFirstResponder {
             DispatchQueue.main.async {
                 Self.jumpToEnd(uiView)
             }
