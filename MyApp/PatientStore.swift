@@ -24,17 +24,10 @@ private nonisolated struct InsertedRow: Decodable {
     let id: DatabaseID
 }
 
-/// Row shape for inserts into the `Patients` table.
+/// Row shape for inserts into the `Patients` table. The name is deliberately
+/// not sent: it lives only in the local identity store.
 private nonisolated struct NewPatientRecord: Encodable {
-    let firstName: String
-    let lastName: String
     let active: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case firstName = "first_name"
-        case lastName = "last_name"
-        case active
-    }
 }
 
 /// Row shape for inserts into the `Sessions` table.
@@ -73,19 +66,17 @@ private nonisolated struct NewQuestionnaireRecord: Encodable {
     }
 }
 
-/// Row shape for selects from the `Patients` table.
+/// Row shape for selects from the `Patients` table. Names are deliberately
+/// not selected: they come from the local identity store, and are being
+/// removed from the backend entirely.
 private nonisolated struct PatientRow: Decodable {
     let id: DatabaseID
-    let firstName: String?
-    let lastName: String?
     let active: Bool?
     let notes: String?
     let patientFormulation: PatientFormulation?
 
     enum CodingKeys: String, CodingKey {
         case id
-        case firstName = "first_name"
-        case lastName = "last_name"
         case active
         case notes
         case patientFormulation = "formulation"
@@ -215,7 +206,7 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
         let patientRows: [PatientRow] = try await client.from("Patients")
-            .select("id, first_name, last_name, active, notes, formulation")
+            .select("id, active, notes, formulation")
             .execute()
             .value
         let sessionRows: [SessionRow] = try await client.from("Sessions")
@@ -236,8 +227,6 @@ final class PatientStore {
         let loadedPatients = patientRows.map { row in
             let patient = existingPatients.first { $0.id == row.id }
                 ?? Patient(id: row.id)
-            patient.firstName = row.firstName ?? ""
-            patient.lastName = row.lastName ?? ""
             patient.status = (row.active ?? true) ? .active : .inactive
             patient.notes = row.notes ?? ""
             // A null column never clears a local formulation: the app never
@@ -363,11 +352,7 @@ final class PatientStore {
     func addPatient(firstName: String, lastName: String, status: PatientStatus = .active) async throws {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
-        let record = NewPatientRecord(
-            firstName: firstName,
-            lastName: lastName,
-            active: status == .active
-        )
+        let record = NewPatientRecord(active: status == .active)
         let inserted: InsertedRow = try await client.from("Patients")
             .insert(record)
             .select("id")
