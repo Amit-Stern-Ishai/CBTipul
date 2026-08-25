@@ -126,6 +126,19 @@ struct SettingsView: View {
                                 .background(Color.gray.gradient, in: RoundedRectangle(cornerRadius: 7))
                         }
                     }
+                    NavigationLink {
+                        PrivacyPolicyView()
+                    } label: {
+                        Label {
+                            Text(L10n.privacyPolicyTitle)
+                        } icon: {
+                            Image(systemName: "hand.raised")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 28, height: 28)
+                                .background(Color.teal.gradient, in: RoundedRectangle(cornerRadius: 7))
+                        }
+                    }
                 }
 
                 Section {

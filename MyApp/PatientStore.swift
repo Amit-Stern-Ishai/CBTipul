@@ -268,10 +268,8 @@ final class PatientStore {
                 .sorted { $0.date < $1.date }
             return patient
         }
-        // Save the loaded names into the identity store first, and only
-        // then read the names back — the store is on its way to becoming
-        // the only source of patient names.
-        identityStore.upsertIdentities(for: loadedPatients)
+        // Names are never loaded from the backend — the identity store is
+        // their only source.
         for patient in loadedPatients {
             patient.localName = identityStore.name(for: patient.id)
         }
