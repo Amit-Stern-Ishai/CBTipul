@@ -141,21 +141,21 @@ struct SessionEditorView: View {
                     .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                 }
 
-                if let firstFollowUp = pendingFollowUps.first {
-                    Section {
-                        followUpRow(firstFollowUp)
-                        if pendingFollowUps.count > 1 {
-                            Button {
-                                isShowingAllFollowUps = true
-                            } label: {
-                                Label(L10n.moreFollowUps(pendingFollowUps.count - 1),
-                                      systemImage: "ellipsis.circle")
-                            }
-                        }
-                    } header: {
-                        Label(L10n.fromLastSessionHeader, systemImage: "arrow.uturn.forward")
-                    }
-                }
+//                if let firstFollowUp = pendingFollowUps.first {
+//                    Section {
+//                        followUpRow(firstFollowUp)
+//                        if pendingFollowUps.count > 1 {
+//                            Button {
+//                                isShowingAllFollowUps = true
+//                            } label: {
+//                                Label(L10n.moreFollowUps(pendingFollowUps.count - 1),
+//                                      systemImage: "ellipsis.circle")
+//                            }
+//                        }
+//                    } header: {
+//                        Label(L10n.fromLastSessionHeader, systemImage: "arrow.uturn.forward")
+//                    }
+//                }
 
                 Section(L10n.notesSection) {
                     HStack(alignment: .bottom) {
