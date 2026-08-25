@@ -32,6 +32,7 @@ struct SessionEditorView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var isShowingCancelWarning = false
+    @State private var isShowingDeleteConfirmation = false
     @State private var initialDate: Date?
     @State private var initialNotes: String?
     @State private var initialType: SessionType?
@@ -296,6 +297,25 @@ struct SessionEditorView: View {
                     Button(L10n.save) { save() }
                         .disabled(isSaving)
                 }
+                if !isNew {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button(L10n.deleteSessionAction, role: .destructive) {
+                                isShowingDeleteConfirmation = true
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                        .disabled(isSaving)
+                    }
+                }
+            }
+            .alert(L10n.deleteSessionConfirmTitle,
+                   isPresented: $isShowingDeleteConfirmation) {
+                Button(L10n.deleteSessionAction, role: .destructive) { deleteSession() }
+                Button(L10n.cancel, role: .cancel) {}
+            } message: {
+                Text(L10n.deleteSessionConfirmMessage)
             }
             // An alert, not a confirmation dialog: iPad popover dialogs hide
             // cancel-role buttons, and Keep Editing must always be offered.
@@ -605,6 +625,21 @@ struct SessionEditorView: View {
                 errorMessage = error.localizedDescription
             }
             isAnalyzing = false
+        }
+    }
+
+    /// Deletes the session (after the confirmation alert) and closes the editor.
+    private func deleteSession() {
+        errorMessage = nil
+        isSaving = true
+        Task {
+            do {
+                try await store.deleteSession(session, for: storePatient)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isSaving = false
         }
     }
 

@@ -75,6 +75,9 @@ enum L10n {
     static let aiSummaryAction = "AI Summary"
     static let showStructuredSummaryAction = "Show Structured Summary"
     static let structuredSummarySection = "Structured Summary"
+    static let deleteSessionAction = "Delete Session"
+    static let deleteSessionConfirmTitle = "Delete this session?"
+    static let deleteSessionConfirmMessage = "The session and its data will be permanently deleted. This cannot be undone."
     static let dateLabel = "Date"
     static let sessionDateTitle = "Session Date"
 

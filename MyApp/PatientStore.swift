@@ -485,6 +485,26 @@ final class PatientStore {
         saveCachedPatients()
     }
 
+    /// Deletes a saved session's row and removes it from its patient.
+    func deleteSession(_ session: Session, for patient: Patient) async throws {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+
+        // Select the deleted rows back: with row-level security a blocked
+        // delete "succeeds" with zero rows, which must not pass as deleted.
+        let deleted: [InsertedRow] = try await client.from("Sessions")
+            .delete()
+            .eq("id", value: sessionID.queryValue)
+            .select("id")
+            .execute()
+            .value
+        guard !deleted.isEmpty else { throw PatientStoreError.updateRejected }
+
+        patient.sessions.removeAll { $0.id == session.id }
+        sessionImagesCache[sessionID] = nil
+        saveCachedPatients()
+    }
+
     /// Saves a completed combined mood questionnaire for a session as a
     /// single row with the GAD-7 and PHQ-9 answers side by side.
     ///
