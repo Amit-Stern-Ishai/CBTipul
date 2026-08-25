@@ -78,6 +78,9 @@ enum L10n {
     static let deleteSessionAction = "Delete Session"
     static let deleteSessionConfirmTitle = "Delete this session?"
     static let deleteSessionConfirmMessage = "The session and its data will be permanently deleted. This cannot be undone."
+    static let deletePatientAction = "Delete Patient"
+    static let deletePatientConfirmTitle = "Delete this patient?"
+    static let deletePatientConfirmMessage = "The patient and all their sessions and data will be permanently deleted. This cannot be undone."
     static let dateLabel = "Date"
     static let sessionDateTitle = "Session Date"
 

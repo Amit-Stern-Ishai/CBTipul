@@ -13,6 +13,7 @@ struct PatientDetailView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var isShowingBackWarning = false
+    @State private var isShowingDeleteConfirmation = false
     @State private var initialNotes: String?
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
@@ -199,6 +200,23 @@ struct PatientDetailView: View {
                 Button(L10n.save) { save() }
                     .disabled(isSaving || !hasUnsavedChanges)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button(L10n.deletePatientAction, role: .destructive) {
+                        isShowingDeleteConfirmation = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .disabled(isSaving)
+            }
+        }
+        .alert(L10n.deletePatientConfirmTitle,
+               isPresented: $isShowingDeleteConfirmation) {
+            Button(L10n.deletePatientAction, role: .destructive) { deletePatient() }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.deletePatientConfirmMessage)
         }
         // An alert, not a confirmation dialog: iPad popover dialogs hide
         // cancel-role buttons, and Keep Editing must always be offered.
@@ -323,6 +341,21 @@ struct PatientDetailView: View {
                 errorMessage = error.localizedDescription
             }
             isPreparing = false
+        }
+    }
+
+    /// Deletes the patient (after the confirmation alert) and leaves the screen.
+    private func deletePatient() {
+        errorMessage = nil
+        isSaving = true
+        Task {
+            do {
+                try await store.deletePatient(patient)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isSaving = false
         }
     }
 

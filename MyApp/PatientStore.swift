@@ -505,6 +505,32 @@ final class PatientStore {
         saveCachedPatients()
     }
 
+    /// Deletes a patient's row and removes the patient locally, including
+    /// the locally stored name and any cached questionnaires and images.
+    func deletePatient(_ patient: Patient) async throws {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+
+        // Select the deleted rows back: with row-level security a blocked
+        // delete "succeeds" with zero rows, which must not pass as deleted.
+        let deleted: [InsertedRow] = try await client.from("Patients")
+            .delete()
+            .eq("id", value: patient.id.queryValue)
+            .select("id")
+            .execute()
+            .value
+        guard !deleted.isEmpty else { throw PatientStoreError.updateRejected }
+
+        for session in patient.sessions {
+            if let sessionID = session.databaseID {
+                sessionImagesCache[sessionID] = nil
+            }
+        }
+        questionnairesByPatient[patient.id] = nil
+        try? identityStore.delete(patientID: patient.id)
+        patients.removeAll { $0.id == patient.id }
+        saveCachedPatients()
+    }
+
     /// Saves a completed combined mood questionnaire for a session as a
     /// single row with the GAD-7 and PHQ-9 answers side by side.
     ///
