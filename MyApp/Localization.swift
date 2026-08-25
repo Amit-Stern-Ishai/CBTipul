@@ -81,6 +81,13 @@ enum L10n {
     static let deletePatientAction = "Delete Patient"
     static let deletePatientConfirmTitle = "Delete this patient?"
     static let deletePatientConfirmMessage = "The patient and all their sessions and data will be permanently deleted. This cannot be undone."
+
+    // MARK: - Terms and conditions
+
+    static let termsTitle = "Terms and Conditions"
+    static let termsAgreeAction = "Agree and Continue"
+    /// Placeholder — the real wording will be filled in later.
+    static let termsBody = "Terms and conditions text goes here."
     static let dateLabel = "Date"
     static let sessionDateTitle = "Session Date"
 

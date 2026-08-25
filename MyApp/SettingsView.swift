@@ -113,6 +113,22 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        TermsView()
+                    } label: {
+                        Label {
+                            Text(L10n.termsTitle)
+                        } icon: {
+                            Image(systemName: "doc.plaintext")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 28, height: 28)
+                                .background(Color.gray.gradient, in: RoundedRectangle(cornerRadius: 7))
+                        }
+                    }
+                }
+
+                Section {
                     Button(role: .destructive) {
                         store.clearAllCaches()
                         auth.signOut()

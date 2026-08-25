@@ -26,11 +26,25 @@ struct ContentView: View {
     @Environment(AuthManager.self) private var auth
 
     @State private var isShowingSplash = true
+    @State private var hasAcceptedTerms = false
 
     var body: some View {
         ZStack {
             if auth.isAuthenticated {
-                PatientListView()
+                if hasAcceptedTerms {
+                    PatientListView()
+                } else {
+                    // Signed in but not yet agreed: the app stays blocked
+                    // behind the terms until the user accepts.
+                    NavigationStack {
+                        TermsView {
+                            if let email = auth.currentUserEmail {
+                                TermsAcceptance.setAccepted(email: email)
+                            }
+                            hasAcceptedTerms = true
+                        }
+                    }
+                }
             } else {
                 AuthView()
             }
@@ -41,6 +55,9 @@ struct ContentView: View {
             }
         }
         .appTextSize()
+        .onChange(of: auth.currentUserEmail, initial: true) { _, email in
+            hasAcceptedTerms = email.map(TermsAcceptance.hasAccepted) ?? false
+        }
         .task {
             // Keep the splash up briefly so the session can be restored
             // without flashing the sign-in screen.
