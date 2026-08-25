@@ -25,6 +25,7 @@ Your primary goal is to implement changes with the **minimum possible context an
 * Reuse existing models, services, utilities and components whenever possible.
 * Do not introduce a new abstraction unless it is actually required.
 * Do not add dependencies unless explicitly requested.
+- Anytime you create a string, make it a localized string - follow the current practise of adding in Localization file.
 
 ## File scope
 

@@ -68,6 +68,8 @@ struct SettingsView: View {
     @AppStorage("aiResponseStyle") private var responseStyle: AIResponseStyle = .typing
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
     @Environment(\.dismiss) private var dismiss
+    @Environment(AuthManager.self) private var auth
+    @Environment(PatientStore.self) private var store
 
     var body: some View {
         NavigationStack {
@@ -107,6 +109,16 @@ struct SettingsView: View {
                             Text(textSize.label)
                                 .foregroundStyle(.secondary)
                         }
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        store.clearAllCaches()
+                        auth.signOut()
+                    } label: {
+                        Text(L10n.signOutAction)
+                            .frame(maxWidth: .infinity)
                     }
                 }
             }
@@ -153,5 +165,8 @@ private struct TextSizePickerView: View {
 }
 
 #Preview {
+    let auth = AuthManager()
     SettingsView()
+        .environment(auth)
+        .environment(PatientStore(client: auth.client))
 }

@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Lists the therapist's patients and allows adding new ones.
 struct PatientListView: View {
-    @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
 
     @State private var isAddingPatient = false
@@ -52,12 +51,6 @@ struct PatientListView: View {
                 PatientDetailView(patient: patient)
             }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.signOutAction) {
-                        store.clearAllCaches()
-                        auth.signOut()
-                    }
-                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         isAddingPatient = true
@@ -118,10 +111,6 @@ private struct PatientRow: View {
                 Text(patient.sessions.isEmpty ? L10n.noSessionsYetLabel : L10n.session(patient.currentSessionNumber))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                // Temporary check of the server-assigned patient ID.
-                Text(patient.id.queryValue)
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.tertiary)
             }
             Spacer()
             StatusBadge(status: patient.status)
