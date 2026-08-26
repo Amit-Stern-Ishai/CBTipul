@@ -122,42 +122,54 @@ struct SessionEditorView: View {
         NavigationStack {
             Form {
                 Section {
-                    VStack(alignment: .leading, spacing: 6) {
+                    if isNew {
                         Text(patient.displayName)
                             .font(.title2.bold())
-                        HStack(spacing: 6) {
-                            Text(session.type.map(L10n.label(for:)) ?? L10n.sessionTypeNone)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(session.type == nil ? Theme.textFaint : Theme.gold)
-                            Menu {
-                                Picker(L10n.sessionTypeLabel, selection: $session.type) {
-                                    Text(L10n.sessionTypeNone).tag(SessionType?.none)
-                                    ForEach(SessionType.allCases, id: \.self) { type in
-                                        Text(L10n.label(for: type)).tag(SessionType?.some(type))
-                                    }
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(patient.displayName)
+                                .font(.title2.bold())
+                            HStack(spacing: 6) {
+                                Text(session.type.map(L10n.label(for:)) ?? L10n.sessionTypeNone)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(session.type == nil ? Theme.textFaint : Theme.gold)
+                                Menu {
+                                    typePicker
+                                } label: {
+                                    Image(systemName: "pencil.circle.fill")
+                                        .font(.subheadline)
                                 }
-                            } label: {
-                                Image(systemName: "pencil.circle.fill")
-                                    .font(.subheadline)
+                                .accessibilityLabel(L10n.sessionTypeLabel)
                             }
-                            .accessibilityLabel(L10n.sessionTypeLabel)
-                        }
-                        HStack(spacing: 6) {
-                            Text(session.date.formatted(date: .abbreviated, time: .omitted))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Button {
-                                isEditingDate = true
-                            } label: {
-                                Image(systemName: "calendar")
+                            HStack(spacing: 6) {
+                                Text(session.date.formatted(date: .abbreviated, time: .omitted))
                                     .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Button {
+                                    isEditingDate = true
+                                } label: {
+                                    Image(systemName: "calendar")
+                                        .font(.subheadline)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel(L10n.editDateAccessibilityLabel)
                             }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel(L10n.editDateAccessibilityLabel)
                         }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                }
+
+                // New sessions get explicit pickers instead of the compact
+                // header lines: pick a type, pick a date (defaults to today).
+                if isNew {
+                    Section {
+                        typePicker
+                        DatePicker(L10n.dateLabel, selection: $session.date, displayedComponents: [.date])
+                    }
+                    .listRowBackground(Theme.surface)
                 }
 
 //                if let firstFollowUp = pendingFollowUps.first {
@@ -287,9 +299,9 @@ struct SessionEditorView: View {
             .overlay(alignment: .bottomTrailing) {
                 floatingUploadButton
             }
-            .navigationTitle(isNew
-                             ? L10n.newSessionTitle
-                             : L10n.sessionEditorTitle(sessionNumber))
+//            .navigationTitle(isNew
+//                             ? L10n.newSessionTitle
+//                             : L10n.sessionEditorTitle(sessionNumber))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -426,6 +438,17 @@ struct SessionEditorView: View {
             }
         }
         .appTextSize()
+    }
+
+    /// The session-type options, shared by the new-session picker row and
+    /// the edit-mode pencil menu.
+    private var typePicker: some View {
+        Picker(L10n.sessionTypeLabel, selection: $session.type) {
+            Text(L10n.sessionTypeNone).tag(SessionType?.none)
+            ForEach(SessionType.allCases, id: \.self) { type in
+                Text(L10n.label(for: type)).tag(SessionType?.some(type))
+            }
+        }
     }
 
     /// Picked and stored images for this session, shown under the notes.

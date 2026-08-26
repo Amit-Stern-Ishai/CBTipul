@@ -26,10 +26,16 @@ struct PatientDetailView: View {
     @State private var savedPreparation: SavedPreparation?
 
     /// A saved preparation goes stale once a session dated after its
-    /// generation exists — it prepared for a session that already happened.
+    /// generation has already taken place — i.e. the session it prepared
+    /// for is in the past. A session merely scheduled for a future date
+    /// (or today) doesn't outdate it. Session dates are date-only, so
+    /// "passed" means any day before today.
     private var isSavedPreparationOutdated: Bool {
         guard let savedPreparation else { return false }
-        return patient.sessions.contains { $0.date > savedPreparation.generatedAt }
+        let startOfToday = Calendar.current.startOfDay(for: .now)
+        return patient.sessions.contains {
+            $0.date > savedPreparation.generatedAt && $0.date < startOfToday
+        }
     }
 
     /// Whether anything would be lost by leaving without saving: edited
@@ -52,6 +58,12 @@ struct PatientDetailView: View {
                 patient.formulation = formulation
             }
         )
+    }
+
+    /// True until the questionnaire cache has been filled for this patient,
+    /// while the current-state chips show reserved placeholders.
+    private var isLoadingQuestionnaires: Bool {
+        store.cachedQuestionnaires(for: patient) == nil
     }
 
     /// The most recently answered questionnaire, from the store's cache.
@@ -115,6 +127,20 @@ struct PatientDetailView: View {
                             ScoreCapsule.gad7(questionnaire, previous: previousQuestionnaire?.questionnaire)
                             ScoreCapsule.phq9(questionnaire, previous: previousQuestionnaire?.questionnaire)
                         }
+                        .transition(.opacity)
+                        Spacer()
+                    } else if isLoadingQuestionnaires {
+                        // Reserve the chips' space while the cache fills, so
+                        // the row doesn't jump when the scores arrive.
+                        VStack(spacing: 4) {
+                            ScoreCapsule(text: L10n.scoreBadge(name: L10n.gad7ShortName, score: 10),
+                                         color: Theme.textFaint)
+                            ScoreCapsule(text: L10n.scoreBadge(name: L10n.phq9ShortName, score: 10),
+                                         color: Theme.textFaint)
+                        }
+                        .redacted(reason: .placeholder)
+                        .opacity(0.4)
+                        .transition(.opacity)
                         Spacer()
                     }
                     if let type = lastSession?.type {
@@ -125,6 +151,8 @@ struct PatientDetailView: View {
                     Spacer()
                 }
                 .font(.subheadline.weight(.semibold))
+                .animation(.easeInOut(duration: 0.35), value: isLoadingQuestionnaires)
+                .animation(.easeInOut(duration: 0.35), value: lastQuestionnaire?.id)
             }
             .listRowBackground(Theme.surface)
 
@@ -515,7 +543,7 @@ struct PatientDetailView: View {
 #Preview {
     let auth = AuthManager()
     NavigationStack {
-        PatientDetailView(patient: Patient(id: .integer(1), firstName: "Alex", lastName: "Rivera", sessions: [Session()]))
+        PatientDetailView(patient: Patient(id: .integer(1), firstName: "ישראלה", lastName: "ישראלית", sessions: [Session()]))
     }
     .environment(auth)
     .environment(PatientStore(client: auth.client))

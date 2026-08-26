@@ -918,7 +918,7 @@ amitishai@gmail.com
 
     // MARK: - My formulation
 
-    static let treatmentGoalSection = "🎯 מטרת הטיפול"
+    static let treatmentGoalSection = "מטרת הטיפול"
 
     static let noTreatmentGoalPlaceholder =
         "לא הוגדרה מטרת טיפול — הוספת מטרה"
