@@ -220,6 +220,9 @@ private struct QuestionnaireChart: View {
             }
             .chartYScale(domain: yDomain)
             .frame(height: 220)
+            // Time series keep the conventional left-to-right time axis
+            // even though the app's layout is right-to-left.
+            .environment(\.layoutDirection, .leftToRight)
         }
     }
 }

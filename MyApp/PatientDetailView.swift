@@ -15,6 +15,8 @@ struct PatientDetailView: View {
     @State private var isShowingBackWarning = false
     @State private var isShowingDeleteConfirmation = false
     @State private var initialNotes: String?
+    @State private var isEditingGoal = false
+    @State private var goalDraft = ""
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
     @State private var isShowingTranscribeDialog = false
@@ -31,24 +33,107 @@ struct PatientDetailView: View {
     }
 
     /// Whether anything would be lost by leaving without saving: edited
-    /// notes or a voice note that hasn't been transcribed yet.
+    /// notes or a voice note that hasn't been transcribed yet. The treatment
+    /// goal is not included — its edit sheet saves immediately.
     private var hasUnsavedChanges: Bool {
         if let initialNotes, initialNotes != patient.notes { return true }
         if voiceRecorder.recordingURL != nil { return true }
         return false
     }
 
+    /// The formulation's treatment goal, edited directly on the patient's
+    /// formulation so the header and My Formulation stay in sync.
+    private var treatmentGoal: Binding<String> {
+        Binding(
+            get: { patient.formulation?.treatmentGoal ?? "" },
+            set: { newValue in
+                var formulation = patient.formulation ?? .empty
+                formulation.treatmentGoal = newValue.isEmpty ? nil : newValue
+                patient.formulation = formulation
+            }
+        )
+    }
+
+    /// The most recently answered questionnaire, from the store's cache.
+    private var lastQuestionnaire: CompletedQuestionnaire? {
+        store.cachedQuestionnaires(for: patient)?.max { $0.answeredDate < $1.answeredDate }
+    }
+
+    /// The patient's most recent session by date.
+    private var lastSession: Session? {
+        patient.sessions.max { $0.date < $1.date }
+    }
+
+    private func color(for severity: GAD7Severity) -> Color {
+        switch severity {
+        case .minimal: .green
+        case .mild: .yellow
+        case .substantial: .orange
+        case .extreme: .red
+        }
+    }
+
+    private func color(for severity: PHQ9Severity) -> Color {
+        switch severity {
+        case .minimal: .green
+        case .mild: .yellow
+        case .moderate: .orange
+        case .moderatelySevere, .severe: .red
+        }
+    }
+
     var body: some View {
         List {
             Section {
                 VStack(spacing: 10) {
-                    InitialsAvatar(name: patient.displayName, size: 72)
                     Text(patient.displayName)
                         .font(.title2.bold())
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(treatmentGoal.wrappedValue.isEmpty
+                             ? L10n.noTreatmentGoalPlaceholder
+                             : treatmentGoal.wrappedValue)
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(treatmentGoal.wrappedValue.isEmpty ? .secondary : .primary)
+                            .multilineTextAlignment(.center)
+                        Button {
+                            goalDraft = treatmentGoal.wrappedValue
+                            isEditingGoal = true
+                        } label: {
+                            Image(systemName: "pencil.circle.fill")
+                                .font(.title3)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(L10n.editTreatmentGoalAction)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                     StatusBadge(status: patient.status)
                 }
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
+            }
+
+            Section {
+                HStack {
+                    Spacer()
+                    if let questionnaire = lastQuestionnaire?.questionnaire {
+                        VStack(spacing: 2) {
+                            Text(L10n.scoreBadge(name: L10n.gad7ShortName, score: questionnaire.gad7Score))
+                                .foregroundStyle(color(for: questionnaire.gad7Severity))
+                            Text(L10n.scoreBadge(name: L10n.phq9ShortName, score: questionnaire.phq9Score))
+                                .foregroundStyle(color(for: questionnaire.phq9Severity))
+                        }
+                        Spacer()
+                    }
+                    if let type = lastSession?.type {
+                        Text(L10n.label(for: type))
+                        Spacer()
+                    }
+                    Text(L10n.sessionsCount(patient.sessions.count))
+                    Spacer()
+                }
+                .font(.subheadline.weight(.semibold))
             }
 
             Section {
@@ -235,6 +320,25 @@ struct PatientDetailView: View {
         .sheet(item: $preparationResult) { result in
             NextSessionPreparationView(response: result.response)
         }
+        .sheet(isPresented: $isEditingGoal) {
+            NavigationStack {
+                Form {
+                    TextField(L10n.noTreatmentGoalPlaceholder, text: $goalDraft, axis: .vertical)
+                }
+                .navigationTitle(L10n.treatmentGoalSection)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.cancel) { isEditingGoal = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(L10n.save) { saveGoal() }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+            .appTextSize()
+        }
         .busyOverlay(isSaving)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .animation(.easeInOut(duration: 0.2), value: isTranscribing)
@@ -244,6 +348,12 @@ struct PatientDetailView: View {
             }
             if savedPreparation == nil {
                 savedPreparation = SavedPreparation.load(for: patient.id)
+            }
+        }
+        .task {
+            // The last-questionnaire row needs the questionnaire cache filled.
+            if store.cachedQuestionnaires(for: patient) == nil {
+                _ = try? await store.loadQuestionnaires(for: patient)
             }
         }
     }
@@ -352,6 +462,22 @@ struct PatientDetailView: View {
             do {
                 try await store.deletePatient(patient)
                 dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isSaving = false
+        }
+    }
+
+    /// Writes the edited goal to the formulation and persists it right away.
+    private func saveGoal() {
+        treatmentGoal.wrappedValue = goalDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        isEditingGoal = false
+        errorMessage = nil
+        isSaving = true
+        Task {
+            do {
+                try await store.saveFormulation(patient.formulation ?? .empty, for: patient)
             } catch {
                 errorMessage = error.localizedDescription
             }

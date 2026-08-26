@@ -46,14 +46,17 @@ enum AppTextSize: String, CaseIterable {
     }
 }
 
-/// Applies the app's text-size setting. Needed at the root of every sheet
-/// and full-screen cover (besides the app root), because presented screens
-/// don't inherit the presenting view's dynamic-type override.
+/// Applies the app's global environment: the text-size setting and the
+/// right-to-left layout the Hebrew UI requires. Needed at the root of every
+/// sheet and full-screen cover (besides the app root), because presented
+/// screens don't inherit the presenting view's environment overrides.
 private struct AppTextSizeModifier: ViewModifier {
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
 
     func body(content: Content) -> some View {
-        content.dynamicTypeSize(textSize.dynamicTypeSize)
+        content
+            .dynamicTypeSize(textSize.dynamicTypeSize)
+            .environment(\.layoutDirection, .rightToLeft)
     }
 }
 
@@ -74,22 +77,22 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(L10n.settingsAISectionTitle) {
-                    Picker(selection: $responseStyle) {
-                        Text(L10n.settingsResponseStyleTyping).tag(AIResponseStyle.typing)
-                        Text(L10n.settingsResponseStyleRegular).tag(AIResponseStyle.regular)
-                    } label: {
-                        Label {
-                            Text(L10n.settingsResponseStyleTitle)
-                        } icon: {
-                            Image(systemName: "text.cursor")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 28, height: 28)
-                                .background(Color.purple.gradient, in: RoundedRectangle(cornerRadius: 7))
-                        }
-                    }
-                }
+//                Section(L10n.settingsAISectionTitle) {
+//                    Picker(selection: $responseStyle) {
+//                        Text(L10n.settingsResponseStyleTyping).tag(AIResponseStyle.typing)
+//                        Text(L10n.settingsResponseStyleRegular).tag(AIResponseStyle.regular)
+//                    } label: {
+//                        Label {
+//                            Text(L10n.settingsResponseStyleTitle)
+//                        } icon: {
+//                            Image(systemName: "text.cursor")
+//                                .font(.footnote.weight(.semibold))
+//                                .foregroundStyle(.white)
+//                                .frame(width: 28, height: 28)
+//                                .background(Color.purple.gradient, in: RoundedRectangle(cornerRadius: 7))
+//                        }
+//                    }
+//                }
 
                 Section(L10n.settingsAccessibilitySectionTitle) {
                     NavigationLink {

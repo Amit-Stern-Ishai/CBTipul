@@ -33,6 +33,9 @@ struct NotesField: UIViewRepresentable {
         let view = UITextView()
         view.delegate = context.coordinator
         view.isEditable = isEditable
+        // The app is globally right-to-left (see AppTextSizeModifier); UIKit
+        // views don't pick that up from the SwiftUI environment.
+        view.semanticContentAttribute = .forceRightToLeft
         view.font = font
         view.backgroundColor = .clear
         view.textContainerInset = .zero
@@ -40,6 +43,7 @@ struct NotesField: UIViewRepresentable {
 
         let label = context.coordinator.placeholderLabel
         label.text = placeholder
+        label.semanticContentAttribute = .forceRightToLeft
         label.font = font
         label.textColor = .placeholderText
         label.translatesAutoresizingMaskIntoConstraints = false

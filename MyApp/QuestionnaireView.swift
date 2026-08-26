@@ -422,7 +422,7 @@ struct AnswerScaleView: View {
     var body: some View {
         HStack(spacing: 8) {
             // Highest value first so 0 ends up on the right.
-            ForEach(CombinedMoodQuestionnaire.answerValues.reversed(), id: \.self) { value in
+            ForEach(CombinedMoodQuestionnaire.answerValues, id: \.self) { value in
                 let isSelected = selection == value
                 Button {
                     selection = value

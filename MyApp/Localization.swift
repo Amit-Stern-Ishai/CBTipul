@@ -82,6 +82,15 @@ enum L10n {
     static let deletePatientConfirmTitle = "Delete this patient?"
     static let deletePatientConfirmMessage = "The patient and all their sessions and data will be permanently deleted. This cannot be undone."
 
+    // MARK: - Patient state
+
+    static let editTreatmentGoalAction = "Edit Treatment Goal"
+
+    /// The at-a-glance session counter in the patient's current-state strip.
+    static func sessionsCount(_ count: Int) -> String {
+        count == 1 ? "1 session" : "\(count) sessions"
+    }
+
     // MARK: - Terms and conditions
 
     static let termsTitle = "Terms and Conditions"
