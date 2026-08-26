@@ -3,8 +3,8 @@ import SwiftUI
 /// Sign-in / sign-up screen using email and password.
 struct AuthView: View {
     private enum Mode: String, CaseIterable {
-        case signIn = "Sign In"
-        case signUp = "Sign Up"
+        case signIn = "התחבר/י"
+        case signUp = "הרשמ/י"
     }
 
     @Environment(AuthManager.self) private var auth
@@ -145,7 +145,8 @@ struct AuthView: View {
     }
 
     private var emailField: some View {
-        let field = TextField(L10n.emailPlaceholder, text: $email)
+        let field = TextField(L10n.emailPlaceholder, text: $email, prompt: Text(""))
+            .stablePlaceholder(L10n.emailPlaceholder, isShown: email.isEmpty)
             .autocorrectionDisabled()
         #if os(iOS)
         return field
@@ -158,7 +159,8 @@ struct AuthView: View {
     }
 
     private var passwordField: some View {
-        let field = SecureField(L10n.passwordPlaceholder, text: $password)
+        let field = SecureField(L10n.passwordPlaceholder, text: $password, prompt: Text(""))
+            .stablePlaceholder(L10n.passwordPlaceholder, isShown: password.isEmpty)
         #if os(iOS)
         return field
             .textContentType(mode == .signUp ? .newPassword : .password)

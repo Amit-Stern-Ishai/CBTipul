@@ -64,24 +64,6 @@ struct PatientDetailView: View {
         patient.sessions.max { $0.date < $1.date }
     }
 
-    private func color(for severity: GAD7Severity) -> Color {
-        switch severity {
-        case .minimal: .green
-        case .mild: .yellow
-        case .substantial: .orange
-        case .extreme: .red
-        }
-    }
-
-    private func color(for severity: PHQ9Severity) -> Color {
-        switch severity {
-        case .minimal: .green
-        case .mild: .yellow
-        case .moderate: .orange
-        case .moderatelySevere, .severe: .red
-        }
-    }
-
     var body: some View {
         List {
             Section {
@@ -120,9 +102,9 @@ struct PatientDetailView: View {
                     if let questionnaire = lastQuestionnaire?.questionnaire {
                         VStack(spacing: 2) {
                             Text(L10n.scoreBadge(name: L10n.gad7ShortName, score: questionnaire.gad7Score))
-                                .foregroundStyle(color(for: questionnaire.gad7Severity))
+                                .foregroundStyle(questionnaire.gad7Severity.color)
                             Text(L10n.scoreBadge(name: L10n.phq9ShortName, score: questionnaire.phq9Score))
-                                .foregroundStyle(color(for: questionnaire.phq9Severity))
+                                .foregroundStyle(questionnaire.phq9Severity.color)
                         }
                         Spacer()
                     }
@@ -155,11 +137,11 @@ struct PatientDetailView: View {
                     iconChip("chart.xyaxis.line", color: .orange, title: L10n.viewQuestionnairesAction)
                 }
 
-                NavigationLink {
-                    MyFormulationView(patient: patient)
-                } label: {
-                    iconChip("brain.head.profile", color: .pink, title: L10n.myFormulationTitle)
-                }
+//                NavigationLink {
+//                    MyFormulationView(patient: patient)
+//                } label: {
+//                    iconChip("brain.head.profile", color: .pink, title: L10n.myFormulationTitle)
+//                }
 
                 NavigationLink {
                     PatientAIView(patient: patient)
@@ -265,7 +247,7 @@ struct PatientDetailView: View {
                 }
             }
         }
-        .navigationTitle(patient.displayName)
+//        .navigationTitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {

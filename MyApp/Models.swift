@@ -187,6 +187,16 @@ enum GAD7Severity {
         default: self = .extreme
         }
     }
+
+    /// The severity's color code, shared by score displays across the app.
+    var color: Color {
+        switch self {
+        case .minimal: .green
+        case .mild: .yellow
+        case .substantial: .orange
+        case .extreme: .red
+        }
+    }
 }
 
 /// Severity classification of a PHQ-9 score.
@@ -204,6 +214,16 @@ enum PHQ9Severity {
         case ..<15: self = .moderate
         case ..<20: self = .moderatelySevere
         default: self = .severe
+        }
+    }
+
+    /// The severity's color code, shared by score displays across the app.
+    var color: Color {
+        switch self {
+        case .minimal: .green
+        case .mild: .yellow
+        case .moderate: .orange
+        case .moderatelySevere, .severe: .red
         }
     }
 }

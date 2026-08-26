@@ -45,8 +45,10 @@ struct AddPatientView: View {
                 }
 
                 Section(L10n.patientSectionTitle) {
-                    TextField(L10n.firstNamePlaceholder, text: $firstName)
-                    TextField(L10n.lastNamePlaceholder, text: $lastName)
+                    TextField(L10n.firstNamePlaceholder, text: $firstName, prompt: Text(""))
+                        .stablePlaceholder(L10n.firstNamePlaceholder, isShown: firstName.isEmpty)
+                    TextField(L10n.lastNamePlaceholder, text: $lastName, prompt: Text(""))
+                        .stablePlaceholder(L10n.lastNamePlaceholder, isShown: lastName.isEmpty)
                     Picker(L10n.statusLabel, selection: $status) {
                         ForEach(PatientStatus.allCases) { Text($0.rawValue).tag($0) }
                     }

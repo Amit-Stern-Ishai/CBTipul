@@ -6,6 +6,12 @@ struct MyApp: App {
     @State private var store: PatientStore
 
     init() {
+        // The SwiftUI right-to-left override (see AppTextSizeModifier) doesn't
+        // reach UIKit-backed controls like TextField's backing field, which
+        // would re-resolve to left-to-right the moment they gain focus
+        // (e.g. placeholders jumping sides). Force the UIKit layer too.
+        UIView.appearance().semanticContentAttribute = .forceRightToLeft
+
         let auth = AuthManager()
         _auth = State(initialValue: auth)
         _store = State(initialValue: PatientStore(client: auth.client))

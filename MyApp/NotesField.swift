@@ -105,6 +105,23 @@ struct NotesField: UIViewRepresentable {
     }
 }
 
+extension View {
+    /// A hand-drawn placeholder for text fields, pinned to the leading edge
+    /// (visual right in this right-to-left app). The native UITextField
+    /// placeholder re-resolves its direction when focus changes and jumps
+    /// sides; drawing it in SwiftUI keeps it stable. Use together with an
+    /// empty `prompt` to suppress the native placeholder.
+    func stablePlaceholder(_ text: String, isShown: Bool) -> some View {
+        overlay(alignment: .leading) {
+            if isShown {
+                Text(text)
+                    .foregroundStyle(Color(.placeholderText))
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
 extension UIContentSizeCategory {
     /// Also used by the Settings text-size picker to preview each size.
     init(_ size: DynamicTypeSize) {
