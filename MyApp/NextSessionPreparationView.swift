@@ -223,9 +223,9 @@ struct NextSessionPreparationView: View {
                         Text(L10n.aiDisclaimer)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                        Text(L10n.tokensUsed(response.usage.totalTokens))
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+//                        Text(L10n.tokensUsed(response.usage.totalTokens))
+//                            .font(.caption2)
+//                            .foregroundStyle(.tertiary)
                     }
                     .frame(maxWidth: .infinity)
                     .multilineTextAlignment(.center)

@@ -575,6 +575,25 @@ final class PatientStore {
         questionnairesByPatient[patientID] = cached
     }
 
+    /// Deletes a session's saved questionnaire row and removes it from the
+    /// cache.
+    func deleteQuestionnaire(for patient: Patient, session: Session) async throws {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+
+        // Select the deleted rows back: with row-level security a blocked
+        // delete "succeeds" with zero rows, which must not pass as deleted.
+        let deleted: [InsertedRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
+            .delete()
+            .eq("session_id", value: sessionID.queryValue)
+            .select("id")
+            .execute()
+            .value
+        guard !deleted.isEmpty else { throw PatientStoreError.updateRejected }
+
+        questionnairesByPatient[patient.id]?.removeAll { $0.sessionID == sessionID }
+    }
+
     /// Loads all saved questionnaires of a patient, newest first, and
     /// refreshes the cache.
     func loadQuestionnaires(for patient: Patient) async throws -> [CompletedQuestionnaire] {

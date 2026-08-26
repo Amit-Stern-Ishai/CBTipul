@@ -66,6 +66,9 @@ enum Theme {
     // would lose the palette dynamism through a `UIColor(Color)` bridge).
     static let uiTextBright = dynamicUIColor(light: 0x1E2C58, dark: 0xF2EDE0, system: .label)
     static let uiTextFaint = dynamicUIColor(light: 0x8A94BC, dark: 0x3A3A54, system: .placeholderText)
+    static let uiAccentFill = dynamicUIColor(light: 0x1E2C58, dark: 0xCFA038, system: .systemBlue)
+    static let uiTextOnAccent = dynamicUIColor(light: 0xFAFBFE, dark: 0x07080F, system: .white)
+    static let uiElevated = dynamicUIColor(light: 0xE8EDF6, dark: 0x131A3C, system: .tertiarySystemFill)
 
     /// The palette currently selected in Settings. Read inside the dynamic
     /// providers so a palette change re-resolves every color (the root

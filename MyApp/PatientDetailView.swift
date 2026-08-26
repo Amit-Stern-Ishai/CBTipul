@@ -14,6 +14,7 @@ struct PatientDetailView: View {
     @State private var errorMessage: String?
     @State private var isShowingBackWarning = false
     @State private var isShowingDeleteConfirmation = false
+    @State private var isShowingDeleteCodeChallenge = false
     @State private var initialNotes: String?
     @State private var isEditingGoal = false
     @State private var goalDraft = ""
@@ -147,7 +148,7 @@ struct PatientDetailView: View {
                         Text(L10n.label(for: type))
                         Spacer()
                     }
-                    Text(L10n.sessionsCount(patient.sessions.count))
+                    Text(L10n.sessionsCount(patient.sessionsUpToTodayCount))
                     Spacer()
                 }
                 .font(.subheadline.weight(.semibold))
@@ -236,7 +237,7 @@ struct PatientDetailView: View {
                                minLines: 3, maxLines: 8)
                     recordControl
                 }
-                .confirmationDialog(L10n.recordingFinishedTitle,
+                .confirmationDialog(L10n.recordingFinishedTitleInPatientView,
                                     isPresented: $isShowingTranscribeDialog,
                                     titleVisibility: .visible) {
                     Button(voiceRecorder.isPlaying
@@ -305,28 +306,31 @@ struct PatientDetailView: View {
                 }
                 .disabled(isSaving)
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button(L10n.save) { save() }
-                    .disabled(isSaving || !hasUnsavedChanges)
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button(L10n.save) { save() }
+                        .disabled(isSaving || !hasUnsavedChanges)
+                    Divider()
                     Button(L10n.deletePatientAction, role: .destructive) {
                         isShowingDeleteConfirmation = true
                     }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
+                        .rotationEffect(.degrees(90))
                 }
                 .disabled(isSaving)
             }
         }
         .alert(L10n.deletePatientConfirmTitle,
                isPresented: $isShowingDeleteConfirmation) {
-            Button(L10n.deletePatientAction, role: .destructive) { deletePatient() }
+            Button(L10n.deletePatientAction, role: .destructive) {
+                isShowingDeleteCodeChallenge = true
+            }
             Button(L10n.cancel, role: .cancel) {}
         } message: {
             Text(L10n.deletePatientConfirmMessage)
         }
+        .deleteCodeChallenge(isPresented: $isShowingDeleteCodeChallenge) { deletePatient() }
         // An alert, not a confirmation dialog: iPad popover dialogs hide
         // cancel-role buttons, and Keep Editing must always be offered.
         .alert(L10n.discardChangesTitle,

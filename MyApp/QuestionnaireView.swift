@@ -9,15 +9,48 @@ import SwiftUI
 struct CombinedMoodQuestionnaireView: View {
     let patient: Patient
     @Bindable var session: Session
+    /// Only sheet presentations need an explicit Cancel button; when pushed,
+    /// the system back button already dismisses.
+    var showsCancelButton = false
 
     @Environment(PatientStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var isSaving = false
     @State private var errorMessage: String?
+    /// A previously filled questionnaire opens read-only until Edit is
+    /// chosen from the toolbar menu.
+    @State private var isEditing: Bool
+    @State private var isShowingDeleteConfirmation = false
+    @State private var isShowingDeleteCodeChallenge = false
+    @State private var isShowingBackWarning = false
+    /// Snapshot of the answers when the screen opened, used to detect
+    /// unsaved changes and to restore them on discard (the session object
+    /// is shared, so edits must not linger in memory unsaved).
+    @State private var initialQuestionnaire: CombinedMoodQuestionnaire?
+
+    /// Whether the session already has a saved questionnaire; gates the
+    /// read-only mode and the Delete action. Passed by the caller because
+    /// the saved answers may be copied onto the session only after this
+    /// view is created, so it cannot be inferred here.
+    private let isExisting: Bool
+
+    init(patient: Patient, session: Session,
+         isExisting: Bool = false, showsCancelButton: Bool = false) {
+        self.patient = patient
+        self.session = session
+        self.showsCancelButton = showsCancelButton
+        self.isExisting = isExisting
+        _isEditing = State(initialValue: !isExisting)
+    }
 
     private var canSave: Bool {
-        session.questionnaire.isComplete && !isSaving
+        session.questionnaire.isComplete && isEditing && !isSaving
+    }
+
+    private var hasUnsavedChanges: Bool {
+        guard let initialQuestionnaire else { return false }
+        return session.questionnaire != initialQuestionnaire
     }
 
     /// The patient's most recent questionnaire from before this session,
@@ -32,7 +65,7 @@ struct CombinedMoodQuestionnaireView: View {
         Form {
             QuestionnaireSections(
                 questionnaire: $session.questionnaire,
-                isEditable: true,
+                isEditable: isEditing,
                 previous: previousQuestionnaire
             )
 
@@ -49,19 +82,79 @@ struct CombinedMoodQuestionnaireView: View {
         .navigationTitle(patient.displayName)
         // The session's date, which is saved as the answered date.
         .navigationSubtitle(session.date.formatted(date: .abbreviated, time: .omitted))
+        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(L10n.cancel) { dismiss() }
-                    .disabled(isSaving)
+                Button {
+                    if hasUnsavedChanges {
+                        isShowingBackWarning = true
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    if showsCancelButton {
+                        Text(L10n.cancel)
+                    } else {
+                        Label(L10n.back, systemImage: "chevron.backward")
+                            .labelStyle(.titleAndIcon)
+                    }
+                }
+                .disabled(isSaving)
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button(L10n.save) { save() }
-                    .disabled(!canSave)
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button(L10n.save) { save() }
+                        .disabled(!canSave)
+                    if !isEditing {
+                        Button(L10n.editQuestionnaireAction) { isEditing = true }
+                    }
+                    if isExisting {
+                        Divider()
+                        Button(L10n.deleteQuestionnaireAction, role: .destructive) {
+                            isShowingDeleteConfirmation = true
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .rotationEffect(.degrees(90))
+                }
+                .disabled(isSaving)
             }
         }
+        .alert(L10n.deleteQuestionnaireConfirmTitle,
+               isPresented: $isShowingDeleteConfirmation) {
+            Button(L10n.deleteQuestionnaireAction, role: .destructive) {
+                isShowingDeleteCodeChallenge = true
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.deleteQuestionnaireConfirmMessage)
+        }
+        .deleteCodeChallenge(isPresented: $isShowingDeleteCodeChallenge) { deleteQuestionnaire() }
+        // An alert, not a confirmation dialog: iPad popover dialogs hide
+        // cancel-role buttons, and Keep Editing must always be offered.
+        .alert(L10n.discardChangesTitle,
+               isPresented: $isShowingBackWarning) {
+            // Saving an incomplete questionnaire would misalign the answers,
+            // so only offer it once every question is answered.
+            if canSave {
+                Button(L10n.saveChangesAction) { save() }
+            }
+            Button(L10n.discardChangesAction, role: .destructive) {
+                // The session object is shared, so revert the edits instead
+                // of leaving them in memory unsaved.
+                if let initialQuestionnaire { session.questionnaire = initialQuestionnaire }
+                dismiss()
+            }
+            Button(L10n.keepEditingAction, role: .cancel) {}
+        }
+        .interactiveDismissDisabled(hasUnsavedChanges)
         .busyOverlay(isSaving)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .task {
+            if initialQuestionnaire == nil {
+                initialQuestionnaire = session.questionnaire
+            }
             // Make sure the previous questionnaire is available when this
             // screen is opened before the cache was ever filled.
             if store.cachedQuestionnaires(for: patient) == nil {
@@ -76,6 +169,23 @@ struct CombinedMoodQuestionnaireView: View {
         Task {
             do {
                 try await store.saveQuestionnaire(session.questionnaire, for: patient, session: session)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+                isSaving = false
+            }
+        }
+    }
+
+    private func deleteQuestionnaire() {
+        errorMessage = nil
+        isSaving = true
+        Task {
+            do {
+                try await store.deleteQuestionnaire(for: patient, session: session)
+                // Clear the in-memory copy so the session editor offers the
+                // empty "fill questionnaire" link again.
+                session.questionnaire = CombinedMoodQuestionnaire()
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
@@ -259,6 +369,7 @@ private struct InterferencePicker: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .disabled(!isEditable)
             }
         }
         .padding(.vertical, 4)
@@ -330,6 +441,7 @@ private struct QuestionRow: View {
             }
 
             AnswerScaleView(selection: $selection, previousValue: previousAnswer)
+                .disabled(!isEditable)
         }
         .padding(.vertical, 4)
         .sheet(isPresented: $isEditingNote) {

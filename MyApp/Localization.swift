@@ -38,7 +38,7 @@ enum L10n {
     static let noPatientsTitle = "אין מטופלים עדיין"
     static let addFirstPatientMessage = "אנא ליצור מטופל/ת כדי להתחיל"
     static let addPatientAction = "הוספת מטופל/ת"
-    static let noSessionsYetLabel = "אין טיפולים עדיין"
+    static let noSessionsYetLabel = "אין פגישות עדיין"
     static let newPatientTitle = "מטופל/ת חדש/ה"
     static let patientSectionTitle = "מטופל/ת"
     static let firstNamePlaceholder = "שם פרטי"
@@ -46,6 +46,7 @@ enum L10n {
     static let statusLabel = "סטטוס"
     static let unnamedPatient = "מטופל/ת ללא שם"
     static let notesSection = "הערות"
+    static let sessionSummarySection = "סיכום פגישה"
 
     static let optionalNotesPlaceholder = "הערות (לא חובה)"
 
@@ -88,11 +89,11 @@ enum L10n {
 
     static let analyzingLabel = "בניתוח…"
 
-    static let aiSummaryAction = "סיכום AI"
+    static let aiSummaryAction = "יצירת סיכום AI מובנה"
 
-    static let showStructuredSummaryAction = "הצגת סיכום מובנה"
+    static let showStructuredSummaryAction = "הצגת סיכום AI מובנה בשלמותו"
 
-    static let structuredSummarySection = "סיכום מובנה"
+    static let structuredSummarySection = "סיכום AI מובנה"
 
     static let deleteSessionAction = "מחיקת פגישה"
 
@@ -100,6 +101,35 @@ enum L10n {
 
     static let deleteSessionConfirmMessage =
         "מחיקת הפגישה והמידע שלה תהיה לצמיתות. לא ניתן לבטל פעולה זו."
+
+    static let editQuestionnaireAction = "עריכה"
+
+    static let deleteQuestionnaireAction = "מחיקת שאלון"
+
+    static let deleteQuestionnaireConfirmTitle = "למחוק את השאלון?"
+
+    static let deleteQuestionnaireConfirmMessage =
+        "מחיקת השאלון והתשובות שלו תהיה לצמיתות. לא ניתן לבטל פעולה זו."
+
+    // MARK: - Delete code challenge
+
+    static let deleteCodeTitle = "אישור מחיקה נוסף"
+
+    /// Message of the second delete confirmation, showing the code the
+    /// user must type back to complete the deletion.
+    static func deleteCodeMessage(_ code: String) -> String {
+        "להשלמת המחיקה יש להקליד את הקוד:\n\(code)"
+    }
+
+    static let deleteCodePlaceholder = "הקלדת הקוד"
+
+    static let deleteCodeConfirmAction = "מחיקה"
+
+    static let deleteCodeMismatchTitle = "הקוד שגוי"
+
+    static let deleteCodeMismatchMessage = "הקוד שהוקלד אינו תואם, ולכן המחיקה לא בוצעה."
+
+    static let ok = "אישור"
 
     static let deletePatientAction = "מחיקת מטופל/ת"
 
@@ -114,6 +144,11 @@ enum L10n {
     /// The at-a-glance session counter in the patient's current-state strip.
     static func sessionsCount(_ count: Int) -> String {
         count == 1 ? "פגישה אחת" : "\(count) פגישות"
+    }
+
+    /// A patient row's last-session summary, e.g. "אינטייק · 7 פגישות".
+    static func lastSessionSummary(_ typeOrDate: String, count: Int) -> String {
+        "\(typeOrDate) · \(sessionsCount(count))"
     }
 
     // MARK: - Terms and conditions
@@ -451,9 +486,9 @@ amitishai@gmail.com
 
     // MARK: - AI assistant
 
-    static let aiTitle = "עוזר AI"
+    static let aiTitle = "שיחת AI"
 
-    static let aiAction = "עוזר AI"
+    static let aiAction = "שיחת AI"
 
     static let aiModePickerTitle = "מצב"
 
@@ -471,7 +506,21 @@ amitishai@gmail.com
 
     static let aiChatNavigationTitle = "שיחת AI"
 
-    static let aiPromptPlaceholder = "השאלה שלך"
+    /// Hint in the chat's message field, e.g. "שאל/י על באגס באני".
+    static func aiPromptPlaceholder(_ name: String) -> String {
+        "שאל/י על \(name)"
+    }
+
+    /// Shown in the middle of the chat before the first question.
+    static let aiEmptyMessage =
+        "אפשר לשאול כל שאלה על המטופל/ת — הפגישות, ההערות והשאלונים משמשים כהקשר לתשובה."
+
+    /// Example questions offered in the empty chat; tapping one fills the field.
+    static let aiSuggestedQuestions = [
+        "סיכום קצר של המצב הנוכחי",
+        "מה השתנה מאז תחילת הטיפול?",
+        "אילו דפוסים חוזרים בפגישות?",
+    ]
 
     static let aiGenerateInsightsAction = "הפקת תובנות"
 
@@ -485,7 +534,7 @@ amitishai@gmail.com
 
     static let settingsTitle = "הגדרות"
 
-    static let settingsAISectionTitle = "עוזר AI"
+    static let settingsAISectionTitle = "שיחת AI"
 
     static let settingsResponseStyleTitle = "סגנון תשובה"
 
@@ -525,6 +574,9 @@ amitishai@gmail.com
     static let keepEditingAction = "המשך עריכה"
 
     static let recordingFinishedTitle =
+        "לתמלל את ההקלטה ולהוסיף את התמלול לסיכום פגישה?"
+
+    static let recordingFinishedTitleInPatientView =
         "לתמלל את ההקלטה ולהוסיף את התמלול להערות?"
 
     static let discardRecordingAction = "מחיקת ההקלטה"
@@ -610,7 +662,7 @@ amitishai@gmail.com
 
     static func label(for type: SessionType) -> String {
         switch type {
-        case .firstPhoneCall: return "שיחת טלפון ראשונה"
+        case .firstPhoneCall: return "שיחת טלפון ראשונית"
         case .intake: return "אינטייק"
         case .psychoEducation: return "פסיכו-חינוכי"
         case .diaryOne: return "יומן 1"
@@ -663,7 +715,7 @@ amitishai@gmail.com
 
     static let gad7Title = "GAD-7 שאלון לאבחון חרדה מוכללת"
     static let gad7MainQuestion =
-        "במהלך השבועיים האחרונים עד כמה היית מוטרד/ת מהנושאים הבאים?"
+        "במהלך השבוע האחרון עד כמה היית מוטרד/ת מהנושאים הבאים?"
 
     static let gad7Questions: [String] = [
         "הרגשתי עצבות, חרדה או מתח רב",
@@ -689,7 +741,7 @@ amitishai@gmail.com
     static let phq9Title = "PHQ-9 שאלון בריאות המטופל"
 
     static let phq9MainQuestion =
-        "במהלך השבועיים האחרונים באיזו תדירות היית מוטרד/ת מכל אחת מן הבעיות הבאות?"
+        "במהלך השבוע האחרון באיזו תדירות היית מוטרד/ת מכל אחת מן הבעיות הבאות?"
 
     static let phq9Questions: [String] = [
         "עניין או הנאה מועטים מעשיית דברים",

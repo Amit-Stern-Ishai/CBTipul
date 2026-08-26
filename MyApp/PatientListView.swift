@@ -103,35 +103,85 @@ struct PatientListView: View {
     }
 }
 
-/// A single row in the patient list.
+/// A single row in the patient list: name, the last session's type with the
+/// session count, and the latest questionnaire scores with their trends.
 private struct PatientRow: View {
     let patient: Patient
+
+    @Environment(PatientStore.self) private var store
 
     var body: some View {
         HStack(spacing: 12) {
             InitialsAvatar(name: patient.displayName, size: 44)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(patient.displayName)
                     .font(.headline)
                 Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                scoresLine
             }
+            .animation(.easeInOut(duration: 0.35), value: isLoadingScores)
+            .animation(.easeInOut(duration: 0.35), value: lastQuestionnaire?.id)
             Spacer()
             StatusBadge(status: patient.status)
         }
         .padding(.vertical, 4)
+        .task {
+            // Fill the questionnaire cache lazily, once per patient.
+            if store.cachedQuestionnaires(for: patient) == nil {
+                _ = try? await store.loadQuestionnaires(for: patient)
+            }
+        }
     }
 
-    /// The last session's type; its date when no type was picked.
+    /// The last session's type (its date when no type was picked) plus the
+    /// session count so far.
     private var subtitle: String {
         guard let lastSession = patient.sessions.max(by: { $0.date < $1.date }) else {
             return L10n.noSessionsYetLabel
         }
-        if let type = lastSession.type {
-            return L10n.label(for: type)
+        let typeOrDate = lastSession.type.map(L10n.label(for:))
+            ?? lastSession.date.formatted(date: .abbreviated, time: .omitted)
+        return L10n.lastSessionSummary(typeOrDate, count: patient.sessionsUpToTodayCount)
+    }
+
+    /// The latest scores with trends; reserved placeholders while loading.
+    @ViewBuilder
+    private var scoresLine: some View {
+        if let questionnaire = lastQuestionnaire?.questionnaire {
+            VStack(alignment: .leading, spacing: 4) {
+                ScoreCapsule.gad7(questionnaire, previous: previousQuestionnaire?.questionnaire)
+                ScoreCapsule.phq9(questionnaire, previous: previousQuestionnaire?.questionnaire)
+            }
+            .transition(.opacity)
+        } else if isLoadingScores {
+            VStack(alignment: .leading, spacing: 4) {
+                ScoreCapsule(text: L10n.scoreBadge(name: L10n.gad7ShortName, score: 10),
+                             color: Theme.textFaint)
+                ScoreCapsule(text: L10n.scoreBadge(name: L10n.phq9ShortName, score: 10),
+                             color: Theme.textFaint)
+            }
+            .redacted(reason: .placeholder)
+            .opacity(0.4)
+            .transition(.opacity)
         }
-        return lastSession.date.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    private var isLoadingScores: Bool {
+        store.cachedQuestionnaires(for: patient) == nil
+    }
+
+    private var lastQuestionnaire: CompletedQuestionnaire? {
+        store.cachedQuestionnaires(for: patient)?.max { $0.answeredDate < $1.answeredDate }
+    }
+
+    private var previousQuestionnaire: CompletedQuestionnaire? {
+        guard let records = store.cachedQuestionnaires(for: patient),
+              let last = lastQuestionnaire else { return nil }
+        return records
+            .filter { $0.id != last.id && $0.answeredDate <= last.answeredDate }
+            .max { $0.answeredDate < $1.answeredDate }
     }
 }
 

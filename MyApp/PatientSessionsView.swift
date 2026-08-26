@@ -84,7 +84,8 @@ struct PatientSessionsView: View {
         }
         .sheet(item: $questionnaireSession) { session in
             NavigationStack {
-                CombinedMoodQuestionnaireView(patient: patient, session: session)
+                CombinedMoodQuestionnaireView(patient: patient, session: session,
+                                              showsCancelButton: true)
             }
             .appTextSize()
         }

@@ -33,6 +33,7 @@ struct SessionEditorView: View {
     @State private var errorMessage: String?
     @State private var isShowingCancelWarning = false
     @State private var isShowingDeleteConfirmation = false
+    @State private var isShowingDeleteCodeChallenge = false
     @State private var initialDate: Date?
     @State private var initialNotes: String?
     @State private var initialType: SessionType?
@@ -123,14 +124,26 @@ struct SessionEditorView: View {
             Form {
                 Section {
                     if isNew {
-                        Text(patient.displayName)
-                            .font(.title2.bold())
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                        VStack(spacing: 6) {
+                            Text(L10n.addSessionAction)
+                                .font(.title2.bold())
+                            Text(patient.displayName)
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                     } else {
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(spacing: 6) {
                             Text(patient.displayName)
                                 .font(.title2.bold())
+                            if let sessionNumber {
+                                Text(L10n.session(sessionNumber))
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                            }
                             HStack(spacing: 6) {
                                 Text(session.type.map(L10n.label(for:)) ?? L10n.sessionTypeNone)
                                     .font(.subheadline.weight(.semibold))
@@ -157,6 +170,8 @@ struct SessionEditorView: View {
                                 .accessibilityLabel(L10n.editDateAccessibilityLabel)
                             }
                         }
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                     }
@@ -188,7 +203,7 @@ struct SessionEditorView: View {
 //                    }
 //                }
 
-                Section(L10n.notesSection) {
+                Section(L10n.sessionSummarySection) {
                     HStack(alignment: .bottom) {
                         NotesField(text: $session.notes, placeholder: L10n.optionalNotesPlaceholder,
                                    minLines: 3, maxLines: 8)
@@ -317,18 +332,21 @@ struct SessionEditorView: View {
                     }
                     .disabled(isSaving)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.save) { save() }
-                        .disabled(isSaving)
-                }
-                if !isNew {
-                    ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if isNew {
+                        Button(L10n.save) { save() }
+                            .disabled(isSaving)
+                    } else {
                         Menu {
+                            Button(L10n.save) { save() }
+                                .disabled(isSaving)
+                            Divider()
                             Button(L10n.deleteSessionAction, role: .destructive) {
                                 isShowingDeleteConfirmation = true
                             }
                         } label: {
-                            Image(systemName: "ellipsis.circle")
+                            Image(systemName: "ellipsis")
+                                .rotationEffect(.degrees(90))
                         }
                         .disabled(isSaving)
                     }
@@ -336,11 +354,14 @@ struct SessionEditorView: View {
             }
             .alert(L10n.deleteSessionConfirmTitle,
                    isPresented: $isShowingDeleteConfirmation) {
-                Button(L10n.deleteSessionAction, role: .destructive) { deleteSession() }
+                Button(L10n.deleteSessionAction, role: .destructive) {
+                    isShowingDeleteCodeChallenge = true
+                }
                 Button(L10n.cancel, role: .cancel) {}
             } message: {
                 Text(L10n.deleteSessionConfirmMessage)
             }
+            .deleteCodeChallenge(isPresented: $isShowingDeleteCodeChallenge) { deleteSession() }
             // An alert, not a confirmation dialog: iPad popover dialogs hide
             // cancel-role buttons, and Keep Editing must always be offered.
             .alert(L10n.discardChangesTitle,
@@ -774,10 +795,11 @@ struct SessionEditorView: View {
     private var questionnaireSection: some View {
         Section(L10n.questionnaireSectionTitle) {
             if let questionnaire {
-                // Opens the editable questionnaire pre-filled with the saved
-                // answers; saving upserts the same row.
+                // Opens the questionnaire pre-filled with the saved answers,
+                // read-only until Edit is chosen; saving upserts the same row.
                 NavigationLink {
-                    CombinedMoodQuestionnaireView(patient: patient, session: session)
+                    CombinedMoodQuestionnaireView(patient: patient, session: session,
+                                                  isExisting: true)
                 } label: {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(questionnaire.answeredDate, style: .date)

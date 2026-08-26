@@ -63,6 +63,11 @@ struct PatientAIView: View {
         .defaultScrollAnchor(.bottom)
         .background(Theme.base.ignoresSafeArea())
         .dismissesKeyboardOnTap()
+        .overlay {
+            if chatEntries.isEmpty && !isLoading && errorMessage == nil {
+                emptyState
+            }
+        }
         .animation(.easeInOut(duration: 0.25), value: chatEntries.count)
         .animation(.easeInOut(duration: 0.2), value: isLoading)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
@@ -80,10 +85,45 @@ struct PatientAIView: View {
         }
     }
 
+    /// Welcomes into the empty chat: what the assistant knows, plus a few
+    /// example questions that fill the message field when tapped.
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 36))
+                .foregroundStyle(Theme.gold)
+                .padding(22)
+                .background(Theme.goldGhost, in: Circle())
+            Text(L10n.aiTitle)
+                .font(.title3.bold())
+            Text(L10n.aiEmptyMessage)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            VStack(spacing: 8) {
+                ForEach(L10n.aiSuggestedQuestions, id: \.self) { question in
+                    Button {
+                        prompt = question
+                    } label: {
+                        Text(question)
+                            .font(.subheadline)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(Theme.surface, in: Capsule())
+                            .overlay(Capsule().strokeBorder(Theme.borderDefault))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.top, 8)
+        }
+        .padding(32)
+    }
+
     /// The message field with a send icon, pinned above the keyboard.
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            TextField(L10n.aiPromptPlaceholder, text: $prompt, axis: .vertical)
+            TextField(L10n.aiPromptPlaceholder(patient.displayName), text: $prompt, axis: .vertical)
                 .lineLimit(1...5)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
@@ -247,6 +287,52 @@ struct PatientAIView: View {
         }
     }
 
+    /// Compact text digest of a session's saved structured AI review,
+    /// mirroring the clinically relevant core that `PatientContext` sends
+    /// to the Edge Functions.
+    private func structuredContext(_ analysis: WhisperService.CBTSessionAnalysis) -> String {
+        var lines = ["Summary: \(analysis.sessionSummary)"]
+        if !analysis.possibleNats.isEmpty {
+            lines.append("Possible NATs:")
+            for nat in analysis.possibleNats {
+                lines.append("- \(nat.thought) (situation: \(nat.situation), emotion: \(nat.emotion), behavior: \(nat.behavior), confidence: \(nat.confidence))")
+            }
+        }
+        if !analysis.cbtPatterns.isEmpty {
+            lines.append("CBT patterns:")
+            for pattern in analysis.cbtPatterns {
+                lines.append("- \(pattern.pattern) (confidence: \(pattern.confidence)) — \(pattern.evidence)")
+            }
+        }
+        if !analysis.maintainingCycles.isEmpty {
+            lines.append("Maintaining cycles:")
+            for cycle in analysis.maintainingCycles {
+                lines.append("- \(cycle.cycle) (confidence: \(cycle.confidence))")
+            }
+        }
+        if !analysis.therapistHypotheses.isEmpty {
+            lines.append("Therapist hypotheses:")
+            for hypothesis in analysis.therapistHypotheses {
+                lines.append("- \(hypothesis.hypothesis) (confidence: \(hypothesis.confidence))")
+            }
+        }
+        if !analysis.unresolvedIssues.isEmpty {
+            lines.append("Unresolved issues:")
+            for issue in analysis.unresolvedIssues {
+                lines.append("- \(issue)")
+            }
+        }
+        let openQuestions = analysis.followUpQuestions
+            .filter { $0.status != .discussed && $0.status != .notRelevant }
+        if !openQuestions.isEmpty {
+            lines.append("Open follow-up questions:")
+            for question in openQuestions {
+                lines.append("- \(question.question) (\(question.reason))")
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
     private func fullContext() -> String {
         var parts: [String] = []
         parts.append("Patient: \(patient.displayName), status: \(patient.status.rawValue)")
@@ -257,6 +343,11 @@ struct PatientAIView: View {
         }
 
         let sessions = patient.sessions.sorted { $0.date < $1.date }
+        // Same cap as PatientContext.maxReviews: only the most recent
+        // structured reviews go in, keeping the prompt size bounded.
+        let recentReviewIDs = Set(
+            sessions.filter { $0.structuredNotes != nil }.suffix(5).map(\.id)
+        )
         if sessions.isEmpty {
             parts.append("No sessions yet.")
         } else {
@@ -265,6 +356,14 @@ struct PatientAIView: View {
                 var line = "- Session on \(session.date.formatted(date: .numeric, time: .omitted))"
                 if !session.notes.isEmpty {
                     line += "\n  Notes: \(session.notes)"
+                }
+                if let analysis = session.structuredNotes,
+                   recentReviewIDs.contains(session.id) {
+                    let digest = structuredContext(analysis)
+                        .split(separator: "\n")
+                        .map { "  \($0)" }
+                        .joined(separator: "\n")
+                    line += "\n  Structured AI review:\n\(digest)"
                 }
                 lines.append(line)
             }

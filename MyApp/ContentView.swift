@@ -12,6 +12,14 @@ struct MyApp: App {
         // (e.g. placeholders jumping sides). Force the UIKit layer too.
         UIView.appearance().semanticContentAttribute = .forceRightToLeft
 
+        // Segmented controls are UIKit-backed and ignore the SwiftUI tint,
+        // which leaves them system-gray; align them with the theme instead.
+        let segmented = UISegmentedControl.appearance()
+        segmented.selectedSegmentTintColor = Theme.uiAccentFill
+        segmented.backgroundColor = Theme.uiElevated
+        segmented.setTitleTextAttributes([.foregroundColor: Theme.uiTextOnAccent], for: .selected)
+        segmented.setTitleTextAttributes([.foregroundColor: Theme.uiTextBright], for: .normal)
+
         let auth = AuthManager()
         _auth = State(initialValue: auth)
         _store = State(initialValue: PatientStore(client: auth.client))

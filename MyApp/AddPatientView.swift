@@ -67,7 +67,7 @@ struct AddPatientView: View {
                         .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.add) { save() }
+                    Button(L10n.save) { save() }
                         .disabled(!canSave)
                 }
             }

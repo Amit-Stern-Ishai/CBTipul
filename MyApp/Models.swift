@@ -120,6 +120,16 @@ final class Patient: Identifiable {
 
     /// The number of the most recent session (0 when there are none yet).
     var currentSessionNumber: Int { sessions.count }
+
+    /// How many sessions have taken place so far: those dated today or
+    /// earlier. Future-scheduled sessions don't count yet.
+    var sessionsUpToTodayCount: Int {
+        let startOfToday = Calendar.current.startOfDay(for: .now)
+        guard let startOfTomorrow = Calendar.current.date(byAdding: .day, value: 1, to: startOfToday) else {
+            return sessions.count
+        }
+        return sessions.filter { $0.date < startOfTomorrow }.count
+    }
 }
 
 extension Patient: Hashable {
@@ -230,7 +240,7 @@ enum PHQ9Severity {
 ///
 /// Answers are stored as optional integers so an unanswered question can be
 /// distinguished from an answer of `0`. Each answer is in the range 0...3.
-struct CombinedMoodQuestionnaire {
+struct CombinedMoodQuestionnaire: Equatable {
     /// The Supabase table combined questionnaires are saved to.
     static let tableName = "CombinedMood"
 
