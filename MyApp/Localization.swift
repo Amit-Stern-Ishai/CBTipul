@@ -6,18 +6,18 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
-
+    
     // MARK: - Common
-
+    
     static let save = "שמירה"
     static let cancel = "ביטול"
     static let done = "סיום"
     static let add = "הוספה"
     static let back = "אחורה"
     static let retry = "נסיון שני"
-
+    
     // MARK: - Auth
-
+    
     static let appTitle = "CBTipul"
     static let authWelcomeSignIn = "ברוכ/ה השב/ה, נא להתחבר כדי להמשיך"
     static let authWelcomeSignUp = "אנא ליצור חשבון על מנת להמשיך"
@@ -29,9 +29,9 @@ enum L10n {
     static let enterEmailFirstMessage = "אנא לכתוב את האימייל קודם, ואז ללחוץ על ״שכחת סיסמא?״"
     static let passwordResetSentMessage = "מייל לאיפוס סיסמא נשלח. אנא לבדוק במייל ולאפס סיסמא"
     static let signOutAction = "התנתק/י"
-
+    
     // MARK: - Patients
-
+    
     static let patientsTitle = "מטופלים/ות"
     static let loadingPatientsLabel = "טוענת מטופלים..."
     static let couldntLoadPatientsTitle = "טעינת מטופלים נכשלה"
@@ -47,114 +47,114 @@ enum L10n {
     static let unnamedPatient = "מטופל/ת ללא שם"
     static let notesSection = "הערות"
     static let sessionSummarySection = "סיכום פגישה"
-
+    
     static let optionalNotesPlaceholder = "הערות (לא חובה)"
-
+    
     static let myFormulationTitle = "הניסוח שלי"
-
+    
     static let prepareNextSessionAction = "הכנה לפגישה הבאה"
-
+    
     static let lastPreparationAction = "ההכנה האחרונה"
-
+    
     static let outdatedBadge = "לא מעודכן"
-
+    
     // MARK: - Sessions
-
+    
     static let sessionsTitle = "פגישות"
-
+    
     static let addSessionAction = "הוספת פגישה"
-
+    
     static let newSessionTitle = "פגישה חדשה"
-
+    
     static func session(_ number: Int) -> String {
         "פגישה \(number)"
     }
-
+    
     /// Editor title for an existing session; the number is omitted when unknown.
     static func sessionEditorTitle(_ number: Int?) -> String {
         "פגישה\(number.map { " \($0)" } ?? "")"
     }
-
+    
     static let editDateAccessibilityLabel = "עריכת תאריך"
-
+    
     static let fromLastSessionHeader = "מהפגישה הקודמת"
-
+    
     static func moreFollowUps(_ count: Int) -> String {
         "עוד (\(count))"
     }
-
+    
     static let openQuestionsTitle = "שאלות פתוחות"
-
+    
     static let markDiscussedAccessibilityLabel = "סימון כנושא שנדון"
-
+    
     static let analyzingLabel = "בניתוח…"
-
+    
     static let aiSummaryAction = "יצירת סיכום AI מובנה"
-
+    
     static let showStructuredSummaryAction = "הצגת סיכום AI מובנה בשלמותו"
-
+    
     static let structuredSummarySection = "סיכום AI מובנה"
-
+    
     static let deleteSessionAction = "מחיקת פגישה"
-
+    
     static let deleteSessionConfirmTitle = "למחוק את הפגישה?"
-
+    
     static let deleteSessionConfirmMessage =
-        "מחיקת הפגישה והמידע שלה תהיה לצמיתות. לא ניתן לבטל פעולה זו."
-
+    "מחיקת הפגישה והמידע שלה תהיה לצמיתות. לא ניתן לבטל פעולה זו."
+    
     static let editQuestionnaireAction = "עריכה"
-
+    
     static let deleteQuestionnaireAction = "מחיקת שאלון"
-
+    
     static let deleteQuestionnaireConfirmTitle = "למחוק את השאלון?"
-
+    
     static let deleteQuestionnaireConfirmMessage =
-        "מחיקת השאלון והתשובות שלו תהיה לצמיתות. לא ניתן לבטל פעולה זו."
-
+    "מחיקת השאלון והתשובות שלו תהיה לצמיתות. לא ניתן לבטל פעולה זו."
+    
     // MARK: - Delete code challenge
-
+    
     static let deleteCodeTitle = "אישור מחיקה נוסף"
-
+    
     /// Message of the second delete confirmation, showing the code the
     /// user must type back to complete the deletion.
     static func deleteCodeMessage(_ code: String) -> String {
         "להשלמת המחיקה יש להקליד את הקוד:\n\(code)"
     }
-
+    
     static let deleteCodePlaceholder = "הקלדת הקוד"
-
+    
     static let deleteCodeConfirmAction = "מחיקה"
-
+    
     static let deleteCodeMismatchTitle = "הקוד שגוי"
-
+    
     static let deleteCodeMismatchMessage = "הקוד שהוקלד אינו תואם, ולכן המחיקה לא בוצעה."
-
+    
     static let ok = "אישור"
-
+    
     static let deletePatientAction = "מחיקת מטופל/ת"
-
+    
     static let deletePatientConfirmTitle = "למחוק את המטופל/ת?"
-
+    
     static let deletePatientConfirmMessage =
-        "מחיקת המטופל/ת וכל הפגישות והמידע הקשור אליהם תהיה לצמיתות. לא ניתן לבטל פעולה זו."
-
+    "מחיקת המטופל/ת וכל הפגישות והמידע הקשור אליהם תהיה לצמיתות. לא ניתן לבטל פעולה זו."
+    
     // MARK: - Patient state
-
+    
     static let editTreatmentGoalAction = "עריכת מטרת הטיפול"
     /// The at-a-glance session counter in the patient's current-state strip.
     static func sessionsCount(_ count: Int) -> String {
         count == 1 ? "פגישה אחת" : "\(count) פגישות"
     }
-
+    
     /// A patient row's last-session summary, e.g. "אינטייק · 7 פגישות".
     static func lastSessionSummary(_ typeOrDate: String, count: Int) -> String {
         "\(typeOrDate) · \(sessionsCount(count))"
     }
-
+    
     // MARK: - Terms and conditions
-
+    
     static let termsTitle = "תנאי שימוש"
-
+    
     static let termsAgreeAction = "הסכמה והמשך"    /// Placeholder — the real wording will be filled in later.
     static let termsBody = """
 תנאי שימוש והסכם משתמש
@@ -264,9 +264,9 @@ enum L10n {
 עמית אברון שטרן ישי
 דוא"ל: amitishai@gmail.com
 """
-
+    
     // MARK: - Privacy policy
-
+    
     static let privacyPolicyTitle = "מדיניות פרטיות"
     /// Placeholder — the real wording will be filled in later.
     static let privacyPolicyBody = """
@@ -418,25 +418,25 @@ amitishai@gmail.com
 דוא"ל: amitishai@gmail.com
 """
     static let dateLabel = "תאריך"
-
+    
     static let sessionDateTitle = "תאריך הפגישה"
-
+    
     // MARK: - Questionnaires (shared)
-
+    
     static let combinedTitle = "שאלון משולב"
-
+    
     static let addQuestionnaireAction = "מילוי שאלון"
-
+    
     static let notesSectionTitle = "הערות"
-
+    
     static let notesFieldPlaceholder = "הערות"
-
+    
     static let questionNoteTitle = "הערה לשאלה"
-
+    
     static let scoreLabel = "ציון כולל"
-
+    
     static let answerKeyTitle = "מפתח תשובות"
-
+    
     /// Descriptions of the shared 0–3 answer scale, indexed by answer value.
     static let answerDescriptions: [String] = [
         "0 - כלל לא",
@@ -444,173 +444,173 @@ amitishai@gmail.com
         "2 - יותר ממחצית מהימים",
         "3 - כמעט כל יום",
     ]
-
+    
     // MARK: - Voice note
-
+    
     static let voiceNoteSectionTitle = "הקלטה קולית"
-
+    
     static let recordVoiceNoteAction = "הקלטת הערה קולית"
-
+    
     static let recordingLabel = "הקלטה מתבצעת…"
-
+    
     static let voiceNoteLabel = "הערה קולית"
-
+    
     static let micPermissionDenied =
-        "נדרשת גישה למיקרופון לצורך הקלטה. יש לאפשר גישה בהגדרות."
-
+    "נדרשת גישה למיקרופון לצורך הקלטה. יש לאפשר גישה בהגדרות."
+    
     static let transcribeAction = "תמלול"
-
+    
     static let transcribingLabel = "מתבצע תמלול…"
-
+    
     /// Header line inserted above transcribed text in the notes field.
     static func transcriptionHeader(timeText: String) -> String {
         "מהקלטה ב- \(timeText)"
     }
-
+    
     // MARK: - Session images
-
+    
     static let imagesSectionTitle = "תמונות (מיקום זמני)"
-
+    
     static let uploadDocumentAction = "העלאת מסמך (מיקום זמני)"
-
+    
     static let addImageFromLibraryAction = "הוספת תמונה מהספרייה (מיקום זמני)"
-
+    
     static let takePhotoAction = "צילום תמונה (מיקום זמני)"
-
+    
     static let deleteImageAction = "מחיקת תמונה"
-
+    
     /// Header line inserted above text extracted from an image.
     static func imageTranscriptionHeader(dateText: String) -> String {
         "מתמונה בתאריך \(dateText)"
     }
-
+    
     // MARK: - AI assistant
-
+    
     static let aiTitle = "שיחת AI"
-
+    
     static let aiAction = "שיחת AI"
-
+    
     static let aiModePickerTitle = "מצב"
-
+    
     static let aiModeInsights = "תובנות"
-
+    
     static let aiModeQuestionnaires = "שאלונים"
-
+    
     static let aiModeGeneral = "כללי"
-
+    
     static let aiModeChat = "שיחה"
-
+    
     static let aiSendAction = "שליחה"
-
+    
     static let aiChatTitle = "שיחה"
-
+    
     static let aiChatNavigationTitle = "שיחת AI"
-
+    
     /// Hint in the chat's message field, e.g. "שאל/י על באגס באני".
     static func aiPromptPlaceholder(_ name: String) -> String {
         "שאל/י על \(name)"
     }
-
+    
     /// Shown in the middle of the chat before the first question.
     static let aiEmptyMessage =
-        "אפשר לשאול כל שאלה על המטופל/ת — הפגישות, ההערות והשאלונים משמשים כהקשר לתשובה."
-
+    "אפשר לשאול כל שאלה על המטופל/ת — הפגישות, ההערות והשאלונים משמשים כהקשר לתשובה."
+    
     /// Example questions offered in the empty chat; tapping one fills the field.
     static let aiSuggestedQuestions = [
         "סיכום קצר של המצב הנוכחי",
         "מה השתנה מאז תחילת הטיפול?",
         "אילו דפוסים חוזרים בפגישות?",
     ]
-
+    
     static let aiGenerateInsightsAction = "הפקת תובנות"
-
+    
     static let aiAskAction = "שאלה"
-
+    
     static let aiThinkingLabel = "מעבד…"
-
+    
     static let aiResponseTitle = "תשובה"
-
+    
     // MARK: - Settings
-
+    
     static let settingsTitle = "הגדרות"
-
+    
     static let settingsAISectionTitle = "שיחת AI"
-
+    
     static let settingsResponseStyleTitle = "סגנון תשובה"
-
+    
     static let settingsResponseStyleTyping = "הקלדה"
-
+    
     static let settingsResponseStyleRegular = "רגיל"
-
+    
     static let settingsDoneAction = "סיום"
     static let settingsAppearanceTitle = "מראה"
     static let appearanceSystem = "מערכת"
     static let appearanceLight = "בהיר"
     static let appearanceDark = "כהה"
-
+    
     static let settingsAccessibilitySectionTitle = "נגישות"
-
+    
     static let settingsTextSizeTitle = "גודל טקסט"
-
+    
     static let settingsTextSizeSmall = "קטן"
-
+    
     static let settingsTextSizeStandard = "רגיל"
-
+    
     static let settingsTextSizeLarge = "גדול"
-
+    
     static let settingsTextSizeExtraLarge = "גדול מאוד"
-
+    
     static let settingsTextSizeHuge = "ענק"
-
+    
     // MARK: - Session editor
-
+    
     static let discardChangesTitle =
-        "קיימים שינויים שלא נשמרו. מחיקת השינויים תגרום לאובדן המידע."
-
+    "קיימים שינויים שלא נשמרו. מחיקת השינויים תגרום לאובדן המידע."
+    
     static let discardChangesAction = "מחיקת השינויים"
-
+    
     static let saveChangesAction = "שמירה"
-
+    
     static let keepEditingAction = "המשך עריכה"
-
+    
     static let recordingFinishedTitle =
-        "לתמלל את ההקלטה ולהוסיף את התמלול לסיכום פגישה?"
-
+    "לתמלל את ההקלטה ולהוסיף את התמלול לסיכום פגישה?"
+    
     static let recordingFinishedTitleInPatientView =
-        "לתמלל את ההקלטה ולהוסיף את התמלול להערות?"
-
+    "לתמלל את ההקלטה ולהוסיף את התמלול להערות?"
+    
     static let discardRecordingAction = "מחיקת ההקלטה"
-
+    
     static let playRecordingAction = "הפעלת ההקלטה"
-
+    
     static let stopPlaybackAction = "עצירת ההשמעה"
-
+    
     // MARK: - Questionnaire history
-
+    
     static let viewQuestionnairesAction = "שאלונים"
-
+    
     static let questionnairesTitle = "שאלוני מצב רוח"
-
+    
     static let modePickerTitle = "תצוגה (מיקום זמני)"
-
+    
     static let listModeTitle = "רשימה"
-
+    
     static let graphsModeTitle = "גרפים"
-
+    
     static let noQuestionnairesMessage = "אין שאלונים עדיין"
-
+    
     static let loadErrorTitle = "טעינת השאלונים נכשלה"
-
+    
     static let retryAction = "ניסיון נוסף"
-
+    
     static let metricPickerTitle = "הצגת"
-
+    
     static let totalOptionLabel = "ציון כולל"
-
+    
     static let chartDateLabel = "תאריך"
-
+    
     static let chartScoreLabel = "ציון"
-
+    
     /// Short per-question names shown in the graph metric picker,
     /// indexed like the question arrays.
     static let gad7QuestionShortNames: [String] = [
@@ -622,7 +622,7 @@ amitishai@gmail.com
         "עצבנות/התרגשות",
         "פחד מאסון",
     ]
-
+    
     static let phq9QuestionShortNames: [String] = [
         "אובדן עניין/הנאה",
         "מצב רוח ירוד",
@@ -634,32 +634,32 @@ amitishai@gmail.com
         "איטיות / אי-שקט",
         "מחשבות על פגיעה עצמית",
     ]
-
+    
     /// Short names used in compact rows next to scores.
     static let gad7ShortName = "GAD-7"
-
+    
     static let phq9ShortName = "PHQ-9"
-
+    
     static let questionnaireSectionTitle = "שאלון"
     /// One-line GAD-7/PHQ-9 score summary shown next to a questionnaire.
     static func gadPhqScores(gad7: Int, phq9: Int) -> String {
         "\(gad7ShortName): \(gad7) · \(phq9ShortName): \(phq9)"
     }
-
+    
     /// A single compact score in a session row, e.g. "GAD-7: 12".
     static func scoreBadge(name: String, score: Int) -> String {
         "\(name): \(score)"
     }
-
+    
     /// Accessibility label for the icon marking sessions that have an
     /// AI structured summary.
     static let hasStructuredSummaryLabel = "כולל סיכום מובנה"
-
+    
     // MARK: - Session type
-
+    
     static let sessionTypeLabel = "סוג פגישה"
     static let sessionTypeNone = "ללא"
-
+    
     static func label(for type: SessionType) -> String {
         switch type {
         case .firstPhoneCall: return "שיחת טלפון ראשונית"
@@ -673,50 +673,50 @@ amitishai@gmail.com
         case .relapsePreventionAndTermination: return "סיכום טיפול והישנות"
         }
     }
-
+    
     /// The live total score line of a questionnaire part.
     static func totalScoreLine(_ score: Int) -> String {
         "\(scoreLabel): \(score)"
     }
-
+    
     /// The previous questionnaire's score line.
     static func previousScoreLine(dateText: String, score: Int) -> String {
         "\(previousScoreLabel(dateText: dateText)): \(score)"
     }
-
+    
     /// Indications of the previous questionnaire's answers.
     static func previousAnswerLegend(dateText: String) -> String {
         let hebrewDate = hebrewDate(from: dateText) ?? dateText
         return "הערך המוקף = תשובה מהשאלון הקודם מתאריך \(hebrewDate)"
     }
-
+    
     static func hebrewDate(from dateString: String) -> String? {
         let inputFormatter = DateFormatter()
         inputFormatter.locale = Locale(identifier: "en_US_POSIX")
         inputFormatter.dateFormat = "d MMM yyyy"
-
+        
         guard let date = inputFormatter.date(from: dateString) else {
             return nil
         }
-
+        
         let outputFormatter = DateFormatter()
         outputFormatter.locale = Locale(identifier: "he_IL")
         outputFormatter.dateFormat = "d 'ב'MMMM yyyy"
-
+        
         return outputFormatter.string(from: date)
     }
-
+    
     static func previousScoreLabel(dateText: String) -> String {
         "קודם, \(dateText)"
     }
     static let noQuestionnaireForSession = "אין שאלונים לפגישה זו"
-
+    
     // MARK: - GAD-7
-
+    
     static let gad7Title = "GAD-7 שאלון לאבחון חרדה מוכללת"
     static let gad7MainQuestion =
-        "במהלך השבוע האחרון עד כמה היית מוטרד/ת מהנושאים הבאים?"
-
+    "במהלך השבוע האחרון עד כמה היית מוטרד/ת מהנושאים הבאים?"
+    
     static let gad7Questions: [String] = [
         "הרגשתי עצבות, חרדה או מתח רב",
         "לא הייתי מסוגל/ת להפסיק לדאוג או לשלוט בחרדה",
@@ -726,7 +726,7 @@ amitishai@gmail.com
         "התעצבנתי או התרגשתי בקלות",
         "פחדתי שמשהו נורא עומד לקרות"
     ]
-
+    
     static func label(for severity: GAD7Severity) -> String {
         switch severity {
         case .minimal: return "ללא חרדה משמעותית"
@@ -735,14 +735,14 @@ amitishai@gmail.com
         case .extreme: return "חרדה קשה"
         }
     }
-
+    
     // MARK: - PHQ-9
-
+    
     static let phq9Title = "PHQ-9 שאלון בריאות המטופל"
-
+    
     static let phq9MainQuestion =
-        "במהלך השבוע האחרון באיזו תדירות היית מוטרד/ת מכל אחת מן הבעיות הבאות?"
-
+    "במהלך השבוע האחרון באיזו תדירות היית מוטרד/ת מכל אחת מן הבעיות הבאות?"
+    
     static let phq9Questions: [String] = [
         "עניין או הנאה מועטים מעשיית דברים",
         "תחושת דכדוך, דיכאון או חוסר תקווה",
@@ -754,10 +754,10 @@ amitishai@gmail.com
         "דיבור או תנועה באיטיות רבה מהרגיל או להיפך, חוסר שקט כה רב עד כי צריך להסתובב יותר מהרגיל",
         "מחשבות שהיה עדיף לו היית מת/ה או מחשבות על פגיעה בעצמך בדרך כלשהי"
     ]
-
+    
     static let phq9InterferenceQuestion =
-        "אם סימנת בעיות **כלשהן** - עד כמה **הקשו** עליך לבצע את עבודתך, לטפל בדברים בבית או להסתדר עם אנשים אחרים?"
-
+    "אם סימנת בעיות **כלשהן** - עד כמה **הקשו** עליך לבצע את עבודתך, לטפל בדברים בבית או להסתדר עם אנשים אחרים?"
+    
     /// The four worded options for the interference question, indexed by value.
     static let phq9InterferenceOptions: [String] = [
         "לא הקשו בכלל",
@@ -765,7 +765,7 @@ amitishai@gmail.com
         "הקשו מאוד",
         "הקשו באופן קיצוני",
     ]
-
+    
     static func label(for severity: PHQ9Severity) -> String {
         switch severity {
         case .minimal: return "דיכאוןם מינימאלי"
@@ -775,7 +775,7 @@ amitishai@gmail.com
         case .severe: return "דיכאון כבד"
         }
     }
-
+    
     /// The treatment suggestion shown next to each PHQ-9 classification.
     /// Real content will be provided later.
     static func suggestion(for severity: PHQ9Severity) -> String {
@@ -787,337 +787,364 @@ amitishai@gmail.com
         case .severe: return "מומלץ טיפול בדיכאון בתרופות, פסיכוטרפיה או שילוב שלהם"
         }
     }
-
+    
     // MARK: - Session analysis
-
+    
     static let sessionSummaryTitle = "סיכום פגישה"
-
+    
     static let sessionSummaryPlaceholder = "סיכום פגישה"
-
+    
     static let keySituationsSection = "מצבים מרכזיים"
-
+    
     static let possibleAutomaticThoughtsSection = "מחשבות אוטומטיות אפשריות"
-
+    
     static let cbtCycleSection = "מחזור CBT"
-
-    static let thingsWorthExploringSection = "נושאים שכדאי לבדוק"
-
-    static let questionsToRevisitSection = "שאלות שכדאי לחזור אליהן"
-
-    static let fullAnalysisTitle = "ניתוח מלא"
-
+    
+    /// Questions for the therapist — information missing from the notes
+    /// worth clarifying, not questions to ask the patient.
+    static let questionsToRevisitSection = "שאלות שכדאי להבהיר"
+    
     static let saveSummaryPrompt = "לשמור את הסיכום בפגישה?"
-
+    
     static let dontSaveAction = "לא לשמור"
-
+    
     static let keepViewingAction = "להמשיך לצפות"
-
+    
     static let thoughtLabel = "מחשבה"
-
+    
     static let situationLabel = "מצב"
-
+    
     static let emotionLabel = "רגש"
-
+    
     static let behaviorLabel = "התנהגות"
-
-    static let possibleConsequenceLabel = "השלכה אפשרית"
-
+    
     static let patientSaidBadge = "דברי המטופל/ת"
-
+    
     static let possibleInferenceBadge = "מסקנה אפשרית"
-
+    
+    // MARK: - NAT source labels
+    
+    static let sourceExplicitPatient = "נאמר במפורש על ידי המטופל/ת"
+    
+    static let sourceTherapistReported = "דווח על ידי המטפל/ת"
+    
+    static let sourceTherapistInferred = "השערת המטפל/ת"
+    
+    static let sourceAIInferred = "השערת AI"
+    
     static let possibleCognitivePatternsLabel = "דפוסי חשיבה אפשריים"
-
-    static let aiNoticedLabel = "ה-AI זיהה"
-
-    static let observationPlaceholder = "תצפית"
-
-    static let whyItMayMatterPlaceholder = "למה זה עשוי להיות משמעותי"
-
-    static let worthExploringLabel = "נושא שכדאי לבדוק"
-
-    static let questionToExplorePlaceholder = "שאלה לבדיקה"
-
+    
+    // MARK: - Cognitive pattern confidence
+    
+    static let confidenceHigh = "ודאות גבוהה"
+    
+    static let confidenceMedium = "ודאות בינונית"
+    
+    static let confidenceLow = "ודאות נמוכה"
+    
     static let questionPlaceholder = "שאלה"
-
+    
     static let whyItMattersLabel = "למה זה חשוב"
-
+    
     static let reasonPlaceholder = "סיבה"
-
+    
     static let discussedAction = "נידון"
-
+    
     static let followUpAction = "למעקב"
-
+    
     static let notRelevantAction = "לא רלוונטי"
-
-    static let importancePlaceholder = "חשיבות"
-
-    static let emotionsSection = "רגשות"
-
-    static let possibleNatsSection = "מחשבות אוטומטיות שליליות אפשריות"
-
-    static let behaviorsSection = "התנהגויות"
-
-    static let cbtPatternsSection = "דפוסי CBT"
-
-    static let maintainingCyclesSection = "מחזורי שימור"
-
-    static let developmentsSection = "התפתחויות"
-
+    
     static let therapistHypothesesSection = "השערות המטפל/ת"
-
-    static let therapistReflectionsSection = "הרהורי המטפל/ת"
-
-    static let followUpQuestionsSection = "שאלות להמשך"
-
-    static let unresolvedIssuesSection = "נושאים שטרם נפתרו"
-
-    static let contextLabel = "הקשר"
-
+    
     static let evidenceLabel = "ראיות"
-
-    static let typeLabel = "סוג"
-
-    static let possibleFunctionLabel = "תפקיד אפשרי"
-
-    static let sourceLabel = "מקור"
-
-    static let confidenceLabel = "רמת ביטחון"
-
-    static let significanceLabel = "משמעות"
-
-    static let categoryLabel = "קטגוריה"
-
-    static let priorityLabel = "עדיפות"
-
+    
     // MARK: - Session preparation
-
+    
     static let sessionPreparationTitle = "הכנה לפגישה"
-
+    
     static let preparationOutdatedMessage =
-        "לא מעודכן — התקיימה פגישה מאז הכנת ההכנה."
-
+    "לא מעודכן — התקיימה פגישה מאז הכנת ההכנה."
+    
     static let recurringNatsSection = "💭 מחשבות אוטומטיות שליליות חוזרות"
-
+    
     static let maintenanceCyclesSection = "🔄 מחזורי שימור אפשריים"
-
+    
     static let maintenanceCyclesSubtitle =
-        "השערות AI — מנגנונים שכדאי לבדוק, לא עובדות"
-
-    static let whatChangedSection = "מה השתנה"
-
+    "השערות AI — מנגנונים שכדאי לבדוק, לא עובדות"
+    
     static let questionnaireInsightsSection = "📊 תובנות מהשאלונים"
-
-    static let supervisionConsiderSection = "🧠 הדרכה — נושאים שכדאי לשקול"
-
+    
     static let priorityFollowUpsSection = "🔎 נושאים בעדיפות להמשך"
-
+    
     static let treatmentFocusSection = "🎯 מוקד טיפול אפשרי"
-
+    
     static let treatmentFocusSubtitle =
-        "תחומים שכדאי לשקול — לא הנחיות"
-
+    "תחומים שכדאי לשקול — לא הנחיות"
+    
     static let suggestedQuestionsSection = "❓ שאלות מוצעות"
-
-    static let unresolvedIssuesPreparationSection = "📌 נושאים שטרם נפתרו"
-
+    
     static let aiDisclaimer =
-        "תמיכה קלינית שנוצרה באמצעות AI. יש להפעיל שיקול דעת מקצועי."
-
+    "תמיכה קלינית שנוצרה באמצעות AI. יש להפעיל שיקול דעת מקצועי."
+    
     static func tokensUsed(_ count: Int) -> String {
         "אסימונים בשימוש: \(count)"
     }
-
+    
     static func sourceLine(_ source: String) -> String {
         "מקור: \(source)"
     }
-
+    
     static let situationsLabel = "מצבים"
-
+    
     static let possibleThinkingPatternsLabel = "דפוסי חשיבה אפשריים"
-
+    
     static let possibleMaintenanceCycleLabel = "מחזור שימור אפשרי"
-
+    
     static let automaticThoughtLabel = "מחשבה אוטומטית"
-
+    
     static let shortTermConsequenceLabel = "השלכה בטווח הקצר"
-
+    
     static let longTermConsequenceLabel = "השלכה בטווח הארוך"
-
+    
     static let possibleCoreBeliefSection = "אמונת ליבה אפשרית"
-
+    
     static let coreBeliefSubtitle =
-        "השערת AI — כדאי לדון ולבדוק, לא להניח שהיא נכונה"
-
-    static let questionToConsiderLabel = "שאלה שכדאי לשקול"
-
+    "השערת AI — כדאי לדון ולבדוק, לא להניח שהיא נכונה"
+    
     static let hypothesisBadge = "השערה"
-
+    
     static let priorityHigh = "גבוהה"
-
+    
     static let priorityMedium = "בינונית"
-
+    
     static let priorityLow = "נמוכה"
-
+    
     static func confidenceLine(_ value: String) -> String {
         "רמת ביטחון: \(value)"
     }
-
+    
     /// A bulleted list line.
     static func bulleted(_ text: String) -> String {
         "• \(text)"
     }
-
+    
     // MARK: - My formulation
-
+    
     static let treatmentGoalSection = "מטרת הטיפול"
-
+    
     static let noTreatmentGoalPlaceholder =
-        "לא הוגדרה מטרת טיפול — הוספת מטרה"
-
+    "לא הוגדרה מטרת טיפול — הוספת מטרה"
+    
     static let goalFormatWarning =
-        "הפורמט הרצוי: „להפחית את רמת רגש ה-X מ-Y% ל-Z% במצבים של…”"
-
+    "הפורמט הרצוי: „להפחית את רמת רגש ה-X מ-Y% ל-Z% במצבים של…”"
+    
     static let coreBeliefSection = "🧠 אמונת ליבה"
-
+    
     static let noCoreBeliefPlaceholder = "לא הוגדרה אמונת ליבה"
-
+    
     static let keyAutomaticThoughtsSection = "💭 מחשבות אוטומטיות מרכזיות"
-
+    
     static let addThoughtAction = "הוספת מחשבה"
-
+    
     static let maintainingBehaviorsSection = "🔄 התנהגויות משמרות"
-
+    
     static let addBehaviorAction = "הוספת התנהגות"
-
+    
     static let keyCBTCycleSection = "🔁 מחזור CBT מרכזי"
-
+    
     static let removeCycleAction = "הסרת מחזור"
-
+    
     static let noKeyCBTCycleLabel = "לא הוגדר מחזור CBT מרכזי"
-
+    
     static let addCBTCycleAction = "הוספת מחזור CBT"
-
+    
     static let therapistHypothesisSection = "🧩 השערת המטפל/ת"
-
+    
     static let therapistHypothesisPlaceholder =
-        "השערת העבודה לגבי הגורמים המשמרים את הבעיה"
-
+    "השערת העבודה לגבי הגורמים המשמרים את הבעיה"
+    
     static let automaticThoughtTitle = "מחשבה אוטומטית"
-
+    
     static let challengeFormulationAction = "אתגור הניסוח שלי"
-
+    
     static let analyzingFormulationLabel = "ניתוח הניסוח…"
-
+    
     static let addFormulationContentHint =
-        "כדאי להוסיף מידע לניסוח לפני בקשת אתגור מה-AI."
-
+    "כדאי להוסיף מידע לניסוח לפני בקשת אתגור מה-AI."
+    
     static let whatAmIMissingAction = "מה חסר לי?"
-
+    
     static let lookingAcrossHistoryLabel =
-        "בחינת ההיסטוריה של המטופל/ת…"
-
+    "בחינת ההיסטוריה של המטופל/ת…"
+    
     static let aiSupervisionSection = "🧠 הדרכת AI"
-
+    
     static let aiSupervisionFooter =
-        "ה-AI בוחן את הניסוח ואת ההיסטוריה של המטופל/ת. הוא אינו משנה את הניסוח."
-
+    "ה-AI בוחן את הניסוח ואת ההיסטוריה של המטופל/ת. הוא אינו משנה את הניסוח."
+    
     static let longitudinalReviewAction = "סקירה לאורך זמן"
-
+    
     static let analyzingOverTimeLabel = "ניתוח התהליך לאורך זמן…"
-
+    
     static let longitudinalCaseReviewTitle = "📈 סקירת המקרה לאורך זמן"
-
+    
     static let longitudinalReviewFooter =
-        "תמונה לאורך זמן: מה השתנה, מה נשאר ומה דורש תשומת לב."
+    "תמונה לאורך זמן: מה השתנה, מה נשאר ומה דורש תשומת לב."
     // MARK: - Supervision (Challenge My Formulation)
+    
+    static let aiGeneratedSupervisionLabel = "הדרכה מבוססת AI"
 
-    static let aiGeneratedSupervisionLabel = "AI-generated supervision"
-    static let supervisionDisclaimerBody = "These are hypotheses for clinical reflection, not established conclusions."
-    static let supportsFormulationSection = "✓ What supports your formulation?"
-    static let mayNotFitSection = "⚠ What may not fit?"
-    static let mayNotFitSubtitle = "Evidence that may not fully fit the current formulation — something to weigh, not a verdict"
-    static let alternativeFormulationsSection = "🔄 Alternative Formulations"
-    static let alternativeFormulationsSubtitle = "Alternatives to consider — not diagnoses or conclusions"
-    static let questionsToExploreSection = "❓ Questions to Explore"
-    static let treatmentImplicationsSection = "🎯 Possible Treatment Implications"
-    static let treatmentImplicationsSubtitle = "Possible areas to consider — not instructions"
-    static let possibleBlindSpotsSection = "👁 Possible Blind Spots"
-    static let blindSpotsSubtitle = "Hypotheses, not facts — areas the formulation may not be covering"
-    static let possibleFormulationLabel = "Possible formulation"
-    static let whatThisMightExplainLabel = "What this might explain"
+    static let supervisionDisclaimerBody = "אלו השערות לצורך חשיבה קלינית, ולא מסקנות מבוססות."
+
+    static let supportsFormulationSection = "✓ מה תומך בפורמולציה?"
+
+    static let mayNotFitSection = "⚠ מה עשוי שלא להתאים?"
+
+    static let mayNotFitSubtitle = "מידע שעשוי שלא להתאים באופן מלא לפורמולציה הנוכחית — נקודה לשיקול, לא מסקנה"
+
+    static let alternativeFormulationsSection = "🔄 פורמולציות חלופיות"
+
+    static let alternativeFormulationsSubtitle = "אפשרויות נוספות לשקול — לא אבחנות או מסקנות"
+
+    static let questionsToExploreSection = "❓ שאלות שכדאי לבחון"
+
+    static let treatmentImplicationsSection = "🎯 השלכות אפשריות לטיפול"
+
+    static let treatmentImplicationsSubtitle = "כיוונים אפשריים לשקול — לא הנחיות"
+
+    static let possibleBlindSpotsSection = "👁 נקודות עיוורון אפשריות"
+
+    static let blindSpotsSubtitle = "השערות, לא עובדות — היבטים שייתכן שאינם מקבלים ביטוי בפורמולציה"
+
+    static let possibleFormulationLabel = "פורמולציה אפשרית"
+
+    static let whatThisMightExplainLabel = "מה זה עשוי להסביר"
+
     static func purposeLine(_ purpose: String) -> String {
-        "Purpose: \(purpose)"
+        "מטרה: \(purpose)"
     }
-    static let possibleAreaToConsiderLabel = "Possible area to consider"
+
+    static let possibleAreaToConsiderLabel = "כיוון אפשרי לשקול"
 
     // MARK: - Supervision (What Am I Missing?)
 
-    static let whatAmIMissingTitle = "🔎 What Am I Missing?"
-    static let noAdditionalPatternsMessage = "No additional significant patterns were identified from the available information."
-    static let whyThisMightMatterLabel = "Why this might matter"
-    static let questionForTherapistLabel = "Question for therapist"
-    static let categoryRecurringNat = "Recurring Automatic Thought"
-    static let categoryCognitivePattern = "Thinking Pattern"
-    static let categoryMaintainingBehavior = "Maintaining Behavior"
-    static let categoryDiscrepancy = "Possible Discrepancy"
-    static let categoryPersistentSymptom = "Persistent Symptom"
-    static let categoryRepeatedSituation = "Repeated Situation"
-    static let categoryUnexploredTheme = "Possible Unexplored Theme"
-    static let categoryPossibleConnection = "Possible Connection"
-    static let categoryTreatmentOpportunity = "Possible Treatment Opportunity"
-    static let categoryRiskReview = "Risk Review"
+    static let whatAmIMissingTitle = "🔎 מה אולי חסר לי?"
+
+    static let noAdditionalPatternsMessage = "לא זוהו דפוסים משמעותיים נוספים על סמך המידע הקיים."
+
+    static let whyThisMightMatterLabel = "למה זה עשוי להיות משמעותי"
+
+    static let questionForTherapistLabel = "שאלה למטפל/ת"
+
+    static let categoryRecurringNat = "מחשבה אוטומטית חוזרת"
+
+    static let categoryCognitivePattern = "דפוס חשיבה"
+
+    static let categoryMaintainingBehavior = "התנהגות משמרת"
+
+    static let categoryDiscrepancy = "פער אפשרי"
+
+    static let categoryPersistentSymptom = "תסמין מתמשך"
+
+    static let categoryRepeatedSituation = "מצב חוזר"
+
+    static let categoryUnexploredTheme = "נושא אפשרי שטרם נבחן"
+
+    static let categoryPossibleConnection = "קשר אפשרי"
+
+    static let categoryTreatmentOpportunity = "הזדמנות טיפולית אפשרית"
+
+    static let categoryRiskReview = "בחינת סיכון"
 
     // MARK: - Supervision (Longitudinal Case Review)
 
-    static let highConfidenceLabel = "High confidence"
-    static let mediumConfidenceLabel = "Medium confidence"
-    static let lowConfidenceLabel = "Low confidence"
-    static let improvementsSection = "✅ Improvements"
-    static let persistentDifficultiesSection = "⚠️ Persistent Difficulties"
-    static let persistentDifficultiesSubtitle = "Things that do not appear to have changed sufficiently yet"
-    static let recurringPatternsSection = "🔄 Recurring Patterns"
-    static let recurringPatternsSubtitle = "What keeps coming back across the treatment"
-    static let importantChangesSection = "🔀 Important Changes"
-    static let treatmentGoalProgressSection = "🎯 Treatment Goal Progress"
-    static let formulationEvolutionSection = "🧠 Formulation Evolution"
-    static let formulationEvolutionSubtitle = "What appears to be becoming clearer? Hypotheses and interpretations, not established facts"
-    static let worthAttentionSection = "👀 Worth Paying Attention To"
-    static let worthAttentionSubtitle = "Areas the therapist may want to investigate — not instructions"
-    static let overallTrajectorySection = "📈 Overall Trajectory"
+    static let highConfidenceLabel = "ודאות גבוהה"
+
+    static let mediumConfidenceLabel = "ודאות בינונית"
+
+    static let lowConfidenceLabel = "ודאות נמוכה"
+
+    static let improvementsSection = "✅ שיפורים"
+
+    static let persistentDifficultiesSection = "⚠️ קשיים מתמשכים"
+
+    static let persistentDifficultiesSubtitle = "היבטים שעדיין לא נראה בהם שינוי מספק"
+
+    static let recurringPatternsSection = "🔄 דפוסים חוזרים"
+
+    static let recurringPatternsSubtitle = "דפוסים שחוזרים לאורך הטיפול"
+
+    static let importantChangesSection = "🔀 שינויים משמעותיים"
+
+    static let treatmentGoalProgressSection = "🎯 התקדמות לעבר מטרת הטיפול"
+
+    static let formulationEvolutionSection = "🧠 התפתחות הפורמולציה"
+
+    static let formulationEvolutionSubtitle = "מה מתחיל להתבהר? השערות ופרשנויות, לא עובדות מבוססות"
+
+    static let worthAttentionSection = "👀 נקודות שכדאי לשים לב אליהן"
+
+    static let worthAttentionSubtitle = "כיוונים שאולי כדאי לבחון — לא הנחיות"
+
+    static let overallTrajectorySection = "📈 מגמה כללית"
+
     static let insufficientLongitudinalDataMessage = "אין מספיק מידע לאורך זמן כדי להסיק מסקנות נוספות בשלב זה."
+
     static let whatImprovedLabel = "מה השתפר"
+
     static let possibleInterpretationHebrewLabel = "פרשנות אפשרית"
-    static let whyWeThinkSoLabel = "למה אנחנו חושבים כך"
-    static let possibleInterpretationLabel = "Possible interpretation"
-    static let currentEstimateLabel = "Current estimate"
-    static let possibleNextStepLabel = "Possible next step to consider"
-    static let questionsForTherapistSection = "❓ Questions for Therapist"
-    static let questionsForTherapistSubtitle = "For reflective supervision — there are no required answers"
-    static let goalStatusProgressing = "Progressing"
-    static let goalStatusPartiallyProgressing = "Partially progressing"
-    static let goalStatusUnchanged = "Unchanged"
-    static let goalStatusWorsening = "Worsening"
-    static let goalStatusAchieved = "Achieved"
-    static let goalStatusUnclear = "Unclear"
 
+    static let whyWeThinkSoLabel = "מה תומך בפרשנות הזו"
+
+    static let possibleInterpretationLabel = "פרשנות אפשרית"
+
+    static let currentEstimateLabel = "הערכה נוכחית"
+
+    static let possibleNextStepLabel = "צעד אפשרי להמשך"
+
+    static let questionsForTherapistSection = "❓ שאלות למטפל/ת"
+
+    static let questionsForTherapistSubtitle = "לחשיבה במסגרת ההדרכה — אין צורך בתשובה מחייבת"
+
+    static let goalStatusProgressing = "בתהליך התקדמות"
+
+    static let goalStatusPartiallyProgressing = "התקדמות חלקית"
+
+    static let goalStatusUnchanged = "ללא שינוי"
+
+    static let goalStatusWorsening = "החמרה"
+
+    static let goalStatusAchieved = "הושגה"
+
+    static let goalStatusUnclear = "לא ברור"
+    
     // MARK: - Errors
-
+    
     static func transcriptionFailed(_ message: String) -> String {
-        "Transcription failed: \(message)"
+        "התמלול נכשל: \(message)"
     }
+    
     static func couldNotReadAudioFile(_ description: String) -> String {
-        "Could not read audio file: \(description)"
+        "לא ניתן לקרוא את קובץ השמע: \(description)"
     }
-    static let sessionAnalysisFailedError = "Session analysis failed"
-    static let invalidInputError = "Invalid input."
-    static let invalidServerResponseError = "Invalid response from server."
-    static let emptyAIResponseError = "The AI service returned an empty response."
-    static let supabaseNotConfiguredError = "Supabase is not configured. Fill in your project URL and anon key in SupabaseConfig.swift."
+    
+    static let sessionAnalysisFailedError = "ניתוח הפגישה נכשל"
+    
+    static let invalidInputError = "הקלט אינו תקין."
+    
+    static let invalidServerResponseError = "התקבלה תגובה לא תקינה מהשרת."
+    
+    static let emptyAIResponseError = "שירות ה-AI החזיר תגובה ריקה."
+    
+    static let supabaseNotConfiguredError = "Supabase אינו מוגדר. יש להזין את כתובת הפרויקט ואת מפתח ה-anon בקובץ SupabaseConfig.swift."
+    
     static func notImplementedError(_ feature: String) -> String {
-        "\(feature) is not implemented yet."
+        "\(feature) עדיין לא זמין."
     }
-    static let patientNotSavedError = "This patient hasn't been saved to the database yet."
-    static let sessionNotSavedError = "This session hasn't been saved to the database yet."
-    static let updateRejectedError = "The server accepted the request but didn't change any row. Check the table's row-level security policies (UPDATE is likely missing)."
+    
+    static let patientNotSavedError = "המטופל/ת עדיין לא נשמר/ה במסד הנתונים."
+    
+    static let sessionNotSavedError = "הפגישה עדיין לא נשמרה במסד הנתונים."
+    
+    static let updateRejectedError = "השרת קיבל את הבקשה, אך לא בוצע שינוי. יש לבדוק את מדיניות אבטחת השורות (RLS) של הטבלה — ייתכן שחסרה הרשאת UPDATE."
 }

@@ -295,31 +295,27 @@ struct PatientAIView: View {
         if !analysis.possibleNats.isEmpty {
             lines.append("Possible NATs:")
             for nat in analysis.possibleNats {
-                lines.append("- \(nat.thought) (situation: \(nat.situation), emotion: \(nat.emotion), behavior: \(nat.behavior), confidence: \(nat.confidence))")
+                var details = ["situation: \(nat.situation)"]
+                if let emotion = nat.emotion, !emotion.isEmpty { details.append("emotion: \(emotion)") }
+                if let behavior = nat.behavior, !behavior.isEmpty { details.append("behavior: \(behavior)") }
+                details.append("confidence: \(nat.confidence)")
+                lines.append("- \(nat.thought) (\(details.joined(separator: ", ")))")
             }
         }
-        if !analysis.cbtPatterns.isEmpty {
-            lines.append("CBT patterns:")
-            for pattern in analysis.cbtPatterns {
-                lines.append("- \(pattern.pattern) (confidence: \(pattern.confidence)) — \(pattern.evidence)")
-            }
-        }
-        if !analysis.maintainingCycles.isEmpty {
-            lines.append("Maintaining cycles:")
-            for cycle in analysis.maintainingCycles {
-                lines.append("- \(cycle.cycle) (confidence: \(cycle.confidence))")
+        if !analysis.cbtCycles.isEmpty {
+            lines.append("CBT cycles:")
+            for cycle in analysis.cbtCycles {
+                let stages = [cycle.triggerSituation, cycle.automaticThought, cycle.emotion,
+                              cycle.behavior, cycle.shortTermConsequence, cycle.longTermConsequence]
+                    .compactMap { $0 }
+                    .filter { !$0.isEmpty }
+                lines.append("- \(stages.joined(separator: " → ")) (confidence: \(cycle.confidence))")
             }
         }
         if !analysis.therapistHypotheses.isEmpty {
             lines.append("Therapist hypotheses:")
             for hypothesis in analysis.therapistHypotheses {
                 lines.append("- \(hypothesis.hypothesis) (confidence: \(hypothesis.confidence))")
-            }
-        }
-        if !analysis.unresolvedIssues.isEmpty {
-            lines.append("Unresolved issues:")
-            for issue in analysis.unresolvedIssues {
-                lines.append("- \(issue)")
             }
         }
         let openQuestions = analysis.followUpQuestions

@@ -43,17 +43,23 @@ struct WhatAmIMissingView: View {
         }
     }
 
+    /// Only high-priority findings are surfaced; anything on screen is
+    /// implicitly high, so no priority is displayed.
+    private var highPriorityFindings: [MissingFinding] {
+        response.findings.filter { Level($0.priority) == .high }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     disclaimerHeader
 
-                    if response.findings.isEmpty {
+                    if highPriorityFindings.isEmpty {
                         emptyResultCard
                     } else {
-                        ForEach(response.findings.indices, id: \.self) { index in
-                            findingCard(response.findings[index])
+                        ForEach(highPriorityFindings.indices, id: \.self) { index in
+                            findingCard(highPriorityFindings[index])
                         }
                     }
 
@@ -120,16 +126,12 @@ struct WhatAmIMissingView: View {
     /// the tinted inset, and evidence stays one tap away.
     private func findingCard(_ finding: MissingFinding) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(categoryLabel(finding.category))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tint)
-                    Text(finding.title)
-                        .font(.headline)
-                }
-                Spacer()
-                priorityBadge(finding.priority)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(categoryLabel(finding.category))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tint)
+                Text(finding.title)
+                    .font(.headline)
             }
             if !finding.observation.isEmpty {
                 Text(finding.observation)
@@ -206,37 +208,6 @@ struct WhatAmIMissingView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(Capsule().fill(Theme.warning.opacity(0.12)))
-    }
-
-    /// High priority stands out; medium and low stay quiet.
-    @ViewBuilder
-    private func priorityBadge(_ raw: String) -> some View {
-        switch Level(raw) {
-        case .high:
-            Text(L10n.priorityHigh)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.warning)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Theme.warning.opacity(0.12)))
-        case .medium:
-            Text(L10n.priorityMedium)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Theme.elevated))
-        case .low:
-            Text(L10n.priorityLow)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        case nil:
-            if !raw.isEmpty {
-                Text(raw.capitalized)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 
     @ViewBuilder

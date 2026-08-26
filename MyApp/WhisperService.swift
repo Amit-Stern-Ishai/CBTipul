@@ -84,30 +84,19 @@ nonisolated struct WhisperService {
             var sessionSummary: String
 
             var keySituations: [KeySituation]
-            let emotions: [Emotion]
             var possibleNats: [PossibleNAT]
-            let behaviors: [Behavior]
-            let cbtPatterns: [CBTPattern]
-            let maintainingCycles: [MaintainingCycle]
-            let developments: [Development]
+            /// Reuses the preparation's cycle type: the schemas are identical.
+            let cbtCycles: [NextSessionPreparation.CBTCycle]
             let therapistHypotheses: [TherapistHypothesis]
-            var therapistReflections: [TherapistReflection]
             var followUpQuestions: [FollowUpQuestion]
-            let unresolvedIssues: [String]
 
             enum CodingKeys: String, CodingKey {
                 case sessionSummary = "session_summary"
                 case keySituations = "key_situations"
-                case emotions
                 case possibleNats = "possible_nats"
-                case behaviors
-                case cbtPatterns = "cbt_patterns"
-                case maintainingCycles = "maintaining_cycles"
-                case developments
+                case cbtCycles = "cbt_cycles"
                 case therapistHypotheses = "therapist_hypotheses"
-                case therapistReflections = "therapist_reflections"
                 case followUpQuestions = "follow_up_questions"
-                case unresolvedIssues = "unresolved_issues"
             }
         }
 
@@ -115,15 +104,12 @@ nonisolated struct WhisperService {
 
         struct KeySituation: Codable, Equatable {
             var situation: String
-            var importance: String
-        }
+            var whyItMatters: String
 
-        // MARK: - Emotion
-
-        struct Emotion: Codable, Equatable {
-            let emotion: String
-            let context: String
-            let evidence: String
+            enum CodingKeys: String, CodingKey {
+                case situation
+                case whyItMatters = "why_it_matters"
+            }
         }
 
         // MARK: - NAT
@@ -132,14 +118,11 @@ nonisolated struct WhisperService {
 
             var thought: String
             var situation: String
-            var emotion: String
-            var behavior: String
+            var emotion: String?
+            var behavior: String?
             let source: String
             let confidence: String
-            let possibleCognitivePatterns: [String]
-            /// What the behavior leads to (e.g. brief relief that reinforces
-            /// the cycle). Optional: older analyses were saved without it.
-            var possibleConsequence: String?
+            let cognitivePatterns: [CognitivePattern]
 
             enum CodingKeys: String, CodingKey {
                 case thought
@@ -148,52 +131,17 @@ nonisolated struct WhisperService {
                 case behavior
                 case source
                 case confidence
-                case possibleCognitivePatterns =
-                    "possible_cognitive_patterns"
-                case possibleConsequence =
-                    "possible_consequence"
+                case cognitivePatterns = "cognitive_patterns"
             }
         }
 
-        // MARK: - Behavior
-
-        struct Behavior: Codable, Equatable {
-
-            let behavior: String
-            let type: String
-            let context: String
-            let possibleFunction: String
-
-            enum CodingKeys: String, CodingKey {
-                case behavior
-                case type
-                case context
-                case possibleFunction =
-                    "possible_function"
-            }
-        }
-
-        // MARK: - CBT Pattern
-
-        struct CBTPattern: Codable, Equatable {
+        /// One possible classification of how a NAT may be structured. The
+        /// NAT itself is always high confidence, but its interpretation as a
+        /// particular pattern may deliberately be high/medium/low.
+        struct CognitivePattern: Codable, Equatable {
             let pattern: String
             let evidence: String
             let confidence: String
-        }
-
-        // MARK: - Maintaining Cycle
-
-        struct MaintainingCycle: Codable, Equatable {
-            let cycle: String
-            let evidence: String
-            let confidence: String
-        }
-
-        // MARK: - Development
-
-        struct Development: Codable, Equatable {
-            let development: String
-            let significance: String
         }
 
         // MARK: - Therapist Hypothesis
@@ -204,33 +152,16 @@ nonisolated struct WhisperService {
             let confidence: String
         }
 
-        // MARK: - Therapist Reflection
-
-        struct TherapistReflection: Codable, Equatable {
-
-            var observation: String
-            var whyItMayMatter: String
-            var questionToExplore: String
-            let confidence: String
-
-            enum CodingKeys: String, CodingKey {
-                case observation
-                case whyItMayMatter =
-                    "why_it_may_matter"
-                case questionToExplore =
-                    "question_to_explore"
-                case confidence
-            }
-        }
-
         // MARK: - Follow-up Question
 
+        /// A question for the therapist — information missing from the
+        /// session notes worth clarifying, not necessarily a question to
+        /// ask the patient next session. The backend only returns questions
+        /// it considers important, so there is no client-side ranking.
         struct FollowUpQuestion: Codable, Equatable {
 
             var question: String
             var reason: String
-            let category: String
-            let priority: String
             /// The therapist's triage of the question, set in the app after
             /// the session — never returned by the AI.
             var status: Status?
@@ -379,48 +310,37 @@ nonisolated struct WhisperService {
     struct NextSessionPreparation: Codable {
 
         let executiveSummary: String
-        let whatChanged: [WhatChanged]
         let priorityFollowUps: [PriorityFollowUp]
         let recurringNats: [RecurringNAT]
         let cbtCycles: [CBTCycle]
         let questionnaireInsights: [QuestionnaireInsight]
-        let supervisoryObservations: [SupervisoryObservation]
-        let possibleTreatmentFocus: [TreatmentFocus]
+        let treatmentFocus: TreatmentFocus?
         let suggestedQuestions: [SuggestedQuestion]
-        let unresolvedIssues: [String]
         let coreBeliefHypothesis: CoreBeliefHypothesis?
 
         enum CodingKeys: String, CodingKey {
             case executiveSummary = "executive_summary"
-            case whatChanged = "what_changed"
             case priorityFollowUps = "priority_follow_ups"
             case recurringNats = "recurring_nats"
             case cbtCycles = "cbt_cycles"
             case questionnaireInsights = "questionnaire_insights"
-            case supervisoryObservations = "supervisory_observations"
-            case possibleTreatmentFocus = "possible_treatment_focus"
+            case treatmentFocus = "treatment_focus"
             case suggestedQuestions = "suggested_questions"
-            case unresolvedIssues = "unresolved_issues"
             case coreBeliefHypothesis = "core_belief_hypothesis"
-        }
-
-        struct WhatChanged: Codable {
-            let observation: String
-            let evidence: String
-            let significance: String
         }
 
         struct PriorityFollowUp: Codable {
             let item: String
             let reason: String
             let source: String
-            let priority: String
         }
 
         struct RecurringNAT: Codable {
             let thought: String
             let situations: [String]
-            let cognitivePatterns: [String]
+            /// Shares the session review's pattern type: same schema, and
+            /// the two endpoints deliberately use the same 12-label set.
+            let cognitivePatterns: [CognitivePattern]
             let evidence: String
             let confidence: String
 
@@ -430,6 +350,27 @@ nonisolated struct WhisperService {
                 case cognitivePatterns = "cognitive_patterns"
                 case evidence
                 case confidence
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                thought = try container.decode(String.self, forKey: .thought)
+                situations = try container.decode([String].self, forKey: .situations)
+                evidence = try container.decode(String.self, forKey: .evidence)
+                confidence = try container.decode(String.self, forKey: .confidence)
+                if let patterns = try? container.decode([CognitivePattern].self,
+                                                        forKey: .cognitivePatterns) {
+                    cognitivePatterns = patterns
+                } else {
+                    // Preparations saved on device before the schema change
+                    // stored patterns as plain strings; keep them readable
+                    // with no evidence or confidence.
+                    let names = (try? container.decode([String].self,
+                                                       forKey: .cognitivePatterns)) ?? []
+                    cognitivePatterns = names.map {
+                        CognitivePattern(pattern: $0, evidence: "", confidence: "")
+                    }
+                }
             }
         }
 
@@ -476,30 +417,14 @@ nonisolated struct WhisperService {
             }
         }
 
-        struct SupervisoryObservation: Codable {
-            let observation: String
-            let whyItMatters: String
-            let questionForTherapist: String
-            let confidence: String
-
-            enum CodingKeys: String, CodingKey {
-                case observation
-                case whyItMatters = "why_it_matters"
-                case questionForTherapist = "question_for_therapist"
-                case confidence
-            }
-        }
-
         struct TreatmentFocus: Codable {
             let focus: String
             let rationale: String
-            let priority: String
         }
 
         struct SuggestedQuestion: Codable {
             let question: String
             let purpose: String
-            let priority: String
         }
     }
 

@@ -38,12 +38,13 @@ nonisolated struct SavedPreparation: Codable {
 /// Pre-session CBT supervision/formulation briefing.
 ///
 /// Ordered so the therapist can scan the clinical story top to bottom:
-/// what has been happening (summary) → recurring automatic thoughts → the
-/// cycles that may be maintaining them → the deeper belief possibly involved
-/// → what changed, questionnaire insights, supervision questions, and what
-/// to explore next. AI inferences carry hypothesis markers and tentative
-/// wording throughout; empty sections are hidden. Uses the same card
-/// language as the session review screen.
+/// what has been happening (summary) → what to follow up on → recurring
+/// automatic thoughts → the cycles that may be maintaining them →
+/// questionnaire insights → the single recommended treatment focus →
+/// questions to explore → the deeper belief possibly involved. AI
+/// inferences carry hypothesis markers and tentative wording throughout;
+/// empty sections are hidden. Uses the same card language as the session
+/// review screen.
 struct NextSessionPreparationView: View {
     let response: WhisperService.PrepareSessionResponse
     var isOutdated: Bool = false
@@ -51,32 +52,6 @@ struct NextSessionPreparationView: View {
     @Environment(\.dismiss) private var dismiss
 
     private var preparation: WhisperService.NextSessionPreparation { response.preparation }
-
-    /// Normalized priority/confidence level for display.
-    private enum Level {
-        case high, medium, low
-
-        init?(_ raw: String) {
-            let lowered = raw.lowercased()
-            if lowered.contains("high") || lowered.contains("גבוה") {
-                self = .high
-            } else if lowered.contains("med") || lowered.contains("בינוני") {
-                self = .medium
-            } else if lowered.contains("low") || lowered.contains("נמוך") {
-                self = .low
-            } else {
-                return nil
-            }
-        }
-
-        var label: String {
-            switch self {
-            case .high: return L10n.priorityHigh
-            case .medium: return L10n.priorityMedium
-            case .low: return L10n.priorityLow
-            }
-        }
-    }
 
     var body: some View {
         NavigationStack {
@@ -103,6 +78,24 @@ struct NextSessionPreparationView: View {
                         }
                     }
 
+                    section(L10n.priorityFollowUpsSection,
+                            items: preparation.priorityFollowUps) { item in
+                        card {
+                            Text(item.item)
+                                .font(.headline)
+                            if !item.reason.isEmpty {
+                                Text(item.reason)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if !item.source.isEmpty {
+                                Text(L10n.sourceLine(item.source))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+
                     section(L10n.recurringNatsSection,
                             items: preparation.recurringNats) { item in
                         natCard(item)
@@ -112,22 +105,6 @@ struct NextSessionPreparationView: View {
                             subtitle: L10n.maintenanceCyclesSubtitle,
                             items: preparation.cbtCycles) { item in
                         cycleCard(item)
-                    }
-
-                    if let coreBelief = preparation.coreBeliefHypothesis {
-                        coreBeliefSection(coreBelief)
-                    }
-
-                    section(L10n.whatChangedSection,
-                            items: preparation.whatChanged) { item in
-                        card {
-                            Text(item.observation)
-                                .font(.headline)
-                            if !item.significance.isEmpty {
-                                labeledText(L10n.whyItMattersLabel, item.significance)
-                            }
-                            evidenceDisclosure(item.evidence)
-                        }
                     }
 
                     section(L10n.questionnaireInsightsSection,
@@ -144,60 +121,15 @@ struct NextSessionPreparationView: View {
                         }
                     }
 
-                    section(L10n.supervisionConsiderSection,
-                            items: preparation.supervisoryObservations) { item in
-                        supervisionCard(item)
-                    }
-
-                    section(L10n.priorityFollowUpsSection,
-                            items: preparation.priorityFollowUps) { item in
-                        card {
-                            HStack(alignment: .firstTextBaseline) {
-                                Text(item.item)
-                                    .font(.headline)
-                                Spacer()
-                                priorityBadge(item.priority)
-                            }
-                            if !item.reason.isEmpty {
-                                Text(item.reason)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            if !item.source.isEmpty {
-                                Text(L10n.sourceLine(item.source))
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                    }
-
-                    section(L10n.treatmentFocusSection,
-                            subtitle: L10n.treatmentFocusSubtitle,
-                            items: preparation.possibleTreatmentFocus) { item in
-                        card {
-                            HStack(alignment: .firstTextBaseline) {
-                                Text(item.focus)
-                                    .font(.headline)
-                                Spacer()
-                                priorityBadge(item.priority)
-                            }
-                            if !item.rationale.isEmpty {
-                                Text(item.rationale)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                    if let treatmentFocus = preparation.treatmentFocus {
+                        treatmentFocusSection(treatmentFocus)
                     }
 
                     section(L10n.suggestedQuestionsSection,
                             items: preparation.suggestedQuestions) { item in
                         card {
-                            HStack(alignment: .firstTextBaseline) {
-                                Text(item.question)
-                                    .font(.body.weight(.medium).italic())
-                                Spacer()
-                                priorityBadge(item.priority)
-                            }
+                            Text(item.question)
+                                .font(.body.weight(.medium).italic())
                             if !item.purpose.isEmpty {
                                 Text(item.purpose)
                                     .font(.subheadline)
@@ -206,17 +138,8 @@ struct NextSessionPreparationView: View {
                         }
                     }
 
-                    if !preparation.unresolvedIssues.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.unresolvedIssuesPreparationSection)
-                                .font(.title3.bold())
-                            card {
-                                ForEach(preparation.unresolvedIssues.indices, id: \.self) { index in
-                                    Text(L10n.bulleted(preparation.unresolvedIssues[index]))
-                                        .font(.subheadline)
-                                }
-                            }
-                        }
+                    if let coreBelief = preparation.coreBeliefHypothesis {
+                        coreBeliefSection(coreBelief)
                     }
 
                     VStack(spacing: 4) {
@@ -236,8 +159,13 @@ struct NextSessionPreparationView: View {
             .navigationTitle(L10n.sessionPreparationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.done) { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Label(L10n.back, systemImage: "chevron.backward")
+                            .labelStyle(.titleAndIcon)
+                    }
                 }
             }
         }
@@ -260,19 +188,58 @@ struct NextSessionPreparationView: View {
             if !item.situations.isEmpty {
                 labeledText(L10n.situationsLabel, item.situations.joined(separator: " · "))
             }
+            evidenceDisclosure(item.evidence)
             if !item.cognitivePatterns.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(L10n.possibleThinkingPatternsLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(item.cognitivePatterns.joined(separator: " · "))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.tint)
+                    ForEach(item.cognitivePatterns.indices, id: \.self) { index in
+                        cognitivePatternRow(item.cognitivePatterns[index])
+                    }
                 }
             }
-            evidenceDisclosure(item.evidence)
-            confidenceText(item.confidence)
         }
+    }
+
+    /// One possible classification of the thought: the pattern name with a
+    /// subtle confidence caption alongside (this varies, unlike the NAT's
+    /// always-high confidence), and the model's reasoning underneath.
+    private func cognitivePatternRow(_ item: WhisperService.CognitivePattern) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(item.pattern)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.tint)
+                Spacer()
+                if let caption = confidenceCaption(for: item.confidence) {
+                    Text(caption)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if !item.evidence.isEmpty {
+                Text(item.evidence)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Theme.elevated)
+        )
+    }
+
+    /// Hebrew caption for a pattern's confidence; unknown raw values show
+    /// as-is, and empty ones (old saved preparations) show nothing.
+    private func confidenceCaption(for raw: String) -> String? {
+        let lowered = raw.lowercased()
+        if lowered.contains("high") || lowered.contains("גבוה") { return L10n.confidenceHigh }
+        if lowered.contains("med") || lowered.contains("בינוני") { return L10n.confidenceMedium }
+        if lowered.contains("low") || lowered.contains("נמוך") { return L10n.confidenceLow }
+        return raw.isEmpty ? nil : raw
     }
 
     /// A hypothesized maintenance cycle as a vertical CBT chain. Stages the
@@ -309,7 +276,6 @@ struct NextSessionPreparationView: View {
                 }
             }
             evidenceDisclosure(cycle.evidence)
-            confidenceText(cycle.confidence)
         }
     }
 
@@ -361,7 +327,6 @@ struct NextSessionPreparationView: View {
                         }
                     }
                 }
-                confidenceText(item.confidence)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
@@ -378,37 +343,37 @@ struct NextSessionPreparationView: View {
         }
     }
 
-    /// Observation and why it matters, with the reflective question in the
-    /// tinted inset so it draws the eye.
-    private func supervisionCard(_ item: WhisperService.NextSessionPreparation.SupervisoryObservation) -> some View {
-        card {
-            HStack(alignment: .top) {
-                Text(item.observation)
-                    .font(.body)
-                Spacer()
-                hypothesisBadge
-            }
-            if !item.whyItMatters.isEmpty {
-                Text(item.whyItMatters)
-                    .font(.subheadline)
+    /// The single recommended focus for the next session. Accent-tinted so
+    /// it reads as the preparation's primary recommendation.
+    private func treatmentFocusSection(_ item: WhisperService.NextSessionPreparation.TreatmentFocus) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.treatmentFocusSection)
+                    .font(.title3.bold())
+                Text(L10n.treatmentFocusSubtitle)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if !item.questionForTherapist.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label(L10n.questionToConsiderLabel, systemImage: "magnifyingglass")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tint)
-                    Text(item.questionForTherapist)
-                        .font(.body.weight(.medium).italic())
+
+            VStack(alignment: .leading, spacing: 8) {
+                Label(item.focus, systemImage: "scope")
+                    .font(.headline)
+                if !item.rationale.isEmpty {
+                    Text(item.rationale)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.tint.opacity(0.08))
-                )
             }
-            confidenceText(item.confidence)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Theme.goldGhost)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Theme.gold.opacity(0.45))
+            )
         }
     }
 
@@ -458,50 +423,6 @@ struct NextSessionPreparationView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(Capsule().fill(Theme.warning.opacity(0.12)))
-    }
-
-    /// High priority stands out; medium and low stay quiet.
-    @ViewBuilder
-    private func priorityBadge(_ raw: String) -> some View {
-        switch Level(raw) {
-        case .high:
-            Text(L10n.priorityHigh)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.warning)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Theme.warning.opacity(0.12)))
-        case .medium:
-            Text(L10n.priorityMedium)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Theme.elevated))
-        case .low:
-            Text(L10n.priorityLow)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        case nil:
-            if !raw.isEmpty {
-                Text(raw.capitalized)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func confidenceText(_ raw: String) -> some View {
-        if let level = Level(raw) {
-            Text(L10n.confidenceLine(level.label))
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        } else if !raw.isEmpty {
-            Text(L10n.confidenceLine(raw.capitalized))
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
     }
 
     private func labeledText(_ title: String, _ text: String) -> some View {

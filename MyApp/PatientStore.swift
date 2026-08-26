@@ -111,6 +111,19 @@ private nonisolated struct SessionRow: Decodable {
         case sessionType = "type"
         case structuredNotes = "structured_notes"
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(DatabaseID.self, forKey: .id)
+        patientID = try container.decode(DatabaseID.self, forKey: .patientID)
+        sessionDate = try container.decode(String.self, forKey: .sessionDate)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        sessionType = try container.decodeIfPresent(SessionType.self, forKey: .sessionType)
+        // Fail-soft: analyses saved under the old schema don't decode and
+        // are deliberately dropped instead of failing the whole fetch.
+        structuredNotes = (try? container.decodeIfPresent(
+            WhisperService.CBTSessionAnalysis.self, forKey: .structuredNotes)) ?? nil
+    }
 }
 
 /// Row shape for updates of a patient's notes.
@@ -173,6 +186,27 @@ private nonisolated struct CachedSession: Codable {
     let type: SessionType?
     /// Optional so cache files written before structured notes existed decode.
     let structuredNotes: WhisperService.CBTSessionAnalysis?
+
+    init(databaseID: DatabaseID?, date: Date, notes: String,
+         type: SessionType?, structuredNotes: WhisperService.CBTSessionAnalysis?) {
+        self.databaseID = databaseID
+        self.date = date
+        self.notes = notes
+        self.type = type
+        self.structuredNotes = structuredNotes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        databaseID = try container.decodeIfPresent(DatabaseID.self, forKey: .databaseID)
+        date = try container.decode(Date.self, forKey: .date)
+        notes = try container.decode(String.self, forKey: .notes)
+        type = try container.decodeIfPresent(SessionType.self, forKey: .type)
+        // Fail-soft: analyses cached under the old schema don't decode and
+        // are deliberately dropped instead of failing the whole cache.
+        structuredNotes = (try? container.decodeIfPresent(
+            WhisperService.CBTSessionAnalysis.self, forKey: .structuredNotes)) ?? nil
+    }
 }
 
 /// Disk-cache snapshot of a patient.

@@ -60,25 +60,20 @@ nonisolated struct PatientContext: Encodable {
     }
 
     /// The clinically relevant core of a saved AI session review. Reuses the
-    /// analysis types as-is; emotions/behaviors/reflections are left out to
-    /// keep the context compact.
+    /// analysis types as-is.
     struct SessionReview: Encodable {
         let date: String
         let summary: String
         let possibleNats: [WhisperService.PossibleNAT]
-        let cbtPatterns: [WhisperService.CBTPattern]
-        let maintainingCycles: [WhisperService.MaintainingCycle]
+        let cbtCycles: [WhisperService.NextSessionPreparation.CBTCycle]
         let therapistHypotheses: [WhisperService.TherapistHypothesis]
-        let unresolvedIssues: [String]
 
         enum CodingKeys: String, CodingKey {
             case date
             case summary
             case possibleNats = "possible_nats"
-            case cbtPatterns = "cbt_patterns"
-            case maintainingCycles = "maintaining_cycles"
+            case cbtCycles = "cbt_cycles"
             case therapistHypotheses = "therapist_hypotheses"
-            case unresolvedIssues = "unresolved_issues"
         }
     }
 
@@ -194,10 +189,8 @@ nonisolated struct PatientContext: Encodable {
                         date: dateString(session.date),
                         summary: analysis.sessionSummary,
                         possibleNats: analysis.possibleNats,
-                        cbtPatterns: analysis.cbtPatterns,
-                        maintainingCycles: analysis.maintainingCycles,
-                        therapistHypotheses: analysis.therapistHypotheses,
-                        unresolvedIssues: analysis.unresolvedIssues
+                        cbtCycles: analysis.cbtCycles,
+                        therapistHypotheses: analysis.therapistHypotheses
                     )
                 }
             }

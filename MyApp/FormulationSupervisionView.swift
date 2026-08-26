@@ -69,13 +69,15 @@ struct FormulationSupervisionView: View {
                     }
 
                     section(L10n.questionsToExploreSection,
-                            items: supervision.questionsToExplore) { item in
+                            items: supervision.questionsToExplore
+                                .filter { Level($0.priority) == .high }) { item in
                         questionCard(item)
                     }
 
                     section(L10n.treatmentImplicationsSection,
                             subtitle: L10n.treatmentImplicationsSubtitle,
-                            items: supervision.treatmentImplications) { item in
+                            items: supervision.treatmentImplications
+                                .filter { Level($0.priority) == .high }) { item in
                         implicationCard(item)
                     }
 
@@ -195,12 +197,8 @@ struct FormulationSupervisionView: View {
 
     private func questionCard(_ item: SuggestedQuestion) -> some View {
         card {
-            HStack(alignment: .firstTextBaseline) {
-                Text(item.question)
-                    .font(.body.weight(.medium).italic())
-                Spacer()
-                priorityBadge(item.priority)
-            }
+            Text(item.question)
+                .font(.body.weight(.medium).italic())
             if !item.purpose.isEmpty {
                 Text(L10n.purposeLine(item.purpose))
                     .font(.subheadline)
@@ -215,12 +213,8 @@ struct FormulationSupervisionView: View {
                 Text(L10n.possibleAreaToConsiderLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                HStack(alignment: .firstTextBaseline) {
-                    Text(item.implication)
-                        .font(.headline)
-                    Spacer()
-                    priorityBadge(item.priority)
-                }
+                Text(item.implication)
+                    .font(.headline)
             }
             if !item.rationale.isEmpty {
                 Text(item.rationale)
@@ -276,37 +270,6 @@ struct FormulationSupervisionView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(Capsule().fill(Theme.warning.opacity(0.12)))
-    }
-
-    /// High priority stands out; medium and low stay quiet.
-    @ViewBuilder
-    private func priorityBadge(_ raw: String) -> some View {
-        switch Level(raw) {
-        case .high:
-            Text(L10n.priorityHigh)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.warning)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Theme.warning.opacity(0.12)))
-        case .medium:
-            Text(L10n.priorityMedium)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Theme.elevated))
-        case .low:
-            Text(L10n.priorityLow)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        case nil:
-            if !raw.isEmpty {
-                Text(raw.capitalized)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 
     @ViewBuilder
