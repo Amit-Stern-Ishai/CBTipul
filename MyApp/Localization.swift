@@ -130,6 +130,19 @@ enum L10n {
     static let deleteCodeMismatchMessage = "הקוד שהוקלד אינו תואם, ולכן המחיקה לא בוצעה."
     
     static let ok = "אישור"
+
+    /// A date in Hebrew wording (e.g. "24 באוג׳ 2026"), for strings whose
+    /// surrounding text is Hebrew regardless of the device locale.
+    static func hebrewDate(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted,
+                                        locale: Locale(identifier: "he_IL")))
+    }
+
+    /// A month-and-year headline in Hebrew (e.g. "אוגוסט 2026").
+    static func hebrewMonth(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(locale: Locale(identifier: "he_IL"))
+            .month(.wide).year())
+    }
     
     static let deletePatientAction = "מחיקת מטופל/ת"
     
@@ -572,12 +585,6 @@ amitishai@gmail.com
     static let saveChangesAction = "שמירה"
     
     static let keepEditingAction = "המשך עריכה"
-    
-    static let recordingFinishedTitle =
-    "לתמלל את ההקלטה ולהוסיף את התמלול לסיכום פגישה?"
-    
-    static let recordingFinishedTitleInPatientView =
-    "לתמלל את ההקלטה ולהוסיף את התמלול להערות?"
     
     static let discardRecordingAction = "מחיקת ההקלטה"
     

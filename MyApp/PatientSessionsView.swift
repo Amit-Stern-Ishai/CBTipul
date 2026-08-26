@@ -36,6 +36,21 @@ struct PatientSessionsView: View {
         patient.sessions.sorted { $0.date > $1.date }
     }
 
+    /// The sorted sessions grouped by calendar month, most recent month
+    /// first. Each session keeps its index into `sortedSessions` so the
+    /// global numbering and score trends are unaffected by the grouping.
+    private var sessionsByMonth: [(month: Date, items: [(index: Int, session: Session)])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: Array(sortedSessions.enumerated())) { _, session in
+            calendar.dateInterval(of: .month, for: session.date)?.start ?? session.date
+        }
+        return grouped
+            .sorted { $0.key > $1.key }
+            .map { month, items in
+                (month: month, items: items.map { (index: $0.offset, session: $0.element) })
+            }
+    }
+
     var body: some View {
         List {
             if patient.sessions.isEmpty {
@@ -43,21 +58,25 @@ struct PatientSessionsView: View {
                     .foregroundStyle(.secondary)
                     .listRowBackground(Theme.surface)
             } else {
-                ForEach(Array(sortedSessions.enumerated()), id: \.element.id) { index, session in
-                    HStack {
-                        Button {
-                            route = .edit(session)
-                        } label: {
-                            SessionRow(
-                                number: sortedSessions.count - index,
-                                session: session,
-                                scores: scorePreview(for: session, at: index)
-                            )
+                ForEach(sessionsByMonth, id: \.month) { group in
+                    Section(L10n.hebrewMonth(group.month)) {
+                        ForEach(group.items, id: \.session.id) { item in
+                            HStack {
+                                Button {
+                                    route = .edit(item.session)
+                                } label: {
+                                    SessionRow(
+                                        number: sortedSessions.count - item.index,
+                                        session: item.session,
+                                        scores: scorePreview(for: item.session, at: item.index)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .listRowBackground(Theme.surface)
+                            .listRowSeparatorTint(Theme.borderFaint)
                         }
-                        .buttonStyle(.plain)
                     }
-                    .listRowBackground(Theme.surface)
-                    .listRowSeparatorTint(Theme.borderFaint)
                 }
             }
         }

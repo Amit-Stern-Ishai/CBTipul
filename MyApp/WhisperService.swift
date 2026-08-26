@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Supabase
 
 /// Errors from the Whisper transcription API.
@@ -38,6 +39,7 @@ nonisolated struct WhisperService {
             )
         }
 
+        AppLog.ai.info("Transcription requested, audio bytes: \(audioData.count)")
         do {
             let response: TranscriptionResponse =
                 try await client.functions.invoke(
@@ -51,12 +53,15 @@ nonisolated struct WhisperService {
                     )
                 )
 
+            AppLog.ai.info("Transcription succeeded, characters: \(response.text.count)")
             return response.text
 
         } catch let error as WhisperError {
+            AppLog.ai.error("Transcription failed: \(error.localizedDescription, privacy: .public)")
             throw error
 
         } catch {
+            AppLog.ai.error("Transcription failed: \(error.localizedDescription, privacy: .public)")
             throw WhisperError.requestFailed(
                 error.localizedDescription
             )
@@ -188,6 +193,8 @@ nonisolated struct WhisperService {
                 throw APIError.invalidInput
             }
 
+            AppLog.ai.info("Session analysis requested, notes characters: \(notes.count)")
+
             // --------------------------------------------------------------
             // Get authenticated session
             // --------------------------------------------------------------
@@ -300,6 +307,7 @@ nonisolated struct WhisperService {
                     from: data
                 )
 
+            AppLog.ai.info("Session analysis succeeded, tokens: \(result.usage.totalTokens)")
             return result.analysis
         }
     
@@ -441,6 +449,7 @@ nonisolated struct WhisperService {
     /// next session from the compact patient context. Returns the full
     /// response so callers can also show the token usage.
     func prepareNextSession(patientContext: PatientContext) async throws -> PrepareSessionResponse {
+        AppLog.ai.info("Next-session preparation requested")
         do {
             let response: PrepareSessionResponse =
                 try await client.functions.invoke(
@@ -449,8 +458,10 @@ nonisolated struct WhisperService {
                         body: ["patientContext": patientContext]
                     )
                 )
+            AppLog.ai.info("Next-session preparation succeeded, tokens: \(response.usage.totalTokens)")
             return response
         } catch let error as APIError {
+            AppLog.ai.error("Next-session preparation failed: \(error.localizedDescription, privacy: .public)")
             throw error
         } catch let error as FunctionsError {
             if case .httpError(_, let data) = error,
@@ -473,6 +484,7 @@ nonisolated struct WhisperService {
         patientContext: PatientContext,
         formulation: PatientFormulation
     ) async throws -> FormulationSupervision {
+        AppLog.ai.info("Formulation supervision requested")
         do {
             let supervision: FormulationSupervision =
                 try await client.functions.invoke(
@@ -484,8 +496,10 @@ nonisolated struct WhisperService {
                         )
                     )
                 )
+            AppLog.ai.info("Formulation supervision succeeded")
             return supervision
         } catch let error as APIError {
+            AppLog.ai.error("Formulation supervision failed: \(error.localizedDescription, privacy: .public)")
             throw error
         } catch let error as FunctionsError {
             if case .httpError(_, let data) = error,
@@ -508,6 +522,7 @@ nonisolated struct WhisperService {
     func whatAmIMissing(
         patientContext: PatientContext
     ) async throws -> WhatAmIMissingResponse {
+        AppLog.ai.info("What-am-I-missing review requested")
         do {
             let response: WhatAmIMissingResponse =
                 try await client.functions.invoke(
@@ -516,8 +531,10 @@ nonisolated struct WhisperService {
                         body: WhatAmIMissingRequest(patientContext: patientContext)
                     )
                 )
+            AppLog.ai.info("What-am-I-missing review succeeded, findings: \(response.findings.count)")
             return response
         } catch let error as APIError {
+            AppLog.ai.error("What-am-I-missing review failed: \(error.localizedDescription, privacy: .public)")
             throw error
         } catch let error as FunctionsError {
             if case .httpError(_, let data) = error,
@@ -539,6 +556,7 @@ nonisolated struct WhisperService {
     func longitudinalCaseReview(
         patientContext: PatientContext
     ) async throws -> LongitudinalCaseReviewResponse {
+        AppLog.ai.info("Longitudinal case review requested")
         do {
             let response: LongitudinalCaseReviewResponse =
                 try await client.functions.invoke(
@@ -547,8 +565,10 @@ nonisolated struct WhisperService {
                         body: ["patientContext": patientContext]
                     )
                 )
+            AppLog.ai.info("Longitudinal case review succeeded")
             return response
         } catch let error as APIError {
+            AppLog.ai.error("Longitudinal case review failed: \(error.localizedDescription, privacy: .public)")
             throw error
         } catch let error as FunctionsError {
             if case .httpError(_, let data) = error,

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 import Supabase
 
 /// One turn of an AI chat conversation.
@@ -76,15 +77,25 @@ nonisolated struct SupabaseChatService {
             temperature: 0.4
         )
 
-        let response: OpenAIResponse = try await client.functions.invoke(
-            "openai-gateway",
-            options: FunctionInvokeOptions(body: body)
-        )
+        AppLog.ai.info("Chat completion requested, turns: \(turns.count)")
+        do {
+            let response: OpenAIResponse = try await client.functions.invoke(
+                "openai-gateway",
+                options: FunctionInvokeOptions(body: body)
+            )
 
-        guard let content = response.choices.first?.message.content,
-              !content.isEmpty else {
-            throw OpenAIChatError.emptyResponse
+            guard let content = response.choices.first?.message.content,
+                  !content.isEmpty else {
+                AppLog.ai.error("Chat completion returned an empty response")
+                throw OpenAIChatError.emptyResponse
+            }
+            AppLog.ai.info("Chat completion succeeded, answer length: \(content.count)")
+            return content
+        } catch let error as OpenAIChatError {
+            throw error
+        } catch {
+            AppLog.ai.error("Chat completion failed: \(error.localizedDescription, privacy: .public)")
+            throw error
         }
-        return content
     }
 }

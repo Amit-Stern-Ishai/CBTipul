@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 import Supabase
 
 /// Errors from saving patients, sessions, and questionnaires.
@@ -123,6 +124,10 @@ private nonisolated struct SessionRow: Decodable {
         // are deliberately dropped instead of failing the whole fetch.
         structuredNotes = (try? container.decodeIfPresent(
             WhisperService.CBTSessionAnalysis.self, forKey: .structuredNotes)) ?? nil
+        if structuredNotes == nil, container.contains(.structuredNotes) {
+            let sessionID = id.queryValue
+            AppLog.store.warning("Dropped undecodable structured notes on session \(sessionID, privacy: .public) (old schema)")
+        }
     }
 }
 
@@ -206,6 +211,9 @@ private nonisolated struct CachedSession: Codable {
         // are deliberately dropped instead of failing the whole cache.
         structuredNotes = (try? container.decodeIfPresent(
             WhisperService.CBTSessionAnalysis.self, forKey: .structuredNotes)) ?? nil
+        if structuredNotes == nil, container.contains(.structuredNotes) {
+            AppLog.store.warning("Dropped undecodable cached structured notes (old schema)")
+        }
     }
 }
 
@@ -308,6 +316,7 @@ final class PatientStore {
             patient.localName = identityStore.name(for: patient.id)
         }
         patients = loadedPatients
+        AppLog.store.info("Patients loaded from server: \(patientRows.count), sessions: \(sessionRows.count)")
         saveCachedPatients()
     }
 
@@ -348,6 +357,7 @@ final class PatientStore {
             patient.localName = identityStore.name(for: patient.id)
             return patient
         }
+        AppLog.store.info("Patients restored from disk cache: \(self.patients.count)")
     }
 
     /// Writes the current patient list to the cache file. Patient data is
@@ -418,6 +428,7 @@ final class PatientStore {
         identityStore.upsertIdentities(for: [patient])
         patient.localName = identityStore.name(for: patient.id)
         patients.append(patient)
+        AppLog.store.info("Patient added: \(inserted.id.queryValue, privacy: .public)")
         saveCachedPatients()
     }
 
@@ -452,6 +463,7 @@ final class PatientStore {
 
         session.databaseID = inserted.id
         patient.sessions.append(session)
+        AppLog.store.info("Session added: \(inserted.id.queryValue, privacy: .public) for patient \(patientID.queryValue, privacy: .public)")
         saveCachedPatients()
     }
 
@@ -513,7 +525,11 @@ final class PatientStore {
             .select("id")
             .execute()
             .value
-        guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
+        guard !updated.isEmpty else {
+            AppLog.store.error("Session update rejected: \(sessionID.queryValue, privacy: .public)")
+            throw PatientStoreError.updateRejected
+        }
+        AppLog.store.info("Session updated: \(sessionID.queryValue, privacy: .public)")
         saveCachedPatients()
     }
 
@@ -530,10 +546,14 @@ final class PatientStore {
             .select("id")
             .execute()
             .value
-        guard !deleted.isEmpty else { throw PatientStoreError.updateRejected }
+        guard !deleted.isEmpty else {
+            AppLog.store.error("Session delete rejected: \(sessionID.queryValue, privacy: .public)")
+            throw PatientStoreError.updateRejected
+        }
 
         patient.sessions.removeAll { $0.id == session.id }
         sessionImagesCache[sessionID] = nil
+        AppLog.store.notice("Session deleted: \(sessionID.queryValue, privacy: .public)")
         saveCachedPatients()
     }
 
@@ -550,7 +570,10 @@ final class PatientStore {
             .select("id")
             .execute()
             .value
-        guard !deleted.isEmpty else { throw PatientStoreError.updateRejected }
+        guard !deleted.isEmpty else {
+            AppLog.store.error("Patient delete rejected: \(patient.id.queryValue, privacy: .public)")
+            throw PatientStoreError.updateRejected
+        }
 
         for session in patient.sessions {
             if let sessionID = session.databaseID {
@@ -560,6 +583,7 @@ final class PatientStore {
         questionnairesByPatient[patient.id] = nil
         try? identityStore.delete(patientID: patient.id)
         patients.removeAll { $0.id == patient.id }
+        AppLog.store.notice("Patient deleted: \(patient.id.queryValue, privacy: .public)")
         saveCachedPatients()
     }
 
@@ -607,6 +631,7 @@ final class PatientStore {
         cached.append(completed)
         cached.sort { $0.answeredDate > $1.answeredDate }
         questionnairesByPatient[patientID] = cached
+        AppLog.store.info("Questionnaire saved for session \(sessionID.queryValue, privacy: .public)")
     }
 
     /// Deletes a session's saved questionnaire row and removes it from the
@@ -623,9 +648,13 @@ final class PatientStore {
             .select("id")
             .execute()
             .value
-        guard !deleted.isEmpty else { throw PatientStoreError.updateRejected }
+        guard !deleted.isEmpty else {
+            AppLog.store.error("Questionnaire delete rejected for session \(sessionID.queryValue, privacy: .public)")
+            throw PatientStoreError.updateRejected
+        }
 
         questionnairesByPatient[patient.id]?.removeAll { $0.sessionID == sessionID }
+        AppLog.store.notice("Questionnaire deleted for session \(sessionID.queryValue, privacy: .public)")
     }
 
     /// Loads all saved questionnaires of a patient, newest first, and

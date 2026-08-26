@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 
 /// Identifiable wrapper so the preparation can be presented with `.sheet(item:)`.
 struct NextSessionPreparationResult: Identifiable {
@@ -20,7 +21,12 @@ nonisolated struct SavedPreparation: Codable {
 
     static func load(for patientID: DatabaseID) -> SavedPreparation? {
         guard let data = try? Data(contentsOf: fileURL(for: patientID)) else { return nil }
-        return try? JSONDecoder().decode(SavedPreparation.self, from: data)
+        do {
+            return try JSONDecoder().decode(SavedPreparation.self, from: data)
+        } catch {
+            AppLog.store.warning("Dropped undecodable saved preparation for patient \(patientID.queryValue, privacy: .public) (old schema)")
+            return nil
+        }
     }
 
     @discardableResult

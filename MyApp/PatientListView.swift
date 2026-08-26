@@ -80,11 +80,14 @@ struct PatientListView: View {
         }
     }
 
-    /// Patients in a stable alphabetical order, independent of the order
-    /// the database returns them in.
+    /// Patients with the active ones on top, alphabetical within each group,
+    /// independent of the order the database returns them in.
     private var sortedPatients: [Patient] {
         store.patients.sorted {
-            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            if ($0.status == .active) != ($1.status == .active) {
+                return $0.status == .active
+            }
+            return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
     }
 
@@ -103,8 +106,10 @@ struct PatientListView: View {
     }
 }
 
-/// A single row in the patient list: name, the last session's type with the
-/// session count, and the latest questionnaire scores with their trends.
+/// A single row in the patient list: name and the last session's type with
+/// the session count next to the avatar, the latest questionnaire scores on
+/// the trailing edge, and a minimal status dot on the avatar (green =
+/// active, faint = inactive).
 private struct PatientRow: View {
     let patient: Patient
 
@@ -113,26 +118,36 @@ private struct PatientRow: View {
     var body: some View {
         HStack(spacing: 12) {
             InitialsAvatar(name: patient.displayName, size: 44)
-            VStack(alignment: .leading, spacing: 5) {
+                .overlay(alignment: .bottomTrailing) { statusDot }
+                .accessibilityLabel(patient.status.rawValue)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(patient.displayName)
                     .font(.headline)
                 Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                scoresLine
             }
-            .animation(.easeInOut(duration: 0.35), value: isLoadingScores)
-            .animation(.easeInOut(duration: 0.35), value: lastQuestionnaire?.id)
-            Spacer()
-            StatusBadge(status: patient.status)
+            Spacer(minLength: 8)
+            scoresLine
+                .animation(.easeInOut(duration: 0.35), value: isLoadingScores)
+                .animation(.easeInOut(duration: 0.35), value: lastQuestionnaire?.id)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
         .task {
             // Fill the questionnaire cache lazily, once per patient.
             if store.cachedQuestionnaires(for: patient) == nil {
                 _ = try? await store.loadQuestionnaires(for: patient)
             }
         }
+    }
+
+    /// The minimal active/inactive indication, ringed so it reads against
+    /// the avatar.
+    private var statusDot: some View {
+        Circle()
+            .fill(patient.status == .active ? Theme.success : Theme.textFaint)
+            .frame(width: 12, height: 12)
+            .overlay(Circle().strokeBorder(Theme.surface, lineWidth: 2))
     }
 
     /// The last session's type (its date when no type was picked) plus the
@@ -150,13 +165,13 @@ private struct PatientRow: View {
     @ViewBuilder
     private var scoresLine: some View {
         if let questionnaire = lastQuestionnaire?.questionnaire {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .trailing, spacing: 4) {
                 ScoreCapsule.gad7(questionnaire, previous: previousQuestionnaire?.questionnaire)
                 ScoreCapsule.phq9(questionnaire, previous: previousQuestionnaire?.questionnaire)
             }
             .transition(.opacity)
         } else if isLoadingScores {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .trailing, spacing: 4) {
                 ScoreCapsule(text: L10n.scoreBadge(name: L10n.gad7ShortName, score: 10),
                              color: Theme.textFaint)
                 ScoreCapsule(text: L10n.scoreBadge(name: L10n.phq9ShortName, score: 10),

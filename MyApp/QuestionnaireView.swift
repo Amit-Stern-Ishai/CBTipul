@@ -101,24 +101,32 @@ struct CombinedMoodQuestionnaireView: View {
                 }
                 .disabled(isSaving)
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
+            if isEditing {
+                ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.save) { save() }
                         .disabled(!canSave)
-                    if !isEditing {
-                        Button(L10n.editQuestionnaireAction) { isEditing = true }
-                    }
-                    if isExisting {
-                        Divider()
-                        Button(L10n.deleteQuestionnaireAction, role: .destructive) {
-                            isShowingDeleteConfirmation = true
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .rotationEffect(.degrees(90))
                 }
-                .disabled(isSaving)
+            }
+            // The menu only appears when it has actions beyond Save: Edit
+            // while read-only, Delete for saved questionnaires.
+            if !isEditing || isExisting {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if !isEditing {
+                            Button(L10n.editQuestionnaireAction) { isEditing = true }
+                        }
+                        if isExisting {
+                            Divider()
+                            Button(L10n.deleteQuestionnaireAction, role: .destructive) {
+                                isShowingDeleteConfirmation = true
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .rotationEffect(.degrees(90))
+                    }
+                    .disabled(isSaving)
+                }
             }
         }
         .alert(L10n.deleteQuestionnaireConfirmTitle,
@@ -308,7 +316,7 @@ private struct AnswerKeyView: View {
             }
             if let previousDate {
                 Text(L10n.previousAnswerLegend(
-                    dateText: previousDate.formatted(date: .abbreviated, time: .omitted)
+                    dateText: L10n.hebrewDate(previousDate)
                 ))
                 .font(.footnote)
                 .foregroundStyle(Theme.warning)
@@ -393,7 +401,7 @@ private struct ScoreRow: View {
                 Text(L10n.totalScoreLine(score))
                     .font(.headline)
                 if let previousScore, let previousDate {
-                    Text(L10n.previousScoreLine(dateText: previousDate.formatted(date: .abbreviated, time: .omitted), score: previousScore))
+                    Text(L10n.previousScoreLine(dateText: L10n.hebrewDate(previousDate), score: previousScore))
                         .font(.footnote)
                         .foregroundStyle(Theme.warning)
                 }

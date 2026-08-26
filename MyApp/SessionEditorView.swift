@@ -44,8 +44,6 @@ struct SessionEditorView: View {
     @State private var analysisResult: SessionAnalysisResult?
     @State private var isShowingAllFollowUps = false
     @State private var isEditingDate = false
-    @State private var isShowingTranscribeDialog = false
-    @State private var isReshowingTranscribeDialog = false
 
     @State private var images: [SessionImageItem] = []
     @State private var removedUploadedFileNames: [String] = []
@@ -209,31 +207,34 @@ struct SessionEditorView: View {
                                    minLines: 3, maxLines: 8)
                         recordControl
                     }
-                    .confirmationDialog(L10n.recordingFinishedTitle,
-                                        isPresented: $isShowingTranscribeDialog,
-                                        titleVisibility: .visible) {
-                        Button(voiceRecorder.isPlaying
-                               ? L10n.stopPlaybackAction
-                               : L10n.playRecordingAction) {
-                            voiceRecorder.togglePlayback()
-                            isReshowingTranscribeDialog = true
+                    // Transcription starts automatically when recording
+                    // stops, so this row only ever appears after a failed
+                    // transcription — the recording survives for a retry.
+                    if voiceRecorder.recordingURL != nil, !isTranscribing {
+                        HStack(spacing: 16) {
+                            Button {
+                                voiceRecorder.togglePlayback()
+                            } label: {
+                                Label(voiceRecorder.isPlaying
+                                      ? L10n.stopPlaybackAction
+                                      : L10n.playRecordingAction,
+                                      systemImage: voiceRecorder.isPlaying
+                                      ? "stop.circle"
+                                      : "play.circle")
+                            }
+                            Spacer()
+                            Button(L10n.transcribeAction) { transcribe() }
+                                .fontWeight(.semibold)
+                            Button(role: .destructive) {
+                                voiceRecorder.discard()
+                            } label: {
+                                Label(L10n.discardRecordingAction, systemImage: "trash")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .accessibilityLabel(L10n.discardRecordingAction)
                         }
-                        Button(L10n.transcribeAction) { transcribe() }
-                        Button(L10n.discardRecordingAction, role: .destructive) {
-                            voiceRecorder.discard()
-                        }
-                    }
-                    .onChange(of: isShowingTranscribeDialog) { _, isShowing in
-                        guard !isShowing else { return }
-                        if isReshowingTranscribeDialog {
-                            // Play/Stop keeps the choice open: re-present.
-                            isReshowingTranscribeDialog = false
-                            Task { isShowingTranscribeDialog = true }
-                        } else if !isTranscribing, voiceRecorder.recordingURL != nil {
-                            // Dismissing without choosing (tap outside) counts
-                            // as discard; nothing else can reach the file.
-                            voiceRecorder.discard()
-                        }
+                        .font(.subheadline)
+                        .buttonStyle(.borderless)
                     }
 
                     if isTranscribing {
@@ -454,6 +455,7 @@ struct SessionEditorView: View {
                     replaceImage(item, with: edited)
                 } onTranscribed: { text in
                     appendImageTranscription(text)
+                    Task { await autosaveSession() }
                 }
                 .appTextSize()
             }
@@ -618,7 +620,9 @@ struct SessionEditorView: View {
                     .foregroundStyle(.red)
                 Button {
                     voiceRecorder.stopRecording()
-                    isShowingTranscribeDialog = true
+                    // Transcribing is the only reason to record, so it
+                    // starts immediately — no intermediate controls.
+                    transcribe()
                 } label: {
                     Image(systemName: "stop.circle.fill")
                         .font(.title2)
@@ -657,11 +661,12 @@ struct SessionEditorView: View {
                 appendTranscription(text)
                 voiceRecorder.discard()
                 isTranscribing = false
+                await autosaveSession()
             } catch {
                 voiceRecorder.errorMessage = error.localizedDescription
                 isTranscribing = false
-                // Re-ask so the recording can be retried or discarded.
-                isShowingTranscribeDialog = true
+                // The recording stays pending, so the inline row reappears
+                // and the transcription can be retried or discarded.
             }
         }
     }
@@ -675,12 +680,33 @@ struct SessionEditorView: View {
         Task {
             do {
                 let analysis = try await whisperService.analyzeSession(sessionNotes: session.notes)
+                // Saved silently the moment it arrives; the sheet opens for
+                // review without asking to keep it.
+                saveStructuredNotes(analysis)
                 analysisResult = SessionAnalysisResult(analysis: analysis,
-                                                       requiresSaveDecision: true)
+                                                       requiresSaveDecision: false)
             } catch {
                 errorMessage = error.localizedDescription
             }
             isAnalyzing = false
+        }
+    }
+
+    /// Silently persists the session after automatic content lands
+    /// (transcriptions), so it survives even if the editor is closed
+    /// without saving. New sessions are skipped — they have no row until
+    /// the first explicit save.
+    private func autosaveSession() async {
+        guard session.databaseID != nil else { return }
+        do {
+            try await store.updateSession(session)
+            // The silent save is the new baseline, so backing out without
+            // further edits no longer warns about unsaved changes.
+            initialDate = session.date
+            initialNotes = session.notes
+            initialType = session.type
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

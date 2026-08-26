@@ -20,8 +20,6 @@ struct PatientDetailView: View {
     @State private var goalDraft = ""
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
-    @State private var isShowingTranscribeDialog = false
-    @State private var isReshowingTranscribeDialog = false
     @State private var isPreparing = false
     @State private var preparationResult: NextSessionPreparationResult?
     @State private var savedPreparation: SavedPreparation?
@@ -237,31 +235,34 @@ struct PatientDetailView: View {
                                minLines: 3, maxLines: 8)
                     recordControl
                 }
-                .confirmationDialog(L10n.recordingFinishedTitleInPatientView,
-                                    isPresented: $isShowingTranscribeDialog,
-                                    titleVisibility: .visible) {
-                    Button(voiceRecorder.isPlaying
-                           ? L10n.stopPlaybackAction
-                           : L10n.playRecordingAction) {
-                        voiceRecorder.togglePlayback()
-                        isReshowingTranscribeDialog = true
+                // Transcription starts automatically when recording stops,
+                // so this row only ever appears after a failed transcription
+                // — the recording survives for a retry.
+                if voiceRecorder.recordingURL != nil, !isTranscribing {
+                    HStack(spacing: 16) {
+                        Button {
+                            voiceRecorder.togglePlayback()
+                        } label: {
+                            Label(voiceRecorder.isPlaying
+                                  ? L10n.stopPlaybackAction
+                                  : L10n.playRecordingAction,
+                                  systemImage: voiceRecorder.isPlaying
+                                  ? "stop.circle"
+                                  : "play.circle")
+                        }
+                        Spacer()
+                        Button(L10n.transcribeAction) { transcribe() }
+                            .fontWeight(.semibold)
+                        Button(role: .destructive) {
+                            voiceRecorder.discard()
+                        } label: {
+                            Label(L10n.discardRecordingAction, systemImage: "trash")
+                                .labelStyle(.iconOnly)
+                        }
+                        .accessibilityLabel(L10n.discardRecordingAction)
                     }
-                    Button(L10n.transcribeAction) { transcribe() }
-                    Button(L10n.discardRecordingAction, role: .destructive) {
-                        voiceRecorder.discard()
-                    }
-                }
-                .onChange(of: isShowingTranscribeDialog) { _, isShowing in
-                    guard !isShowing else { return }
-                    if isReshowingTranscribeDialog {
-                        // Play/Stop keeps the choice open: re-present.
-                        isReshowingTranscribeDialog = false
-                        Task { isShowingTranscribeDialog = true }
-                    } else if !isTranscribing, voiceRecorder.recordingURL != nil {
-                        // Dismissing without choosing (tap outside) counts
-                        // as discard; nothing else can reach the file.
-                        voiceRecorder.discard()
-                    }
+                    .font(.subheadline)
+                    .buttonStyle(.borderless)
                 }
 
                 if isTranscribing {
@@ -396,7 +397,9 @@ struct PatientDetailView: View {
                     .foregroundStyle(.red)
                 Button {
                     voiceRecorder.stopRecording()
-                    isShowingTranscribeDialog = true
+                    // Transcribing is the only reason to record, so it
+                    // starts immediately — no intermediate controls.
+                    transcribe()
                 } label: {
                     Image(systemName: "stop.circle.fill")
                         .font(.title2)
@@ -435,11 +438,19 @@ struct PatientDetailView: View {
                 appendTranscription(text)
                 voiceRecorder.discard()
                 isTranscribing = false
+                // Silently persist the transcription; the silent save is the
+                // new baseline, so leaving afterwards doesn't warn.
+                do {
+                    try await store.updatePatientNotes(patient)
+                    initialNotes = patient.notes
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
             } catch {
                 voiceRecorder.errorMessage = error.localizedDescription
                 isTranscribing = false
-                // Re-ask so the recording can be retried or discarded.
-                isShowingTranscribeDialog = true
+                // The recording stays pending, so the inline row reappears
+                // and the transcription can be retried or discarded.
             }
         }
     }

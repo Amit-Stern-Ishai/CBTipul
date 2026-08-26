@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 import Supabase
 
 /// The third-party identity providers offered on the sign-in screen.
@@ -45,7 +46,8 @@ final class AuthManager {
         // sign-in, sign-out, token refresh).
         Task { [weak self] in
             guard let stream = self?.client.auth.authStateChanges else { return }
-            for await (_, session) in stream {
+            for await (event, session) in stream {
+                AppLog.auth.info("Auth state changed: \(event.rawValue, privacy: .public), signed in: \(session != nil)")
                 self?.currentUserEmail = session?.user.email
             }
         }
@@ -53,21 +55,34 @@ final class AuthManager {
 
     func signIn(email: String, password: String) async throws {
         try ensureConfigured()
-        try await client.auth.signIn(email: email, password: password)
+        do {
+            try await client.auth.signIn(email: email, password: password)
+            AppLog.auth.info("Sign-in succeeded")
+        } catch {
+            AppLog.auth.error("Sign-in failed: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
     }
 
     /// Creates a new account. Returns `true` when the user must confirm their
     /// email address before they can sign in (no session was returned).
     func signUp(email: String, password: String) async throws -> Bool {
         try ensureConfigured()
-        let response = try await client.auth.signUp(email: email, password: password)
-        return response.session == nil
+        do {
+            let response = try await client.auth.signUp(email: email, password: password)
+            AppLog.auth.info("Sign-up succeeded, needs email confirmation: \(response.session == nil)")
+            return response.session == nil
+        } catch {
+            AppLog.auth.error("Sign-up failed: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
     }
 
     /// Sends a password-reset email to the given address.
     func resetPassword(email: String) async throws {
         try ensureConfigured()
         try await client.auth.resetPasswordForEmail(email)
+        AppLog.auth.info("Password-reset email requested")
     }
 
 //    func signIn(with provider: AuthProvider) async throws {
@@ -76,6 +91,7 @@ final class AuthManager {
 //    }
 
     func signOut() {
+        AppLog.auth.info("Sign-out requested")
         Task {
             try? await client.auth.signOut()
             currentUserEmail = nil
