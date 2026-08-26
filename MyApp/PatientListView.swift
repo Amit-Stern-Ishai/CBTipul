@@ -39,9 +39,14 @@ struct PatientListView: View {
                         NavigationLink(value: patient) {
                             PatientRow(patient: patient)
                         }
+                        .listRowBackground(Theme.surface)
+                        .listRowSeparatorTint(Theme.borderFaint)
                     }
+                    .themedScreen()
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.base.ignoresSafeArea())
             .animation(.easeInOut(duration: 0.25), value: isLoading)
             .animation(.easeInOut(duration: 0.25), value: loadError)
             .navigationTitle(L10n.patientsTitle)
@@ -143,16 +148,9 @@ struct InitialsAvatar: View {
     var body: some View {
         Text(initials)
             .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.textOnAccent)
             .frame(width: size, height: size)
-            .background(
-                LinearGradient(
-                    colors: [Color.accentColor, Color.accentColor.opacity(0.65)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: Circle()
-            )
+            .background(Theme.accentFill, in: Circle())
     }
 }
 
@@ -160,14 +158,14 @@ struct InitialsAvatar: View {
 struct StatusBadge: View {
     let status: PatientStatus
 
-    private var color: Color { status == .active ? .green : .gray }
+    private var color: Color { status == .active ? Theme.success : Theme.textBody }
 
     var body: some View {
         Text(status.rawValue)
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(color.opacity(0.2))
+            .background(color.opacity(0.12))
             .foregroundStyle(color)
             .clipShape(Capsule())
     }
@@ -183,4 +181,5 @@ struct StatusBadge: View {
     return PatientListView()
         .environment(auth)
         .environment(store)
+        .appTextSize()
 }

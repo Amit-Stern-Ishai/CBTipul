@@ -13,7 +13,8 @@ private struct BusyOverlay: ViewModifier {
                     ProgressView()
                         .controlSize(.large)
                         .padding(22)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.borderDefault))
                         .shadow(color: .black.opacity(0.1), radius: 12, y: 6)
                         .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }

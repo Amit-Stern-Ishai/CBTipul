@@ -30,16 +30,9 @@ struct AddPatientView: View {
                 Section {
                     Image(systemName: "person.badge.plus")
                         .font(.system(size: 30, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.textOnAccent)
                         .frame(width: 64, height: 64)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.accentColor, Color.accentColor.opacity(0.65)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            in: Circle()
-                        )
+                        .background(Theme.accentFill, in: Circle())
                         .frame(maxWidth: .infinity)
                         .listRowBackground(Color.clear)
                 }
@@ -53,15 +46,18 @@ struct AddPatientView: View {
                         ForEach(PatientStatus.allCases) { Text($0.rawValue).tag($0) }
                     }
                 }
+                .listRowBackground(Theme.surface)
 
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.error)
                     }
+                    .listRowBackground(Theme.surface)
                 }
             }
+            .themedScreen()
             .dismissesKeyboardOnTap()
             .animation(.easeInOut(duration: 0.2), value: errorMessage)
             .navigationTitle(L10n.newPatientTitle)

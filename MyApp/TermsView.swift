@@ -28,6 +28,7 @@ struct TermsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
         }
+        .background(Theme.base.ignoresSafeArea())
         .navigationTitle(L10n.termsTitle)
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
@@ -39,10 +40,9 @@ struct TermsView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(.pressableProminent)
                 .padding()
-                .background(.bar)
+                .background(Theme.surface)
             }
         }
     }

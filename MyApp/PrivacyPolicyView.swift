@@ -8,6 +8,7 @@ struct PrivacyPolicyView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
         }
+        .background(Theme.base.ignoresSafeArea())
         .navigationTitle(L10n.privacyPolicyTitle)
         .navigationBarTitleDisplayMode(.inline)
     }

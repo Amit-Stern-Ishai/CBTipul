@@ -46,7 +46,7 @@ struct PatientAIView: View {
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
                         Spacer(minLength: 48)
                     }
                 }
@@ -54,13 +54,14 @@ struct PatientAIView: View {
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.error)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .padding()
         }
         .defaultScrollAnchor(.bottom)
+        .background(Theme.base.ignoresSafeArea())
         .dismissesKeyboardOnTap()
         .animation(.easeInOut(duration: 0.25), value: chatEntries.count)
         .animation(.easeInOut(duration: 0.2), value: isLoading)
@@ -86,18 +87,19 @@ struct PatientAIView: View {
                 .lineLimit(1...5)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
+                .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 20))
+                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Theme.borderDefault))
 
             Button(action: send) {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 32))
-                    .foregroundStyle(canSend ? Color.accentColor : Color(.systemGray3))
+                    .foregroundStyle(canSend ? Theme.gold : Theme.textFaint)
             }
             .disabled(!canSend)
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
-        .background(.bar)
+        .background(Theme.surface)
     }
 
     /// One transcript row: user messages on the right in an accent bubble,
@@ -111,9 +113,7 @@ struct PatientAIView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(
-                    entry.role == .user
-                        ? Color.accentColor.opacity(0.18)
-                        : Color(.secondarySystemBackground),
+                    entry.role == .user ? Theme.goldGhost : Theme.surface,
                     in: RoundedRectangle(cornerRadius: 18)
                 )
             if entry.role == .assistant { Spacer(minLength: 48) }

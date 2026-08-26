@@ -122,35 +122,42 @@ struct SessionEditorView: View {
         NavigationStack {
             Form {
                 Section {
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(patient.displayName)
-                                .font(.title2.bold())
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(patient.displayName)
+                            .font(.title2.bold())
+                        HStack(spacing: 6) {
+                            Text(session.type.map(L10n.label(for:)) ?? L10n.sessionTypeNone)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(session.type == nil ? Theme.textFaint : Theme.gold)
+                            Menu {
+                                Picker(L10n.sessionTypeLabel, selection: $session.type) {
+                                    Text(L10n.sessionTypeNone).tag(SessionType?.none)
+                                    ForEach(SessionType.allCases, id: \.self) { type in
+                                        Text(L10n.label(for: type)).tag(SessionType?.some(type))
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "pencil.circle.fill")
+                                    .font(.subheadline)
+                            }
+                            .accessibilityLabel(L10n.sessionTypeLabel)
+                        }
+                        HStack(spacing: 6) {
                             Text(session.date.formatted(date: .abbreviated, time: .omitted))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                            Button {
+                                isEditingDate = true
+                            } label: {
+                                Image(systemName: "calendar")
+                                    .font(.subheadline)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel(L10n.editDateAccessibilityLabel)
                         }
-                        Spacer()
-                        Button {
-                            isEditingDate = true
-                        } label: {
-                            Image(systemName: "calendar")
-                                .font(.title3)
-                        }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel(L10n.editDateAccessibilityLabel)
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                }
-
-                Section {
-                    Picker(L10n.sessionTypeLabel, selection: $session.type) {
-                        Text(L10n.sessionTypeNone).tag(SessionType?.none)
-                        ForEach(SessionType.allCases, id: \.self) { type in
-                            Text(L10n.label(for: type)).tag(SessionType?.some(type))
-                        }
-                    }
                 }
 
 //                if let firstFollowUp = pendingFollowUps.first {
@@ -213,7 +220,7 @@ struct SessionEditorView: View {
                     if let recorderError = voiceRecorder.errorMessage {
                         Text(recorderError)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.error)
                     }
 
                     if isAnalyzing {
@@ -232,6 +239,7 @@ struct SessionEditorView: View {
                     }
 
                 }
+                .listRowBackground(Theme.surface)
 
                 if let structuredNotes = session.structuredNotes {
                     Section(L10n.structuredSummarySection) {
@@ -246,6 +254,7 @@ struct SessionEditorView: View {
                             Label(L10n.showStructuredSummaryAction, systemImage: "doc.text.magnifyingglass")
                         }
                     }
+                    .listRowBackground(Theme.surface)
                 }
 
                 if !isNew {
@@ -261,16 +270,19 @@ struct SessionEditorView: View {
                             imagesRow
                         }
                     }
+                    .listRowBackground(Theme.surface)
                 }
 
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.error)
                     }
+                    .listRowBackground(Theme.surface)
                 }
             }
+            .themedScreen()
             .dismissesKeyboardOnTap()
             .overlay(alignment: .bottomTrailing) {
                 floatingUploadButton
@@ -450,9 +462,9 @@ struct SessionEditorView: View {
         } label: {
             Image(systemName: "doc.badge.plus")
                 .font(.title3)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.textOnAccent)
                 .frame(width: 48, height: 48)
-                .background(Circle().fill(.tint))
+                .background(Circle().fill(Theme.accentFill))
                 .shadow(radius: 4, y: 2)
         }
         .buttonStyle(.plain)
@@ -726,6 +738,16 @@ struct SessionEditorView: View {
         }
     }
 
+    /// The questionnaire answered most recently before this session's, for
+    /// the score chips' trend arrows.
+    private var previousQuestionnaireRecord: CompletedQuestionnaire? {
+        guard let current = questionnaire,
+              let records = store.cachedQuestionnaires(for: patient) else { return nil }
+        return records
+            .filter { $0.id != current.id && $0.answeredDate <= current.answeredDate }
+            .max { $0.answeredDate < $1.answeredDate }
+    }
+
     private var questionnaireSection: some View {
         Section(L10n.questionnaireSectionTitle) {
             if let questionnaire {
@@ -734,12 +756,15 @@ struct SessionEditorView: View {
                 NavigationLink {
                     CombinedMoodQuestionnaireView(patient: patient, session: session)
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(questionnaire.answeredDate, style: .date)
                             .font(.headline)
-                        Text(L10n.gadPhqScores(gad7: questionnaire.questionnaire.gad7Score, phq9: questionnaire.questionnaire.phq9Score))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            ScoreCapsule.gad7(questionnaire.questionnaire,
+                                              previous: previousQuestionnaireRecord?.questionnaire)
+                            ScoreCapsule.phq9(questionnaire.questionnaire,
+                                              previous: previousQuestionnaireRecord?.questionnaire)
+                        }
                     }
                 }
             } else if isLoadingQuestionnaire {
@@ -752,6 +777,7 @@ struct SessionEditorView: View {
                 }
             }
         }
+        .listRowBackground(Theme.surface)
     }
 
     /// Refreshes the patient's questionnaire cache from the server; the
@@ -804,6 +830,11 @@ struct SessionEditorView: View {
 }
 
 #Preview {
-    SessionEditorView(session: Session(), patient: Patient(id: .integer(1), firstName: "Alex"), isNew: true)
-        .environment(PatientStore(client: AuthManager().client))
+    let auth = AuthManager()
+    SessionEditorView(session: Session(date: .now, type: .intake),
+                      patient: Patient(id: .integer(1), firstName: "Alex"),
+                      isNew: true)
+        .environment(auth)
+        .environment(PatientStore(client: auth.client))
+        .appTextSize()
 }

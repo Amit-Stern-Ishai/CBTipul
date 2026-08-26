@@ -494,6 +494,10 @@ amitishai@gmail.com
     static let settingsResponseStyleRegular = "רגיל"
 
     static let settingsDoneAction = "סיום"
+    static let settingsAppearanceTitle = "מראה"
+    static let appearanceSystem = "מערכת"
+    static let appearanceLight = "בהיר"
+    static let appearanceDark = "כהה"
 
     static let settingsAccessibilitySectionTitle = "נגישות"
 
@@ -558,23 +562,23 @@ amitishai@gmail.com
     /// Short per-question names shown in the graph metric picker,
     /// indexed like the question arrays.
     static let gad7QuestionShortNames: [String] = [
-        "עצבנות ומתח",
-        "שליטה בדאגה",
+        "עצבות/חרדה/מתח",
+        "חוסר שליטה בדאגה",
         "דאגה מוגזמת",
         "קושי להירגע",
         "חוסר מנוחה",
-        "רגזנות",
+        "עצבנות/התרגשות",
         "פחד מאסון",
     ]
 
     static let phq9QuestionShortNames: [String] = [
-        "אובדן עניין",
+        "אובדן עניין/הנאה",
         "מצב רוח ירוד",
-        "שינה",
-        "עייפות",
-        "תיאבון",
-        "ערך עצמי",
-        "ריכוז",
+        "קשיי שינה",
+        "עייפות/חוסר אנרגיה",
+        "תיאבון מועט/מוגבר",
+        "ערך עצמי נמוך",
+        "קושי בריכוז",
         "איטיות / אי-שקט",
         "מחשבות על פגיעה עצמית",
     ]

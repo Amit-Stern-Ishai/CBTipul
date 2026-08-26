@@ -118,7 +118,7 @@ struct LongitudinalCaseReviewView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.base)
             .navigationTitle(L10n.longitudinalCaseReviewTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -172,7 +172,7 @@ struct LongitudinalCaseReviewView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemGroupedBackground))
+                    .fill(Theme.surface)
             )
     }
 
@@ -220,12 +220,12 @@ struct LongitudinalCaseReviewView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Theme.surface)
         )
         .overlay {
             if outlined {
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(.orange.opacity(0.5), lineWidth: 1.5)
+                    .strokeBorder(Theme.warning.opacity(0.5), lineWidth: 1.5)
             }
         }
     }
@@ -308,7 +308,7 @@ struct LongitudinalCaseReviewView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemGroupedBackground))
+                    .fill(Theme.surface)
             )
     }
 
@@ -318,10 +318,10 @@ struct LongitudinalCaseReviewView: View {
     private var hypothesisBadge: some View {
         Label(L10n.hypothesisBadge, systemImage: "lightbulb")
             .font(.caption.weight(.semibold))
-            .foregroundStyle(.orange)
+            .foregroundStyle(Theme.warning)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(.orange.opacity(0.12)))
+            .background(Capsule().fill(Theme.warning.opacity(0.12)))
     }
 
     /// Friendly goal-status label and a quiet capsule; worsening is the
@@ -333,7 +333,7 @@ struct LongitudinalCaseReviewView: View {
             case "progressing": return (L10n.goalStatusProgressing, .green)
             case "partially_progressing": return (L10n.goalStatusPartiallyProgressing, .green)
             case "unchanged": return (L10n.goalStatusUnchanged, .secondary)
-            case "worsening": return (L10n.goalStatusWorsening, .orange)
+            case "worsening": return (L10n.goalStatusWorsening, Theme.warning)
             case "achieved": return (L10n.goalStatusAchieved, .green)
             case "unclear": return (L10n.goalStatusUnclear, .secondary)
             default:

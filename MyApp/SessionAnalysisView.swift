@@ -118,14 +118,14 @@ struct SessionAnalysisView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.secondarySystemGroupedBackground))
+                                .fill(Theme.surface)
                         )
                     }
                     .buttonStyle(.plain)
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.base)
             .navigationTitle(L10n.sessionSummaryTitle)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -192,7 +192,7 @@ struct SessionAnalysisView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Theme.surface)
         )
     }
 
@@ -218,10 +218,10 @@ struct SessionAnalysisView: View {
         } else {
             Label(L10n.possibleInferenceBadge, systemImage: "lightbulb")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.orange)
+                .foregroundStyle(Theme.warning)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Capsule().fill(.orange.opacity(0.12)))
+                .background(Capsule().fill(Theme.warning.opacity(0.12)))
         }
     }
 
@@ -260,7 +260,7 @@ struct SessionAnalysisView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Theme.surface)
         )
     }
 
@@ -332,7 +332,7 @@ struct SessionAnalysisView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Theme.surface)
         )
     }
 
@@ -374,7 +374,7 @@ struct SessionAnalysisView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Theme.surface)
         )
     }
 
@@ -392,7 +392,7 @@ struct SessionAnalysisView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(
-                    Capsule().fill(isSelected ? color.opacity(0.15) : Color(.tertiarySystemFill))
+                    Capsule().fill(isSelected ? color.opacity(0.15) : Theme.elevated)
                 )
         }
         .buttonStyle(.plain)
@@ -410,7 +410,7 @@ struct SessionAnalysisView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Theme.surface)
         )
     }
 }

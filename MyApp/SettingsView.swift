@@ -46,17 +46,52 @@ enum AppTextSize: String, CaseIterable {
     }
 }
 
-/// Applies the app's global environment: the text-size setting and the
-/// right-to-left layout the Hebrew UI requires. Needed at the root of every
-/// sheet and full-screen cover (besides the app root), because presented
-/// screens don't inherit the presenting view's environment overrides.
+/// The app-wide appearance: the dark navy theme, its light counterpart, or
+/// the native iOS system palette (which follows the device's light/dark
+/// setting).
+enum AppAppearance: String, CaseIterable {
+    case system
+    case light
+    case dark
+
+    var label: String {
+        switch self {
+        case .system: L10n.appearanceSystem
+        case .light: L10n.appearanceLight
+        case .dark: L10n.appearanceDark
+        }
+    }
+}
+
+/// Applies the app's global environment: the text-size setting, the
+/// right-to-left layout the Hebrew UI requires, and the appearance setting
+/// the theme resolves against. Needed at the root of every sheet and
+/// full-screen cover (besides the app root), because presented screens
+/// don't inherit the presenting view's environment overrides.
 private struct AppTextSizeModifier: ViewModifier {
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
+    @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
+    /// The scheme inherited from the system, used when appearance is `system`.
+    @Environment(\.colorScheme) private var systemScheme
+
+    private var resolvedScheme: ColorScheme {
+        switch appearance {
+        case .system: systemScheme
+        case .light: .light
+        case .dark: .dark
+        }
+    }
 
     func body(content: Content) -> some View {
         content
             .dynamicTypeSize(textSize.dynamicTypeSize)
             .environment(\.layoutDirection, .rightToLeft)
+            .environment(\.colorScheme, resolvedScheme)
+            .tint(Theme.gold)
+            // Theme colors read the palette inside their dynamic providers;
+            // re-identifying the tree on a palette change forces every
+            // cached color to re-resolve immediately.
+            .id(appearance)
     }
 }
 
@@ -70,6 +105,7 @@ extension View {
 struct SettingsView: View {
     @AppStorage("aiResponseStyle") private var responseStyle: AIResponseStyle = .typing
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
+    @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
@@ -94,6 +130,25 @@ struct SettingsView: View {
 //                    }
 //                }
 
+                Section {
+                    Picker(selection: $appearance) {
+                        ForEach(AppAppearance.allCases, id: \.self) { option in
+                            Text(option.label).tag(option)
+                        }
+                    } label: {
+                        Label {
+                            Text(L10n.settingsAppearanceTitle)
+                        } icon: {
+                            Image(systemName: "circle.lefthalf.filled")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Theme.gold)
+                                .frame(width: 28, height: 28)
+                                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
+                        }
+                    }
+                }
+                .listRowBackground(Theme.surface)
+
                 Section(L10n.settingsAccessibilitySectionTitle) {
                     NavigationLink {
                         TextSizePickerView()
@@ -104,9 +159,9 @@ struct SettingsView: View {
                             } icon: {
                                 Image(systemName: "textformat.size")
                                     .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Theme.gold)
                                     .frame(width: 28, height: 28)
-                                    .background(Color.blue.gradient, in: RoundedRectangle(cornerRadius: 7))
+                                    .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
                             }
                             Spacer()
                             Text(textSize.label)
@@ -114,6 +169,7 @@ struct SettingsView: View {
                         }
                     }
                 }
+                .listRowBackground(Theme.surface)
 
                 Section {
                     NavigationLink {
@@ -124,9 +180,9 @@ struct SettingsView: View {
                         } icon: {
                             Image(systemName: "doc.plaintext")
                                 .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Theme.gold)
                                 .frame(width: 28, height: 28)
-                                .background(Color.gray.gradient, in: RoundedRectangle(cornerRadius: 7))
+                                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
                         }
                     }
                     NavigationLink {
@@ -137,12 +193,13 @@ struct SettingsView: View {
                         } icon: {
                             Image(systemName: "hand.raised")
                                 .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Theme.gold)
                                 .frame(width: 28, height: 28)
-                                .background(Color.teal.gradient, in: RoundedRectangle(cornerRadius: 7))
+                                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
                         }
                     }
                 }
+                .listRowBackground(Theme.surface)
 
                 Section {
                     Button(role: .destructive) {
@@ -153,7 +210,9 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
+                .listRowBackground(Theme.surface)
             }
+            .themedScreen()
             .navigationTitle(L10n.settingsTitle)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -184,13 +243,15 @@ private struct TextSizePickerView: View {
                             if textSize == size {
                                 Image(systemName: "checkmark")
                                     .fontWeight(.semibold)
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(Theme.gold)
                             }
                         }
                     }
                 }
             }
+            .listRowBackground(Theme.surface)
         }
+        .themedScreen()
         .navigationTitle(L10n.settingsTextSizeTitle)
         .navigationBarTitleDisplayMode(.inline)
     }

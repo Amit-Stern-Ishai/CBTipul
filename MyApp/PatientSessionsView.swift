@@ -41,6 +41,7 @@ struct PatientSessionsView: View {
             if patient.sessions.isEmpty {
                 Text(L10n.noSessionsYetLabel)
                     .foregroundStyle(.secondary)
+                    .listRowBackground(Theme.surface)
             } else {
                 ForEach(Array(sortedSessions.enumerated()), id: \.element.id) { index, session in
                     HStack {
@@ -55,9 +56,12 @@ struct PatientSessionsView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    .listRowBackground(Theme.surface)
+                    .listRowSeparatorTint(Theme.borderFaint)
                 }
             }
         }
+        .themedScreen()
         .navigationTitle(L10n.sessionsTitle)
         .navigationSubtitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -114,21 +118,17 @@ struct PatientSessionsView: View {
             }
             .first
         return ScorePreview(
-            gad7: record.questionnaire.gad7Score,
-            phq9: record.questionnaire.phq9Score,
-            gad7Delta: previous.map { record.questionnaire.gad7Score - $0.questionnaire.gad7Score },
-            phq9Delta: previous.map { record.questionnaire.phq9Score - $0.questionnaire.phq9Score }
+            questionnaire: record.questionnaire,
+            previous: previous?.questionnaire
         )
     }
 }
 
-/// A session row's questionnaire scores and their change since the previous
-/// filled questionnaire (`nil` delta when there is no previous one).
+/// A session row's questionnaire plus the previous filled one, for the
+/// score chips and their trend arrows.
 private struct ScorePreview {
-    let gad7: Int
-    let phq9: Int
-    let gad7Delta: Int?
-    let phq9Delta: Int?
+    let questionnaire: CombinedMoodQuestionnaire
+    let previous: CombinedMoodQuestionnaire?
 }
 
 /// A single row in the sessions list.
@@ -141,9 +141,9 @@ private struct SessionRow: View {
         HStack(spacing: 12) {
             Text("\(number)")
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Theme.gold)
                 .frame(width: 34, height: 34)
-                .background(Color.accentColor.opacity(0.12), in: Circle())
+                .background(Theme.goldGhost, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     Text(session.date, style: .date)
@@ -165,39 +165,13 @@ private struct SessionRow: View {
             Spacer()
             if let scores {
                 VStack(alignment: .trailing, spacing: 4) {
-                    ScoreBadge(name: L10n.gad7ShortName, score: scores.gad7, delta: scores.gad7Delta)
-                    ScoreBadge(name: L10n.phq9ShortName, score: scores.phq9, delta: scores.phq9Delta)
+                    ScoreCapsule.gad7(scores.questionnaire, previous: scores.previous)
+                    ScoreCapsule.phq9(scores.questionnaire, previous: scores.previous)
                 }
             }
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
-    }
-}
-
-/// One compact questionnaire score with a trend arrow: red when the score
-/// went up (worse) and green when it went down (better) since the previous
-/// filled questionnaire; neutral when unchanged or there is no previous one.
-private struct ScoreBadge: View {
-    let name: String
-    let score: Int
-    let delta: Int?
-
-    private var trendColor: Color {
-        guard let delta, delta != 0 else { return .secondary }
-        return delta > 0 ? .red : .green
-    }
-
-    var body: some View {
-        HStack(spacing: 2) {
-            Text(L10n.scoreBadge(name: name, score: score))
-                .font(.caption.weight(.semibold))
-            if let delta, delta != 0 {
-                Image(systemName: delta > 0 ? "arrow.up" : "arrow.down")
-                    .font(.caption2.weight(.bold))
-            }
-        }
-        .foregroundStyle(trendColor)
     }
 }
 

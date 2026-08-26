@@ -37,6 +37,7 @@ struct NotesField: UIViewRepresentable {
         // views don't pick that up from the SwiftUI environment.
         view.semanticContentAttribute = .forceRightToLeft
         view.font = font
+        view.textColor = Theme.uiTextBright
         view.backgroundColor = .clear
         view.textContainerInset = .zero
         view.textContainer.lineFragmentPadding = 0
@@ -45,7 +46,7 @@ struct NotesField: UIViewRepresentable {
         label.text = placeholder
         label.semanticContentAttribute = .forceRightToLeft
         label.font = font
-        label.textColor = .placeholderText
+        label.textColor = Theme.uiTextFaint
         label.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(label)
         NSLayoutConstraint.activate([
@@ -115,7 +116,7 @@ extension View {
         overlay(alignment: .leading) {
             if isShown {
                 Text(text)
-                    .foregroundStyle(Color(.placeholderText))
+                    .foregroundStyle(Theme.textFaint)
                     .allowsHitTesting(false)
             }
         }

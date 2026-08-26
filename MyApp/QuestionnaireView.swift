@@ -40,10 +40,12 @@ struct CombinedMoodQuestionnaireView: View {
                 Section {
                     Text(errorMessage)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.error)
                 }
+                .listRowBackground(Theme.surface)
             }
         }
+        .themedScreen()
         .navigationTitle(patient.displayName)
         // The session's date, which is saved as the answered date.
         .navigationSubtitle(session.date.formatted(date: .abbreviated, time: .omitted))
@@ -100,6 +102,7 @@ struct CompletedQuestionnaireView: View {
                 previous: previous
             )
         }
+        .themedScreen()
         .navigationTitle(patientName ?? "")
         .navigationSubtitle(record.answeredDate.formatted(date: .abbreviated, time: .omitted))
     }
@@ -141,6 +144,7 @@ private struct QuestionnaireSections: View {
                 previousDate: previous?.answeredDate
             )
         }
+        .listRowBackground(Theme.surface)
 
         Section(L10n.phq9Title) {
             
@@ -175,6 +179,7 @@ private struct QuestionnaireSections: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+        .listRowBackground(Theme.surface)
     }
 }
 
@@ -196,7 +201,7 @@ private struct AnswerKeyView: View {
                     dateText: previousDate.formatted(date: .abbreviated, time: .omitted)
                 ))
                 .font(.footnote)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Theme.warning)
             }
         }
         .padding(.vertical, 4)
@@ -245,7 +250,7 @@ private struct InterferencePicker: View {
                         if previousSelection == index {
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.footnote)
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Theme.warning)
                         }
                         Spacer()
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -279,7 +284,7 @@ private struct ScoreRow: View {
                 if let previousScore, let previousDate {
                     Text(L10n.previousScoreLine(dateText: previousDate.formatted(date: .abbreviated, time: .omitted), score: previousScore))
                         .font(.footnote)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.warning)
                 }
             }
             Spacer()
@@ -354,7 +359,7 @@ private struct NoteBox: View {
             .foregroundStyle(.secondary)
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+            .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -374,12 +379,15 @@ private struct QuestionNoteEditor: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                .listRowBackground(Theme.surface)
 
                 Section(L10n.questionNoteTitle) {
                     NotesField(text: $draft, placeholder: L10n.notesFieldPlaceholder,
                                minLines: 4, maxLines: 10)
                 }
+                .listRowBackground(Theme.surface)
             }
+            .themedScreen()
             .dismissesKeyboardOnTap()
             .navigationTitle(L10n.questionNoteTitle)
             .toolbar {
@@ -431,13 +439,13 @@ struct AnswerScaleView: View {
                         .font(.body.weight(.medium))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.15))
-                        .foregroundStyle(isSelected ? Color.white : Color.primary)
+                        .background(isSelected ? Theme.accentFill : Theme.elevated)
+                        .foregroundStyle(isSelected ? Theme.textOnAccent : Color.primary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay {
                             if previousValue == value {
                                 RoundedRectangle(cornerRadius: 8)
-                                    .strokeBorder(Color.orange, lineWidth: 2)
+                                    .strokeBorder(Theme.warning, lineWidth: 2)
                             }
                         }
                 }

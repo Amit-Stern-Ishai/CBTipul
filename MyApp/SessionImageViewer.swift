@@ -109,7 +109,7 @@ struct SessionImageViewer: View {
                 if let transcriptionError {
                     Text(transcriptionError)
                         .font(.footnote)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.textBright)
                         .padding(10)
                         .background(.red.opacity(0.85), in: RoundedRectangle(cornerRadius: 10))
                         .padding()

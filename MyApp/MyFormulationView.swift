@@ -50,17 +50,19 @@ struct MyFormulationView: View {
                 if !isGoalFormatValid {
                     Text(L10n.goalFormatWarning)
                         .font(.footnote)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.warning)
                 }
             } header: {
                 Text(L10n.treatmentGoalSection)
             }
+            .listRowBackground(Theme.surface)
 
             Section(L10n.coreBeliefSection) {
                 TextField(L10n.noCoreBeliefPlaceholder,
                           text: optionalBinding($formulation.coreBelief),
                           axis: .vertical)
             }
+            .listRowBackground(Theme.surface)
 
             Section(L10n.keyAutomaticThoughtsSection) {
                 ForEach(formulation.keyAutomaticThoughts.indices, id: \.self) { index in
@@ -77,6 +79,7 @@ struct MyFormulationView: View {
                     Label(L10n.addThoughtAction, systemImage: "plus")
                 }
             }
+            .listRowBackground(Theme.surface)
 
             Section(L10n.maintainingBehaviorsSection) {
                 ForEach(formulation.maintainingBehaviors.indices, id: \.self) { index in
@@ -93,6 +96,7 @@ struct MyFormulationView: View {
                     Label(L10n.addBehaviorAction, systemImage: "plus")
                 }
             }
+            .listRowBackground(Theme.surface)
 
             Section(L10n.keyCBTCycleSection) {
                 if formulation.keyCBTCycle != nil {
@@ -119,12 +123,14 @@ struct MyFormulationView: View {
                     }
                 }
             }
+            .listRowBackground(Theme.surface)
 
             Section(L10n.therapistHypothesisSection) {
                 NotesField(text: optionalBinding($formulation.therapistHypothesis),
                            placeholder: L10n.therapistHypothesisPlaceholder,
                            minLines: 4, maxLines: 12)
             }
+            .listRowBackground(Theme.surface)
 
             Section {
                 Button {
@@ -171,6 +177,7 @@ struct MyFormulationView: View {
             } footer: {
                 Text(L10n.aiSupervisionFooter)
             }
+            .listRowBackground(Theme.surface)
 
             Section {
                 Button {
@@ -195,15 +202,18 @@ struct MyFormulationView: View {
             } footer: {
                 Text(L10n.longitudinalReviewFooter)
             }
+            .listRowBackground(Theme.surface)
 
             if let errorMessage {
                 Section {
                     Text(errorMessage)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.error)
                 }
+                .listRowBackground(Theme.surface)
             }
         }
+        .themedScreen()
         .dismissesKeyboardOnTap()
         .navigationTitle(L10n.myFormulationTitle)
         .navigationSubtitle(patient.displayName)

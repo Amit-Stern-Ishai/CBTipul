@@ -43,7 +43,7 @@ struct PatientQuestionnairesView: View {
                 .animation(.easeInOut(duration: 0.25), value: mode)
                 .animation(.easeInOut(duration: 0.25), value: isPreparingGraphs)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Theme.base.ignoresSafeArea())
         .navigationTitle(L10n.questionnairesTitle)
         .navigationSubtitle(patient.displayName)
         .task(id: mode) {
@@ -110,6 +110,8 @@ struct PatientQuestionnairesView: View {
             } label: {
                 questionnaireRow(record)
             }
+            .listRowBackground(Theme.surface)
+            .listRowSeparatorTint(Theme.borderFaint)
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
@@ -125,16 +127,8 @@ struct PatientQuestionnairesView: View {
             Text(record.answeredDate, style: .date)
                 .font(.headline)
             HStack(spacing: 8) {
-                ScoreCapsule(
-                    text: L10n.scoreBadge(name: L10n.gad7ShortName, score: record.questionnaire.gad7Score),
-                    color: record.questionnaire.gad7Severity.color,
-                    delta: previous.map { record.questionnaire.gad7Score - $0.gad7Score }
-                )
-                ScoreCapsule(
-                    text: L10n.scoreBadge(name: L10n.phq9ShortName, score: record.questionnaire.phq9Score),
-                    color: record.questionnaire.phq9Severity.color,
-                    delta: previous.map { record.questionnaire.phq9Score - $0.phq9Score }
-                )
+                ScoreCapsule.gad7(record.questionnaire, previous: previous)
+                ScoreCapsule.phq9(record.questionnaire, previous: previous)
             }
         }
         .padding(.vertical, 4)
@@ -148,7 +142,7 @@ struct PatientQuestionnairesView: View {
                     subtitle: L10n.gad7Title,
                     entries: chartEntries(for: \.gad7Answers),
                     questionShortNames: L10n.gad7QuestionShortNames,
-                    tint: .indigo,
+                    tint: Theme.accentFill,
                     totalScoreColor: { GAD7Severity(score: $0).color }
                 )
                 QuestionnaireChart(
@@ -156,7 +150,7 @@ struct PatientQuestionnairesView: View {
                     subtitle: L10n.phq9Title,
                     entries: chartEntries(for: \.phq9Answers),
                     questionShortNames: L10n.phq9QuestionShortNames,
-                    tint: .teal,
+                    tint: Theme.goldVivid,
                     totalScoreColor: { PHQ9Severity(score: $0).color }
                 )
             }
@@ -182,30 +176,6 @@ struct PatientQuestionnairesView: View {
             loadError = error.localizedDescription
         }
         isLoading = false
-    }
-}
-
-/// A small severity-tinted score badge, e.g. "GAD-7: 12" on a soft
-/// green/yellow/orange/red background, with an optional trend arrow.
-private struct ScoreCapsule: View {
-    let text: String
-    let color: Color
-    var delta: Int? = nil
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Text(text)
-                .foregroundStyle(color)
-            if let delta, delta != 0 {
-                Image(systemName: delta > 0 ? "arrow.up" : "arrow.down")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(delta > 0 ? .red : .green)
-            }
-        }
-        .font(.caption.weight(.semibold))
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(color.opacity(0.12), in: Capsule())
     }
 }
 
@@ -235,7 +205,7 @@ private struct QuestionnaireChart: View {
     @State private var metric: Metric = .total
 
     /// Color code of a single answer value (0–3), mildest to worst.
-    private static let answerColors: [Color] = [.green, .yellow, .orange, .red]
+    private static let answerColors: [Color] = [Theme.success, Theme.warning, Theme.warning, Theme.error]
 
     private func pointColor(for value: Double) -> Color {
         switch metric {
@@ -274,19 +244,23 @@ private struct QuestionnaireChart: View {
             HStack(spacing: 10) {
                 Image(systemName: "chart.xyaxis.line")
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.textOnAccent)
                     .frame(width: 28, height: 28)
-                    .background(tint.gradient, in: RoundedRectangle(cornerRadius: 7))
+                    .background(tint, in: RoundedRectangle(cornerRadius: 7))
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 8) {
                         Text(name)
                             .font(.headline)
-                        // The latest total, color coded, so the current level
-                        // is readable without decoding the chart.
+                        // The latest total, color coded with its trend, so
+                        // the current level reads without decoding the chart.
                         if metric == .total, let latest = points.last {
-                            Text("\(Int(latest.value))")
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(totalScoreColor(Int(latest.value)))
+                            ScoreCapsule(
+                                text: "\(Int(latest.value))",
+                                color: totalScoreColor(Int(latest.value)),
+                                delta: points.count >= 2
+                                    ? Int(latest.value) - Int(points[points.count - 2].value)
+                                    : nil
+                            )
                         }
                     }
                     Text(subtitle)
@@ -333,7 +307,7 @@ private struct QuestionnaireChart: View {
             .environment(\.layoutDirection, .leftToRight)
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .themedCard()
     }
 }
 

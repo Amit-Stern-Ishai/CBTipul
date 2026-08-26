@@ -36,36 +36,22 @@ struct AuthView: View {
     }
 
     private var background: some View {
-        LinearGradient(
-            colors: [
-                Color.accentColor.opacity(0.18),
-                Color.accentColor.opacity(0.05),
-                Color(.systemBackground)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
+        Theme.base
+            .ignoresSafeArea()
     }
 
     private var header: some View {
         VStack(spacing: 14) {
-            Image(systemName: "brain.head.profile")
-                .font(.system(size: 42, weight: .medium))
-                .foregroundStyle(.white)
+            Image("SplashIcon")
+                .resizable()
+                .scaledToFit()
                 .frame(width: 88, height: 88)
-                .background(
-                    LinearGradient(
-                        colors: [Color.accentColor, Color.accentColor.opacity(0.65)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 26)
-                )
-                .shadow(color: Color.accentColor.opacity(0.35), radius: 16, y: 10)
+                .clipShape(RoundedRectangle(cornerRadius: 26))
+                .shadow(color: Theme.accentFill.opacity(0.35), radius: 16, y: 10)
 
             Text(L10n.appTitle)
                 .font(.largeTitle.bold())
+                .foregroundStyle(Theme.textBright)
 
             Text(mode == .signIn
                  ? L10n.authWelcomeSignIn
@@ -99,7 +85,7 @@ struct AuthView: View {
                 Group {
                     if isWorking {
                         ProgressView()
-                            .tint(.white)
+                            .tint(Theme.textOnAccent)
                     } else {
                         Text(mode.rawValue)
                             .fontWeight(.semibold)
@@ -117,7 +103,7 @@ struct AuthView: View {
             }
         }
         .padding(20)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28))
+        .themedCard(cornerRadius: 28)
         .shadow(color: .black.opacity(0.08), radius: 20, y: 12)
         .animation(.easeInOut(duration: 0.2), value: mode)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
@@ -133,7 +119,8 @@ struct AuthView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+        .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.borderDefault))
     }
 
     private func message(_ text: String, systemImage: String, color: Color) -> some View {

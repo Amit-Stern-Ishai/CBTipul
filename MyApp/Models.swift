@@ -191,10 +191,9 @@ enum GAD7Severity {
     /// The severity's color code, shared by score displays across the app.
     var color: Color {
         switch self {
-        case .minimal: .green
-        case .mild: .yellow
-        case .substantial: .orange
-        case .extreme: .red
+        case .minimal: Theme.success
+        case .mild: Theme.warning
+        case .substantial, .extreme: Theme.error
         }
     }
 }
@@ -220,10 +219,9 @@ enum PHQ9Severity {
     /// The severity's color code, shared by score displays across the app.
     var color: Color {
         switch self {
-        case .minimal: .green
-        case .mild: .yellow
-        case .moderate: .orange
-        case .moderatelySevere, .severe: .red
+        case .minimal: Theme.success
+        case .mild, .moderate: Theme.warning
+        case .moderatelySevere, .severe: Theme.error
         }
     }
 }

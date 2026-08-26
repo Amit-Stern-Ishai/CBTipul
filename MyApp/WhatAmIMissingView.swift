@@ -65,7 +65,7 @@ struct WhatAmIMissingView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.base)
             .navigationTitle(L10n.whatAmIMissingTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -110,7 +110,7 @@ struct WhatAmIMissingView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Theme.surface)
         )
     }
 
@@ -171,7 +171,7 @@ struct WhatAmIMissingView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Theme.surface)
         )
     }
 
@@ -202,10 +202,10 @@ struct WhatAmIMissingView: View {
     private var hypothesisBadge: some View {
         Label(L10n.hypothesisBadge, systemImage: "lightbulb")
             .font(.caption.weight(.semibold))
-            .foregroundStyle(.orange)
+            .foregroundStyle(Theme.warning)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(.orange.opacity(0.12)))
+            .background(Capsule().fill(Theme.warning.opacity(0.12)))
     }
 
     /// High priority stands out; medium and low stay quiet.
@@ -215,17 +215,17 @@ struct WhatAmIMissingView: View {
         case .high:
             Text(L10n.priorityHigh)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.warning)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Capsule().fill(.orange))
+                .background(Capsule().fill(Theme.warning.opacity(0.12)))
         case .medium:
             Text(L10n.priorityMedium)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Capsule().fill(Color(.tertiarySystemFill)))
+                .background(Capsule().fill(Theme.elevated))
         case .low:
             Text(L10n.priorityLow)
                 .font(.caption)

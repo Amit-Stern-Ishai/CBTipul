@@ -59,6 +59,16 @@ struct PatientDetailView: View {
         store.cachedQuestionnaires(for: patient)?.max { $0.answeredDate < $1.answeredDate }
     }
 
+    /// The questionnaire answered before the most recent one, for the
+    /// score chips' trend arrows.
+    private var previousQuestionnaire: CompletedQuestionnaire? {
+        guard let records = store.cachedQuestionnaires(for: patient),
+              let last = lastQuestionnaire else { return nil }
+        return records
+            .filter { $0.id != last.id && $0.answeredDate <= last.answeredDate }
+            .max { $0.answeredDate < $1.answeredDate }
+    }
+
     /// The patient's most recent session by date.
     private var lastSession: Session? {
         patient.sessions.max { $0.date < $1.date }
@@ -89,7 +99,8 @@ struct PatientDetailView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                    // The goal is the screen's single prestige-gold mark.
+                    .background(Theme.prestigeGhost, in: RoundedRectangle(cornerRadius: 12))
                     StatusBadge(status: patient.status)
                 }
                 .frame(maxWidth: .infinity)
@@ -100,11 +111,9 @@ struct PatientDetailView: View {
                 HStack {
                     Spacer()
                     if let questionnaire = lastQuestionnaire?.questionnaire {
-                        VStack(spacing: 2) {
-                            Text(L10n.scoreBadge(name: L10n.gad7ShortName, score: questionnaire.gad7Score))
-                                .foregroundStyle(questionnaire.gad7Severity.color)
-                            Text(L10n.scoreBadge(name: L10n.phq9ShortName, score: questionnaire.phq9Score))
-                                .foregroundStyle(questionnaire.phq9Severity.color)
+                        VStack(spacing: 4) {
+                            ScoreCapsule.gad7(questionnaire, previous: previousQuestionnaire?.questionnaire)
+                            ScoreCapsule.phq9(questionnaire, previous: previousQuestionnaire?.questionnaire)
                         }
                         Spacer()
                     }
@@ -117,6 +126,7 @@ struct PatientDetailView: View {
                 }
                 .font(.subheadline.weight(.semibold))
             }
+            .listRowBackground(Theme.surface)
 
             Section {
                 Picker(selection: $patient.status) {
@@ -134,7 +144,7 @@ struct PatientDetailView: View {
                 NavigationLink {
                     PatientQuestionnairesView(patient: patient)
                 } label: {
-                    iconChip("chart.xyaxis.line", color: .orange, title: L10n.viewQuestionnairesAction)
+                    iconChip("chart.xyaxis.line", color: Theme.warning, title: L10n.viewQuestionnairesAction)
                 }
 
 //                NavigationLink {
@@ -180,16 +190,17 @@ struct PatientDetailView: View {
                                 if isSavedPreparationOutdated {
                                     Text(L10n.outdatedBadge)
                                         .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(Theme.warning)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
-                                        .background(Capsule().fill(.orange.opacity(0.12)))
+                                        .background(Capsule().fill(Theme.warning.opacity(0.12)))
                                 }
                             }
                         }
                     }
                 }
             }
+            .listRowBackground(Theme.surface)
 
             Section(L10n.notesSection) {
                 HStack(alignment: .bottom) {
@@ -235,18 +246,21 @@ struct PatientDetailView: View {
                 if let recorderError = voiceRecorder.errorMessage {
                     Text(recorderError)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.error)
                 }
             }
+            .listRowBackground(Theme.surface)
 
             if let errorMessage {
                 Section {
                     Text(errorMessage)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.error)
                 }
+                .listRowBackground(Theme.surface)
             }
         }
+        .themedScreen()
 //        .navigationTitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -482,16 +496,18 @@ struct PatientDetailView: View {
         }
     }
 
-    /// A Settings-style row label: a small tinted icon square next to the title.
+    /// A Settings-style row label: a small gold-tinted icon square next to
+    /// the title. The color parameter is kept for call-site stability but the
+    /// design system allows gold as the only accent.
     private func iconChip(_ systemImage: String, color: Color, title: String) -> some View {
         Label {
             Text(title)
         } icon: {
             Image(systemName: systemImage)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.gold)
                 .frame(width: 28, height: 28)
-                .background(color.gradient, in: RoundedRectangle(cornerRadius: 7))
+                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
         }
     }
 }

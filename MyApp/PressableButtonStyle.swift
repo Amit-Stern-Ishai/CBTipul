@@ -8,12 +8,12 @@ struct PressableProminentButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(.white)
+            .foregroundStyle(isEnabled ? Theme.textOnAccent : Theme.textFaint)
             .padding(.vertical, 13)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
             .background(
-                isEnabled ? Color.accentColor : Color(.systemGray4),
+                isEnabled ? (configuration.isPressed ? Theme.goldDim : Theme.accentFill) : Theme.elevated,
                 in: RoundedRectangle(cornerRadius: 14)
             )
             .opacity(configuration.isPressed ? 0.85 : 1)
