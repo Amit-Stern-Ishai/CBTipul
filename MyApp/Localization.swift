@@ -62,6 +62,10 @@ enum L10n {
     static let lastNamePlaceholder = "שם משפחה"
     static let statusLabel = "סטטוס"
     static let unnamedPatient = "מטופל/ת ללא שם"
+
+    /// TEMP: artificial stand-in name shown for patients with no locally
+    /// stored name, until the name workaround is removed.
+    static let placeholderPatientName = "ישראלה ישראלית"
     static let notesSection = "הערות"
     static let sessionSummarySection = "סיכום פגישה"
     
