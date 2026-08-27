@@ -523,13 +523,13 @@ amitishai@gmail.com
     
     // MARK: - Session images
     
-    static let imagesSectionTitle = "תמונות (מיקום זמני)"
+    static let imagesSectionTitle = "תמונות"
     
-    static let uploadDocumentAction = "העלאת מסמך (מיקום זמני)"
+    static let uploadDocumentAction = "העלאת מסמך"
     
-    static let addImageFromLibraryAction = "הוספת תמונה מהספרייה (מיקום זמני)"
+    static let addImageFromLibraryAction = "הוספת תמונה מהספרייה"
     
-    static let takePhotoAction = "צילום תמונה (מיקום זמני)"
+    static let takePhotoAction = "צילום תמונה"
     
     static let deleteImageAction = "מחיקת תמונה"
     
@@ -649,7 +649,7 @@ amitishai@gmail.com
     
     static let questionnairesTitle = "שאלוני מצב רוח"
     
-    static let modePickerTitle = "תצוגה (מיקום זמני)"
+    static let modePickerTitle = "תצוגה"
     
     static let listModeTitle = "רשימה"
     
