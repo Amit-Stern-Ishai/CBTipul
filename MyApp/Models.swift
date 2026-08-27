@@ -115,9 +115,7 @@ final class Patient: Identifiable {
     /// immediately instead of being masked by the server name.
     var displayName: String {
         if let localName, !localName.isEmpty { return localName }
-        // TEMP workaround: artificially name patients whose local name is
-        // missing instead of showing the unnamed placeholder.
-        return L10n.placeholderPatientName
+        return L10n.unnamedPatient
     }
 
     /// The number of the most recent session (0 when there are none yet).
