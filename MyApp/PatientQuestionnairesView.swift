@@ -124,7 +124,7 @@ struct PatientQuestionnairesView: View {
     private func questionnaireRow(_ record: CompletedQuestionnaire) -> some View {
         let previous = previousQuestionnaire(before: record)?.questionnaire
         return VStack(alignment: .leading, spacing: 8) {
-            Text(record.answeredDate, style: .date)
+            Text(L10n.hebrewDate(record.answeredDate))
                 .font(.headline)
             HStack(spacing: 8) {
                 ScoreCapsule.gad7(record.questionnaire, previous: previous)

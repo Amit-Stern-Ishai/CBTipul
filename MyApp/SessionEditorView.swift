@@ -155,7 +155,7 @@ struct SessionEditorView: View {
                                 .accessibilityLabel(L10n.sessionTypeLabel)
                             }
                             HStack(spacing: 6) {
-                                Text(session.date.formatted(date: .abbreviated, time: .omitted))
+                                Text(L10n.hebrewDate(session.date))
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                                 Button {
@@ -181,6 +181,7 @@ struct SessionEditorView: View {
                     Section {
                         typePicker
                         DatePicker(L10n.dateLabel, selection: $session.date, displayedComponents: [.date])
+                            .environment(\.locale, Locale(identifier: "he_IL"))
                     }
                     .listRowBackground(Theme.surface)
                 }
@@ -429,6 +430,7 @@ struct SessionEditorView: View {
                 NavigationStack {
                     DatePicker(L10n.dateLabel, selection: $session.date, displayedComponents: [.date])
                         .datePickerStyle(.graphical)
+                        .environment(\.locale, Locale(identifier: "he_IL"))
                         .padding()
                         .navigationTitle(L10n.sessionDateTitle)
                         .navigationBarTitleDisplayMode(.inline)
@@ -806,13 +808,13 @@ struct SessionEditorView: View {
     }
 
     private func appendTranscription(_ text: String) {
-        let timeText = Date.now.formatted(date: .numeric, time: .shortened)
+        let timeText = L10n.hebrewDateTime(.now)
         appendNotesBlock("\(L10n.transcriptionHeader(timeText: timeText))\n\(text)")
     }
 
     /// Adds text extracted from an image to the notes, under a dated header.
     private func appendImageTranscription(_ text: String) {
-        let dateText = Date.now.formatted(date: .numeric, time: .omitted)
+        let dateText = L10n.hebrewNumericDate(.now)
         appendNotesBlock("\(L10n.imageTranscriptionHeader(dateText: dateText))\n\(text)")
     }
 
@@ -844,7 +846,7 @@ struct SessionEditorView: View {
                                                   isExisting: true)
                 } label: {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(questionnaire.answeredDate, style: .date)
+                        Text(L10n.hebrewDate(questionnaire.answeredDate))
                             .font(.headline)
                         HStack(spacing: 8) {
                             ScoreCapsule.gad7(questionnaire.questionnaire,

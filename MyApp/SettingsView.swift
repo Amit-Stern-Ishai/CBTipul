@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 /// How the AI assistant reveals its answers.
 enum AIResponseStyle: String, CaseIterable {
@@ -82,10 +83,6 @@ private struct AppTextSizeModifier: ViewModifier {
             .environment(\.layoutDirection, .rightToLeft)
             .environment(\.colorScheme, resolvedScheme)
             .tint(Theme.gold)
-            // Theme colors read the palette inside their dynamic providers;
-            // re-identifying the tree on a palette change forces every
-            // cached color to re-resolve immediately.
-            .id(appearance)
     }
 }
 
@@ -104,6 +101,7 @@ struct SettingsView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
 
+    @State private var presentedLink: OfficialLink?
     @State private var isShowingDeleteAccountConfirmation = false
     @State private var isShowingDeleteAccountCodeChallenge = false
     @State private var isDeletingAccount = false
@@ -184,19 +182,12 @@ struct SettingsView: View {
                                 .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
                         }
                     }
-                    NavigationLink {
-                        PrivacyPolicyView()
-                    } label: {
-                        Label {
-                            Text(L10n.privacyPolicyTitle)
-                        } icon: {
-                            Image(systemName: "hand.raised")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(Theme.gold)
-                                .frame(width: 28, height: 28)
-                                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
-                        }
-                    }
+                    externalLink(L10n.privacyPolicyTitle, icon: "hand.raised",
+                                 url: URL(string: "https://cbtipul.com/privacy")!)
+                    externalLink(L10n.settingsSupportTitle, icon: "questionmark.circle",
+                                 url: URL(string: "https://cbtipul.com/support")!)
+                    externalLink(L10n.settingsPrivacyChoicesTitle, icon: "slider.horizontal.3",
+                                 url: URL(string: "https://cbtipul.com/privacy-choices")!)
                 }
                 .listRowBackground(Theme.surface)
 
@@ -252,6 +243,29 @@ struct SettingsView: View {
             } message: {
                 Text(L10n.deleteAccountConfirmMessage)
             }
+            .sheet(item: $presentedLink) { link in
+                NavigationStack {
+                    OfficialLinkWebView(url: link.url)
+                        .navigationTitle(link.title)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button {
+                                    presentedLink = nil
+                                } label: {
+                                    Image(systemName: "chevron.backward")
+                                }
+                                .tint(.black)
+                                .accessibilityLabel(L10n.back)
+                            }
+                        }
+                        // The web pages are light; a light bar keeps the
+                        // title and back button black and readable in both
+                        // app appearances.
+                        .toolbarColorScheme(.light, for: .navigationBar)
+                }
+                .appTextSize()
+            }
             .deleteCodeChallenge(isPresented: $isShowingDeleteAccountCodeChallenge) {
                 deleteAccount()
             }
@@ -265,6 +279,38 @@ struct SettingsView: View {
             .busyOverlay(isDeletingAccount)
         }
         .appTextSize()
+    }
+
+    /// One of the official cbtipul.com pages, shown in an in-app web view.
+    private struct OfficialLink: Identifiable {
+        let title: String
+        let url: URL
+        var id: URL { url }
+    }
+
+    /// A row that opens one of the official cbtipul.com pages in an in-app
+    /// web view sheet.
+    private func externalLink(_ title: String, icon: String, url: URL) -> some View {
+        Button {
+            presentedLink = OfficialLink(title: title, url: url)
+        } label: {
+            HStack {
+                Label {
+                    Text(title)
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: icon)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Theme.gold)
+                        .frame(width: 28, height: 28)
+                        .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     /// Deletes the account server-side, then wipes everything local. The
@@ -282,6 +328,39 @@ struct SettingsView: View {
             }
             isDeletingAccount = false
         }
+    }
+}
+
+/// An in-app browser for the official cbtipul.com pages, showing a busy
+/// spinner while the page loads.
+private struct OfficialLinkWebView: View {
+    @State private var page: WebPage
+
+    init(url: URL) {
+        let page = WebPage()
+        page.load(URLRequest(url: url))
+        _page = State(initialValue: page)
+    }
+
+    var body: some View {
+        WebView(page)
+            // Hidden until loaded: the web view's blank first frame would
+            // otherwise flash before the page renders. The pages are light,
+            // so a white backdrop matches the loaded content, and the
+            // loader stays light gray in both appearances instead of the
+            // themed busy card (navy in dark mode).
+            .opacity(page.isLoading ? 0 : 1)
+            .background(Color.white.ignoresSafeArea())
+            .overlay {
+                if page.isLoading {
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(.gray)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: page.isLoading)
+            .ignoresSafeArea(edges: .bottom)
     }
 }
 

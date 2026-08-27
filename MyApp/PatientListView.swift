@@ -157,7 +157,7 @@ private struct PatientRow: View {
             return L10n.noSessionsYetLabel
         }
         let typeOrDate = lastSession.type.map(L10n.label(for:))
-            ?? lastSession.date.formatted(date: .abbreviated, time: .omitted)
+            ?? L10n.hebrewDate(lastSession.date)
         return L10n.lastSessionSummary(typeOrDate, count: patient.sessionsUpToTodayCount)
     }
 

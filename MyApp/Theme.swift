@@ -353,8 +353,8 @@ enum Theme {
     /// The palette currently selected in Settings.
     ///
     /// Read inside the dynamic providers so a palette change re-resolves
-    /// every color. The root modifier should re-identify the view tree when
-    /// the appearance changes.
+    /// every color: switching appearance always flips the color scheme, and
+    /// that trait change re-runs every dynamic provider.
     private static var storedAppearance: AppAppearance {
         UserDefaults.standard
             .string(forKey: "appAppearance")

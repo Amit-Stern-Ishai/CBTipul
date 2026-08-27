@@ -24,6 +24,7 @@ struct CombinedMoodQuestionnaireView: View {
     @State private var isShowingDeleteConfirmation = false
     @State private var isShowingDeleteCodeChallenge = false
     @State private var isShowingBackWarning = false
+    @State private var isShowingIncompleteAlert = false
     /// Snapshot of the answers when the screen opened, used to detect
     /// unsaved changes and to restore them on discard (the session object
     /// is shared, so edits must not linger in memory unsaved).
@@ -81,7 +82,7 @@ struct CombinedMoodQuestionnaireView: View {
         .themedScreen()
         .navigationTitle(patient.displayName)
         // The session's date, which is saved as the answered date.
-        .navigationSubtitle(session.date.formatted(date: .abbreviated, time: .omitted))
+        .navigationSubtitle(L10n.hebrewDate(session.date))
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -103,8 +104,16 @@ struct CombinedMoodQuestionnaireView: View {
             }
             if isEditing {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.save) { save() }
-                        .disabled(!canSave)
+                    // Stays tappable while incomplete so the tap can explain
+                    // why saving isn't possible yet.
+                    Button(L10n.save) {
+                        if session.questionnaire.isComplete {
+                            save()
+                        } else {
+                            isShowingIncompleteAlert = true
+                        }
+                    }
+                    .disabled(isSaving)
                 }
             }
             // The menu only appears when it has actions beyond Save: Edit
@@ -155,6 +164,12 @@ struct CombinedMoodQuestionnaireView: View {
                 dismiss()
             }
             Button(L10n.keepEditingAction, role: .cancel) {}
+        }
+        .alert(L10n.questionnaireIncompleteTitle,
+               isPresented: $isShowingIncompleteAlert) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            Text(L10n.questionnaireIncompleteMessage)
         }
         .interactiveDismissDisabled(hasUnsavedChanges)
         .busyOverlay(isSaving)
@@ -222,7 +237,7 @@ struct CompletedQuestionnaireView: View {
         }
         .themedScreen()
         .navigationTitle(patientName ?? "")
-        .navigationSubtitle(record.answeredDate.formatted(date: .abbreviated, time: .omitted))
+        .navigationSubtitle(L10n.hebrewDate(record.answeredDate))
     }
 }
 

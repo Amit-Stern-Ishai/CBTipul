@@ -166,7 +166,7 @@ private struct SessionRow: View {
                 .background(Theme.goldGhost, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
-                    Text(session.date, style: .date)
+                    Text(L10n.hebrewDate(session.date))
                         .font(.headline)
                     if session.structuredNotes != nil {
                         Image(systemName: "doc.text")

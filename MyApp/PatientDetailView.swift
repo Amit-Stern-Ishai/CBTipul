@@ -204,8 +204,7 @@ struct PatientDetailView: View {
                             iconChip("doc.text.magnifyingglass", title: L10n.lastPreparationAction)
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
-                                Text(savedPreparation.generatedAt,
-                                     format: .dateTime.day().month().year())
+                                Text(L10n.hebrewDate(savedPreparation.generatedAt))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 if isSavedPreparationOutdated {
@@ -450,7 +449,7 @@ struct PatientDetailView: View {
     }
 
     private func appendTranscription(_ text: String) {
-        let timeText = Date.now.formatted(date: .numeric, time: .shortened)
+        let timeText = L10n.hebrewDateTime(.now)
         appendNotesBlock("\(L10n.transcriptionHeader(timeText: timeText))\n\(text)")
     }
 

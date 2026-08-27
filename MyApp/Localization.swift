@@ -127,6 +127,11 @@ enum L10n {
     
     static let deleteQuestionnaireConfirmMessage =
     "מחיקת השאלון והתשובות שלו תהיה לצמיתות. לא ניתן לבטל פעולה זו."
+
+    static let questionnaireIncompleteTitle = "השאלון לא הושלם"
+
+    static let questionnaireIncompleteMessage =
+    "יש לענות על כל השאלות כדי לשמור את השאלון."
     
     // MARK: - Delete code challenge
     
@@ -152,6 +157,19 @@ enum L10n {
     /// surrounding text is Hebrew regardless of the device locale.
     static func hebrewDate(_ date: Date) -> String {
         date.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted,
+                                        locale: Locale(identifier: "he_IL")))
+    }
+
+    /// A numeric date in Hebrew conventions (e.g. "27.8.2026").
+    static func hebrewNumericDate(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(date: .numeric, time: .omitted,
+                                        locale: Locale(identifier: "he_IL")))
+    }
+
+    /// A numeric date and short time in Hebrew conventions
+    /// (e.g. "27.8.2026, 19:45"), for timestamps in Hebrew note headers.
+    static func hebrewDateTime(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(date: .numeric, time: .shortened,
                                         locale: Locale(identifier: "he_IL")))
     }
 
@@ -298,6 +316,8 @@ enum L10n {
     // MARK: - Privacy policy
     
     static let privacyPolicyTitle = "מדיניות פרטיות"
+    static let settingsSupportTitle = "תמיכה"
+    static let settingsPrivacyChoicesTitle = "בחירות פרטיות"
     /// Placeholder — the real wording will be filled in later.
     static let privacyPolicyBody = """
 מדיניות פרטיות עבור CBTipul
@@ -824,7 +844,7 @@ amitishai@gmail.com
     
     // MARK: - Session analysis
     
-    static let sessionSummaryTitle = "סיכום פגישה"
+    static let sessionSummaryTitle = "סיכום פגישה AI מובנה"
     
     static let sessionSummaryPlaceholder = "סיכום פגישה"
     
