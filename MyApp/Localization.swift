@@ -179,6 +179,10 @@ enum L10n {
             .month(.wide).year())
     }
     
+    static let editPatientNameAction = "עריכת שם"
+
+    static let editPatientNameTitle = "עריכת שם מטופל/ת"
+
     static let deletePatientAction = "מחיקת מטופל/ת"
     
     static let deletePatientConfirmTitle = "למחוק את המטופל/ת?"

@@ -444,6 +444,18 @@ final class PatientStore {
         saveCachedPatients()
     }
 
+    /// Renames a patient. The name lives only in the local Keychain identity
+    /// store — it is never sent to the backend.
+    func renamePatient(_ patient: Patient, firstName: String, lastName: String) throws {
+        let name = [firstName, lastName]
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        guard !name.isEmpty else { return }
+        try identityStore.save(patientID: patient.id, name: name)
+        patient.localName = name
+    }
+
     /// Formatter for Postgres `date` columns (no time component).
     private static let dateOnlyFormatter: DateFormatter = {
         let formatter = DateFormatter()

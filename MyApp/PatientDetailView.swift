@@ -18,6 +18,9 @@ struct PatientDetailView: View {
     @State private var initialNotes: String?
     @State private var isEditingGoal = false
     @State private var goalDraft = ""
+    @State private var isEditingName = false
+    @State private var firstNameDraft = ""
+    @State private var lastNameDraft = ""
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
     @State private var isPreparing = false
@@ -89,8 +92,18 @@ struct PatientDetailView: View {
         List {
             Section {
                 VStack(spacing: 10) {
-                    Text(patient.displayName)
-                        .font(.title2.bold())
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(patient.displayName)
+                            .font(.title2.bold())
+                        Button {
+                            startEditingName()
+                        } label: {
+                            Image(systemName: "pencil.circle.fill")
+                                .font(.title3)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(L10n.editPatientNameAction)
+                    }
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(treatmentGoal.wrappedValue.isEmpty
                              ? L10n.noTreatmentGoalPlaceholder
@@ -325,6 +338,40 @@ struct PatientDetailView: View {
             Text(L10n.deletePatientConfirmMessage)
         }
         .deleteCodeChallenge(isPresented: $isShowingDeleteCodeChallenge) { deletePatient() }
+        .sheet(isPresented: $isEditingName) {
+            NavigationStack {
+                Form {
+                    Section(L10n.patientSectionTitle) {
+                        // Explicit leading (visual right) alignment: with the
+                        // default natural alignment the caret side follows the
+                        // keyboard language, landing left under an English
+                        // keyboard.
+                        TextField(L10n.firstNamePlaceholder, text: $firstNameDraft, prompt: Text(""))
+                            .multilineTextAlignment(.leading)
+                            .stablePlaceholder(L10n.firstNamePlaceholder, isShown: firstNameDraft.isEmpty)
+                        TextField(L10n.lastNamePlaceholder, text: $lastNameDraft, prompt: Text(""))
+                            .multilineTextAlignment(.leading)
+                            .stablePlaceholder(L10n.lastNamePlaceholder, isShown: lastNameDraft.isEmpty)
+                    }
+                    .listRowBackground(Theme.surface)
+                }
+                .themedScreen()
+                .navigationTitle(L10n.editPatientNameTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.cancel) { isEditingName = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(L10n.save) { saveEditedName() }
+                            .disabled(firstNameDraft.trimmingCharacters(in: .whitespaces).isEmpty
+                                      && lastNameDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+            .appTextSize()
+            .presentationDetents([.medium])
+        }
         // An alert, not a confirmation dialog: iPad popover dialogs hide
         // cancel-role buttons, and Keep Editing must always be offered.
         .alert(L10n.discardChangesTitle,
@@ -487,6 +534,27 @@ struct PatientDetailView: View {
     }
 
     /// Deletes the patient (after the confirmation alert) and leaves the screen.
+    /// Opens the name editor with the stored name split into first name and
+    /// the rest (the store keeps one full-name string).
+    private func startEditingName() {
+        let parts = (patient.localName ?? "")
+            .split(separator: " ", maxSplits: 1)
+            .map(String.init)
+        firstNameDraft = parts.first ?? ""
+        lastNameDraft = parts.count > 1 ? parts[1] : ""
+        isEditingName = true
+    }
+
+    private func saveEditedName() {
+        do {
+            try store.renamePatient(patient, firstName: firstNameDraft, lastName: lastNameDraft)
+            isEditingName = false
+        } catch {
+            errorMessage = error.localizedDescription
+            isEditingName = false
+        }
+    }
+
     private func deletePatient() {
         errorMessage = nil
         isSaving = true
