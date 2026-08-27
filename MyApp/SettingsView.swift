@@ -46,17 +46,14 @@ enum AppTextSize: String, CaseIterable {
     }
 }
 
-/// The app-wide appearance: the dark navy theme, its light counterpart, or
-/// the native iOS system palette (which follows the device's light/dark
-/// setting).
+/// The app-wide appearance: the dark navy theme (default) or the light
+/// mode built on the native iOS system palette.
 enum AppAppearance: String, CaseIterable {
-    case system
     case light
     case dark
 
     var label: String {
         switch self {
-        case .system: L10n.appearanceSystem
         case .light: L10n.appearanceLight
         case .dark: L10n.appearanceDark
         }
@@ -71,12 +68,9 @@ enum AppAppearance: String, CaseIterable {
 private struct AppTextSizeModifier: ViewModifier {
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
     @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
-    /// The scheme inherited from the system, used when appearance is `system`.
-    @Environment(\.colorScheme) private var systemScheme
 
     private var resolvedScheme: ColorScheme {
         switch appearance {
-        case .system: systemScheme
         case .light: .light
         case .dark: .dark
         }
@@ -109,6 +103,11 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
+
+    @State private var isShowingDeleteAccountConfirmation = false
+    @State private var isShowingDeleteAccountCodeChallenge = false
+    @State private var isDeletingAccount = false
+    @State private var deleteAccountError: String?
 
     var body: some View {
         NavigationStack {
@@ -201,7 +200,19 @@ struct SettingsView: View {
                 }
                 .listRowBackground(Theme.surface)
 
-                Section {
+                Section(L10n.settingsAccountSectionTitle) {
+                    if let email = auth.currentUserEmail {
+                        Label {
+                            Text(email)
+                                .foregroundStyle(.secondary)
+                        } icon: {
+                            Image(systemName: "person.crop.circle")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Theme.gold)
+                                .frame(width: 28, height: 28)
+                                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
+                        }
+                    }
                     Button(role: .destructive) {
                         store.clearAllCaches()
                         auth.signOut()
@@ -209,6 +220,19 @@ struct SettingsView: View {
                         Text(L10n.signOutAction)
                             .frame(maxWidth: .infinity)
                     }
+                }
+                .listRowBackground(Theme.surface)
+
+                // Account deletion sits alone at the bottom, clearly apart
+                // from the routine sign-out.
+                Section {
+                    Button(role: .destructive) {
+                        isShowingDeleteAccountConfirmation = true
+                    } label: {
+                        Text(L10n.deleteAccountAction)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(isDeletingAccount)
                 }
                 .listRowBackground(Theme.surface)
             }
@@ -219,8 +243,45 @@ struct SettingsView: View {
                     Button(L10n.settingsDoneAction) { dismiss() }
                 }
             }
+            .alert(L10n.deleteAccountConfirmTitle,
+                   isPresented: $isShowingDeleteAccountConfirmation) {
+                Button(L10n.deleteAccountAction, role: .destructive) {
+                    isShowingDeleteAccountCodeChallenge = true
+                }
+                Button(L10n.cancel, role: .cancel) {}
+            } message: {
+                Text(L10n.deleteAccountConfirmMessage)
+            }
+            .deleteCodeChallenge(isPresented: $isShowingDeleteAccountCodeChallenge) {
+                deleteAccount()
+            }
+            .alert(L10n.deleteAccountFailedTitle,
+                   isPresented: .init(get: { deleteAccountError != nil },
+                                      set: { if !$0 { deleteAccountError = nil } })) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                Text(deleteAccountError ?? "")
+            }
+            .busyOverlay(isDeletingAccount)
         }
         .appTextSize()
+    }
+
+    /// Deletes the account server-side, then wipes everything local. The
+    /// sign-out happens inside `deleteAccount`, which drops the app back to
+    /// the sign-in screen.
+    private func deleteAccount() {
+        isDeletingAccount = true
+        Task {
+            do {
+                try await auth.deleteAccount()
+                store.wipeLocalData()
+                dismiss()
+            } catch {
+                deleteAccountError = error.localizedDescription
+            }
+            isDeletingAccount = false
+        }
     }
 }
 

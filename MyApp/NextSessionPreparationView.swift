@@ -39,6 +39,10 @@ nonisolated struct SavedPreparation: Codable {
         }
         return saved
     }
+
+    static func delete(for patientID: DatabaseID) {
+        try? FileManager.default.removeItem(at: fileURL(for: patientID))
+    }
 }
 
 /// Pre-session CBT supervision/formulation briefing.

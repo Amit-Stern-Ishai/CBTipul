@@ -395,6 +395,18 @@ final class PatientStore {
         sessionImagesCache = [:]
     }
 
+    /// Removes everything stored locally for the signed-in user — caches,
+    /// saved preparations, and the locally kept patient names — used after
+    /// the account itself is deleted.
+    func wipeLocalData() {
+        for patient in patients {
+            try? identityStore.delete(patientID: patient.id)
+            SavedPreparation.delete(for: patient.id)
+        }
+        clearAllCaches()
+        AppLog.store.notice("Local data wiped after account deletion")
+    }
+
     /// Parses a Postgres `date` value, falling back to timestamp formats in
     /// case the column was created as `timestamp`/`timestamptz`.
     private func parseDate(_ raw: String) -> Date {
@@ -690,7 +702,7 @@ final class PatientStore {
     }
 
     /// Name of the Supabase Storage bucket holding session images. Images
-    /// live in one folder per session: `<session id>/<uuid>.jpg`.
+    /// live at `<user id>/<session id>/<uuid>.jpg`.
     private static let sessionImagesBucket = "session-images"
 
     /// Cache of downloaded session images (file name + JPEG data), keyed by
@@ -702,12 +714,21 @@ final class PatientStore {
         session.databaseID.flatMap { sessionImagesCache[$0] }
     }
 
+    /// Storage folder of a session's images: one folder per user, then one
+    /// per session, so all of a user's images can be removed in one sweep
+    /// (e.g. on account deletion). Lowercased to match `auth.uid()::text`
+    /// in storage policies.
+    private func sessionImagesFolder(for sessionID: DatabaseID) async throws -> String {
+        let userID = try await client.auth.session.user.id.uuidString.lowercased()
+        return "\(userID)/\(sessionID.queryValue)"
+    }
+
     /// Downloads all images stored for a session and refreshes the cache.
     func loadSessionImages(for session: Session) async throws -> [(fileName: String, data: Data)] {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
-        let folder = sessionID.queryValue
+        let folder = try await sessionImagesFolder(for: sessionID)
         let bucket = client.storage.from(Self.sessionImagesBucket)
         let files = try await bucket.list(path: folder)
 
@@ -725,8 +746,9 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
+        let folder = try await sessionImagesFolder(for: sessionID)
         _ = try await client.storage.from(Self.sessionImagesBucket).upload(
-            "\(sessionID.queryValue)/\(fileName)",
+            "\(folder)/\(fileName)",
             data: data,
             options: FileOptions(contentType: "image/jpeg")
         )
@@ -738,8 +760,9 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
+        let folder = try await sessionImagesFolder(for: sessionID)
         _ = try await client.storage.from(Self.sessionImagesBucket)
-            .remove(paths: ["\(sessionID.queryValue)/\(fileName)"])
+            .remove(paths: ["\(folder)/\(fileName)"])
         sessionImagesCache[sessionID]?.removeAll { $0.fileName == fileName }
     }
 

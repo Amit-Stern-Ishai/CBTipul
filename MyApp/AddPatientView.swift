@@ -66,10 +66,23 @@ struct AddPatientView: View {
                     Button(L10n.cancel) { dismiss() }
                         .disabled(isSaving)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.save) { save() }
-                        .disabled(!canSave)
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button(action: save) {
+                    Group {
+                        if isSaving {
+                            ProgressView()
+                                .tint(Theme.textOnAccent)
+                        } else {
+                            Text(L10n.addPatientAction)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 30)
                 }
+                .buttonStyle(.pressableProminent)
+                .disabled(!canSave)
+                .padding(24)
             }
             .busyOverlay(isSaving)
         }

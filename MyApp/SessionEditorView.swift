@@ -333,11 +333,8 @@ struct SessionEditorView: View {
                     }
                     .disabled(isSaving)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    if isNew {
-                        Button(L10n.save) { save() }
-                            .disabled(isSaving)
-                    } else {
+                if !isNew {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             Button(L10n.save) { save() }
                                 .disabled(isSaving)
@@ -351,6 +348,25 @@ struct SessionEditorView: View {
                         }
                         .disabled(isSaving)
                     }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if isNew {
+                    Button(action: save) {
+                        Group {
+                            if isSaving {
+                                ProgressView()
+                                    .tint(Theme.textOnAccent)
+                            } else {
+                                Text(L10n.addSessionAction)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                    }
+                    .buttonStyle(.pressableProminent)
+                    .disabled(isSaving)
+                    .padding(24)
                 }
             }
             .alert(L10n.deleteSessionConfirmTitle,
@@ -617,7 +633,7 @@ struct SessionEditorView: View {
                 Text(formattedDuration)
                     .font(.footnote)
                     .monospacedDigit()
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.error)
                 Button {
                     voiceRecorder.stopRecording()
                     // Transcribing is the only reason to record, so it
@@ -626,7 +642,7 @@ struct SessionEditorView: View {
                 } label: {
                     Image(systemName: "stop.circle.fill")
                         .font(.title2)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.error)
                 }
                 .buttonStyle(.plain)
             }
@@ -752,7 +768,7 @@ struct SessionEditorView: View {
             } label: {
                 Image(systemName: "checkmark.circle")
                     .font(.title3)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Theme.positive)
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(L10n.markDiscussedAccessibilityLabel)

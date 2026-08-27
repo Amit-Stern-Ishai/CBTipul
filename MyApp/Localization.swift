@@ -25,7 +25,24 @@ enum L10n {
     static let emailPlaceholder = "אימייל"
     static let passwordPlaceholder = "סיסמא"
     static let forgotPasswordAction = "שכחת סיסמא?"
-    static let accountCreatedMessage = "החשבון נוצר בהצלחה, אנא לבדוק באימייל על מנת לאמת את החשבון ולהמשיך"
+    static let verifyEmailTitle = "אימות כתובת האימייל"
+    /// The post-sign-up screen: where the verification link went and that
+    /// opening it completes the registration.
+    static func verifyEmailMessage(email: String) -> String {
+        "שלחנו קישור אימות לכתובת \(email). יש לפתוח את הקישור כדי להשלים את ההרשמה."
+    }
+    static let backToSignInAction = "חזרה להתחברות"
+    static let resendVerificationAction = "שליחת קישור חדש"
+    static let verificationResentMessage = "קישור אימות חדש נשלח לכתובת האימייל."
+    static let tooManyRequestsError = "נשלחו יותר מדי בקשות. יש להמתין מעט ולנסות שוב."
+    static let emailNotConfirmedError = "כתובת האימייל עדיין לא אומתה. יש לפתוח את קישור האימות שנשלח אליך."
+    static let verificationFailedError =
+        "לא ניתן היה להשלים את אימות כתובת האימייל. ייתכן שהקישור פג תוקף. ניתן לנסות להתחבר או לבקש קישור חדש."
+    static let newPasswordTitle = "סיסמה חדשה"
+    static let newPasswordMessage = "יש לבחור סיסמה חדשה לחשבון (לפחות 6 תווים)."
+    static let confirmPasswordPlaceholder = "אימות סיסמה"
+    static let passwordsDontMatchError = "הסיסמאות אינן זהות."
+    static let passwordTooShortError = "הסיסמה חייבת להכיל לפחות 6 תווים."
     static let enterEmailFirstMessage = "אנא לכתוב את האימייל קודם, ואז ללחוץ על ״שכחת סיסמא?״"
     static let passwordResetSentMessage = "מייל לאיפוס סיסמא נשלח. אנא לבדוק במייל ולאפס סיסמא"
     static let signOutAction = "התנתק/י"
@@ -557,10 +574,20 @@ amitishai@gmail.com
     
     static let settingsDoneAction = "סיום"
     static let settingsAppearanceTitle = "מראה"
-    static let appearanceSystem = "מערכת"
     static let appearanceLight = "בהיר"
     static let appearanceDark = "כהה"
     
+    static let settingsAccountSectionTitle = "חשבון"
+
+    static let deleteAccountAction = "מחיקת חשבון"
+
+    static let deleteAccountConfirmTitle = "למחוק את החשבון?"
+
+    static let deleteAccountConfirmMessage =
+        "מחיקת החשבון וכל המידע שלו — מטופלים, פגישות, שאלונים והערות — תהיה לצמיתות. לא ניתן לבטל פעולה זו."
+
+    static let deleteAccountFailedTitle = "מחיקת החשבון נכשלה"
+
     static let settingsAccessibilitySectionTitle = "נגישות"
     
     static let settingsTextSizeTitle = "גודל טקסט"

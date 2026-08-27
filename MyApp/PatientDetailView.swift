@@ -159,38 +159,32 @@ struct PatientDetailView: View {
                 Picker(selection: $patient.status) {
                     ForEach(PatientStatus.allCases) { Text($0.rawValue).tag($0) }
                 } label: {
-                    iconChip("person.crop.circle.badge.checkmark", color: .green, title: L10n.statusLabel)
+                    iconChip("person.crop.circle.badge.checkmark", title: L10n.statusLabel)
                 }
 
                 NavigationLink {
                     PatientSessionsView(patient: patient)
                 } label: {
-                    iconChip("calendar", color: .blue, title: L10n.sessionsTitle)
+                    iconChip("calendar", title: L10n.sessionsTitle)
                 }
 
                 NavigationLink {
                     PatientQuestionnairesView(patient: patient)
                 } label: {
-                    iconChip("chart.xyaxis.line", color: Theme.warning, title: L10n.viewQuestionnairesAction)
+                    iconChip("chart.xyaxis.line", title: L10n.viewQuestionnairesAction)
                 }
-
-//                NavigationLink {
-//                    MyFormulationView(patient: patient)
-//                } label: {
-//                    iconChip("brain.head.profile", color: .pink, title: L10n.myFormulationTitle)
-//                }
 
                 NavigationLink {
                     PatientAIView(patient: patient)
                 } label: {
-                    iconChip("sparkles", color: .purple, title: L10n.aiAction)
+                    iconChip("sparkles", title: L10n.aiAction)
                 }
 
                 Button {
                     prepareNextSession()
                 } label: {
                     HStack {
-                        iconChip("wand.and.stars", color: .indigo, title: L10n.prepareNextSessionAction)
+                        iconChip("wand.and.stars", title: L10n.prepareNextSessionAction)
                         if isPreparing {
                             Spacer()
                             ProgressView()
@@ -207,7 +201,7 @@ struct PatientDetailView: View {
                         )
                     } label: {
                         HStack {
-                            iconChip("doc.text.magnifyingglass", color: .teal, title: L10n.lastPreparationAction)
+                            iconChip("doc.text.magnifyingglass", title: L10n.lastPreparationAction)
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
                                 Text(savedPreparation.generatedAt,
@@ -394,7 +388,7 @@ struct PatientDetailView: View {
                 Text(formattedDuration)
                     .font(.footnote)
                     .monospacedDigit()
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.error)
                 Button {
                     voiceRecorder.stopRecording()
                     // Transcribing is the only reason to record, so it
@@ -403,7 +397,7 @@ struct PatientDetailView: View {
                 } label: {
                     Image(systemName: "stop.circle.fill")
                         .font(.title2)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.error)
                 }
                 .buttonStyle(.plain)
             }
@@ -542,7 +536,7 @@ struct PatientDetailView: View {
     /// A Settings-style row label: a small gold-tinted icon square next to
     /// the title. The color parameter is kept for call-site stability but the
     /// design system allows gold as the only accent.
-    private func iconChip(_ systemImage: String, color: Color, title: String) -> some View {
+    private func iconChip(_ systemImage: String, title: String) -> some View {
         Label {
             Text(title)
         } icon: {

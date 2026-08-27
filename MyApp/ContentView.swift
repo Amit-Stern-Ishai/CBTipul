@@ -30,6 +30,15 @@ struct MyApp: App {
             ContentView()
                 .environment(auth)
                 .environment(store)
+                // Supabase email-confirmation and password-recovery links
+                // (works both when the app is already running and when the
+                // link launches it).
+                .onOpenURL { url in
+                    guard url.scheme == "cbtipul",
+                          url.host() == "auth-callback" || url.host() == "password-reset"
+                    else { return }
+                    Task { await auth.handleAuthCallback(url) }
+                }
         }
     }
 }
@@ -43,7 +52,8 @@ struct ContentView: View {
     @State private var hasAcceptedTerms = false
 
     var body: some View {
-        ZStack {
+        @Bindable var auth = auth
+        return ZStack {
             if auth.isAuthenticated {
                 if hasAcceptedTerms {
                     PatientListView()
@@ -69,6 +79,11 @@ struct ContentView: View {
             }
         }
         .appTextSize()
+        // A password-recovery link signs the user in without a new password;
+        // this prompt completes the reset.
+        .sheet(isPresented: $auth.isRecoveringPassword) {
+            NewPasswordView()
+        }
         .onChange(of: auth.currentUserEmail, initial: true) { _, email in
             hasAcceptedTerms = email.map(TermsAcceptance.hasAccepted) ?? false
         }
