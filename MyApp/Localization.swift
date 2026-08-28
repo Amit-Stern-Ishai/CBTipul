@@ -645,7 +645,7 @@ amitishai@gmail.com
     
     // MARK: - Questionnaire history
     
-    static let viewQuestionnairesAction = "שאלונים"
+    static let viewQuestionnairesAction = "שאלונים וגרפים"
     
     static let questionnairesTitle = "שאלוני מצב רוח"
     
