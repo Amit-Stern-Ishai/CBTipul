@@ -144,7 +144,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .listRowBackground(Theme.surface)
+                .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
 
                 Section(L10n.settingsAccessibilitySectionTitle) {
                     NavigationLink {
@@ -166,7 +166,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .listRowBackground(Theme.surface)
+                .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
 
                 Section {
                     NavigationLink {
@@ -182,14 +182,17 @@ struct SettingsView: View {
                                 .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
                         }
                     }
+                    .listRowBackground(groupBorderedRow(.first, accent: Theme.gold))
                     externalLink(L10n.privacyPolicyTitle, icon: "hand.raised",
                                  url: URL(string: "https://cbtipul.com/privacy")!)
+                        .listRowBackground(groupBorderedRow(.middle, accent: Theme.gold))
                     externalLink(L10n.settingsSupportTitle, icon: "questionmark.circle",
                                  url: URL(string: "https://cbtipul.com/support")!)
+                        .listRowBackground(groupBorderedRow(.middle, accent: Theme.gold))
                     externalLink(L10n.settingsPrivacyChoicesTitle, icon: "slider.horizontal.3",
                                  url: URL(string: "https://cbtipul.com/privacy-choices")!)
+                        .listRowBackground(groupBorderedRow(.last, accent: Theme.gold))
                 }
-                .listRowBackground(Theme.surface)
 
                 Section(L10n.settingsAccountSectionTitle) {
                     if let email = auth.currentUserEmail {
@@ -203,6 +206,7 @@ struct SettingsView: View {
                                 .frame(width: 28, height: 28)
                                 .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
                         }
+                        .listRowBackground(groupBorderedRow(.first, accent: Theme.gold))
                     }
                     Button(role: .destructive) {
                         store.clearAllCaches()
@@ -211,8 +215,9 @@ struct SettingsView: View {
                         Text(L10n.signOutAction)
                             .frame(maxWidth: .infinity)
                     }
+                    .listRowBackground(groupBorderedRow(
+                        auth.currentUserEmail == nil ? .only : .last, accent: Theme.gold))
                 }
-                .listRowBackground(Theme.surface)
 
                 // Account deletion sits alone at the bottom, clearly apart
                 // from the routine sign-out.
@@ -225,8 +230,9 @@ struct SettingsView: View {
                     }
                     .disabled(isDeletingAccount)
                 }
-                .listRowBackground(Theme.surface)
+                .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
             }
+            .patientAtmosphere(Theme.gold)
             .themedScreen()
             .navigationTitle(L10n.settingsTitle)
             .toolbar {
@@ -387,10 +393,14 @@ private struct TextSizePickerView: View {
                             }
                         }
                     }
+                    .listRowBackground(groupBorderedRow(
+                        .at(AppTextSize.allCases.firstIndex(of: size) ?? 0,
+                            of: AppTextSize.allCases.count),
+                        accent: Theme.gold))
                 }
             }
-            .listRowBackground(Theme.surface)
         }
+        .patientAtmosphere(Theme.gold)
         .themedScreen()
         .navigationTitle(L10n.settingsTextSizeTitle)
         .navigationBarTitleDisplayMode(.inline)

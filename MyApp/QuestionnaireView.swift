@@ -70,7 +70,8 @@ struct CombinedMoodQuestionnaireView: View {
             QuestionnaireSections(
                 questionnaire: $session.questionnaire,
                 isEditable: isEditing,
-                previous: previousQuestionnaire
+                previous: previousQuestionnaire,
+                accent: PatientAvatarColor.background(for: patient.id)
             )
 
             if let errorMessage {
@@ -79,9 +80,11 @@ struct CombinedMoodQuestionnaireView: View {
                         .font(.footnote)
                         .foregroundStyle(Theme.error)
                 }
-                .listRowBackground(Theme.surface)
+                .listRowBackground(groupBorderedRow(
+                    .only, accent: PatientAvatarColor.background(for: patient.id)))
             }
         }
+        .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()
         .navigationTitle(patient.displayName)
         // The session's date, which is saved as the answered date.
@@ -231,15 +234,19 @@ struct CompletedQuestionnaireView: View {
     var patientName: String? = nil
     /// The questionnaire preceding this one, for the previous-answer marks.
     var previous: CompletedQuestionnaire? = nil
+    /// The patient's identity color for the group outlines, when known.
+    var accent: Color? = nil
 
     var body: some View {
         Form {
             QuestionnaireSections(
                 questionnaire: .constant(record.questionnaire),
                 isEditable: false,
-                previous: previous
+                previous: previous,
+                accent: accent
             )
         }
+        .patientAtmosphere(accent)
         .themedScreen()
         .navigationTitle(patientName ?? "")
         .navigationSubtitle(L10n.hebrewDate(record.answeredDate))
@@ -252,18 +259,33 @@ private struct QuestionnaireSections: View {
     @Binding var questionnaire: CombinedMoodQuestionnaire
     let isEditable: Bool
     var previous: CompletedQuestionnaire? = nil
+    /// The patient's identity color for the group outlines, when known.
+    var accent: Color? = nil
 
     private func previousAnswer(_ answers: [Int?]?, at index: Int) -> Int? {
         guard let answers, answers.indices.contains(index) else { return nil }
         return answers[index]
     }
 
+    /// A row's background: its slice of the group outline when a patient
+    /// accent is known, the plain surface otherwise.
+    @ViewBuilder
+    private func rowBackground(_ position: GroupRowPosition) -> some View {
+        if let accent {
+            groupBorderedRow(position, accent: accent)
+        } else {
+            Theme.surface
+        }
+    }
+
     var body: some View {
         Section(L10n.gad7Title) {
             AnswerKeyView(previousDate: previous?.answeredDate)
+                .listRowBackground(rowBackground(.first))
 
             Text(markdown: L10n.gad7MainQuestion)
                 .font(.body)
+                .listRowBackground(rowBackground(.middle))
 
             ForEach(L10n.gad7Questions.indices, id: \.self) { index in
                 QuestionRow(
@@ -273,6 +295,7 @@ private struct QuestionnaireSections: View {
                     isEditable: isEditable,
                     previousAnswer: previousAnswer(previous?.questionnaire.gad7Answers, at: index)
                 )
+                .listRowBackground(rowBackground(.middle))
             }
 
             ScoreRow(
@@ -281,13 +304,14 @@ private struct QuestionnaireSections: View {
                 previousScore: previous?.questionnaire.gad7Score,
                 previousDate: previous?.answeredDate
             )
+            .listRowBackground(rowBackground(.last))
         }
-        .listRowBackground(Theme.surface)
 
         Section(L10n.phq9Title) {
             
             Text(markdown: L10n.phq9MainQuestion)
                 .font(.body)
+                .listRowBackground(rowBackground(.first))
             
             ForEach(L10n.phq9Questions.indices, id: \.self) { index in
                 QuestionRow(
@@ -297,6 +321,7 @@ private struct QuestionnaireSections: View {
                     isEditable: isEditable,
                     previousAnswer: previousAnswer(previous?.questionnaire.phq9Answers, at: index)
                 )
+                .listRowBackground(rowBackground(.middle))
             }
 
             InterferencePicker(
@@ -305,6 +330,7 @@ private struct QuestionnaireSections: View {
                 isEditable: isEditable,
                 previousSelection: previous?.questionnaire.interferenceLevel
             )
+            .listRowBackground(rowBackground(.middle))
 
             ScoreRow(
                 score: questionnaire.phq9Score,
@@ -312,12 +338,13 @@ private struct QuestionnaireSections: View {
                 previousScore: previous?.questionnaire.phq9Score,
                 previousDate: previous?.answeredDate
             )
+            .listRowBackground(rowBackground(.middle))
 
             Text(L10n.suggestion(for: questionnaire.phq9Severity))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .listRowBackground(rowBackground(.last))
         }
-        .listRowBackground(Theme.surface)
     }
 }
 

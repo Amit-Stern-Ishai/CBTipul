@@ -58,8 +58,16 @@ nonisolated struct SavedPreparation: Codable {
 struct NextSessionPreparationView: View {
     let response: WhisperService.PrepareSessionResponse
     var isOutdated: Bool = false
+    /// The patient's identity color for the atmosphere and card outlines,
+    /// when known.
+    var accent: Color? = nil
 
     @Environment(\.dismiss) private var dismiss
+
+    /// The patient outline strength used across the patient screens.
+    private var outline: Color {
+        (accent ?? .clear).opacity(0.35)
+    }
 
     private var preparation: WhisperService.NextSessionPreparation { response.preparation }
 
@@ -165,6 +173,7 @@ struct NextSessionPreparationView: View {
                 }
                 .padding()
             }
+            .patientAtmosphere(accent)
             .background(Theme.base)
             .navigationTitle(L10n.sessionPreparationTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -346,8 +355,10 @@ struct NextSessionPreparationView: View {
                     .opacity(0.6)
             )
             .overlay(
+                // Dashed to keep its "hypothesis" reading, in the patient
+                // color when known.
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Theme.borderDefault,
+                    .strokeBorder(accent == nil ? Theme.borderDefault : outline,
                                   style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
             )
         }
@@ -420,6 +431,10 @@ struct NextSessionPreparationView: View {
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Theme.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(outline, lineWidth: 1)
             )
     }
 

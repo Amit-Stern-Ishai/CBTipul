@@ -22,6 +22,8 @@ struct SessionAnalysisView: View {
     let analysis: WhisperService.CBTSessionAnalysis
     var requiresSaveDecision: Bool = false
     var onSave: ((WhisperService.CBTSessionAnalysis) -> Void)? = nil
+    /// The patient's identity color for the background atmosphere, when known.
+    var accent: Color? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var isShowingSaveAsk = false
@@ -30,16 +32,29 @@ struct SessionAnalysisView: View {
 
     init(analysis: WhisperService.CBTSessionAnalysis,
          requiresSaveDecision: Bool = false,
-         onSave: ((WhisperService.CBTSessionAnalysis) -> Void)? = nil) {
+         onSave: ((WhisperService.CBTSessionAnalysis) -> Void)? = nil,
+         accent: Color? = nil) {
         self.analysis = analysis
         self.requiresSaveDecision = requiresSaveDecision
         self.onSave = onSave
+        self.accent = accent
         _edited = State(initialValue: analysis)
     }
 
     /// Whether dismissing without deciding would lose anything.
     private var needsSaveDecision: Bool {
         onSave != nil && (requiresSaveDecision || edited != analysis)
+    }
+
+    /// Standard card chrome, outlined in the patient's identity color when
+    /// known — this screen's equivalent of the list-group borders.
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(Theme.surface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder((accent ?? .clear).opacity(0.35), lineWidth: 1)
+            )
     }
 
     /// True when a field carries real content. The backend now sends true
@@ -117,6 +132,7 @@ struct SessionAnalysisView: View {
                 }
                 .padding()
             }
+            .patientAtmosphere(accent)
             .background(Theme.base)
             .navigationTitle(L10n.sessionSummaryTitle)
             .toolbar {
@@ -196,10 +212,7 @@ struct SessionAnalysisView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Theme.surface)
-        )
+        .background(cardBackground)
     }
 
     /// Whether the thought was voiced by the patient rather than inferred by
@@ -361,10 +374,7 @@ struct SessionAnalysisView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Theme.surface)
-        )
+        .background(cardBackground)
     }
 
     private var cycleArrow: some View {
@@ -397,10 +407,7 @@ struct SessionAnalysisView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Theme.surface)
-        )
+        .background(cardBackground)
     }
 
     /// One follow-up question with why it matters, plus the therapist's
@@ -439,10 +446,7 @@ struct SessionAnalysisView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Theme.surface)
-        )
+        .background(cardBackground)
     }
 
     /// Toggleable triage chip; tapping the selected one clears the choice.
@@ -475,9 +479,6 @@ struct SessionAnalysisView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Theme.surface)
-        )
+        .background(cardBackground)
     }
 }

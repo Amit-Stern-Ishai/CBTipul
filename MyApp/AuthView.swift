@@ -45,6 +45,9 @@ struct AuthView: View {
                     .padding(.top, 24)
                 }
                 .scrollBounceBehavior(.basedOnSize)
+                // Gold — the app color — carries the atmosphere on screens
+                // that belong to no single patient.
+                .patientAtmosphere(Theme.gold)
             }
             .contentShape(Rectangle())
             .dismissesKeyboardOnTap()
@@ -132,6 +135,8 @@ struct AuthView: View {
         }
         .padding(20)
         .themedCard(cornerRadius: 28)
+        .overlay(RoundedRectangle(cornerRadius: 28)
+            .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1))
         .shadow(color: .black.opacity(0.08), radius: 20, y: 12)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .animation(.easeInOut(duration: 0.2), value: infoMessage)
@@ -202,6 +207,8 @@ struct AuthView: View {
         }
         .padding(20)
         .themedCard(cornerRadius: 28)
+        .overlay(RoundedRectangle(cornerRadius: 28)
+            .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1))
         .shadow(color: .black.opacity(0.08), radius: 20, y: 12)
         .animation(.easeInOut(duration: 0.2), value: mode)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
@@ -219,7 +226,8 @@ struct AuthView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.borderDefault))
+        .overlay(RoundedRectangle(cornerRadius: 14)
+            .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1))
     }
 
     private func message(_ text: String, systemImage: String, color: Color) -> some View {
@@ -355,12 +363,13 @@ struct NewPasswordView: View {
                 Section {
                     SecureField(L10n.passwordPlaceholder, text: $password)
                         .textContentType(.newPassword)
+                        .listRowBackground(groupBorderedRow(.first, accent: Theme.gold))
                     SecureField(L10n.confirmPasswordPlaceholder, text: $confirmPassword)
                         .textContentType(.newPassword)
+                        .listRowBackground(groupBorderedRow(.last, accent: Theme.gold))
                 } footer: {
                     Text(L10n.newPasswordMessage)
                 }
-                .listRowBackground(Theme.surface)
 
                 // Only flagged once the confirmation is as long as the
                 // password, so it doesn't nag on every keystroke.
@@ -371,7 +380,7 @@ struct NewPasswordView: View {
                             .font(.footnote)
                             .foregroundStyle(Theme.error)
                     }
-                    .listRowBackground(Theme.surface)
+                    .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
                 }
 
                 if let errorMessage {
@@ -380,9 +389,10 @@ struct NewPasswordView: View {
                             .font(.footnote)
                             .foregroundStyle(Theme.error)
                     }
-                    .listRowBackground(Theme.surface)
+                    .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
                 }
             }
+            .patientAtmosphere(Theme.gold)
             .themedScreen()
             .navigationTitle(L10n.newPasswordTitle)
             .navigationBarTitleDisplayMode(.inline)

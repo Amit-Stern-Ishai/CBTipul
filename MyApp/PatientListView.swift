@@ -39,13 +39,20 @@ struct PatientListView: View {
                         NavigationLink(value: patient) {
                             PatientRow(patient: patient)
                         }
-                        .listRowBackground(Theme.surface)
+                        // Gold — the app color — outlines the groups on
+                        // screens that belong to no single patient.
+                        .listRowBackground(groupBorderedRow(
+                            .at(sortedPatients.firstIndex(of: patient) ?? 0,
+                                of: sortedPatients.count),
+                            accent: Theme.gold))
                         .listRowSeparatorTint(Theme.borderFaint)
                     }
+                    .patientAtmosphere(Theme.gold)
                     .themedScreen()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
             .animation(.easeInOut(duration: 0.25), value: isLoading)
             .animation(.easeInOut(duration: 0.25), value: loadError)

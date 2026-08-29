@@ -94,6 +94,33 @@ struct PatientDetailView: View {
         patient.sessions.max { $0.date < $1.date }
     }
 
+    /// The patient's identity color — the exact color of their list avatar.
+    /// Used only for patient-specific accents; gold remains the color of
+    /// app actions and navigation, navy the primary surfaces.
+    private var patientColor: Color {
+        PatientAvatarColor.background(for: patient.id)
+    }
+
+    /// Black or white, matching the contrast rule of the avatar initials.
+    private var onPatientColor: Color {
+        PatientAvatarColor.foreground(for: patient.id)
+    }
+
+    /// This screen's group outlines, in the patient's identity color.
+    private func groupBorderedRow(_ position: GroupRowPosition) -> some View {
+        CBTipul.groupBorderedRow(position, accent: patientColor)
+    }
+
+    /// Whether the pending-recording controls row is showing under the notes.
+    private var isRecordingRetryRowVisible: Bool {
+        voiceRecorder.recordingURL != nil && !isTranscribing && !isAnonymizingTranscription
+    }
+
+    /// Whether the transcription/anonymization spinner row is showing.
+    private var isTranscribeSpinnerVisible: Bool {
+        isTranscribing || isAnonymizingTranscription
+    }
+
     var body: some View {
         List {
             Section {
@@ -106,6 +133,8 @@ struct PatientDetailView: View {
                         } label: {
                             Image(systemName: "pencil.circle.fill")
                                 .font(.title3)
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(onPatientColor, patientColor)
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel(L10n.editPatientNameAction)
@@ -123,14 +152,17 @@ struct PatientDetailView: View {
                         } label: {
                             Image(systemName: "pencil.circle.fill")
                                 .font(.title3)
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(onPatientColor, patientColor)
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel(L10n.editTreatmentGoalAction)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    // The goal is the screen's single prestige-gold mark.
-                    .background(Theme.prestigeGhost, in: RoundedRectangle(cornerRadius: 12))
+                    // The goal pill carries the patient's identity color —
+                    // same ghost strength the gold version used.
+                    .background(patientColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
                     StatusBadge(status: patient.status)
                 }
                 .frame(maxWidth: .infinity)
@@ -172,7 +204,7 @@ struct PatientDetailView: View {
                 .animation(.easeInOut(duration: 0.35), value: isLoadingQuestionnaires)
                 .animation(.easeInOut(duration: 0.35), value: lastQuestionnaire?.id)
             }
-            .listRowBackground(Theme.surface)
+            .listRowBackground(groupBorderedRow(.only))
 
             Section {
                 Picker(selection: $patient.status) {
@@ -180,24 +212,28 @@ struct PatientDetailView: View {
                 } label: {
                     iconChip("person.crop.circle.badge.checkmark", title: L10n.statusLabel)
                 }
+                .listRowBackground(groupBorderedRow(.first))
 
                 NavigationLink {
                     PatientSessionsView(patient: patient)
                 } label: {
                     iconChip("calendar", title: L10n.sessionsTitle)
                 }
+                .listRowBackground(groupBorderedRow(.middle))
 
                 NavigationLink {
                     PatientQuestionnairesView(patient: patient)
                 } label: {
                     iconChip("chart.xyaxis.line", title: L10n.viewQuestionnairesAction)
                 }
+                .listRowBackground(groupBorderedRow(.middle))
 
                 NavigationLink {
                     PatientAIView(patient: patient)
                 } label: {
                     iconChip("sparkles", title: L10n.aiAction)
                 }
+                .listRowBackground(groupBorderedRow(.middle))
 
                 Button {
                     prepareNextSession()
@@ -211,6 +247,7 @@ struct PatientDetailView: View {
                     }
                 }
                 .disabled(isPreparing)
+                .listRowBackground(groupBorderedRow(savedPreparation == nil ? .last : .middle))
 
                 if let savedPreparation {
                     Button {
@@ -237,9 +274,9 @@ struct PatientDetailView: View {
                             }
                         }
                     }
+                    .listRowBackground(groupBorderedRow(.last))
                 }
             }
-            .listRowBackground(Theme.surface)
 
             Section(L10n.notesSection) {
                 HStack(alignment: .bottom) {
@@ -247,6 +284,9 @@ struct PatientDetailView: View {
                                minLines: 3, maxLines: 8)
                     recordControl
                 }
+                .listRowBackground(groupBorderedRow(
+                    isRecordingRetryRowVisible || isTranscribeSpinnerVisible
+                        || voiceRecorder.errorMessage != nil ? .first : .only))
                 // Transcription starts automatically when recording stops,
                 // so this row only ever appears after a failed transcription
                 // — the recording survives for a retry.
@@ -275,6 +315,8 @@ struct PatientDetailView: View {
                     }
                     .font(.subheadline)
                     .buttonStyle(.borderless)
+                    .listRowBackground(groupBorderedRow(
+                        voiceRecorder.errorMessage != nil ? .middle : .last))
                 }
 
                 if isTranscribing || isAnonymizingTranscription {
@@ -283,15 +325,17 @@ struct PatientDetailView: View {
                         Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
                             .foregroundStyle(.secondary)
                     }
+                    .listRowBackground(groupBorderedRow(
+                        voiceRecorder.errorMessage != nil ? .middle : .last))
                 }
 
                 if let recorderError = voiceRecorder.errorMessage {
                     Text(recorderError)
                         .font(.footnote)
                         .foregroundStyle(Theme.error)
+                        .listRowBackground(groupBorderedRow(.last))
                 }
             }
-            .listRowBackground(Theme.surface)
 
             if let errorMessage {
                 Section {
@@ -299,9 +343,10 @@ struct PatientDetailView: View {
                         .font(.footnote)
                         .foregroundStyle(Theme.error)
                 }
-                .listRowBackground(Theme.surface)
+                .listRowBackground(groupBorderedRow(.only))
             }
         }
+        .patientAtmosphere(patientColor)
         .themedScreen()
 //        .navigationTitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -393,7 +438,7 @@ struct PatientDetailView: View {
             Button(L10n.keepEditingAction, role: .cancel) {}
         }
         .sheet(item: $preparationResult) { result in
-            NextSessionPreparationView(response: result.response)
+            NextSessionPreparationView(response: result.response, accent: patientColor)
         }
         .sheet(isPresented: $isEditingGoal) {
             NavigationStack {

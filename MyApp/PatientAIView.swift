@@ -30,6 +30,12 @@ struct PatientAIView: View {
         !isLoading && !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// The patient's identity color at the outline strength used across
+    /// the patient screens.
+    private var patientOutline: Color {
+        PatientAvatarColor.background(for: patient.id).opacity(0.35)
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 10) {
@@ -47,6 +53,8 @@ struct PatientAIView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
+                        .overlay(RoundedRectangle(cornerRadius: 18)
+                            .strokeBorder(patientOutline, lineWidth: 1))
                         Spacer(minLength: 48)
                     }
                 }
@@ -61,6 +69,7 @@ struct PatientAIView: View {
             .padding()
         }
         .defaultScrollAnchor(.bottom)
+        .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .background(Theme.base.ignoresSafeArea())
         .dismissesKeyboardOnTap()
         .overlay {
@@ -110,7 +119,7 @@ struct PatientAIView: View {
                             .padding(.horizontal, 14)
                             .padding(.vertical, 9)
                             .background(Theme.surface, in: Capsule())
-                            .overlay(Capsule().strokeBorder(Theme.borderDefault))
+                            .overlay(Capsule().strokeBorder(patientOutline, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
@@ -128,7 +137,7 @@ struct PatientAIView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 20))
-                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Theme.borderDefault))
+                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(patientOutline, lineWidth: 1))
 
             Button(action: send) {
                 Image(systemName: "arrow.up.circle.fill")
@@ -156,6 +165,10 @@ struct PatientAIView: View {
                     entry.role == .user ? Theme.goldGhost : Theme.surface,
                     in: RoundedRectangle(cornerRadius: 18)
                 )
+                // Patient color marks the patient-related content: only the
+                // AI's answers get the outline, the user's gold bubbles stay.
+                .overlay(RoundedRectangle(cornerRadius: 18)
+                    .strokeBorder(entry.role == .assistant ? patientOutline : .clear, lineWidth: 1))
             if entry.role == .assistant { Spacer(minLength: 48) }
         }
     }

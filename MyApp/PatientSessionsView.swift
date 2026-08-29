@@ -51,12 +51,17 @@ struct PatientSessionsView: View {
             }
     }
 
+    /// This screen's group outlines, in the patient's identity color.
+    private func groupBorderedRow(_ position: GroupRowPosition) -> some View {
+        CBTipul.groupBorderedRow(position, accent: PatientAvatarColor.background(for: patient.id))
+    }
+
     var body: some View {
         List {
             if patient.sessions.isEmpty {
                 Text(L10n.noSessionsYetLabel)
                     .foregroundStyle(.secondary)
-                    .listRowBackground(Theme.surface)
+                    .listRowBackground(groupBorderedRow(.only))
             } else {
                 ForEach(sessionsByMonth, id: \.month) { group in
                     Section(L10n.hebrewMonth(group.month)) {
@@ -73,13 +78,19 @@ struct PatientSessionsView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
-                            .listRowBackground(Theme.surface)
+                            // A month's items carry consecutive global
+                            // indices, so the offset from the group's first
+                            // item is the row's place in its section.
+                            .listRowBackground(groupBorderedRow(.at(
+                                item.index - (group.items.first?.index ?? 0),
+                                of: group.items.count)))
                             .listRowSeparatorTint(Theme.borderFaint)
                         }
                     }
                 }
             }
         }
+        .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()
         .navigationTitle(L10n.sessionsTitle)
         .navigationSubtitle(patient.displayName)

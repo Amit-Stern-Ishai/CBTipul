@@ -43,6 +43,7 @@ struct PatientQuestionnairesView: View {
                 .animation(.easeInOut(duration: 0.25), value: mode)
                 .animation(.easeInOut(duration: 0.25), value: isPreparingGraphs)
         }
+        .patientAtmosphere(patientColor)
         .background(Theme.base.ignoresSafeArea())
         .navigationTitle(L10n.questionnairesTitle)
         .navigationSubtitle(patient.displayName)
@@ -99,18 +100,27 @@ struct PatientQuestionnairesView: View {
         questionnaires.first { $0.id != record.id && $0.answeredDate < record.answeredDate }
     }
 
+    /// This screen's group outlines, in the patient's identity color.
+    private var patientColor: Color {
+        PatientAvatarColor.background(for: patient.id)
+    }
+
     private var questionnaireList: some View {
         List(questionnaires) { record in
             NavigationLink {
                 CompletedQuestionnaireView(
                     record: record,
                     patientName: patient.displayName,
-                    previous: previousQuestionnaire(before: record)
+                    previous: previousQuestionnaire(before: record),
+                    accent: patientColor
                 )
             } label: {
                 questionnaireRow(record)
             }
-            .listRowBackground(Theme.surface)
+            .listRowBackground(groupBorderedRow(
+                .at(questionnaires.firstIndex { $0.id == record.id } ?? 0,
+                    of: questionnaires.count),
+                accent: patientColor))
             .listRowSeparatorTint(Theme.borderFaint)
         }
         .listStyle(.insetGrouped)

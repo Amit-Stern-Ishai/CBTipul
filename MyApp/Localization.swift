@@ -1219,7 +1219,7 @@ amitishai@gmail.com
     
     // MARK: - Session preparation
     
-    static let sessionPreparationTitle = "הכנה לפגישה"
+    static let sessionPreparationTitle = "הכנה לפגישה הבאה"
     
     static let preparationOutdatedMessage =
     "לא מעודכן — התקיימה פגישה מאז הכנת ההכנה."

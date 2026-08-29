@@ -77,6 +77,11 @@ struct SessionEditorView: View {
         let question: WhisperService.FollowUpQuestion
     }
 
+    /// This screen's group outlines, in the patient's identity color.
+    private func groupBorderedRow(_ position: GroupRowPosition) -> some View {
+        CBTipul.groupBorderedRow(position, accent: PatientAvatarColor.background(for: patient.id))
+    }
+
     /// The patient's session immediately before this one, by date.
     private var previousSession: Session? {
         storePatient.sessions
@@ -164,10 +169,11 @@ struct SessionEditorView: View {
                 if isNew {
                     Section {
                         typePicker
+                            .listRowBackground(groupBorderedRow(.first))
                         DatePicker(L10n.dateLabel, selection: $session.date, displayedComponents: [.date])
                             .environment(\.locale, Locale(identifier: "he_IL"))
+                            .listRowBackground(groupBorderedRow(.last))
                     }
-                    .listRowBackground(Theme.surface)
                 }
 
 //                if let firstFollowUp = pendingFollowUps.first {
@@ -192,6 +198,9 @@ struct SessionEditorView: View {
                                    minLines: 3, maxLines: 8)
                         recordControl
                     }
+                    // The AI-summary row below always closes this group, so
+                    // every other row is a first/middle slice of the outline.
+                    .listRowBackground(groupBorderedRow(.first))
                     // Transcription starts automatically when recording
                     // stops, so this row only ever appears after a failed
                     // transcription — the recording survives for a retry.
@@ -220,6 +229,7 @@ struct SessionEditorView: View {
                         }
                         .font(.subheadline)
                         .buttonStyle(.borderless)
+                        .listRowBackground(groupBorderedRow(.middle))
                     }
 
                     if isTranscribing || isAnonymizingTranscription {
@@ -228,12 +238,14 @@ struct SessionEditorView: View {
                             Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
                                 .foregroundStyle(.secondary)
                         }
+                        .listRowBackground(groupBorderedRow(.middle))
                     }
 
                     if let recorderError = voiceRecorder.errorMessage {
                         Text(recorderError)
                             .font(.footnote)
                             .foregroundStyle(Theme.error)
+                            .listRowBackground(groupBorderedRow(.middle))
                     }
 
                     if isAnalyzing {
@@ -242,6 +254,7 @@ struct SessionEditorView: View {
                             Text(L10n.analyzingLabel)
                                 .foregroundStyle(.secondary)
                         }
+                        .listRowBackground(groupBorderedRow(.last))
                     } else {
                         Button {
                             analyze()
@@ -249,10 +262,10 @@ struct SessionEditorView: View {
                             Label(L10n.aiSummaryAction, systemImage: "sparkles")
                         }
                         .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .listRowBackground(groupBorderedRow(.last))
                     }
 
                 }
-                .listRowBackground(Theme.surface)
 
                 if let structuredNotes = session.structuredNotes {
                     Section(L10n.structuredSummarySection) {
@@ -260,14 +273,15 @@ struct SessionEditorView: View {
                                    placeholder: "",
                                    minLines: 3, maxLines: 8,
                                    isEditable: false)
+                            .listRowBackground(groupBorderedRow(.first))
                         Button {
                             analysisResult = SessionAnalysisResult(analysis: structuredNotes,
                                                                    requiresSaveDecision: false)
                         } label: {
                             Label(L10n.showStructuredSummaryAction, systemImage: "doc.text.magnifyingglass")
                         }
+                        .listRowBackground(groupBorderedRow(.last))
                     }
-                    .listRowBackground(Theme.surface)
                 }
 
                 if !isNew {
@@ -280,9 +294,10 @@ struct SessionEditorView: View {
                             .font(.footnote)
                             .foregroundStyle(Theme.error)
                     }
-                    .listRowBackground(Theme.surface)
+                    .listRowBackground(groupBorderedRow(.only))
                 }
             }
+            .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
             .themedScreen()
             .dismissesKeyboardOnTap()
 //            .navigationTitle(isNew
@@ -417,7 +432,8 @@ struct SessionEditorView: View {
             .sheet(item: $analysisResult) { result in
                 SessionAnalysisView(analysis: result.analysis,
                                     requiresSaveDecision: result.requiresSaveDecision,
-                                    onSave: { saveStructuredNotes($0) })
+                                    onSave: { saveStructuredNotes($0) },
+                                    accent: PatientAvatarColor.background(for: patient.id))
             }
         }
         .appTextSize()
@@ -678,7 +694,8 @@ struct SessionEditorView: View {
                 }
             }
         }
-        .listRowBackground(Theme.surface)
+        // Only one of the section's rows is ever visible at a time.
+        .listRowBackground(groupBorderedRow(.only))
     }
 
     /// Refreshes the patient's questionnaire cache from the server; the

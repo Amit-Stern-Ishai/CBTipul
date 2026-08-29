@@ -1,5 +1,28 @@
 import SwiftUI
 
+extension View {
+    /// A faint patient-colored atmosphere behind a screen: strongest near
+    /// the upper-right, fading into the navy base well before the bottom.
+    /// Apply before the base background (`themedScreen()` / `Theme.base`)
+    /// so it layers in front of the base and behind all content. A `nil`
+    /// accent (patient unknown) draws nothing.
+    func patientAtmosphere(_ accent: Color?) -> some View {
+        background(
+            RadialGradient(
+                gradient: Gradient(stops: [
+                    .init(color: (accent ?? .clear).opacity(0.12), location: 0),
+                    .init(color: (accent ?? .clear).opacity(0.05), location: 0.55),
+                    .init(color: .clear, location: 1),
+                ]),
+                center: UnitPoint(x: 0.85, y: 0.05),
+                startRadius: 0,
+                endRadius: 420
+            )
+            .ignoresSafeArea()
+        )
+    }
+}
+
 /// Stable per-patient avatar color, derived deterministically from the
 /// patient's database ID so the same patient shows the same color on every
 /// screen and across launches. Nothing is stored: the ID is hashed straight
