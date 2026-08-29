@@ -94,6 +94,8 @@ nonisolated struct WhisperService {
             let cbtCycles: [NextSessionPreparation.CBTCycle]
             let therapistHypotheses: [TherapistHypothesis]
             var followUpQuestions: [FollowUpQuestion]
+            /// Homework suggested for the coming week.
+            let assignmentsForNextWeek: [AssignmentForNextWeek]
 
             enum CodingKeys: String, CodingKey {
                 case sessionSummary = "session_summary"
@@ -102,6 +104,21 @@ nonisolated struct WhisperService {
                 case cbtCycles = "cbt_cycles"
                 case therapistHypotheses = "therapist_hypotheses"
                 case followUpQuestions = "follow_up_questions"
+                case assignmentsForNextWeek = "assignments_for_next_week"
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                sessionSummary = try container.decode(String.self, forKey: .sessionSummary)
+                keySituations = try container.decode([KeySituation].self, forKey: .keySituations)
+                possibleNats = try container.decode([PossibleNAT].self, forKey: .possibleNats)
+                cbtCycles = try container.decode([NextSessionPreparation.CBTCycle].self, forKey: .cbtCycles)
+                therapistHypotheses = try container.decode([TherapistHypothesis].self, forKey: .therapistHypotheses)
+                followUpQuestions = try container.decode([FollowUpQuestion].self, forKey: .followUpQuestions)
+                // Analyses saved before assignments existed decode to an
+                // empty list instead of failing (and being dropped) entirely.
+                assignmentsForNextWeek = try container.decodeIfPresent(
+                    [AssignmentForNextWeek].self, forKey: .assignmentsForNextWeek) ?? []
             }
         }
 
@@ -176,6 +193,14 @@ nonisolated struct WhisperService {
                 case followUp = "follow_up"
                 case notRelevant = "not_relevant"
             }
+        }
+
+        // MARK: - Assignment For Next Week
+
+        /// One homework assignment suggested for the coming week.
+        struct AssignmentForNextWeek: Codable, Equatable {
+            let assignment: String
+            let details: String?
         }
 
         // MARK: - Analyze Session
@@ -325,6 +350,9 @@ nonisolated struct WhisperService {
         let treatmentFocus: TreatmentFocus?
         let suggestedQuestions: [SuggestedQuestion]
         let coreBeliefHypothesis: CoreBeliefHypothesis?
+        /// The previous session's assignments, echoed back as the list the
+        /// therapist should check with the patient.
+        let assignmentsToCheck: [AssignmentForNextWeek]
 
         enum CodingKeys: String, CodingKey {
             case executiveSummary = "executive_summary"
@@ -335,6 +363,23 @@ nonisolated struct WhisperService {
             case treatmentFocus = "treatment_focus"
             case suggestedQuestions = "suggested_questions"
             case coreBeliefHypothesis = "core_belief_hypothesis"
+            case assignmentsToCheck = "assignments_to_check"
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            executiveSummary = try container.decode(String.self, forKey: .executiveSummary)
+            priorityFollowUps = try container.decode([PriorityFollowUp].self, forKey: .priorityFollowUps)
+            recurringNats = try container.decode([RecurringNAT].self, forKey: .recurringNats)
+            cbtCycles = try container.decode([CBTCycle].self, forKey: .cbtCycles)
+            questionnaireInsights = try container.decode([QuestionnaireInsight].self, forKey: .questionnaireInsights)
+            treatmentFocus = try container.decodeIfPresent(TreatmentFocus.self, forKey: .treatmentFocus)
+            suggestedQuestions = try container.decode([SuggestedQuestion].self, forKey: .suggestedQuestions)
+            coreBeliefHypothesis = try container.decodeIfPresent(CoreBeliefHypothesis.self, forKey: .coreBeliefHypothesis)
+            // Preparations saved on device before assignments existed
+            // decode to an empty list instead of failing entirely.
+            assignmentsToCheck = try container.decodeIfPresent(
+                [AssignmentForNextWeek].self, forKey: .assignmentsToCheck) ?? []
         }
 
         struct PriorityFollowUp: Codable {
@@ -445,17 +490,32 @@ nonisolated struct WhisperService {
         }
     }
 
+    /// Request payload of the prepare-session Edge Function. The previous
+    /// session's assignments are optional and omitted from the JSON when nil.
+    private struct PrepareSessionRequest: Encodable {
+        let patientContext: PatientContext
+        let lastSessionAssignments: [AssignmentForNextWeek]?
+    }
+
     /// Asks the Edge Function to prepare the therapist for the patient's
-    /// next session from the compact patient context. Returns the full
-    /// response so callers can also show the token usage.
-    func prepareNextSession(patientContext: PatientContext) async throws -> PrepareSessionResponse {
+    /// next session from the compact patient context, plus the assignments
+    /// saved on the immediately previous session (never aggregated across
+    /// older sessions). Returns the full response so callers can also show
+    /// the token usage.
+    func prepareNextSession(
+        patientContext: PatientContext,
+        lastSessionAssignments: [AssignmentForNextWeek]? = nil
+    ) async throws -> PrepareSessionResponse {
         AppLog.ai.info("Next-session preparation requested")
         do {
             let response: PrepareSessionResponse =
                 try await client.functions.invoke(
                     "prepare-session",
                     options: FunctionInvokeOptions(
-                        body: ["patientContext": patientContext]
+                        body: PrepareSessionRequest(
+                            patientContext: patientContext,
+                            lastSessionAssignments: lastSessionAssignments
+                        )
                     )
                 )
             AppLog.ai.info("Next-session preparation succeeded, tokens: \(response.usage.totalTokens)")

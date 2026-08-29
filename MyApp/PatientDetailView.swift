@@ -570,8 +570,23 @@ struct PatientDetailView: View {
                     questionnaires = try await store.loadQuestionnaires(for: patient)
                 }
                 let context = PatientContext.make(for: patient, questionnaires: questionnaires)
+                // Assignments come only from the immediately previous
+                // completed session (dated today or earlier, same rule as
+                // `sessionsUpToTodayCount`) — never aggregated across older
+                // sessions. Omitted entirely when that session has none.
+                let startOfToday = Calendar.current.startOfDay(for: .now)
+                let startOfTomorrow = Calendar.current.date(byAdding: .day, value: 1, to: startOfToday)
+                    ?? startOfToday
+                let lastSessionAssignments = patient.sessions
+                    .filter { $0.date < startOfTomorrow }
+                    .max { $0.date < $1.date }?
+                    .structuredNotes?.assignmentsForNextWeek
                 let response = try await WhisperService(client: auth.client)
-                    .prepareNextSession(patientContext: context)
+                    .prepareNextSession(
+                        patientContext: context,
+                        lastSessionAssignments: lastSessionAssignments?.isEmpty == false
+                            ? lastSessionAssignments : nil
+                    )
                 savedPreparation = SavedPreparation.save(response, for: patient.id)
                 preparationResult = NextSessionPreparationResult(response: response)
             } catch {

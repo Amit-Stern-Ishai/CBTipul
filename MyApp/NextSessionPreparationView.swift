@@ -96,6 +96,27 @@ struct NextSessionPreparationView: View {
                         }
                     }
 
+                    // The previous session's assignments, for the therapist
+                    // to check with the patient. The checkmark is decoration,
+                    // not a completion status.
+                    section(L10n.assignmentsToCheckSection,
+                            items: preparation.assignmentsToCheck) { item in
+                        card {
+                            Label {
+                                Text(item.assignment)
+                                    .font(.headline)
+                            } icon: {
+                                Image(systemName: "checkmark.circle")
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let details = item.details, !details.isEmpty {
+                                Text(details)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
                     section(L10n.priorityFollowUpsSection,
                             items: preparation.priorityFollowUps) { item in
                         card {

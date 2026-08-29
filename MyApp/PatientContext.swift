@@ -67,6 +67,7 @@ nonisolated struct PatientContext: Encodable {
         let possibleNats: [WhisperService.PossibleNAT]
         let cbtCycles: [WhisperService.NextSessionPreparation.CBTCycle]
         let therapistHypotheses: [WhisperService.TherapistHypothesis]
+        let assignmentsForNextWeek: [WhisperService.AssignmentForNextWeek]
 
         enum CodingKeys: String, CodingKey {
             case date
@@ -74,6 +75,7 @@ nonisolated struct PatientContext: Encodable {
             case possibleNats = "possible_nats"
             case cbtCycles = "cbt_cycles"
             case therapistHypotheses = "therapist_hypotheses"
+            case assignmentsForNextWeek = "assignments_for_next_week"
         }
     }
 
@@ -190,7 +192,8 @@ nonisolated struct PatientContext: Encodable {
                         summary: analysis.sessionSummary,
                         possibleNats: analysis.possibleNats,
                         cbtCycles: analysis.cbtCycles,
-                        therapistHypotheses: analysis.therapistHypotheses
+                        therapistHypotheses: analysis.therapistHypotheses,
+                        assignmentsForNextWeek: analysis.assignmentsForNextWeek
                     )
                 }
             }

@@ -129,6 +129,17 @@ struct SessionAnalysisView: View {
                             }
                         }
                     }
+
+                    if !edited.assignmentsForNextWeek.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(L10n.assignmentsForNextWeekSection)
+                                .font(.title3.bold())
+
+                            ForEach(edited.assignmentsForNextWeek.indices, id: \.self) { index in
+                                assignmentCard(edited.assignmentsForNextWeek[index])
+                            }
+                        }
+                    }
                 }
                 .padding()
             }
@@ -443,6 +454,24 @@ struct SessionAnalysisView: View {
 //                statusChip(L10n.notRelevantAction, systemImage: "xmark",
 //                           status: .notRelevant, index: index, color: .red)
 //            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(cardBackground)
+    }
+
+    /// One homework assignment for the coming week: the task itself, with
+    /// its optional details underneath. Display-only.
+    private func assignmentCard(_ item: WhisperService.AssignmentForNextWeek) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(item.assignment)
+                .font(.headline)
+            if let details = item.details,
+               !details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(details)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()

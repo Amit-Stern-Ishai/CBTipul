@@ -339,6 +339,16 @@ struct PatientAIView: View {
                 lines.append("- \(question.question) (\(question.reason))")
             }
         }
+        if !analysis.assignmentsForNextWeek.isEmpty {
+            lines.append("Assignments for next week:")
+            for assignment in analysis.assignmentsForNextWeek {
+                var line = "- \(assignment.assignment)"
+                if let details = assignment.details, !details.isEmpty {
+                    line += " (\(details))"
+                }
+                lines.append(line)
+            }
+        }
         return lines.joined(separator: "\n")
     }
 
