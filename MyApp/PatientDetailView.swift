@@ -11,6 +11,9 @@ struct PatientDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var isSaving = false
+    /// Status line under the busy spinner; the anonymization notice during
+    /// saves, nothing during deletes.
+    @State private var busyLabel: String?
     @State private var errorMessage: String?
     @State private var isShowingBackWarning = false
     @State private var isShowingDeleteConfirmation = false
@@ -23,6 +26,9 @@ struct PatientDetailView: View {
     @State private var lastNameDraft = ""
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
+    /// True while a fresh transcript is being anonymized, before it may
+    /// appear in the notes field.
+    @State private var isAnonymizingTranscription = false
     @State private var isPreparing = false
     @State private var preparationResult: NextSessionPreparationResult?
     @State private var savedPreparation: SavedPreparation?
@@ -244,7 +250,7 @@ struct PatientDetailView: View {
                 // Transcription starts automatically when recording stops,
                 // so this row only ever appears after a failed transcription
                 // — the recording survives for a retry.
-                if voiceRecorder.recordingURL != nil, !isTranscribing {
+                if voiceRecorder.recordingURL != nil, !isTranscribing, !isAnonymizingTranscription {
                     HStack(spacing: 16) {
                         Button {
                             voiceRecorder.togglePlayback()
@@ -271,10 +277,10 @@ struct PatientDetailView: View {
                     .buttonStyle(.borderless)
                 }
 
-                if isTranscribing {
+                if isTranscribing || isAnonymizingTranscription {
                     HStack {
                         ProgressView()
-                        Text(L10n.transcribingLabel)
+                        Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -408,9 +414,10 @@ struct PatientDetailView: View {
             .presentationDetents([.medium])
             .appTextSize()
         }
-        .busyOverlay(isSaving)
+        .busyOverlay(isSaving, label: busyLabel)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .animation(.easeInOut(duration: 0.2), value: isTranscribing)
+        .animation(.easeInOut(duration: 0.2), value: isAnonymizingTranscription)
         .onAppear {
             if initialNotes == nil {
                 initialNotes = patient.notes
@@ -456,7 +463,7 @@ struct PatientDetailView: View {
                     .foregroundStyle(.tint)
             }
             .buttonStyle(.plain)
-            .disabled(isTranscribing)
+            .disabled(isTranscribing || isAnonymizingTranscription)
         }
     }
 
@@ -475,9 +482,17 @@ struct PatientDetailView: View {
         Task {
             do {
                 let text = try await whisperService.transcribe(fileURL: fileURL)
-                appendTranscription(text)
-                voiceRecorder.discard()
                 isTranscribing = false
+                // The raw transcript never reaches the notes field: the whole
+                // notes value — existing text plus the transcript, with no
+                // header line — is anonymized first and only then shown.
+                isAnonymizingTranscription = true
+                let existing = patient.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                let combined = existing.isEmpty ? text : patient.notes + "\n\n" + text
+                let anonymized = try await store.anonymizedText(combined)
+                patient.notes = anonymized
+                voiceRecorder.discard()
+                isAnonymizingTranscription = false
                 // Silently persist the transcription; the silent save is the
                 // new baseline, so leaving afterwards doesn't warn.
                 do {
@@ -489,22 +504,10 @@ struct PatientDetailView: View {
             } catch {
                 voiceRecorder.errorMessage = error.localizedDescription
                 isTranscribing = false
+                isAnonymizingTranscription = false
                 // The recording stays pending, so the inline row reappears
-                // and the transcription can be retried or discarded.
+                // and the transcription (or anonymization) can be retried.
             }
-        }
-    }
-
-    private func appendTranscription(_ text: String) {
-        let timeText = L10n.hebrewDateTime(.now)
-        appendNotesBlock("\(L10n.transcriptionHeader(timeText: timeText))\n\(text)")
-    }
-
-    private func appendNotesBlock(_ block: String) {
-        if patient.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            patient.notes = block
-        } else {
-            patient.notes += "\n\n" + block
         }
     }
 
@@ -557,6 +560,7 @@ struct PatientDetailView: View {
 
     private func deletePatient() {
         errorMessage = nil
+        busyLabel = nil
         isSaving = true
         Task {
             do {
@@ -574,6 +578,7 @@ struct PatientDetailView: View {
         treatmentGoal.wrappedValue = goalDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         isEditingGoal = false
         errorMessage = nil
+        busyLabel = L10n.anonymizingStatusLabel
         isSaving = true
         Task {
             do {
@@ -587,6 +592,7 @@ struct PatientDetailView: View {
 
     private func save(thenDismiss: Bool = false) {
         errorMessage = nil
+        busyLabel = L10n.anonymizingStatusLabel
         isSaving = true
         Task {
             do {

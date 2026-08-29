@@ -240,6 +240,12 @@ private nonisolated struct CachedPatient: Codable {
 final class PatientStore {
     private let client: SupabaseClient
 
+    /// Gate every patient-related free text must pass before an upload:
+    /// unchanged text loaded from Supabase goes through untouched, anything
+    /// new or edited is anonymized first. Kept here — the app's single
+    /// Supabase write path — so no screen can bypass it.
+    private let textGate: ClinicalTextGate
+
     var patients: [Patient] = []
 
     /// Local patientID → name store, populated whenever the patient list
@@ -251,8 +257,136 @@ final class PatientStore {
     /// sync by `saveQuestionnaire`.
     private(set) var questionnairesByPatient: [DatabaseID: [CompletedQuestionnaire]] = [:]
 
-    init(client: SupabaseClient) {
+    /// `anonymizeText` overrides the anonymization call, for tests only;
+    /// the app always uses `ClinicalTextAnonymizer` on the shared client.
+    init(client: SupabaseClient,
+         anonymizeText: (@Sendable (String) async throws -> String)? = nil) {
         self.client = client
+        let anonymizer = ClinicalTextAnonymizer(client: client)
+        textGate = ClinicalTextGate(
+            anonymize: anonymizeText ?? { try await anonymizer.anonymize($0) }
+        )
+    }
+
+    // MARK: - Anonymization gate helpers
+
+    /// Marks a formulation's free-text fields as already safely stored.
+    private func markFormulationSafe(_ formulation: PatientFormulation?) {
+        guard let formulation else { return }
+        textGate.markSafe(formulation.treatmentGoal)
+        textGate.markSafe(formulation.coreBelief)
+        formulation.keyAutomaticThoughts.forEach { textGate.markSafe($0) }
+        formulation.maintainingBehaviors.forEach { textGate.markSafe($0) }
+        textGate.markSafe(formulation.therapistHypothesis)
+        if let cycle = formulation.keyCBTCycle {
+            markCycleSafe(cycle)
+        }
+    }
+
+    private func markCycleSafe(_ cycle: CBTCycle) {
+        textGate.markSafe(cycle.triggerSituation)
+        textGate.markSafe(cycle.automaticThought)
+        textGate.markSafe(cycle.emotion)
+        textGate.markSafe(cycle.behavior)
+        textGate.markSafe(cycle.shortTermConsequence)
+        textGate.markSafe(cycle.longTermConsequence)
+        textGate.markSafe(cycle.evidence)
+    }
+
+    /// Marks an AI analysis' text fields as safe to persist. Called for
+    /// analyses loaded back from the database and — via
+    /// `registerAIAnalysis` — for fresh Edge Function output, so only the
+    /// therapist's own edits to a summary go through anonymization.
+    private func markAnalysisSafe(_ analysis: WhisperService.CBTSessionAnalysis?) {
+        guard let analysis else { return }
+        textGate.markSafe(analysis.sessionSummary)
+        for situation in analysis.keySituations {
+            textGate.markSafe(situation.situation)
+            textGate.markSafe(situation.whyItMatters)
+        }
+        for nat in analysis.possibleNats {
+            textGate.markSafe(nat.thought)
+            textGate.markSafe(nat.situation)
+            textGate.markSafe(nat.emotion)
+            textGate.markSafe(nat.behavior)
+        }
+        for question in analysis.followUpQuestions {
+            textGate.markSafe(question.question)
+            textGate.markSafe(question.reason)
+        }
+    }
+
+    /// Anonymizes text on behalf of a view flow (e.g. a fresh voice
+    /// transcription) through the same gate every save uses, so the result
+    /// can be shown in a field and saved afterwards without a second call.
+    func anonymizedText(_ text: String) async throws -> String {
+        try await textGate.prepare(text) ?? ""
+    }
+
+    /// Registers a fresh AI-generated session analysis so its unedited text
+    /// is not sent back through the anonymizer when it is saved. The
+    /// analysis was produced server-side, not entered by the user; any field
+    /// the therapist later edits leaves this set and is anonymized on save.
+    func registerAIAnalysis(_ analysis: WhisperService.CBTSessionAnalysis) {
+        markAnalysisSafe(analysis)
+    }
+
+    /// A copy of the formulation in which every free-text field is safe to
+    /// upload. Throws before anything was sent if any field fails.
+    private func anonymized(_ formulation: PatientFormulation) async throws -> PatientFormulation {
+        var result = formulation
+        result.treatmentGoal = try await textGate.prepare(formulation.treatmentGoal ?? "")
+        result.coreBelief = try await textGate.prepare(formulation.coreBelief ?? "")
+        result.keyAutomaticThoughts = try await textGate.prepare(notes: formulation.keyAutomaticThoughts)
+        result.maintainingBehaviors = try await textGate.prepare(notes: formulation.maintainingBehaviors)
+        result.therapistHypothesis = try await textGate.prepare(formulation.therapistHypothesis ?? "")
+        if let cycle = formulation.keyCBTCycle {
+            // `evidence` is immutable, so the anonymized copy is rebuilt.
+            result.keyCBTCycle = CBTCycle(
+                triggerSituation: try await textGate.prepare(cycle.triggerSituation ?? ""),
+                automaticThought: try await textGate.prepare(cycle.automaticThought ?? ""),
+                emotion: try await textGate.prepare(cycle.emotion ?? ""),
+                behavior: try await textGate.prepare(cycle.behavior ?? ""),
+                shortTermConsequence: try await textGate.prepare(cycle.shortTermConsequence ?? ""),
+                longTermConsequence: try await textGate.prepare(cycle.longTermConsequence ?? ""),
+                evidence: try await textGate.prepare(cycle.evidence) ?? "",
+                confidence: cycle.confidence
+            )
+        }
+        return result
+    }
+
+    /// A copy of the analysis in which every therapist-editable text field
+    /// is safe to upload. Fields still holding the untouched AI output are
+    /// registered as safe and skip the Edge Function.
+    private func anonymized(
+        _ analysis: WhisperService.CBTSessionAnalysis?
+    ) async throws -> WhisperService.CBTSessionAnalysis? {
+        guard var result = analysis else { return nil }
+        result.sessionSummary = try await textGate.prepare(result.sessionSummary) ?? ""
+        for index in result.keySituations.indices {
+            result.keySituations[index].situation =
+                try await textGate.prepare(result.keySituations[index].situation) ?? ""
+            result.keySituations[index].whyItMatters =
+                try await textGate.prepare(result.keySituations[index].whyItMatters) ?? ""
+        }
+        for index in result.possibleNats.indices {
+            result.possibleNats[index].thought =
+                try await textGate.prepare(result.possibleNats[index].thought) ?? ""
+            result.possibleNats[index].situation =
+                try await textGate.prepare(result.possibleNats[index].situation) ?? ""
+            result.possibleNats[index].emotion =
+                try await textGate.prepare(result.possibleNats[index].emotion ?? "")
+            result.possibleNats[index].behavior =
+                try await textGate.prepare(result.possibleNats[index].behavior ?? "")
+        }
+        for index in result.followUpQuestions.indices {
+            result.followUpQuestions[index].question =
+                try await textGate.prepare(result.followUpQuestions[index].question) ?? ""
+            result.followUpQuestions[index].reason =
+                try await textGate.prepare(result.followUpQuestions[index].reason) ?? ""
+        }
+        return result
     }
 
     /// The cached questionnaires of a patient, if they were loaded before.
@@ -289,6 +423,10 @@ final class PatientStore {
                 ?? Patient(id: row.id)
             patient.status = (row.active ?? true) ? .active : .inactive
             patient.notes = row.notes ?? ""
+            // Everything read back from Supabase is already anonymized, so
+            // re-saving it unchanged must not call the Edge Function again.
+            textGate.markSafe(row.notes)
+            markFormulationSafe(row.patientFormulation)
             // A null column never clears a local formulation: the app never
             // deletes formulations server-side, so null just means "not
             // saved to the DB yet" (e.g. written before this column existed).
@@ -305,6 +443,8 @@ final class PatientStore {
                     session.notes = sessionRow.notes ?? ""
                     session.type = sessionRow.sessionType
                     session.structuredNotes = sessionRow.structuredNotes
+                    textGate.markSafe(sessionRow.notes)
+                    markAnalysisSafe(sessionRow.structuredNotes)
                     return session
                 }
                 .sorted { $0.date < $1.date }
@@ -392,7 +532,6 @@ final class PatientStore {
         clearCachedPatients()
         patients = []
         questionnairesByPatient = [:]
-        sessionImagesCache = [:]
     }
 
     /// Removes everything stored locally for the signed-in user — caches,
@@ -470,13 +609,16 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let patientID = patient.id
 
-        let trimmedNotes = session.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Anonymize every field before anything is sent; a failure aborts
+        // the whole insert without uploading any original text.
+        let anonymizedNotes = try await textGate.prepare(session.notes)
+        let anonymizedAnalysis = try await anonymized(session.structuredNotes)
         let record = NewSessionRecord(
             patientID: patientID,
             sessionDate: Self.dateOnlyFormatter.string(from: session.date),
-            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+            notes: anonymizedNotes,
             sessionType: session.type,
-            structuredNotes: session.structuredNotes
+            structuredNotes: anonymizedAnalysis
         )
         let inserted: InsertedRow = try await client.from("Sessions")
             .insert(record)
@@ -485,6 +627,9 @@ final class PatientStore {
             .execute()
             .value
 
+        // The local model mirrors what the server now stores.
+        session.notes = anonymizedNotes ?? ""
+        session.structuredNotes = anonymizedAnalysis
         session.databaseID = inserted.id
         patient.sessions.append(session)
         AppLog.store.info("Session added: \(inserted.id.queryValue, privacy: .public) for patient \(patientID.queryValue, privacy: .public)")
@@ -500,15 +645,22 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let patientID = patient.id
 
+        // Anonymize every free-text field before anything is sent; a
+        // failure aborts the update without uploading any original text.
+        // (The local write above is unaffected — it never leaves the device.)
+        let anonymizedFormulation = try await anonymized(formulation)
         // Select the updated rows back: with row-level security a blocked
         // update "succeeds" with zero rows, which must not pass as saved.
         let updated: [InsertedRow] = try await client.from("Patients")
-            .update(UpdatedPatientFormulationRecord(patientFormulation: formulation))
+            .update(UpdatedPatientFormulationRecord(patientFormulation: anonymizedFormulation))
             .eq("id", value: patientID.queryValue)
             .select("id")
             .execute()
             .value
         guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
+        // The local model mirrors what the server now stores.
+        patient.formulation = anonymizedFormulation
+        saveCachedPatients()
     }
 
     /// Persists notes changes of an already-saved patient.
@@ -516,16 +668,20 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let patientID = patient.id
 
-        let trimmed = patient.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Anonymize before anything is sent; a failure aborts the update
+        // without uploading the original text.
+        let anonymizedNotes = try await textGate.prepare(patient.notes)
         // Select the updated rows back: with row-level security a blocked
         // update "succeeds" with zero rows, which must not pass as saved.
         let updated: [InsertedRow] = try await client.from("Patients")
-            .update(UpdatedPatientNotesRecord(notes: trimmed.isEmpty ? nil : trimmed))
+            .update(UpdatedPatientNotesRecord(notes: anonymizedNotes))
             .eq("id", value: patientID.queryValue)
             .select("id")
             .execute()
             .value
         guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
+        // The local model mirrors what the server now stores.
+        patient.notes = anonymizedNotes ?? ""
         saveCachedPatients()
     }
 
@@ -534,12 +690,15 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
-        let trimmedNotes = session.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Anonymize every field before anything is sent; a failure aborts
+        // the whole update without uploading any original text.
+        let anonymizedNotes = try await textGate.prepare(session.notes)
+        let anonymizedAnalysis = try await anonymized(session.structuredNotes)
         let record = UpdatedSessionRecord(
             sessionDate: Self.dateOnlyFormatter.string(from: session.date),
-            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+            notes: anonymizedNotes,
             sessionType: session.type,
-            structuredNotes: session.structuredNotes
+            structuredNotes: anonymizedAnalysis
         )
         // Select the updated rows back: with row-level security a blocked
         // update "succeeds" with zero rows, which must not pass as saved.
@@ -553,6 +712,9 @@ final class PatientStore {
             AppLog.store.error("Session update rejected: \(sessionID.queryValue, privacy: .public)")
             throw PatientStoreError.updateRejected
         }
+        // The local model mirrors what the server now stores.
+        session.notes = anonymizedNotes ?? ""
+        session.structuredNotes = anonymizedAnalysis
         AppLog.store.info("Session updated: \(sessionID.queryValue, privacy: .public)")
         saveCachedPatients()
     }
@@ -576,7 +738,6 @@ final class PatientStore {
         }
 
         patient.sessions.removeAll { $0.id == session.id }
-        sessionImagesCache[sessionID] = nil
         AppLog.store.notice("Session deleted: \(sessionID.queryValue, privacy: .public)")
         saveCachedPatients()
     }
@@ -599,11 +760,6 @@ final class PatientStore {
             throw PatientStoreError.updateRejected
         }
 
-        for session in patient.sessions {
-            if let sessionID = session.databaseID {
-                sessionImagesCache[sessionID] = nil
-            }
-        }
         questionnairesByPatient[patient.id] = nil
         try? identityStore.delete(patientID: patient.id)
         patients.removeAll { $0.id == patient.id }
@@ -623,17 +779,26 @@ final class PatientStore {
         let patientID = patient.id
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
+        // Anonymize every changed, non-empty note separately — each stays at
+        // its own question index — before anything is sent. One failure
+        // aborts the whole save without uploading any original text.
+        var anonymizedQuestionnaire = questionnaire
+        anonymizedQuestionnaire.gad7Notes = try await textGate.prepare(notes: questionnaire.gad7Notes)
+        anonymizedQuestionnaire.phq9Notes = try await textGate.prepare(notes: questionnaire.phq9Notes)
+        anonymizedQuestionnaire.interferenceNote =
+            try await textGate.prepare(questionnaire.interferenceNote) ?? ""
+
         let record = NewQuestionnaireRecord(
             patientID: patientID,
             sessionID: sessionID,
             answeredDate: Self.dateOnlyFormatter.string(from: session.date),
-            gad7Answers: questionnaire.gad7Answers.compactMap { $0 },
-            phq9Answers: questionnaire.phq9Answers.compactMap { $0 },
-            interferenceLevel: questionnaire.interferenceLevel,
+            gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
+            phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
+            interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
             combinedNotes: QuestionnaireNotes(
-                gad7: questionnaire.gad7Notes.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-                phq9: questionnaire.phq9Notes.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-                interference: questionnaire.interferenceNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                gad7: anonymizedQuestionnaire.gad7Notes,
+                phq9: anonymizedQuestionnaire.phq9Notes,
+                interference: anonymizedQuestionnaire.interferenceNote
             )
         )
         let saved: InsertedRow = try await client.from(CombinedMoodQuestionnaire.tableName)
@@ -643,12 +808,14 @@ final class PatientStore {
             .execute()
             .value
 
+        // The in-memory copy mirrors what the server now stores.
+        session.questionnaire = anonymizedQuestionnaire
         // Keep the cache in sync so the history views stay fresh offline.
         let completed = CompletedQuestionnaire(
             databaseID: saved.id,
             sessionID: sessionID,
             answeredDate: session.date,
-            questionnaire: questionnaire
+            questionnaire: anonymizedQuestionnaire
         )
         var cached = questionnairesByPatient[patientID] ?? []
         cached.removeAll { $0.sessionID == sessionID }
@@ -702,6 +869,11 @@ final class PatientStore {
             questionnaire.gad7Notes = Self.paddedNotes(row.combinedNotes?.gad7, count: L10n.gad7Questions.count)
             questionnaire.phq9Notes = Self.paddedNotes(row.combinedNotes?.phq9, count: L10n.phq9Questions.count)
             questionnaire.interferenceNote = row.combinedNotes?.interference ?? ""
+            // Notes read back from Supabase are already anonymized, so
+            // re-saving them unchanged must not call the Edge Function again.
+            questionnaire.gad7Notes.forEach { textGate.markSafe($0) }
+            questionnaire.phq9Notes.forEach { textGate.markSafe($0) }
+            textGate.markSafe(questionnaire.interferenceNote)
             return CompletedQuestionnaire(
                 databaseID: row.id,
                 sessionID: row.sessionID,
@@ -711,71 +883,6 @@ final class PatientStore {
         }
         questionnairesByPatient[patientID] = questionnaires
         return questionnaires
-    }
-
-    /// Name of the Supabase Storage bucket holding session images. Images
-    /// live at `<user id>/<session id>/<uuid>.jpg`.
-    private static let sessionImagesBucket = "session-images"
-
-    /// Cache of downloaded session images (file name + JPEG data), keyed by
-    /// session database ID.
-    private(set) var sessionImagesCache: [DatabaseID: [(fileName: String, data: Data)]] = [:]
-
-    /// The cached images of a session, if they were loaded before.
-    func cachedSessionImages(for session: Session) -> [(fileName: String, data: Data)]? {
-        session.databaseID.flatMap { sessionImagesCache[$0] }
-    }
-
-    /// Storage folder of a session's images: one folder per user, then one
-    /// per session, so all of a user's images can be removed in one sweep
-    /// (e.g. on account deletion). Lowercased to match `auth.uid()::text`
-    /// in storage policies.
-    private func sessionImagesFolder(for sessionID: DatabaseID) async throws -> String {
-        let userID = try await client.auth.session.user.id.uuidString.lowercased()
-        return "\(userID)/\(sessionID.queryValue)"
-    }
-
-    /// Downloads all images stored for a session and refreshes the cache.
-    func loadSessionImages(for session: Session) async throws -> [(fileName: String, data: Data)] {
-        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
-
-        let folder = try await sessionImagesFolder(for: sessionID)
-        let bucket = client.storage.from(Self.sessionImagesBucket)
-        let files = try await bucket.list(path: folder)
-
-        var images: [(fileName: String, data: Data)] = []
-        for file in files where file.name.lowercased().hasSuffix(".jpg") {
-            let data = try await bucket.download(path: "\(folder)/\(file.name)")
-            images.append((file.name, data))
-        }
-        sessionImagesCache[sessionID] = images
-        return images
-    }
-
-    /// Uploads one session image and adds it to the cache.
-    func uploadSessionImage(_ data: Data, fileName: String, for session: Session) async throws {
-        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
-
-        let folder = try await sessionImagesFolder(for: sessionID)
-        _ = try await client.storage.from(Self.sessionImagesBucket).upload(
-            "\(folder)/\(fileName)",
-            data: data,
-            options: FileOptions(contentType: "image/jpeg")
-        )
-        sessionImagesCache[sessionID, default: []].append((fileName, data))
-    }
-
-    /// Deletes one stored session image and removes it from the cache.
-    func deleteSessionImage(fileName: String, for session: Session) async throws {
-        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
-
-        let folder = try await sessionImagesFolder(for: sessionID)
-        _ = try await client.storage.from(Self.sessionImagesBucket)
-            .remove(paths: ["\(folder)/\(fileName)"])
-        sessionImagesCache[sessionID]?.removeAll { $0.fileName == fileName }
     }
 
     /// Fits a stored notes array to the expected question count.

@@ -117,7 +117,7 @@ private struct PatientRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            InitialsAvatar(name: patient.displayName, size: 44)
+            InitialsAvatar(name: patient.displayName, size: 44, patientID: patient.id)
                 .overlay(alignment: .bottomTrailing) { statusDot }
                 .accessibilityLabel(patient.status.rawValue)
             VStack(alignment: .leading, spacing: 3) {
@@ -204,18 +204,30 @@ private struct PatientRow: View {
 struct InitialsAvatar: View {
     let name: String
     var size: CGFloat = 44
+    /// The patient's stable ID. When set, the circle uses the patient's
+    /// deterministic palette color instead of the brand accent, with black
+    /// or white initials picked automatically for contrast.
+    var patientID: DatabaseID? = nil
 
     private var initials: String {
         let letters = name.split(separator: " ").prefix(2).compactMap(\.first)
         return letters.isEmpty ? "?" : String(letters)
     }
 
+    private var background: Color {
+        patientID.map(PatientAvatarColor.background(for:)) ?? Theme.accentFill
+    }
+
+    private var foreground: Color {
+        patientID.map(PatientAvatarColor.foreground(for:)) ?? Theme.textOnAccent
+    }
+
     var body: some View {
         Text(initials)
             .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
-            .foregroundStyle(Theme.textOnAccent)
+            .foregroundStyle(foreground)
             .frame(width: size, height: size)
-            .background(Theme.accentFill, in: Circle())
+            .background(background, in: Circle())
     }
 }
 

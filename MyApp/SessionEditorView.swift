@@ -1,15 +1,4 @@
 import SwiftUI
-import PhotosUI
-
-/// One image attached to the session, either freshly picked or loaded from
-/// Supabase Storage.
-private struct SessionImageItem: Identifiable {
-    let id = UUID()
-    let fileName: String
-    let uiImage: UIImage
-    let data: Data
-    var isUploaded: Bool
-}
 
 /// Editor for a session's date and notes.
 ///
@@ -30,6 +19,9 @@ struct SessionEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var isSaving = false
+    /// Status line under the busy spinner; the anonymization notice during
+    /// saves, nothing during deletes.
+    @State private var busyLabel: String?
     @State private var errorMessage: String?
     @State private var isShowingCancelWarning = false
     @State private var isShowingDeleteConfirmation = false
@@ -40,31 +32,23 @@ struct SessionEditorView: View {
     @State private var isLoadingQuestionnaire = false
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
+    /// True while a fresh transcript is being anonymized, before it may
+    /// appear in the notes field.
+    @State private var isAnonymizingTranscription = false
     @State private var isAnalyzing = false
     @State private var analysisResult: SessionAnalysisResult?
     @State private var isShowingAllFollowUps = false
     @State private var isEditingDate = false
 
-    @State private var images: [SessionImageItem] = []
-    @State private var removedUploadedFileNames: [String] = []
-    @State private var photoSelection: [PhotosPickerItem] = []
-    @State private var isShowingCamera = false
-    @State private var isShowingUploadOptions = false
-    @State private var isShowingPhotoPicker = false
-    @State private var isLoadingImages = false
-    @State private var viewerItem: SessionImageItem?
-
     /// Whether anything would be lost by dismissing without saving: an edited
-    /// date or notes, pending image additions/removals, or a voice note that
-    /// hasn't been transcribed into the notes yet.
+    /// date or notes, or a voice note that hasn't been transcribed into the
+    /// notes yet.
     private var hasUnsavedChanges: Bool {
         if let initialDate, let initialNotes,
            initialDate != session.date || initialNotes != session.notes
             || initialType != session.type {
             return true
         }
-        if !removedUploadedFileNames.isEmpty { return true }
-        if images.contains(where: { !$0.isUploaded }) { return true }
         if voiceRecorder.recordingURL != nil { return true }
         return false
     }
@@ -211,7 +195,7 @@ struct SessionEditorView: View {
                     // Transcription starts automatically when recording
                     // stops, so this row only ever appears after a failed
                     // transcription — the recording survives for a retry.
-                    if voiceRecorder.recordingURL != nil, !isTranscribing {
+                    if voiceRecorder.recordingURL != nil, !isTranscribing, !isAnonymizingTranscription {
                         HStack(spacing: 16) {
                             Button {
                                 voiceRecorder.togglePlayback()
@@ -238,10 +222,10 @@ struct SessionEditorView: View {
                         .buttonStyle(.borderless)
                     }
 
-                    if isTranscribing {
+                    if isTranscribing || isAnonymizingTranscription {
                         HStack {
                             ProgressView()
-                            Text(L10n.transcribingLabel)
+                            Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -290,18 +274,6 @@ struct SessionEditorView: View {
                     questionnaireSection
                 }
 
-                if isLoadingImages || !images.isEmpty {
-                    Section {
-                        if isLoadingImages {
-                            ProgressView()
-                        }
-                        if !images.isEmpty {
-                            imagesRow
-                        }
-                    }
-                    .listRowBackground(Theme.surface)
-                }
-
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
@@ -313,9 +285,6 @@ struct SessionEditorView: View {
             }
             .themedScreen()
             .dismissesKeyboardOnTap()
-            .overlay(alignment: .bottomTrailing) {
-                floatingUploadButton
-            }
 //            .navigationTitle(isNew
 //                             ? L10n.newSessionTitle
 //                             : L10n.sessionEditorTitle(sessionNumber))
@@ -396,9 +365,10 @@ struct SessionEditorView: View {
                 Button(L10n.keepEditingAction, role: .cancel) {}
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
-            .busyOverlay(isSaving)
+            .busyOverlay(isSaving, label: busyLabel)
             .animation(.easeInOut(duration: 0.2), value: errorMessage)
             .animation(.easeInOut(duration: 0.2), value: isTranscribing)
+            .animation(.easeInOut(duration: 0.2), value: isAnonymizingTranscription)
             .onAppear {
                 if initialDate == nil {
                     initialDate = session.date
@@ -407,25 +377,6 @@ struct SessionEditorView: View {
                 }
             }
             .task { await loadQuestionnaire() }
-            .task { await loadImages() }
-            .onChange(of: photoSelection) { _, items in
-                guard !items.isEmpty else { return }
-                photoSelection = []
-                Task {
-                    for item in items {
-                        if let data = try? await item.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) {
-                            addImage(image)
-                        }
-                    }
-                }
-            }
-            .fullScreenCover(isPresented: $isShowingCamera) {
-                CameraPicker { image in
-                    addImage(image)
-                }
-                .ignoresSafeArea()
-            }
             .sheet(isPresented: $isEditingDate) {
                 NavigationStack {
                     DatePicker(L10n.dateLabel, selection: $session.date, displayedComponents: [.date])
@@ -468,15 +419,6 @@ struct SessionEditorView: View {
                                     requiresSaveDecision: result.requiresSaveDecision,
                                     onSave: { saveStructuredNotes($0) })
             }
-            .fullScreenCover(item: $viewerItem) { item in
-                SessionImageViewer(image: item.uiImage) { edited in
-                    replaceImage(item, with: edited)
-                } onTranscribed: { text in
-                    appendImageTranscription(text)
-                    Task { await autosaveSession() }
-                }
-                .appTextSize()
-            }
         }
         .appTextSize()
     }
@@ -489,139 +431,6 @@ struct SessionEditorView: View {
             ForEach(SessionType.allCases, id: \.self) { type in
                 Text(L10n.label(for: type)).tag(SessionType?.some(type))
             }
-        }
-    }
-
-    /// Picked and stored images for this session, shown under the notes.
-    /// Changes are pushed to Supabase Storage when the session is saved.
-    private var imagesRow: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 12) {
-                ForEach(images) { item in
-                    Button {
-                        viewerItem = item
-                    } label: {
-                        Image(uiImage: item.uiImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 96, height: 96)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        Button(L10n.deleteImageAction, role: .destructive) {
-                            removeImage(item)
-                        }
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    /// Small floating button that offers the image upload options.
-    private var floatingUploadButton: some View {
-        Button {
-            isShowingUploadOptions = true
-        } label: {
-            Image(systemName: "doc.badge.plus")
-                .font(.title3)
-                .foregroundStyle(Theme.textOnAccent)
-                .frame(width: 48, height: 48)
-                .background(Circle().fill(Theme.accentFill))
-                .shadow(radius: 4, y: 2)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L10n.uploadDocumentAction)
-        .padding()
-        .confirmationDialog(L10n.uploadDocumentAction,
-                            isPresented: $isShowingUploadOptions,
-                            titleVisibility: .hidden) {
-            Button(L10n.addImageFromLibraryAction) {
-                isShowingPhotoPicker = true
-            }
-            if CameraPicker.isCameraAvailable {
-                Button(L10n.takePhotoAction) {
-                    isShowingCamera = true
-                }
-            }
-        }
-        .photosPicker(isPresented: $isShowingPhotoPicker,
-                      selection: $photoSelection,
-                      maxSelectionCount: 10,
-                      matching: .images)
-    }
-
-    /// Compresses and stores a newly picked image locally until Save.
-    private func addImage(_ image: UIImage) {
-        guard let jpeg = image.resizedJPEGData(maxDimension: 1600, quality: 0.7),
-              let compressed = UIImage(data: jpeg) else { return }
-        images.append(SessionImageItem(
-            fileName: "\(UUID().uuidString).jpg",
-            uiImage: compressed,
-            data: jpeg,
-            isUploaded: false
-        ))
-    }
-
-    private func removeImage(_ item: SessionImageItem) {
-        images.removeAll { $0.id == item.id }
-        if item.isUploaded {
-            removedUploadedFileNames.append(item.fileName)
-        }
-    }
-
-    /// Swaps an image for its edited version. The old stored file is queued
-    /// for deletion and the new one uploads on the next session save.
-    private func replaceImage(_ item: SessionImageItem, with newImage: UIImage) {
-        guard let index = images.firstIndex(where: { $0.id == item.id }),
-              let jpeg = newImage.resizedJPEGData(maxDimension: 1600, quality: 0.7),
-              let compressed = UIImage(data: jpeg) else { return }
-        if item.isUploaded {
-            removedUploadedFileNames.append(item.fileName)
-        }
-        images[index] = SessionImageItem(
-            fileName: "\(UUID().uuidString).jpg",
-            uiImage: compressed,
-            data: jpeg,
-            isUploaded: false
-        )
-    }
-
-    /// Shows this session's stored images, from the cache when available.
-    private func loadImages() async {
-        guard !isNew, session.databaseID != nil else { return }
-
-        if let cached = store.cachedSessionImages(for: session) {
-            setImages(from: cached)
-            return
-        }
-        isLoadingImages = true
-        if let loaded = try? await store.loadSessionImages(for: session) {
-            setImages(from: loaded)
-        }
-        isLoadingImages = false
-    }
-
-    private func setImages(from pairs: [(fileName: String, data: Data)]) {
-        images = pairs.compactMap { pair in
-            UIImage(data: pair.data).map {
-                SessionImageItem(fileName: pair.fileName, uiImage: $0, data: pair.data, isUploaded: true)
-            }
-        }
-    }
-
-    /// Applies pending image changes to Supabase Storage: removals first,
-    /// then uploads of newly added images.
-    private func syncImages() async throws {
-        for fileName in removedUploadedFileNames {
-            try await store.deleteSessionImage(fileName: fileName, for: session)
-        }
-        removedUploadedFileNames = []
-
-        for index in images.indices where !images[index].isUploaded {
-            try await store.uploadSessionImage(images[index].data, fileName: images[index].fileName, for: session)
-            images[index].isUploaded = true
         }
     }
 
@@ -657,7 +466,7 @@ struct SessionEditorView: View {
                     .foregroundStyle(.tint)
             }
             .buttonStyle(.plain)
-            .disabled(isTranscribing)
+            .disabled(isTranscribing || isAnonymizingTranscription)
         }
     }
 
@@ -676,13 +485,22 @@ struct SessionEditorView: View {
         Task {
             do {
                 let text = try await whisperService.transcribe(fileURL: fileURL)
-                appendTranscription(text)
-                voiceRecorder.discard()
                 isTranscribing = false
+                // The raw transcript never reaches the notes field: the whole
+                // notes value — existing text plus the transcript, with no
+                // header line — is anonymized first and only then shown.
+                isAnonymizingTranscription = true
+                let existing = session.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                let combined = existing.isEmpty ? text : session.notes + "\n\n" + text
+                let anonymized = try await store.anonymizedText(combined)
+                session.notes = anonymized
+                voiceRecorder.discard()
+                isAnonymizingTranscription = false
                 await autosaveSession()
             } catch {
                 voiceRecorder.errorMessage = error.localizedDescription
                 isTranscribing = false
+                isAnonymizingTranscription = false
                 // The recording stays pending, so the inline row reappears
                 // and the transcription can be retried or discarded.
             }
@@ -698,6 +516,10 @@ struct SessionEditorView: View {
         Task {
             do {
                 let analysis = try await whisperService.analyzeSession(sessionNotes: session.notes)
+                // AI output is registered as server-provided so saving it
+                // unedited skips anonymization; only fields the therapist
+                // edits afterwards go through the Edge Function.
+                store.registerAIAnalysis(analysis)
                 // Saved silently the moment it arrives; the sheet opens for
                 // review without asking to keep it.
                 saveStructuredNotes(analysis)
@@ -731,6 +553,7 @@ struct SessionEditorView: View {
     /// Deletes the session (after the confirmation alert) and closes the editor.
     private func deleteSession() {
         errorMessage = nil
+        busyLabel = nil
         isSaving = true
         Task {
             do {
@@ -805,17 +628,6 @@ struct SessionEditorView: View {
                 errorMessage = error.localizedDescription
             }
         }
-    }
-
-    private func appendTranscription(_ text: String) {
-        let timeText = L10n.hebrewDateTime(.now)
-        appendNotesBlock("\(L10n.transcriptionHeader(timeText: timeText))\n\(text)")
-    }
-
-    /// Adds text extracted from an image to the notes, under a dated header.
-    private func appendImageTranscription(_ text: String) {
-        let dateText = L10n.hebrewNumericDate(.now)
-        appendNotesBlock("\(L10n.imageTranscriptionHeader(dateText: dateText))\n\(text)")
     }
 
     private func appendNotesBlock(_ block: String) {
@@ -899,6 +711,7 @@ struct SessionEditorView: View {
 
     private func save() {
         errorMessage = nil
+        busyLabel = L10n.anonymizingStatusLabel
         isSaving = true
         Task {
             do {
@@ -907,8 +720,6 @@ struct SessionEditorView: View {
                 } else {
                     try await store.updateSession(session)
                 }
-                // The session now has a database ID, so image changes can sync.
-                try await syncImages()
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription

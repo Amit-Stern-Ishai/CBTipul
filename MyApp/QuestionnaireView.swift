@@ -17,6 +17,9 @@ struct CombinedMoodQuestionnaireView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var isSaving = false
+    /// Status line under the busy spinner; the anonymization notice during
+    /// saves, nothing during deletes.
+    @State private var busyLabel: String?
     @State private var errorMessage: String?
     /// A previously filled questionnaire opens read-only until Edit is
     /// chosen from the toolbar menu.
@@ -172,7 +175,7 @@ struct CombinedMoodQuestionnaireView: View {
             Text(L10n.questionnaireIncompleteMessage)
         }
         .interactiveDismissDisabled(hasUnsavedChanges)
-        .busyOverlay(isSaving)
+        .busyOverlay(isSaving, label: busyLabel)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .task {
             if initialQuestionnaire == nil {
@@ -188,6 +191,7 @@ struct CombinedMoodQuestionnaireView: View {
 
     private func save() {
         errorMessage = nil
+        busyLabel = L10n.anonymizingStatusLabel
         isSaving = true
         Task {
             do {
@@ -202,6 +206,7 @@ struct CombinedMoodQuestionnaireView: View {
 
     private func deleteQuestionnaire() {
         errorMessage = nil
+        busyLabel = nil
         isSaving = true
         Task {
             do {
