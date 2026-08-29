@@ -46,7 +46,7 @@ struct PatientQuestionnairesView: View {
         .patientAtmosphere(patientColor)
         .background(Theme.base.ignoresSafeArea())
         .navigationTitle(L10n.questionnairesTitle)
-        .navigationSubtitle(patient.displayName)
+        .navigationSubtitleIfAvailable(patient.displayName)
         .task(id: mode) {
             guard mode == .graphs else { return }
             isPreparingGraphs = true

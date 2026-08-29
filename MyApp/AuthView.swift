@@ -20,10 +20,10 @@ struct AuthView: View {
     /// address instead of the sign-in/sign-up form.
     @State private var verificationEmail: String?
 
-    /// Sign-up requires a minimum length and a matching confirmation;
+    /// Sign-up requires a strong password and a matching confirmation;
     /// sign-in accepts whatever the account was created with.
     private var isPasswordValidForSubmit: Bool {
-        mode == .signIn || (password.count >= 6 && password == confirmPassword)
+        mode == .signIn || (PasswordRule.allSatisfied(by: password) && password == confirmPassword)
     }
     /// Blocks repeated resend taps for a short cooldown.
     @State private var isResendBlocked = false
@@ -157,9 +157,10 @@ struct AuthView: View {
                 }
             }
 
-            if mode == .signUp, !password.isEmpty, password.count < 6 {
-                message(L10n.passwordTooShortError,
-                        systemImage: "exclamationmark.triangle.fill", color: Theme.error)
+            // The strong-password checklist: every rule starts red and
+            // turns green the moment the password satisfies it.
+            if mode == .signUp {
+                PasswordRulesChecklist(password: password)
             }
 
             // Only flagged once the confirmation is as long as the password,
@@ -338,6 +339,56 @@ struct AuthView: View {
     }
 }
 
+/// The strong-password rules, checked live wherever a new password is
+/// chosen (sign-up and password reset), in the order shown to the user.
+private enum PasswordRule: CaseIterable {
+    case minLength, uppercase, lowercase, digit, special
+
+    var title: String {
+        switch self {
+        case .minLength: L10n.passwordRuleMinLength
+        case .uppercase: L10n.passwordRuleUppercase
+        case .lowercase: L10n.passwordRuleLowercase
+        case .digit: L10n.passwordRuleDigit
+        case .special: L10n.passwordRuleSpecial
+        }
+    }
+
+    func isMet(by password: String) -> Bool {
+        switch self {
+        case .minLength: password.count >= 8
+        case .uppercase: password.contains { $0.isUppercase }
+        case .lowercase: password.contains { $0.isLowercase }
+        case .digit: password.contains { $0.isNumber }
+        case .special: password.contains { !$0.isLetter && !$0.isNumber && !$0.isWhitespace }
+        }
+    }
+
+    static func allSatisfied(by password: String) -> Bool {
+        allCases.allSatisfy { $0.isMet(by: password) }
+    }
+}
+
+/// The live checklist of the strong-password rules: each rule starts red
+/// and turns green the moment the password satisfies it.
+private struct PasswordRulesChecklist: View {
+    let password: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(PasswordRule.allCases, id: \.self) { rule in
+                let isMet = rule.isMet(by: password)
+                Label(rule.title,
+                      systemImage: isMet ? "checkmark.circle.fill" : "xmark.circle")
+                    .font(.footnote)
+                    .foregroundStyle(isMet ? Theme.positive : Theme.error)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.easeInOut(duration: 0.15), value: password)
+    }
+}
+
 /// Presented after a password-recovery link signs the user in, so the reset
 /// actually ends with a new password. The recovery session only proves
 /// access to the email inbox, so leaving without setting a password signs
@@ -352,9 +403,9 @@ struct NewPasswordView: View {
     @State private var isWorking = false
     @State private var errorMessage: String?
 
-    /// True once both entries are long enough and identical.
+    /// True once the password is strong and both entries are identical.
     private var passwordsMatch: Bool {
-        password.count >= 6 && password == confirmPassword
+        PasswordRule.allSatisfied(by: password) && password == confirmPassword
     }
 
     var body: some View {
@@ -366,6 +417,8 @@ struct NewPasswordView: View {
                         .listRowBackground(groupBorderedRow(.first, accent: Theme.gold))
                     SecureField(L10n.confirmPasswordPlaceholder, text: $confirmPassword)
                         .textContentType(.newPassword)
+                        .listRowBackground(groupBorderedRow(.middle, accent: Theme.gold))
+                    PasswordRulesChecklist(password: password)
                         .listRowBackground(groupBorderedRow(.last, accent: Theme.gold))
                 } footer: {
                     Text(L10n.newPasswordMessage)

@@ -84,7 +84,7 @@ struct PatientAIView: View {
             inputBar
         }
         .navigationTitle(L10n.aiChatNavigationTitle)
-        .navigationSubtitle(patient.displayName)
+        .navigationSubtitleIfAvailable(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .task {
             // The questionnaire context needs the cache filled.

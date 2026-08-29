@@ -353,8 +353,23 @@ struct SettingsView: View {
 }
 
 /// An in-app browser for the official cbtipul.com pages, showing a busy
-/// spinner while the page loads.
+/// spinner while the page loads. SwiftUI's WebView exists only on iOS 26+,
+/// so older systems (the app deploys to iOS 18.6) get a wrapped WKWebView
+/// with the same loading treatment.
 private struct OfficialLinkWebView: View {
+    let url: URL
+
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            ModernOfficialLinkWebView(url: url)
+        } else {
+            LegacyOfficialLinkWebView(url: url)
+        }
+    }
+}
+
+@available(iOS 26.0, *)
+private struct ModernOfficialLinkWebView: View {
     @State private var page: WebPage
 
     init(url: URL) {
@@ -382,6 +397,69 @@ private struct OfficialLinkWebView: View {
             }
             .animation(.easeInOut(duration: 0.2), value: page.isLoading)
             .ignoresSafeArea(edges: .bottom)
+    }
+}
+
+/// Pre-iOS 26 fallback: WKWebView with the same hidden-until-loaded look.
+private struct LegacyOfficialLinkWebView: View {
+    let url: URL
+    @State private var isLoading = true
+
+    var body: some View {
+        LegacyWebView(url: url, isLoading: $isLoading)
+            .opacity(isLoading ? 0 : 1)
+            .background(Color.white.ignoresSafeArea())
+            .overlay {
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(.gray)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: isLoading)
+            .ignoresSafeArea(edges: .bottom)
+    }
+}
+
+private struct LegacyWebView: UIViewRepresentable {
+    let url: URL
+    @Binding var isLoading: Bool
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.navigationDelegate = context.coordinator
+        webView.load(URLRequest(url: url))
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isLoading: $isLoading)
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        @Binding var isLoading: Bool
+
+        init(isLoading: Binding<Bool>) {
+            _isLoading = isLoading
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            isLoading = false
+        }
+
+        func webView(_ webView: WKWebView,
+                     didFail navigation: WKNavigation!, withError error: Error) {
+            isLoading = false
+        }
+
+        func webView(_ webView: WKWebView,
+                     didFailProvisionalNavigation navigation: WKNavigation!,
+                     withError error: Error) {
+            isLoading = false
+        }
     }
 }
 

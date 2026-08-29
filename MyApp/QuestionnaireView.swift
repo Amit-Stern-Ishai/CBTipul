@@ -88,7 +88,7 @@ struct CombinedMoodQuestionnaireView: View {
         .themedScreen()
         .navigationTitle(patient.displayName)
         // The session's date, which is saved as the answered date.
-        .navigationSubtitle(L10n.hebrewDate(session.date))
+        .navigationSubtitleIfAvailable(L10n.hebrewDate(session.date))
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -249,7 +249,7 @@ struct CompletedQuestionnaireView: View {
         .patientAtmosphere(accent)
         .themedScreen()
         .navigationTitle(patientName ?? "")
-        .navigationSubtitle(L10n.hebrewDate(record.answeredDate))
+        .navigationSubtitleIfAvailable(L10n.hebrewDate(record.answeredDate))
     }
 }
 

@@ -93,7 +93,7 @@ struct PatientSessionsView: View {
         .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()
         .navigationTitle(L10n.sessionsTitle)
-        .navigationSubtitle(patient.displayName)
+        .navigationSubtitleIfAvailable(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
