@@ -107,6 +107,13 @@ struct SettingsView: View {
     @State private var isDeletingAccount = false
     @State private var deleteAccountError: String?
 
+    /// The app's marketing version and build number, e.g. "גרסה 1.0 (4)".
+    private var appVersionLine: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "-"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "-"
+        return L10n.appVersionLabel(version: version, build: build)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -231,6 +238,14 @@ struct SettingsView: View {
                     .disabled(isDeletingAccount)
                 }
                 .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
+
+                Section {
+                    Text(appVersionLine)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+                .listRowBackground(Color.clear)
             }
             .patientAtmosphere(Theme.gold)
             .themedScreen()

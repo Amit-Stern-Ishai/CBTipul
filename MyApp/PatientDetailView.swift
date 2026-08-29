@@ -443,8 +443,15 @@ struct PatientDetailView: View {
         .sheet(isPresented: $isEditingGoal) {
             NavigationStack {
                 Form {
-                    TextField(L10n.noTreatmentGoalPlaceholder, text: $goalDraft, axis: .vertical)
+                    Section {
+                        TextField(L10n.noTreatmentGoalPlaceholder, text: $goalDraft, axis: .vertical)
+                    }
+                    .listRowBackground(Theme.surface)
                 }
+                // Same chrome as the edit-name sheet: without themedScreen
+                // the form shows the system grey grouped background, which
+                // then flips appearance when the keyboard focuses the field.
+                .themedScreen()
                 .navigationTitle(L10n.treatmentGoalSection)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {

@@ -554,6 +554,10 @@ enum L10n {
     
     static let privacyPolicyTitle = "מדיניות פרטיות"
     static let settingsSupportTitle = "תמיכה"
+    /// The app version line at the bottom of Settings, e.g. "גרסה 1.0 (4)".
+    static func appVersionLabel(version: String, build: String) -> String {
+        "גרסה \(version) (\(build))"
+    }
     static let settingsPrivacyChoicesTitle = "בחירות פרטיות"
     /// Placeholder — the real wording will be filled in later.
     static let privacyPolicyBody = """
