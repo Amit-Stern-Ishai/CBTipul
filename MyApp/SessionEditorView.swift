@@ -261,7 +261,8 @@ struct SessionEditorView: View {
                         } label: {
                             Label(L10n.aiSummaryAction, systemImage: "sparkles")
                         }
-                        .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                  || isAnonymizingTranscription)
                         .listRowBackground(groupBorderedRow(.last))
                     }
 
@@ -319,11 +320,14 @@ struct SessionEditorView: View {
                     .disabled(isSaving)
                 }
                 if !isNew {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    // Save sits next to the menu (first in the group, so it
+                    // lands on the menu's reading-direction side), enabled
+                    // only once something actually changed.
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Button(L10n.save) { save() }
+                            .fontWeight(.semibold)
+                            .disabled(isSaving || !hasUnsavedChanges)
                         Menu {
-                            Button(L10n.save) { save() }
-                                .disabled(isSaving)
-                            Divider()
                             Button(L10n.deleteSessionAction, role: .destructive) {
                                 isShowingDeleteConfirmation = true
                             }
@@ -337,7 +341,7 @@ struct SessionEditorView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 if isNew {
-                    Button(action: save) {
+                    Button(action: { save() }) {
                         Group {
                             if isSaving {
                                 ProgressView()
@@ -368,7 +372,7 @@ struct SessionEditorView: View {
             // cancel-role buttons, and Keep Editing must always be offered.
             .alert(L10n.discardChangesTitle,
                    isPresented: $isShowingCancelWarning) {
-                Button(L10n.saveChangesAction) { save() }
+                Button(L10n.saveChangesAction) { save(thenDismiss: true) }
                 Button(L10n.discardChangesAction, role: .destructive) {
                     // The session object is shared, so revert the edits
                     // instead of leaving them in memory unsaved.
@@ -528,10 +532,19 @@ struct SessionEditorView: View {
     private func analyze() {
         let whisperService = WhisperService(client: auth.client)
         errorMessage = nil
-        isAnalyzing = true
         Task {
             do {
-                let analysis = try await whisperService.analyzeSession(sessionNotes: session.notes)
+                // No raw text may leave the device: the notes pass the same
+                // anonymization gate as saving before they are sent for
+                // analysis. Text that is already anonymized (loaded or
+                // previously gated) skips the extra call, and the field
+                // shows the anonymized version from here on.
+                isAnonymizingTranscription = true
+                let anonymizedNotes = try await store.anonymizedText(session.notes)
+                session.notes = anonymizedNotes
+                isAnonymizingTranscription = false
+                isAnalyzing = true
+                let analysis = try await whisperService.analyzeSession(sessionNotes: anonymizedNotes)
                 // AI output is registered as server-provided so saving it
                 // unedited skips anonymization; only fields the therapist
                 // edits afterwards go through the Edge Function.
@@ -544,6 +557,7 @@ struct SessionEditorView: View {
             } catch {
                 errorMessage = error.localizedDescription
             }
+            isAnonymizingTranscription = false
             isAnalyzing = false
         }
     }
@@ -726,7 +740,11 @@ struct SessionEditorView: View {
         }
     }
 
-    private func save() {
+    /// Saves the session. A creation sheet closes once the session exists;
+    /// editing an existing one stays on screen — unless the save came from
+    /// the leave-without-saving warning (`thenDismiss`), which continues
+    /// backing out after a successful save.
+    private func save(thenDismiss: Bool = false) {
         errorMessage = nil
         busyLabel = L10n.anonymizingStatusLabel
         isSaving = true
@@ -734,14 +752,20 @@ struct SessionEditorView: View {
             do {
                 if isNew {
                     try await store.addSession(session, for: patient)
+                    dismiss()
                 } else {
                     try await store.updateSession(session)
+                    // The save is the new baseline, so backing out without
+                    // further edits no longer warns about unsaved changes.
+                    initialDate = session.date
+                    initialNotes = session.notes
+                    initialType = session.type
+                    if thenDismiss { dismiss() }
                 }
-                dismiss()
             } catch {
                 errorMessage = error.localizedDescription
-                isSaving = false
             }
+            isSaving = false
         }
     }
 }
