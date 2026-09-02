@@ -354,7 +354,7 @@ struct PatientAIView: View {
 
     private func fullContext() -> String {
         var parts: [String] = []
-        parts.append("Patient: \(patient.displayName), status: \(patient.status.rawValue)")
+//        parts.append("Patient: \(patient.displayName), status: \(patient.status.rawValue)")
 
         let patientNotes = patient.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         if !patientNotes.isEmpty {
