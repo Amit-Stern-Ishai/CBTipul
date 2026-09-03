@@ -194,7 +194,12 @@ struct CombinedMoodQuestionnaireView: View {
 
     private func save() {
         errorMessage = nil
-        busyLabel = L10n.anonymizingStatusLabel
+        // Only promise anonymization when there is note text that may
+        // actually be sent to the anonymizer; otherwise show a plain spinner.
+        let questionnaire = session.questionnaire
+        let hasNoteText = (questionnaire.gad7Notes + questionnaire.phq9Notes + [questionnaire.interferenceNote])
+            .contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        busyLabel = hasNoteText ? L10n.anonymizingStatusLabel : nil
         isSaving = true
         Task {
             do {
@@ -293,7 +298,8 @@ private struct QuestionnaireSections: View {
                     selection: $questionnaire.gad7Answers[index],
                     note: $questionnaire.gad7Notes[index],
                     isEditable: isEditable,
-                    previousAnswer: previousAnswer(previous?.questionnaire.gad7Answers, at: index)
+                    previousAnswer: previousAnswer(previous?.questionnaire.gad7Answers, at: index),
+                    accent: accent
                 )
                 .listRowBackground(rowBackground(.middle))
             }
@@ -319,7 +325,8 @@ private struct QuestionnaireSections: View {
                     selection: $questionnaire.phq9Answers[index],
                     note: $questionnaire.phq9Notes[index],
                     isEditable: isEditable,
-                    previousAnswer: previousAnswer(previous?.questionnaire.phq9Answers, at: index)
+                    previousAnswer: previousAnswer(previous?.questionnaire.phq9Answers, at: index),
+                    accent: accent
                 )
                 .listRowBackground(rowBackground(.middle))
             }
@@ -472,6 +479,8 @@ private struct QuestionRow: View {
     @Binding var note: String
     let isEditable: Bool
     var previousAnswer: Int? = nil
+    /// The patient's identity color outlining each answer, when known.
+    var accent: Color? = nil
 
     @State private var isEditingNote = false
 
@@ -495,7 +504,7 @@ private struct QuestionRow: View {
                 NoteBox(note: note, onTap: isEditable ? { isEditingNote = true } : nil)
             }
 
-            AnswerScaleView(selection: $selection, previousValue: previousAnswer)
+            AnswerScaleView(selection: $selection, previousValue: previousAnswer, accent: accent)
                 .disabled(!isEditable)
         }
         .padding(.vertical, 4)
@@ -593,6 +602,8 @@ private extension Text {
 struct AnswerScaleView: View {
     @Binding var selection: Int?
     var previousValue: Int? = nil
+    /// The patient's identity color outlining each answer, when known.
+    var accent: Color? = nil
 
     var body: some View {
         HStack(spacing: 8) {
@@ -613,6 +624,9 @@ struct AnswerScaleView: View {
                             if previousValue == value {
                                 RoundedRectangle(cornerRadius: 8)
                                     .strokeBorder(Theme.warning, lineWidth: 2)
+                            } else if let accent {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(accent, lineWidth: 1)
                             }
                         }
                 }

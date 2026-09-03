@@ -746,7 +746,11 @@ struct SessionEditorView: View {
     /// backing out after a successful save.
     private func save(thenDismiss: Bool = false) {
         errorMessage = nil
-        busyLabel = L10n.anonymizingStatusLabel
+        // Only promise anonymization when there is text that may actually be
+        // sent to the anonymizer; otherwise show a plain spinner.
+        let hasText = !session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || session.structuredNotes != nil
+        busyLabel = hasText ? L10n.anonymizingStatusLabel : nil
         isSaving = true
         Task {
             do {

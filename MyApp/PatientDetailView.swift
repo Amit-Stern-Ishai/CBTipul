@@ -645,7 +645,14 @@ struct PatientDetailView: View {
         treatmentGoal.wrappedValue = goalDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         isEditingGoal = false
         errorMessage = nil
-        busyLabel = L10n.anonymizingStatusLabel
+        // Only promise anonymization when the formulation carries text that
+        // may actually be sent to the anonymizer.
+        let formulation = patient.formulation ?? .empty
+        let texts = [formulation.treatmentGoal, formulation.coreBelief, formulation.therapistHypothesis]
+            .compactMap { $0 } + formulation.keyAutomaticThoughts + formulation.maintainingBehaviors
+        let hasText = formulation.keyCBTCycle != nil
+            || texts.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        busyLabel = hasText ? L10n.anonymizingStatusLabel : nil
         isSaving = true
         Task {
             do {
@@ -659,7 +666,10 @@ struct PatientDetailView: View {
 
     private func save(thenDismiss: Bool = false) {
         errorMessage = nil
-        busyLabel = L10n.anonymizingStatusLabel
+        // Only promise anonymization when there are notes that may actually
+        // be sent to the anonymizer; otherwise show a plain spinner.
+        let hasText = !patient.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        busyLabel = hasText ? L10n.anonymizingStatusLabel : nil
         isSaving = true
         Task {
             do {
