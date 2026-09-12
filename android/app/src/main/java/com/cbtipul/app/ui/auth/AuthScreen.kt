@@ -47,6 +47,7 @@ import com.cbtipul.app.auth.AuthMode
 import com.cbtipul.app.auth.AuthUiState
 import com.cbtipul.app.auth.PasswordRule
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 
 @Composable
 fun AuthScreen(
@@ -64,8 +65,7 @@ fun AuthScreen(
     val colors = Theme.colors
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .background(colors.base)
+            .themedScreen(colors.gold)
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
             .padding(top = 24.dp),

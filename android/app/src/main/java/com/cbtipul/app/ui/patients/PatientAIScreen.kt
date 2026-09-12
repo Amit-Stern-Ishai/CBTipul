@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -56,6 +57,7 @@ import com.cbtipul.app.model.PHQ9Severity
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.settings.AIResponseStyle
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 import java.text.DateFormat
 import java.util.Locale
 import java.util.UUID
@@ -162,7 +164,8 @@ fun PatientAIScreen(
     }
 
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(PatientAvatarColor.background(patient.id)),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.ai_chat_navigation_title), color = colors.textBright) },
@@ -171,7 +174,7 @@ fun PatientAIScreen(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

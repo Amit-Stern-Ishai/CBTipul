@@ -20,23 +20,27 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cbtipul.app.R
 import com.cbtipul.app.model.NextSessionPreparation
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrepareSessionScreen(
     preparation: NextSessionPreparation?,
+    atmosphere: Color?,
     isOutdated: Boolean,
     onBack: () -> Unit,
 ) {
     val colors = Theme.colors
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(atmosphere),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.prepare_next_session_action), color = colors.textBright) },
@@ -45,7 +49,7 @@ fun PrepareSessionScreen(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

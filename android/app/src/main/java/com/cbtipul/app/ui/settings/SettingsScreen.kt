@@ -51,6 +51,7 @@ import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.patients.DeleteCodeDialog
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 
 private sealed class SettingsPage {
     data object Main : SettingsPage()
@@ -93,7 +94,8 @@ fun SettingsScreen(
             onBack = { page = SettingsPage.Main },
         )
         SettingsPage.Main -> Scaffold(
-            containerColor = colors.base,
+            modifier = Modifier.themedScreen(colors.gold),
+            containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(R.string.settings_title), color = colors.textBright) },
@@ -102,7 +104,7 @@ fun SettingsScreen(
                             Text(stringResource(R.string.settings_done_action), color = colors.gold)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 )
             },
         ) { padding ->
@@ -258,7 +260,8 @@ private fun TextSizePicker(
 ) {
     val colors = Theme.colors
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(colors.gold),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_text_size_title), color = colors.textBright) },
@@ -267,7 +270,7 @@ private fun TextSizePicker(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

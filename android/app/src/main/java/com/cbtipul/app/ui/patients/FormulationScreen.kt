@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,6 +42,7 @@ import com.cbtipul.app.model.PatientFormulation
 import com.cbtipul.app.model.SupervisionPoint
 import com.cbtipul.app.model.WhatAmIMissingResponse
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +68,8 @@ fun FormulationScreen(
     var draft by remember(patient.id.queryValue) { mutableStateOf(patient.formulation ?: PatientFormulation()) }
     val busy = isSaving || isAiBusy
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(PatientAvatarColor.background(patient.id)),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.my_formulation_title), color = colors.textBright) },
@@ -75,7 +78,7 @@ fun FormulationScreen(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->
@@ -180,8 +183,8 @@ fun FormulationScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FormulationSupervisionScreen(result: FormulationSupervision?, onBack: () -> Unit) {
-    SupervisionScaffold(stringResource(R.string.challenge_formulation_action), onBack) {
+fun FormulationSupervisionScreen(result: FormulationSupervision?, atmosphere: Color?, onBack: () -> Unit) {
+    SupervisionScaffold(stringResource(R.string.challenge_formulation_action), atmosphere, onBack) {
         if (result == null) {
             Text(stringResource(R.string.empty_ai_response_error), color = Theme.colors.textBright)
             return@SupervisionScaffold
@@ -211,8 +214,8 @@ fun FormulationSupervisionScreen(result: FormulationSupervision?, onBack: () -> 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WhatAmIMissingScreen(result: WhatAmIMissingResponse?, onBack: () -> Unit) {
-    SupervisionScaffold(stringResource(R.string.what_am_i_missing_title), onBack) {
+fun WhatAmIMissingScreen(result: WhatAmIMissingResponse?, atmosphere: Color?, onBack: () -> Unit) {
+    SupervisionScaffold(stringResource(R.string.what_am_i_missing_title), atmosphere, onBack) {
         if (result == null || result.findings.isEmpty()) {
             Text(stringResource(R.string.no_additional_patterns_message), color = Theme.colors.textBright)
             return@SupervisionScaffold
@@ -234,8 +237,8 @@ fun WhatAmIMissingScreen(result: WhatAmIMissingResponse?, onBack: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LongitudinalReviewScreen(result: LongitudinalCaseReviewResponse?, onBack: () -> Unit) {
-    SupervisionScaffold(stringResource(R.string.longitudinal_case_review_title), onBack) {
+fun LongitudinalReviewScreen(result: LongitudinalCaseReviewResponse?, atmosphere: Color?, onBack: () -> Unit) {
+    SupervisionScaffold(stringResource(R.string.longitudinal_case_review_title), atmosphere, onBack) {
         if (result == null) {
             Text(stringResource(R.string.insufficient_longitudinal_data_message), color = Theme.colors.textBright)
             return@SupervisionScaffold
@@ -255,10 +258,11 @@ fun LongitudinalReviewScreen(result: LongitudinalCaseReviewResponse?, onBack: ()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SupervisionScaffold(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
+private fun SupervisionScaffold(title: String, atmosphere: Color?, onBack: () -> Unit, content: @Composable () -> Unit) {
     val colors = Theme.colors
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(atmosphere),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(title, color = colors.textBright) },
@@ -267,7 +271,7 @@ private fun SupervisionScaffold(title: String, onBack: () -> Unit, content: @Com
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

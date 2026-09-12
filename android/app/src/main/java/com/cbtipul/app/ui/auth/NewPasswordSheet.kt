@@ -28,6 +28,7 @@ import com.cbtipul.app.R
 import com.cbtipul.app.auth.AuthUiState
 import com.cbtipul.app.auth.PasswordRule
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.patientAtmosphere
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +47,7 @@ fun NewPasswordSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
     ) {
-        Column(modifier = Modifier.padding(24.dp).fillMaxWidth()) {
+        Column(modifier = Modifier.padding(24.dp).fillMaxWidth().patientAtmosphere(colors.gold)) {
             Text(stringResource(R.string.new_password_title), color = colors.textBright, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Text(stringResource(R.string.new_password_message), color = colors.textBody, fontSize = 14.sp)

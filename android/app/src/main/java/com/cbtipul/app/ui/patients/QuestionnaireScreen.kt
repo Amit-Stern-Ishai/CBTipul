@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +47,7 @@ import com.cbtipul.app.model.CombinedMoodQuestionnaire
 import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.Session
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 import java.text.DateFormat
 import java.util.Locale
 
@@ -55,6 +57,7 @@ fun QuestionnaireScreen(
     session: Session?,
     existing: CombinedMoodQuestionnaire?,
     previous: CompletedQuestionnaire?,
+    atmosphere: Color?,
     isSaving: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
@@ -83,7 +86,8 @@ fun QuestionnaireScreen(
     val interference = stringArrayResource(R.array.phq9_interference_options)
 
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(atmosphere),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.questionnaire_section_title), color = colors.textBright) },
@@ -127,7 +131,7 @@ fun QuestionnaireScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

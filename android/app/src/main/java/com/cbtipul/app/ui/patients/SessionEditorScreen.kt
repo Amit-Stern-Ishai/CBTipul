@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +60,7 @@ import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.Session
 import com.cbtipul.app.model.SessionType
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -82,6 +84,7 @@ fun SessionEditorScreen(
     onOpenAnalysis: () -> Unit,
     questionnaire: CompletedQuestionnaire?,
     previousQuestionnaire: CompletedQuestionnaire?,
+    atmosphere: Color?,
     onOpenQuestionnaire: () -> Unit,
 ) {
     val colors = Theme.colors
@@ -139,7 +142,8 @@ fun SessionEditorScreen(
     }
 
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(atmosphere),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -154,7 +158,7 @@ fun SessionEditorScreen(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

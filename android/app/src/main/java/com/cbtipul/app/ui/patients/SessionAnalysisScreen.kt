@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,11 +34,13 @@ import com.cbtipul.app.model.FollowUpStatus
 import com.cbtipul.app.model.CBTCycle
 import com.cbtipul.app.model.CBTSessionAnalysis
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionAnalysisScreen(
     analysis: CBTSessionAnalysis?,
+    atmosphere: Color?,
     canSave: Boolean,
     isSaving: Boolean,
     errorMessage: String?,
@@ -54,7 +57,8 @@ fun SessionAnalysisScreen(
     }
     var edited by remember(analysis.sessionSummary) { mutableStateOf(analysis) }
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(atmosphere),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.session_summary_title), color = colors.textBright) },
@@ -70,7 +74,7 @@ fun SessionAnalysisScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

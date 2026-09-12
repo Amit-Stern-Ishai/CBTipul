@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +62,7 @@ import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.PatientStatus
 import com.cbtipul.app.model.SessionType
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -143,7 +145,8 @@ fun PatientDetailScreen(
     }
 
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(PatientAvatarColor.background(patient.id)),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(name, color = colors.textBright) },
@@ -157,7 +160,7 @@ fun PatientDetailScreen(
                         Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_patient_name_action), tint = colors.gold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

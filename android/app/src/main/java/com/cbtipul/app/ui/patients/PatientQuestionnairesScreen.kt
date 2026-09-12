@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -46,6 +47,7 @@ import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.GAD7Severity
 import com.cbtipul.app.model.PHQ9Severity
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 import java.text.DateFormat
 import java.util.Locale
 
@@ -53,6 +55,7 @@ import java.util.Locale
 @Composable
 fun PatientQuestionnairesScreen(
     records: List<CompletedQuestionnaire>,
+    atmosphere: Color?,
     onBack: () -> Unit,
     onOpen: (CompletedQuestionnaire) -> Unit,
 ) {
@@ -62,7 +65,8 @@ fun PatientQuestionnairesScreen(
     val oldestFirst = remember(records) { records.sortedBy { it.answeredDate.time } }
 
     Scaffold(
-        containerColor = colors.base,
+        modifier = Modifier.themedScreen(atmosphere),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.questionnaires_title), color = colors.textBright) },
@@ -71,7 +75,7 @@ fun PatientQuestionnairesScreen(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.base),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->
@@ -226,12 +230,29 @@ private fun QuestionnaireScoreChart(
             if (points.isEmpty()) return@Canvas
             val maxY = maxScore.coerceAtLeast(1f)
             val path = Path()
+            val fill = Path()
             points.forEachIndexed { index, value ->
                 val x = if (points.size == 1) size.width / 2 else size.width * index / (points.size - 1)
                 val y = size.height * (1f - (value / maxY).coerceIn(0f, 1f))
-                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                if (index == 0) {
+                    path.moveTo(x, y)
+                    fill.moveTo(x, size.height)
+                    fill.lineTo(x, y)
+                } else {
+                    path.lineTo(x, y)
+                    fill.lineTo(x, y)
+                }
                 drawCircle(color = pointColors[index], radius = 6f, center = Offset(x, y))
             }
+            val lastX = if (points.size == 1) size.width / 2 else size.width
+            fill.lineTo(lastX, size.height)
+            fill.close()
+            drawPath(
+                fill,
+                Brush.verticalGradient(
+                    colors = listOf(tint.copy(alpha = 0.25f), tint.copy(alpha = 0.02f)),
+                ),
+            )
             drawPath(path, color = tint, style = Stroke(width = 4f))
         }
     }

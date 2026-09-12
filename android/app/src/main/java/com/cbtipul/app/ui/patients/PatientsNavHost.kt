@@ -222,27 +222,36 @@ fun PatientsNavHost(
         composable(
             "patient/{id}/formulation/challenge",
             arguments = listOf(navArgument("id") { type = NavType.StringType }),
-        ) {
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             FormulationSupervisionScreen(
                 result = ui.formulationSupervision,
+                atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 onBack = { navController.popBackStack() },
             )
         }
         composable(
             "patient/{id}/formulation/missing",
             arguments = listOf(navArgument("id") { type = NavType.StringType }),
-        ) {
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             WhatAmIMissingScreen(
                 result = ui.missingReview,
+                atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 onBack = { navController.popBackStack() },
             )
         }
         composable(
             "patient/{id}/formulation/longitudinal",
             arguments = listOf(navArgument("id") { type = NavType.StringType }),
-        ) {
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             LongitudinalReviewScreen(
                 result = ui.longitudinalReview,
+                atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 onBack = { navController.popBackStack() },
             )
         }
@@ -274,6 +283,7 @@ fun PatientsNavHost(
             LaunchedEffect(id) { patient?.id?.let(viewModel::loadQuestionnaires) }
             PatientQuestionnairesScreen(
                 records = questionnaires[id].orEmpty(),
+                atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 onBack = { navController.popBackStack() },
                 onOpen = { record ->
                     val sessionKey = record.sessionId?.queryValue ?: return@PatientQuestionnairesScreen
@@ -381,6 +391,7 @@ fun PatientsNavHost(
                 },
                 questionnaire = currentQuestionnaire,
                 previousQuestionnaire = previousQuestionnaire(records, session),
+                atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 onOpenQuestionnaire = {
                     val key = session?.databaseId?.queryValue ?: return@SessionEditorScreen
                     navController.navigate("patient/$id/session/$key/questionnaire")
@@ -397,8 +408,10 @@ fun PatientsNavHost(
             val id = entry.arguments?.getString("id").orEmpty()
             val sessionId = entry.arguments?.getString("sessionId").orEmpty()
             val session = viewModel.session(id, sessionId)
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             SessionAnalysisScreen(
                 analysis = session?.structuredNotes ?: ui.pendingAnalysis,
+                atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 canSave = session?.databaseId != null,
                 isSaving = ui.isSavingSession,
                 errorMessage = ui.sessionError,
@@ -432,6 +445,7 @@ fun PatientsNavHost(
             val saved = ui.savedPreparations[id]
             PrepareSessionScreen(
                 preparation = saved?.preparation,
+                atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 isOutdated = patient != null && saved != null &&
                     viewModel.isPreparationOutdated(patient, saved.generatedAtMillis),
                 onBack = { navController.popBackStack() },
@@ -491,6 +505,7 @@ fun PatientsNavHost(
                 session = session,
                 existing = existing,
                 previous = previousQuestionnaire(records, session),
+                atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 isSaving = ui.isSavingQuestionnaire,
                 errorMessage = ui.sessionError,
                 onBack = {
