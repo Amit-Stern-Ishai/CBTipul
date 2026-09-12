@@ -518,7 +518,7 @@ struct SessionEditorView: View {
                 isAnonymizingTranscription = false
                 await autosaveSession()
             } catch {
-                voiceRecorder.errorMessage = error.localizedDescription
+                voiceRecorder.errorMessage = error.userFacingMessage
                 isTranscribing = false
                 isAnonymizingTranscription = false
                 // The recording stays pending, so the inline row reappears
@@ -555,7 +555,7 @@ struct SessionEditorView: View {
                 analysisResult = SessionAnalysisResult(analysis: analysis,
                                                        requiresSaveDecision: false)
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
             isAnonymizingTranscription = false
             isAnalyzing = false
@@ -576,7 +576,7 @@ struct SessionEditorView: View {
             initialNotes = session.notes
             initialType = session.type
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = error.userFacingMessage
         }
     }
 
@@ -641,7 +641,7 @@ struct SessionEditorView: View {
             do {
                 try await store.updateSession(item.session)
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
         }
     }
@@ -655,7 +655,7 @@ struct SessionEditorView: View {
             do {
                 try await store.updateSession(session)
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
         }
     }
@@ -767,7 +767,7 @@ struct SessionEditorView: View {
                     if thenDismiss { dismiss() }
                 }
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
             isSaving = false
         }

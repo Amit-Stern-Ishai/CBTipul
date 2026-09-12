@@ -201,6 +201,28 @@ struct SettingsView: View {
                         .listRowBackground(groupBorderedRow(.last, accent: Theme.gold))
                 }
 
+                // Read-only record that AI data sharing was approved; the
+                // row only exists once consent was granted.
+                if AIDataSharingConsentStore.shared.hasAccepted {
+                    Section {
+                        HStack {
+                            Label {
+                                Text(L10n.settingsAIConsentTitle)
+                            } icon: {
+                                Image(systemName: "sparkles")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(Theme.gold)
+                                    .frame(width: 28, height: 28)
+                                    .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
+                            }
+                            Spacer()
+                            Text(L10n.settingsAIConsentApprovedStatus)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
+                }
+
                 Section(L10n.settingsAccountSectionTitle) {
                     if let email = auth.currentUserEmail {
                         Label {

@@ -86,6 +86,9 @@ struct ContentView: View {
         }
         .onChange(of: auth.currentUserEmail, initial: true) { _, email in
             hasAcceptedTerms = email.map(TermsAcceptance.hasAccepted) ?? false
+            // AI data-sharing consent is per account too: switching users
+            // swaps in that account's own stored decision.
+            AIDataSharingConsentStore.shared.setActiveUser(email: email)
         }
         .task {
             // Keep the splash up briefly so the session can be restored

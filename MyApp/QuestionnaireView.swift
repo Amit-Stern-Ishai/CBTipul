@@ -206,7 +206,7 @@ struct CombinedMoodQuestionnaireView: View {
                 try await store.saveQuestionnaire(session.questionnaire, for: patient, session: session)
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
                 isSaving = false
             }
         }

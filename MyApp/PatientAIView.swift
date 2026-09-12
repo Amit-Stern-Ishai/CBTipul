@@ -203,7 +203,7 @@ struct PatientAIView: View {
                     chatEntries.append(ChatEntry(role: .assistant, text: answer))
                 }
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
                 isLoading = false
             }
         }

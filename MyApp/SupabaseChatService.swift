@@ -70,6 +70,10 @@ nonisolated struct SupabaseChatService {
     /// Multi-turn variant: sends the whole conversation so the model can
     /// answer follow-up questions in context.
     func complete(systemPrompt: String, turns: [ChatTurn]) async throws -> String {
+        // The conversation is about to be forwarded to OpenAI — the one-time
+        // AI data-sharing consent must be granted first.
+        try await AIDataSharingConsentStore.ensureGranted()
+
         let body = GatewayRequest(
             model: "gpt-4o-mini",
             messages: [GatewayRequest.Message(role: "system", content: systemPrompt)]

@@ -554,7 +554,7 @@ struct PatientDetailView: View {
                     errorMessage = error.localizedDescription
                 }
             } catch {
-                voiceRecorder.errorMessage = error.localizedDescription
+                voiceRecorder.errorMessage = error.userFacingMessage
                 isTranscribing = false
                 isAnonymizingTranscription = false
                 // The recording stays pending, so the inline row reappears
@@ -597,7 +597,7 @@ struct PatientDetailView: View {
                 savedPreparation = SavedPreparation.save(response, for: patient.id)
                 preparationResult = NextSessionPreparationResult(response: response)
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
             isPreparing = false
         }
@@ -658,7 +658,7 @@ struct PatientDetailView: View {
             do {
                 try await store.saveFormulation(patient.formulation ?? .empty, for: patient)
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
             isSaving = false
         }
@@ -677,7 +677,7 @@ struct PatientDetailView: View {
                 initialNotes = patient.notes
                 if thenDismiss { dismiss() }
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
             isSaving = false
         }

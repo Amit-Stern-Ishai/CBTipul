@@ -50,6 +50,10 @@ nonisolated struct ClinicalTextAnonymizer {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "" }
 
+        // The text is about to be sent to OpenAI for anonymization — the
+        // one-time AI data-sharing consent must be granted first.
+        try await AIDataSharingConsentStore.ensureGranted()
+
         AppLog.ai.info("Anonymization requested, characters: \(trimmed.count)")
         let response: Response
         do {

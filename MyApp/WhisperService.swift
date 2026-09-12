@@ -29,6 +29,10 @@ nonisolated struct WhisperService {
         language: String = "he"
     ) async throws -> String {
 
+        // The audio is about to be sent to OpenAI Whisper — the one-time AI
+        // data-sharing consent must be granted first.
+        try await AIDataSharingConsentStore.ensureGranted()
+
         let audioData: Data
 
         do {
@@ -217,6 +221,8 @@ nonisolated struct WhisperService {
             guard !notes.isEmpty else {
                 throw APIError.invalidInput
             }
+
+            try await AIDataSharingConsentStore.ensureGranted()
 
             AppLog.ai.info("Session analysis requested, notes characters: \(notes.count)")
 
@@ -506,6 +512,7 @@ nonisolated struct WhisperService {
         patientContext: PatientContext,
         lastSessionAssignments: [AssignmentForNextWeek]? = nil
     ) async throws -> PrepareSessionResponse {
+        try await AIDataSharingConsentStore.ensureGranted()
         AppLog.ai.info("Next-session preparation requested")
         do {
             let response: PrepareSessionResponse =
@@ -544,6 +551,7 @@ nonisolated struct WhisperService {
         patientContext: PatientContext,
         formulation: PatientFormulation
     ) async throws -> FormulationSupervision {
+        try await AIDataSharingConsentStore.ensureGranted()
         AppLog.ai.info("Formulation supervision requested")
         do {
             let supervision: FormulationSupervision =
@@ -582,6 +590,7 @@ nonisolated struct WhisperService {
     func whatAmIMissing(
         patientContext: PatientContext
     ) async throws -> WhatAmIMissingResponse {
+        try await AIDataSharingConsentStore.ensureGranted()
         AppLog.ai.info("What-am-I-missing review requested")
         do {
             let response: WhatAmIMissingResponse =
@@ -616,6 +625,7 @@ nonisolated struct WhisperService {
     func longitudinalCaseReview(
         patientContext: PatientContext
     ) async throws -> LongitudinalCaseReviewResponse {
+        try await AIDataSharingConsentStore.ensureGranted()
         AppLog.ai.info("Longitudinal case review requested")
         do {
             let response: LongitudinalCaseReviewResponse =

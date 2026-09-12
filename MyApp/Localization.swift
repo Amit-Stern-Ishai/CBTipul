@@ -563,6 +563,25 @@ enum L10n {
         "גרסה \(version) (\(build))"
     }
     static let settingsPrivacyChoicesTitle = "בחירות פרטיות"
+
+    // MARK: - AI data-sharing consent
+
+    static let aiConsentTitle = "שימוש בשירותי בינה מלאכותית"
+    static let aiConsentBody = """
+    לצורך תמלול, הסרת פרטים מזהים, הפקת סיכומים וניתוחים מסייעים, האפליקציה משתמשת בשירותי OpenAI.
+
+    טקסט חופשי עשוי להישלח ל־OpenAI לצורך הסרת פרטים מזהים לפני שמירתו. הטקסט המקורי אינו נשמר על ידי האפליקציה.
+
+    קובצי שמע עשויים להישלח ל־OpenAI לצורך תמלול. קובץ השמע אינו נשמר על ידי האפליקציה לאחר השלמת התמלול, והתמלול עובר תהליך להסרת פרטים מזהים לפני שמירתו.
+
+    לאחר הסרת הפרטים המזהים, מידע עשוי להישלח ל־OpenAI לצורך הפעלת כלי הבינה המלאכותית באפליקציה.
+
+    בלחיצה על ״אישור והמשך״ קיימת הסכמה להעברת המידע המתואר לעיל ל־OpenAI לצרכים אלה.
+    """
+    static let aiConsentAcceptAction = "אישור והמשך"
+    static let aiConsentDeclineAction = "לא עכשיו"
+    static let settingsAIConsentTitle = "שיתוף מידע עם שירותי בינה מלאכותית"
+    static let settingsAIConsentApprovedStatus = "אושר"
     /// Placeholder — the real wording will be filled in later.
     static let privacyPolicyBody = """
 מדיניות פרטיות עבור CBTipul
