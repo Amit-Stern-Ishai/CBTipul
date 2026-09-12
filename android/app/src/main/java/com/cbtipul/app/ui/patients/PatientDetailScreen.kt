@@ -6,7 +6,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,7 +26,13 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.AutoFixHigh
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -62,7 +70,11 @@ import com.cbtipul.app.model.CombinedMoodQuestionnaire
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.PatientStatus
 import com.cbtipul.app.model.SessionType
+import com.cbtipul.app.ui.theme.BusyOverlay
+import com.cbtipul.app.ui.theme.GroupRowPosition
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
+import com.cbtipul.app.ui.theme.groupBordered
 import com.cbtipul.app.ui.theme.themedScreen
 import java.io.File
 
@@ -154,8 +166,11 @@ fun PatientDetailScreen(
         if (granted) recorder.startRecording() else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
-        modifier = Modifier.themedScreen(PatientAvatarColor.background(patient.id)),
+        modifier = Modifier
+            .themedScreen(PatientAvatarColor.background(patient.id))
+            .dismissKeyboardOnTap(),
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
@@ -243,9 +258,12 @@ fun PatientDetailScreen(
                 )
             }
 
+            val accent = PatientAvatarColor.background(patient.id)
+            val actionCount = 6 + if (savedPreparationDate != null) 1 else 0
             ExposedDropdownMenuBox(
                 expanded = statusExpanded,
                 onExpandedChange = { statusExpanded = it },
+                modifier = Modifier.groupBordered(GroupRowPosition.at(0, actionCount), accent),
             ) {
                 OutlinedTextField(
                     value = stringResource(
@@ -283,6 +301,62 @@ fun PatientDetailScreen(
                         )
                     }
                 }
+            }
+            IconChipRow(
+                icon = Icons.Outlined.DateRange,
+                title = stringResource(R.string.sessions_title),
+                position = GroupRowPosition.at(1, actionCount),
+                accent = accent,
+                onClick = onOpenSessions,
+            )
+            IconChipRow(
+                icon = Icons.Outlined.ShowChart,
+                title = stringResource(R.string.view_questionnaires_action),
+                position = GroupRowPosition.at(2, actionCount),
+                accent = accent,
+                onClick = onOpenQuestionnaires,
+            )
+            IconChipRow(
+                icon = Icons.Outlined.AutoAwesome,
+                title = stringResource(R.string.ai_action),
+                position = GroupRowPosition.at(3, actionCount),
+                accent = accent,
+                onClick = onOpenChat,
+            )
+            IconChipRow(
+                icon = Icons.Outlined.EditNote,
+                title = stringResource(R.string.my_formulation_title),
+                position = GroupRowPosition.at(4, actionCount),
+                accent = accent,
+                onClick = onOpenFormulation,
+            )
+            IconChipRow(
+                icon = Icons.Outlined.AutoFixHigh,
+                title = stringResource(R.string.prepare_next_session_action),
+                position = GroupRowPosition.at(5, actionCount),
+                accent = accent,
+                enabled = !isPreparing,
+                trailing = {
+                    if (isPreparing) CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
+                },
+                onClick = onPrepare,
+            )
+            if (savedPreparationDate != null) {
+                IconChipRow(
+                    icon = Icons.Outlined.Description,
+                    title = stringResource(R.string.last_preparation_action),
+                    position = GroupRowPosition.at(6, actionCount),
+                    accent = accent,
+                    trailing = {
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(savedPreparationDate, color = colors.textBody, fontSize = 12.sp)
+                            if (isPreparationOutdated) {
+                                Text(stringResource(R.string.outdated_badge), color = colors.warning, fontSize = 11.sp)
+                            }
+                        }
+                    },
+                    onClick = onOpenLastPreparation,
+                )
             }
 
             Text(stringResource(R.string.notes_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
@@ -366,66 +440,6 @@ fun PatientDetailScreen(
                 else Text(stringResource(R.string.save_changes_action))
             }
             notesError?.let { Text(it, color = colors.error) }
-            Button(
-                onClick = onOpenSessions,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-            ) {
-                Text(stringResource(R.string.sessions_title))
-            }
-            Button(
-                onClick = onOpenQuestionnaires,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-            ) {
-                Text(stringResource(R.string.view_questionnaires_action))
-            }
-            Button(
-                onClick = onOpenChat,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-            ) {
-                Text(stringResource(R.string.ai_action))
-            }
-            Button(
-                onClick = onOpenFormulation,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-            ) {
-                Text(stringResource(R.string.my_formulation_title))
-            }
-            Button(
-                onClick = onPrepare,
-                enabled = !isPreparing,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(stringResource(R.string.prepare_next_session_action))
-                    if (isPreparing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(start = 12.dp).size(18.dp),
-                            color = colors.textOnAccent,
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                }
-            }
-            if (savedPreparationDate != null) {
-                TextButton(onClick = onOpenLastPreparation, modifier = Modifier.fillMaxWidth()) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.last_preparation_action), color = colors.gold)
-                        Text(savedPreparationDate, color = colors.textBody)
-                        if (isPreparationOutdated) {
-                            Text(stringResource(R.string.outdated_badge), color = colors.warning)
-                        }
-                    }
-                }
-            }
             prepareError?.let { Text(it, color = colors.error) }
             Spacer(Modifier.height(12.dp))
             Button(
@@ -436,6 +450,11 @@ fun PatientDetailScreen(
                 Text(stringResource(R.string.delete_patient_action))
             }
         }
+    }
+        BusyOverlay(
+            isBusy = isSavingNotes || isAnonymizingTranscription,
+            label = if (isAnonymizingTranscription) stringResource(R.string.anonymizing_status_label) else null,
+        )
     }
 
     if (showRename) {
@@ -520,6 +539,39 @@ private fun BoxMissing(onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
         Text(stringResource(R.string.unnamed_patient), color = colors.textBright)
         TextButton(onClick = onBack) { Text(stringResource(R.string.back), color = colors.gold) }
+    }
+}
+
+@Composable
+private fun IconChipRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    position: GroupRowPosition,
+    accent: Color,
+    enabled: Boolean = true,
+    trailing: @Composable () -> Unit = {},
+    onClick: () -> Unit,
+) {
+    val colors = Theme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .groupBordered(position, accent)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .background(colors.goldGhost, RoundedCornerShape(7.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
+        }
+        Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        trailing()
     }
 }
 

@@ -3,6 +3,7 @@ package com.cbtipul.app.ui.patients
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -49,7 +53,9 @@ import com.cbtipul.app.R
 import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.GAD7Severity
 import com.cbtipul.app.model.PHQ9Severity
+import com.cbtipul.app.ui.theme.GroupRowPosition
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.groupBordered
 import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.themedScreen
 
@@ -58,6 +64,9 @@ import com.cbtipul.app.ui.theme.themedScreen
 fun PatientQuestionnairesScreen(
     records: List<CompletedQuestionnaire>,
     atmosphere: Color?,
+    isLoading: Boolean,
+    loadError: String?,
+    onRetry: () -> Unit,
     onBack: () -> Unit,
     onOpen: (CompletedQuestionnaire) -> Unit,
 ) {
@@ -81,14 +90,35 @@ fun PatientQuestionnairesScreen(
             )
         },
     ) { padding ->
-        if (newestFirst.isEmpty()) {
+        when {
+            isLoading && newestFirst.isEmpty() -> {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = colors.gold)
+                }
+            }
+            loadError != null && newestFirst.isEmpty() -> {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(stringResource(R.string.load_error_title), color = colors.textBright, fontWeight = FontWeight.Bold)
+                    Text(loadError, color = colors.textBody, modifier = Modifier.padding(top = 8.dp))
+                    Button(
+                        onClick = onRetry,
+                        modifier = Modifier.padding(top = 16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+                    ) { Text(stringResource(R.string.retry)) }
+                }
+            }
+            newestFirst.isEmpty() -> {
             Text(
                 stringResource(R.string.no_questionnaires_message),
                 color = colors.textBody,
                 modifier = Modifier.padding(padding).padding(24.dp),
             )
-            return@Scaffold
-        }
+            }
+            else -> {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(24.dp),
@@ -155,8 +185,9 @@ fun PatientQuestionnairesScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .groupBordered(GroupRowPosition.at(index, newestFirst.size), atmosphere ?: colors.gold)
                         .clickable { onOpen(record) }
-                        .padding(vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(hebrewDate(record.answeredDate), color = colors.textBright, fontWeight = FontWeight.SemiBold)
@@ -166,6 +197,8 @@ fun PatientQuestionnairesScreen(
                     }
                 }
             }
+            }
+        }
             }
         }
     }

@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -72,7 +73,9 @@ import com.cbtipul.app.model.FollowUpStatus
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.Session
 import com.cbtipul.app.model.SessionType
+import com.cbtipul.app.ui.theme.BusyOverlay
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.themedScreen
 import java.io.File
@@ -211,8 +214,11 @@ fun SessionEditorScreen(
         if (granted) recorder.startRecording() else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
-        modifier = Modifier.themedScreen(atmosphere),
+        modifier = Modifier
+            .themedScreen(atmosphere)
+            .dismissKeyboardOnTap(),
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
@@ -477,6 +483,13 @@ fun SessionEditorScreen(
                 }
             }
         }
+    }
+        BusyOverlay(
+            isBusy = isSaving || isAnonymizingTranscription,
+            label = if (isAnonymizingTranscription || (isSaving && hasText)) {
+                stringResource(R.string.anonymizing_status_label)
+            } else null,
+        )
     }
 
     if (showDatePicker) {

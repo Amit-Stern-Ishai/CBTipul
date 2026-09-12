@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,7 +47,9 @@ import com.cbtipul.app.R
 import com.cbtipul.app.auth.AuthMode
 import com.cbtipul.app.auth.AuthUiState
 import com.cbtipul.app.auth.PasswordRule
+import com.cbtipul.app.ui.theme.BusyOverlay
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.theme.themedScreen
 
 @Composable
@@ -63,9 +66,11 @@ fun AuthScreen(
     onBackToSignIn: () -> Unit,
 ) {
     val colors = Theme.colors
+    Box(Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .themedScreen(colors.gold)
+            .dismissKeyboardOnTap()
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
             .padding(top = 24.dp),
@@ -123,6 +128,8 @@ fun AuthScreen(
                 onForgotPassword = onForgotPassword,
             )
         }
+    }
+        BusyOverlay(state.isWorking)
     }
 }
 

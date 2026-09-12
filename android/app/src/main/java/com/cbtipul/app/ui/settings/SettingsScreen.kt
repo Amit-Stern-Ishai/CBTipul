@@ -50,7 +50,10 @@ import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.patients.DeleteCodeDialog
+import com.cbtipul.app.ui.theme.BusyOverlay
+import com.cbtipul.app.ui.theme.GroupRowPosition
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.groupBordered
 import com.cbtipul.app.ui.theme.themedScreen
 
 private sealed class SettingsPage {
@@ -117,10 +120,11 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     Text(stringResource(R.string.settings_appearance_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    AppAppearance.entries.forEach { option ->
+                    AppAppearance.entries.forEachIndexed { index, option ->
                         SettingsRow(
                             title = stringResource(option.labelRes()),
                             selected = appearance == option,
+                            position = GroupRowPosition.at(index, AppAppearance.entries.size),
                             onClick = { onAppearance(option) },
                         )
                     }
@@ -129,24 +133,28 @@ fun SettingsScreen(
                     SettingsRow(
                         title = stringResource(R.string.settings_text_size_title),
                         trailing = stringResource(textSize.labelRes()),
+                        position = GroupRowPosition.Only,
                         onClick = { page = SettingsPage.TextSize },
                     )
 
-                    SettingsRow(
-                        title = stringResource(R.string.terms_title),
-                        onClick = { page = SettingsPage.Terms },
-                    )
                     val privacy = stringResource(R.string.privacy_policy_title)
                     val support = stringResource(R.string.settings_support_title)
                     val choices = stringResource(R.string.settings_privacy_choices_title)
-                    SettingsRow(title = privacy, onClick = { page = SettingsPage.Web(privacy, "https://cbtipul.com/privacy") })
-                    SettingsRow(title = support, onClick = { page = SettingsPage.Web(support, "https://cbtipul.com/support") })
-                    SettingsRow(title = choices, onClick = { page = SettingsPage.Web(choices, "https://cbtipul.com/privacy-choices") })
+                    val legalCount = 4 + if (aiConsentAccepted) 1 else 0
+                    SettingsRow(
+                        title = stringResource(R.string.terms_title),
+                        position = GroupRowPosition.at(0, legalCount),
+                        onClick = { page = SettingsPage.Terms },
+                    )
+                    SettingsRow(title = privacy, position = GroupRowPosition.at(1, legalCount), onClick = { page = SettingsPage.Web(privacy, "https://cbtipul.com/privacy") })
+                    SettingsRow(title = support, position = GroupRowPosition.at(2, legalCount), onClick = { page = SettingsPage.Web(support, "https://cbtipul.com/support") })
+                    SettingsRow(title = choices, position = GroupRowPosition.at(3, legalCount), onClick = { page = SettingsPage.Web(choices, "https://cbtipul.com/privacy-choices") })
 
                     if (aiConsentAccepted) {
                         SettingsRow(
                             title = stringResource(R.string.settings_ai_consent_title),
                             trailing = stringResource(R.string.settings_ai_consent_approved_status),
+                            position = GroupRowPosition.at(4, legalCount),
                             onClick = null,
                         )
                     }
@@ -180,12 +188,7 @@ fun SettingsScreen(
                     )
                 }
                 if (isDeleting) {
-                    Box(
-                        Modifier.fillMaxSize().background(colors.base.copy(alpha = 0.55f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = colors.gold)
-                    }
+                    BusyOverlay(true)
                 }
             }
         }
@@ -232,14 +235,16 @@ private fun SettingsRow(
     title: String,
     trailing: String? = null,
     selected: Boolean = false,
+    position: GroupRowPosition = GroupRowPosition.Only,
     onClick: (() -> Unit)?,
 ) {
     val colors = Theme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .groupBordered(position, colors.gold)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

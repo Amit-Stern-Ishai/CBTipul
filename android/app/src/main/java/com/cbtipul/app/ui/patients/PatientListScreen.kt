@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -50,10 +50,11 @@ import com.cbtipul.app.R
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.PatientStatus
 import com.cbtipul.app.model.SessionType
+import com.cbtipul.app.ui.theme.GroupRowPosition
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.groupBordered
+import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.themedScreen
-import java.text.DateFormat
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,12 +63,11 @@ fun PatientListScreen(
     unnamed: String,
     onOpenPatient: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onAddPatient: () -> Unit,
 ) {
     val patients by viewModel.patients.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val colors = Theme.colors
-    val notConfigured = stringResource(R.string.supabase_not_configured_error)
-    val rejected = stringResource(R.string.update_rejected_error)
 
     Scaffold(
         modifier = Modifier.themedScreen(colors.gold),
@@ -81,7 +81,7 @@ fun PatientListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.setAdding(true) }) {
+                    IconButton(onClick = onAddPatient) {
                         Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_patient_action), tint = colors.gold)
                     }
                 },
@@ -117,18 +117,18 @@ fun PatientListScreen(
                         title = stringResource(R.string.no_patients_title),
                         message = stringResource(R.string.add_first_patient_message),
                         action = stringResource(R.string.add_patient_action),
-                        onAction = { viewModel.setAdding(true) },
+                        onAction = onAddPatient,
                     )
                 }
                 else -> {
                     LazyColumn(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(patients, key = { it.id.queryValue }) { patient ->
+                        itemsIndexed(patients, key = { _, it -> it.id.queryValue }) { index, patient ->
                             PatientRow(
                                 patient = patient,
                                 unnamed = unnamed,
+                                position = GroupRowPosition.at(index, patients.size),
                                 onClick = { onOpenPatient(patient.id.queryValue) },
                             )
                         }
@@ -137,27 +137,20 @@ fun PatientListScreen(
             }
         }
     }
-
-    if (ui.isAdding) {
-        AddPatientSheet(
-            isSaving = ui.isSavingAdd,
-            errorMessage = ui.addError,
-            onDismiss = { if (!ui.isSavingAdd) viewModel.setAdding(false) },
-            onSave = { first, last, status ->
-                viewModel.addPatient(first, last, status, notConfigured, rejected)
-            },
-        )
-    }
 }
 
 @Composable
-private fun PatientRow(patient: Patient, unnamed: String, onClick: () -> Unit) {
+private fun PatientRow(
+    patient: Patient,
+    unnamed: String,
+    position: GroupRowPosition,
+    onClick: () -> Unit,
+) {
     val colors = Theme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(16.dp))
-            .border(1.dp, colors.borderFaint, RoundedCornerShape(16.dp))
+            .groupBordered(position, colors.gold)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -188,7 +181,7 @@ private fun patientSubtitle(patient: Patient): String {
     val last = patient.sessions.maxByOrNull { it.date.time }
         ?: return stringResource(R.string.no_sessions_yet_label)
     val typeOrDate = last.type?.let { stringResource(it.labelRes()) }
-        ?: DateFormat.getDateInstance(DateFormat.MEDIUM, Locale("he", "IL")).format(last.date)
+        ?: hebrewDate(last.date)
     val count = if (patient.sessionsUpToTodayCount == 1) {
         stringResource(R.string.sessions_count_one)
     } else {
@@ -225,61 +218,5 @@ private fun EmptyState(title: String, message: String, action: String, onAction:
             onClick = onAction,
             colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
         ) { Text(action) }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddPatientSheet(
-    isSaving: Boolean,
-    errorMessage: String?,
-    onDismiss: () -> Unit,
-    onSave: (String, String, PatientStatus) -> Unit,
-) {
-    var first by remember { mutableStateOf("") }
-    var last by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf(PatientStatus.Active) }
-    val colors = Theme.colors
-    val canSave = (first.trim().isNotEmpty() || last.trim().isNotEmpty()) && !isSaving
-    androidx.compose.material3.ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colors.surface,
-    ) {
-        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.new_patient_title), color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-            androidx.compose.material3.OutlinedTextField(
-                value = first,
-                onValueChange = { first = it },
-                placeholder = { Text(stringResource(R.string.first_name_placeholder)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            androidx.compose.material3.OutlinedTextField(
-                value = last,
-                onValueChange = { last = it },
-                placeholder = { Text(stringResource(R.string.last_name_placeholder)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { status = PatientStatus.Active }) {
-                    Text("Active", color = if (status == PatientStatus.Active) colors.gold else colors.textBody)
-                }
-                TextButton(onClick = { status = PatientStatus.Inactive }) {
-                    Text("Inactive", color = if (status == PatientStatus.Inactive) colors.gold else colors.textBody)
-                }
-            }
-            errorMessage?.let { Text(it, color = colors.error) }
-            Button(
-                onClick = { onSave(first.trim(), last.trim(), status) },
-                enabled = canSave,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-            ) {
-                if (isSaving) CircularProgressIndicator(Modifier.size(22.dp), color = colors.textOnAccent, strokeWidth = 2.dp)
-                else Text(stringResource(R.string.add_patient_action), fontWeight = FontWeight.SemiBold)
-            }
-            TextButton(onClick = onDismiss, enabled = !isSaving, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.cancel), color = colors.gold)
-            }
-        }
     }
 }

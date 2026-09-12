@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,10 +48,11 @@ import com.cbtipul.app.R
 import com.cbtipul.app.model.CombinedMoodQuestionnaire
 import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.Session
+import com.cbtipul.app.ui.theme.BusyOverlay
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
+import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.themedScreen
-import java.text.DateFormat
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,7 +85,6 @@ fun QuestionnaireScreen(
     var showDiscard by remember { mutableStateOf(false) }
     val initial = remember { existing ?: CombinedMoodQuestionnaire() }
     val hasUnsavedChanges = isEditing && draft != initial
-    val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM, Locale("iw")) }
     val gad7 = stringArrayResource(R.array.gad7_questions)
     val phq9 = stringArrayResource(R.array.phq9_questions)
     val answers = stringArrayResource(R.array.answer_descriptions)
@@ -96,8 +97,11 @@ fun QuestionnaireScreen(
 
     BackHandler(enabled = !isSaving) { requestBack() }
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
-        modifier = Modifier.themedScreen(atmosphere),
+        modifier = Modifier
+            .themedScreen(atmosphere)
+            .dismissKeyboardOnTap(),
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
@@ -154,13 +158,13 @@ fun QuestionnaireScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(dateFormat.format(session.date), color = colors.textBody)
+            Text(hebrewDate(session.date), color = colors.textBody)
             Text(stringResource(R.string.gad7_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             Text(stringResource(R.string.answer_key_title), color = colors.textBright)
             answers.forEach { Text(it, color = colors.textBody, fontSize = 13.sp) }
             previous?.let {
                 Text(
-                    stringResource(R.string.previous_answer_legend, dateFormat.format(it.answeredDate)),
+                    stringResource(R.string.previous_answer_legend, hebrewDate(it.answeredDate)),
                     color = colors.warning,
                     fontSize = 13.sp,
                 )
@@ -184,7 +188,7 @@ fun QuestionnaireScreen(
             Text(stringResource(R.string.total_score_line, draft.gad7Score), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             Text(gad7SeverityLabel(draft.gad7Severity), color = colors.textBody)
             previous?.let {
-                Text(stringResource(R.string.previous_score_line, dateFormat.format(it.answeredDate), it.questionnaire.gad7Score), color = colors.warning, fontSize = 13.sp)
+                Text(stringResource(R.string.previous_score_line, hebrewDate(it.answeredDate), it.questionnaire.gad7Score), color = colors.warning, fontSize = 13.sp)
             }
 
             Text(stringResource(R.string.phq9_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
@@ -229,7 +233,7 @@ fun QuestionnaireScreen(
             Text(phq9SeverityLabel(draft.phq9Severity), color = colors.textBody)
             Text(phq9Suggestion(draft.phq9Severity), color = colors.textBody, fontSize = 13.sp)
             previous?.let {
-                Text(stringResource(R.string.previous_score_line, dateFormat.format(it.answeredDate), it.questionnaire.phq9Score), color = colors.warning, fontSize = 13.sp)
+                Text(stringResource(R.string.previous_score_line, hebrewDate(it.answeredDate), it.questionnaire.phq9Score), color = colors.warning, fontSize = 13.sp)
             }
 
             errorMessage?.let { Text(it, color = colors.error) }
@@ -240,6 +244,11 @@ fun QuestionnaireScreen(
                 }
             }
         }
+    }
+        BusyOverlay(
+            isBusy = isSaving,
+            label = stringResource(R.string.anonymizing_status_label),
+        )
     }
 
     if (showIncomplete) {

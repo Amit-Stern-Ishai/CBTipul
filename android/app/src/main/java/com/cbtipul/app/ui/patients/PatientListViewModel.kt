@@ -52,6 +52,8 @@ data class PatientListUiState(
     val isSavingNotes: Boolean = false,
     val isSavingFormulation: Boolean = false,
     val isAiBusy: Boolean = false,
+    val isLoadingQuestionnaires: Boolean = false,
+    val questionnairesError: String? = null,
     val formulationSupervision: FormulationSupervision? = null,
     val missingReview: WhatAmIMissingResponse? = null,
     val longitudinalReview: LongitudinalCaseReviewResponse? = null,
@@ -95,12 +97,20 @@ class PatientListViewModel(
 
     fun setAdding(value: Boolean) = _ui.update { it.copy(isAdding = value, addError = null) }
 
-    fun addPatient(firstName: String, lastName: String, status: PatientStatus, notConfigured: String, rejected: String) {
+    fun addPatient(
+        firstName: String,
+        lastName: String,
+        status: PatientStatus,
+        notConfigured: String,
+        rejected: String,
+        onDone: () -> Unit,
+    ) {
         viewModelScope.launch {
             _ui.update { it.copy(isSavingAdd = true, addError = null) }
             try {
                 repository.addPatient(firstName, lastName, status)
                 _ui.update { it.copy(isSavingAdd = false, isAdding = false) }
+                onDone()
             } catch (error: Exception) {
                 _ui.update {
                     it.copy(isSavingAdd = false, addError = mapError(error, notConfigured, rejected))
@@ -263,17 +273,28 @@ class PatientListViewModel(
         }
     }
 
-    fun loadQuestionnaires(patientId: DatabaseId) {
-        if (repository.cachedQuestionnaires(patientId.queryValue) != null) return
+    fun loadQuestionnaires(patientId: DatabaseId, notConfigured: String, rejected: String) {
         viewModelScope.launch {
-            runCatching { repository.loadQuestionnaires(patientId) }
+            val hasCache = repository.cachedQuestionnaires(patientId.queryValue) != null
+            if (!hasCache) {
+                _ui.update { it.copy(isLoadingQuestionnaires = true, questionnairesError = null) }
+            }
+            try {
+                repository.loadQuestionnaires(patientId)
+                _ui.update { it.copy(isLoadingQuestionnaires = false, questionnairesError = null) }
+            } catch (error: Exception) {
+                _ui.update {
+                    it.copy(
+                        isLoadingQuestionnaires = false,
+                        questionnairesError = if (hasCache) null else mapError(error, notConfigured, rejected),
+                    )
+                }
+            }
         }
     }
 
-    fun refreshQuestionnaires(patientId: DatabaseId) {
-        viewModelScope.launch {
-            runCatching { repository.loadQuestionnaires(patientId) }
-        }
+    fun refreshQuestionnaires(patientId: DatabaseId, notConfigured: String, rejected: String) {
+        loadQuestionnaires(patientId, notConfigured, rejected)
     }
 
     fun saveQuestionnaire(

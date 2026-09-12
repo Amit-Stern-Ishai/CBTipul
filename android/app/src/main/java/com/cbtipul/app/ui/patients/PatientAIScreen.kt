@@ -58,6 +58,7 @@ import com.cbtipul.app.model.PHQ9Severity
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.settings.AIResponseStyle
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.theme.themedScreen
 import java.text.DateFormat
 import java.util.Locale
@@ -97,7 +98,7 @@ fun PatientAIScreen(
     val phqModSev = stringResource(R.string.phq9_severity_moderately_severe)
     val phqSev = stringResource(R.string.phq9_severity_severe)
     val suggested = stringArrayResource(R.array.ai_suggested_questions).toList()
-    val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM, Locale("iw")) }
+    val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.forLanguageTag("he-IL")) }
 
     if (patient == null) {
         Column(Modifier.fillMaxSize().padding(24.dp)) {
@@ -165,7 +166,9 @@ fun PatientAIScreen(
     }
 
     Scaffold(
-        modifier = Modifier.themedScreen(PatientAvatarColor.background(patient.id)),
+        modifier = Modifier
+            .themedScreen(PatientAvatarColor.background(patient.id))
+            .dismissKeyboardOnTap(),
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(

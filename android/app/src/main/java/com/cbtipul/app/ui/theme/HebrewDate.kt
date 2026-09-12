@@ -5,4 +5,4 @@ import java.util.Date
 import java.util.Locale
 
 fun hebrewDate(date: Date): String =
-    DateFormat.getDateInstance(DateFormat.MEDIUM, Locale("he", "IL")).format(date)
+    DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.forLanguageTag("he-IL")).format(date)

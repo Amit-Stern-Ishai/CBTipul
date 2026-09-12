@@ -17,10 +17,9 @@ import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.DatabaseId
 import com.cbtipul.app.model.PatientFormulation
 import com.cbtipul.app.model.Session
-import java.text.DateFormat
+import com.cbtipul.app.ui.theme.hebrewDate
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 
 @Composable
 fun PatientsNavHost(
@@ -48,6 +47,19 @@ fun PatientsNavHost(
                 unnamed = unnamed,
                 onOpenPatient = { navController.navigate("patient/$it") },
                 onOpenSettings = onOpenSettings,
+                onAddPatient = { navController.navigate("add") },
+            )
+        }
+        composable("add") {
+            AddPatientScreen(
+                isSaving = ui.isSavingAdd,
+                errorMessage = ui.addError,
+                onCancel = { if (!ui.isSavingAdd) navController.popBackStack() },
+                onSave = { first, last, status ->
+                    viewModel.addPatient(first, last, status, notConfigured, rejected) {
+                        navController.popBackStack()
+                    }
+                },
             )
         }
         composable(
@@ -58,10 +70,9 @@ fun PatientsNavHost(
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             LaunchedEffect(id) {
                 viewModel.loadSavedPreparation(id)
-                patient?.id?.let(viewModel::loadQuestionnaires)
+                patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) }
             }
             val savedPrep = ui.savedPreparations[id]
-            val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM, Locale("iw")) }
             val newestQuestionnaires = questionnaires[id].orEmpty().sortedByDescending { it.answeredDate.time }
             PatientDetailScreen(
                 patient = patient,
@@ -103,7 +114,7 @@ fun PatientsNavHost(
                 onOpenQuestionnaires = { navController.navigate("patient/$id/questionnaires") },
                 onOpenChat = { navController.navigate("patient/$id/chat") },
                 isPreparing = ui.isPreparing,
-                savedPreparationDate = savedPrep?.let { dateFormat.format(Date(it.generatedAtMillis)) },
+                savedPreparationDate = savedPrep?.let { hebrewDate(Date(it.generatedAtMillis)) },
                 isPreparationOutdated = patient != null && savedPrep != null &&
                     viewModel.isPreparationOutdated(patient, savedPrep.generatedAtMillis),
                 prepareError = ui.sessionError,
@@ -273,7 +284,7 @@ fun PatientsNavHost(
                     val sessionKey = session.databaseId?.queryValue ?: session.id.toString()
                     navController.navigate("patient/$id/session/$sessionKey")
                 },
-                onLoadQuestionnaires = { patient?.id?.let(viewModel::loadQuestionnaires) },
+                onLoadQuestionnaires = { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } },
             )
         }
         composable(
@@ -282,10 +293,13 @@ fun PatientsNavHost(
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
-            LaunchedEffect(id) { patient?.id?.let(viewModel::loadQuestionnaires) }
+            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             PatientQuestionnairesScreen(
                 records = questionnaires[id].orEmpty(),
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
+                isLoading = ui.isLoadingQuestionnaires && questionnaires[id].isNullOrEmpty(),
+                loadError = ui.questionnairesError,
+                onRetry = { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } },
                 onBack = { navController.popBackStack() },
                 onOpen = { record ->
                     val sessionKey = record.sessionId?.queryValue ?: return@PatientQuestionnairesScreen
@@ -310,7 +324,7 @@ fun PatientsNavHost(
             val currentQuestionnaire = session?.databaseId?.let { db ->
                 records.firstOrNull { it.sessionId?.queryValue == db.queryValue }
             }
-            LaunchedEffect(id) { patient?.id?.let(viewModel::loadQuestionnaires) }
+            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             SessionEditorScreen(
                 session = session,
                 patient = patient,
@@ -482,7 +496,7 @@ fun PatientsNavHost(
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
-            LaunchedEffect(id) { patient?.id?.let(viewModel::loadQuestionnaires) }
+            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             PatientAIScreen(
                 patient = patient,
                 unnamed = unnamed,
@@ -525,7 +539,7 @@ fun PatientsNavHost(
                     Session(databaseId = it.sessionId, date = it.answeredDate)
                 }
             val existing = records.firstOrNull { it.sessionId?.queryValue == sessionId }?.questionnaire
-            LaunchedEffect(id) { patient?.id?.let(viewModel::loadQuestionnaires) }
+            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             QuestionnaireScreen(
                 session = session,
                 existing = existing,
