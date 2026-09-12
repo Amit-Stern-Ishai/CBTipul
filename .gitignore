@@ -1,2 +1,11 @@
-MyApp/OpenAIConfig.swift
 .DS_Store
+MyApp/OpenAIConfig.swift
+
+# Android
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/local.properties
+android/*.iml
+android/captures/

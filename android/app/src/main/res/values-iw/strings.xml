@@ -1,0 +1,442 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="save">שמירה</string>
+    <string name="cancel">ביטול</string>
+    <string name="done">סיום</string>
+    <string name="add">הוספה</string>
+    <string name="back">אחורה</string>
+    <string name="retry">נסיון שני</string>
+    <string name="app_title">CBTipul</string>
+    <string name="app_name">CBTipul</string>
+    <string name="auth_mode_sign_in">התחבר/י</string>
+    <string name="auth_mode_sign_up">הרשמ/י</string>
+    <string name="auth_welcome_sign_in">ברוכ/ה השב/ה, נא להתחבר כדי להמשיך</string>
+    <string name="auth_welcome_sign_up">אנא ליצור חשבון על מנת להמשיך</string>
+    <string name="auth_mode_picker_title">Mode</string>
+    <string name="email_placeholder">אימייל</string>
+    <string name="password_placeholder">סיסמא</string>
+    <string name="forgot_password_action">שכחת סיסמא?</string>
+    <string name="verify_email_title">אימות כתובת האימייל</string>
+    <string name="back_to_sign_in_action">חזרה להתחברות</string>
+    <string name="resend_verification_action">שליחת קישור חדש</string>
+    <string name="verification_resent_message">קישור אימות חדש נשלח לכתובת האימייל.</string>
+    <string name="too_many_requests_error">נשלחו יותר מדי בקשות. יש להמתין מעט ולנסות שוב.</string>
+    <string name="email_not_confirmed_error">כתובת האימייל עדיין לא אומתה. יש לפתוח את קישור האימות שנשלח אליך.</string>
+    <string name="verification_failed_error">לא ניתן היה להשלים את אימות כתובת האימייל. ייתכן שהקישור פג תוקף. ניתן לנסות להתחבר או לבקש קישור חדש.</string>
+    <string name="new_password_title">סיסמה חדשה</string>
+    <string name="new_password_message">יש לבחור סיסמה חדשה לחשבון.</string>
+    <string name="confirm_password_placeholder">אימות סיסמה</string>
+    <string name="passwords_dont_match_error">הסיסמאות אינן זהות.</string>
+    <string name="password_rule_min_length">לפחות 8 תווים (12 ומעלה עדיף)</string>
+    <string name="password_rule_uppercase">לפחות אות גדולה אחת (A-Z)</string>
+    <string name="password_rule_lowercase">לפחות אות קטנה אחת (a-z)</string>
+    <string name="password_rule_digit">לפחות ספרה אחת</string>
+    <string name="password_rule_special">לפחות תו מיוחד אחד (! \@ # $ %)</string>
+    <string name="enter_email_first_message">אנא לכתוב את האימייל קודם, ואז ללחוץ על ״שכחת סיסמא?״</string>
+    <string name="password_reset_sent_message">מייל לאיפוס סיסמא נשלח. אנא לבדוק במייל ולאפס סיסמא</string>
+    <string name="sign_out_action">התנתק/י</string>
+    <string name="patients_title">מטופלים/ות</string>
+    <string name="loading_patients_label">טוענת מטופלים...</string>
+    <string name="couldnt_load_patients_title">טעינת מטופלים נכשלה</string>
+    <string name="no_patients_title">אין מטופלים עדיין</string>
+    <string name="add_first_patient_message">אנא ליצור מטופל/ת כדי להתחיל</string>
+    <string name="add_patient_action">הוספת מטופל/ת</string>
+    <string name="no_sessions_yet_label">אין פגישות עדיין</string>
+    <string name="new_patient_title">מטופל/ת חדש/ה</string>
+    <string name="patient_section_title">מטופל/ת</string>
+    <string name="first_name_placeholder">שם פרטי</string>
+    <string name="last_name_placeholder">שם משפחה</string>
+    <string name="status_label">סטטוס</string>
+    <string name="patient_status_active">פעיל</string>
+    <string name="patient_status_inactive">לא פעיל</string>
+    <string name="unnamed_patient">מטופל/ת ללא שם</string>
+    <string name="notes_section">הערות</string>
+    <string name="session_summary_section">סיכום פגישה</string>
+    <string name="optional_notes_placeholder">הערות (לא חובה)</string>
+    <string name="my_formulation_title">הניסוח שלי</string>
+    <string name="prepare_next_session_action">הכנה לפגישה הבאה</string>
+    <string name="last_preparation_action">ההכנה האחרונה</string>
+    <string name="outdated_badge">לא מעודכן</string>
+    <string name="sessions_title">פגישות</string>
+    <string name="add_session_action">הוספת פגישה</string>
+    <string name="new_session_title">פגישה חדשה</string>
+    <string name="edit_date_accessibility_label">עריכת תאריך</string>
+    <string name="from_last_session_header">מהפגישה הקודמת</string>
+    <string name="open_questions_title">שאלות פתוחות</string>
+    <string name="mark_discussed_accessibility_label">סימון כנושא שנדון</string>
+    <string name="analyzing_label">בניתוח…</string>
+    <string name="ai_summary_action">יצירת סיכום AI מובנה</string>
+    <string name="show_structured_summary_action">הצגת סיכום AI מובנה בשלמותו</string>
+    <string name="structured_summary_section">סיכום AI מובנה</string>
+    <string name="delete_session_action">מחיקת פגישה</string>
+    <string name="delete_session_confirm_title">למחוק את הפגישה?</string>
+    <string name="delete_session_confirm_message">מחיקת הפגישה והמידע שלה תהיה לצמיתות. לא ניתן לבטל פעולה זו.</string>
+    <string name="edit_questionnaire_action">עריכה</string>
+    <string name="delete_questionnaire_action">מחיקת שאלון</string>
+    <string name="delete_questionnaire_confirm_title">למחוק את השאלון?</string>
+    <string name="delete_questionnaire_confirm_message">מחיקת השאלון והתשובות שלו תהיה לצמיתות. לא ניתן לבטל פעולה זו.</string>
+    <string name="questionnaire_incomplete_title">השאלון לא הושלם</string>
+    <string name="questionnaire_incomplete_message">יש לענות על כל השאלות כדי לשמור את השאלון.</string>
+    <string name="delete_code_title">אישור מחיקה נוסף</string>
+    <string name="delete_code_placeholder">הקלדת הקוד</string>
+    <string name="delete_code_confirm_action">מחיקה</string>
+    <string name="delete_code_mismatch_title">הקוד שגוי</string>
+    <string name="delete_code_mismatch_message">הקוד שהוקלד אינו תואם, ולכן המחיקה לא בוצעה.</string>
+    <string name="ok">אישור</string>
+    <string name="edit_patient_name_action">עריכת שם</string>
+    <string name="edit_patient_name_title">עריכת שם מטופל/ת</string>
+    <string name="delete_patient_action">מחיקת מטופל/ת</string>
+    <string name="delete_patient_confirm_title">למחוק את המטופל/ת?</string>
+    <string name="delete_patient_confirm_message">מחיקת המטופל/ת וכל הפגישות והמידע הקשור אליהם תהיה לצמיתות. לא ניתן לבטל פעולה זו.</string>
+    <string name="edit_treatment_goal_action">עריכת מטרת הטיפול</string>
+    <string name="terms_title">תנאי שימוש</string>
+    <string name="terms_agree_action">הסכמה והמשך</string>
+    <string name="privacy_policy_title">מדיניות פרטיות</string>
+    <string name="settings_support_title">תמיכה</string>
+    <string name="settings_privacy_choices_title">בחירות פרטיות</string>
+    <string name="ai_consent_title">שימוש בשירותי בינה מלאכותית</string>
+    <string name="ai_consent_accept_action">אישור והמשך</string>
+    <string name="ai_consent_decline_action">לא עכשיו</string>
+    <string name="settings_ai_consent_title">שיתוף מידע עם שירותי בינה מלאכותית</string>
+    <string name="settings_ai_consent_approved_status">אושר</string>
+    <string name="date_label">תאריך</string>
+    <string name="session_date_title">תאריך הפגישה</string>
+    <string name="combined_title">שאלון משולב</string>
+    <string name="add_questionnaire_action">מילוי שאלון</string>
+    <string name="notes_section_title">הערות</string>
+    <string name="notes_field_placeholder">הערות</string>
+    <string name="question_note_title">הערה לשאלה</string>
+    <string name="score_label">ציון כולל</string>
+    <string name="answer_key_title">מפתח תשובות</string>
+    <string name="voice_note_section_title">הקלטה קולית</string>
+    <string name="record_voice_note_action">הקלטת הערה קולית</string>
+    <string name="recording_label">הקלטה מתבצעת…</string>
+    <string name="voice_note_label">הערה קולית</string>
+    <string name="mic_permission_denied">נדרשת גישה למיקרופון לצורך הקלטה. יש לאפשר גישה בהגדרות.</string>
+    <string name="transcribe_action">תמלול</string>
+    <string name="transcribing_label">מתבצע תמלול…</string>
+    <string name="ai_title">שיחת AI</string>
+    <string name="ai_action">שיחת AI</string>
+    <string name="ai_mode_picker_title">מצב</string>
+    <string name="ai_mode_insights">תובנות</string>
+    <string name="ai_mode_questionnaires">שאלונים</string>
+    <string name="ai_mode_general">כללי</string>
+    <string name="ai_mode_chat">שיחה</string>
+    <string name="ai_send_action">שליחה</string>
+    <string name="ai_chat_title">שיחה</string>
+    <string name="ai_chat_navigation_title">שיחת AI</string>
+    <string name="ai_empty_message">אפשר לשאול כל שאלה על המטופל/ת — הפגישות, ההערות והשאלונים משמשים כהקשר לתשובה.</string>
+    <string name="ai_generate_insights_action">הפקת תובנות</string>
+    <string name="ai_ask_action">שאלה</string>
+    <string name="ai_thinking_label">מעבד…</string>
+    <string name="ai_response_title">תשובה</string>
+    <string name="settings_title">הגדרות</string>
+    <string name="settings_ai_section_title">שיחת AI</string>
+    <string name="settings_response_style_title">סגנון תשובה</string>
+    <string name="settings_response_style_typing">הקלדה</string>
+    <string name="settings_response_style_regular">רגיל</string>
+    <string name="settings_done_action">סיום</string>
+    <string name="settings_appearance_title">מראה</string>
+    <string name="appearance_light">בהיר</string>
+    <string name="appearance_dark">כהה</string>
+    <string name="settings_account_section_title">חשבון</string>
+    <string name="delete_account_action">מחיקת חשבון</string>
+    <string name="delete_account_confirm_title">למחוק את החשבון?</string>
+    <string name="delete_account_confirm_message">מחיקת החשבון וכל המידע שלו — מטופלים, פגישות, שאלונים והערות — תהיה לצמיתות. לא ניתן לבטל פעולה זו.</string>
+    <string name="delete_account_failed_title">מחיקת החשבון נכשלה</string>
+    <string name="settings_accessibility_section_title">נגישות</string>
+    <string name="settings_text_size_title">גודל טקסט</string>
+    <string name="settings_text_size_small">קטן</string>
+    <string name="settings_text_size_standard">רגיל</string>
+    <string name="settings_text_size_large">גדול</string>
+    <string name="settings_text_size_extra_large">גדול מאוד</string>
+    <string name="settings_text_size_huge">ענק</string>
+    <string name="discard_changes_title">קיימים שינויים שלא נשמרו. מחיקת השינויים תגרום לאובדן המידע.</string>
+    <string name="discard_changes_action">מחיקת השינויים</string>
+    <string name="save_changes_action">שמירה</string>
+    <string name="keep_editing_action">המשך עריכה</string>
+    <string name="discard_recording_action">מחיקת ההקלטה</string>
+    <string name="play_recording_action">הפעלת ההקלטה</string>
+    <string name="stop_playback_action">עצירת ההשמעה</string>
+    <string name="view_questionnaires_action">שאלונים וגרפים</string>
+    <string name="questionnaires_title">שאלוני מצב רוח</string>
+    <string name="mode_picker_title">תצוגה</string>
+    <string name="list_mode_title">רשימה</string>
+    <string name="graphs_mode_title">גרפים</string>
+    <string name="no_questionnaires_message">אין שאלונים עדיין</string>
+    <string name="load_error_title">טעינת השאלונים נכשלה</string>
+    <string name="retry_action">ניסיון נוסף</string>
+    <string name="metric_picker_title">הצגת</string>
+    <string name="total_option_label">ציון כולל</string>
+    <string name="chart_date_label">תאריך</string>
+    <string name="chart_score_label">ציון</string>
+    <string name="gad7_short_name">GAD-7</string>
+    <string name="phq9_short_name">PHQ-9</string>
+    <string name="questionnaire_section_title">שאלון</string>
+    <string name="has_structured_summary_label">כולל סיכום מובנה</string>
+    <string name="session_type_label">סוג פגישה</string>
+    <string name="session_type_none">ללא</string>
+    <string name="no_questionnaire_for_session">אין שאלונים לפגישה זו</string>
+    <string name="gad7_title">GAD-7 שאלון לאבחון חרדה מוכללת</string>
+    <string name="gad7_main_question">במהלך השבוע האחרון עד כמה היית מוטרד/ת מהנושאים הבאים?</string>
+    <string name="phq9_title">PHQ-9 שאלון בריאות המטופל</string>
+    <string name="phq9_main_question">במהלך השבוע האחרון באיזו תדירות היית מוטרד/ת מכל אחת מן הבעיות הבאות?</string>
+    <string name="phq9_interference_question">אם סימנת בעיות **כלשהן** - עד כמה **הקשו** עליך לבצע את עבודתך, לטפל בדברים בבית או להסתדר עם אנשים אחרים?</string>
+    <string name="session_summary_title">סיכום פגישה AI מובנה</string>
+    <string name="session_summary_placeholder">סיכום פגישה</string>
+    <string name="key_situations_section">מצבים מרכזיים</string>
+    <string name="possible_automatic_thoughts_section">מחשבות אוטומטיות אפשריות</string>
+    <string name="cbt_cycle_section">מחזור CBT</string>
+    <string name="questions_to_revisit_section">שאלות שכדאי להבהיר</string>
+    <string name="assignments_for_next_week_section">משימות לשבוע הבא</string>
+    <string name="assignments_to_check_section">משימות לבדיקה</string>
+    <string name="save_summary_prompt">לשמור את הסיכום בפגישה?</string>
+    <string name="dont_save_action">לא לשמור</string>
+    <string name="keep_viewing_action">להמשיך לצפות</string>
+    <string name="thought_label">מחשבה</string>
+    <string name="situation_label">מצב</string>
+    <string name="emotion_label">רגש</string>
+    <string name="behavior_label">התנהגות</string>
+    <string name="patient_said_badge">דברי המטופל/ת</string>
+    <string name="possible_inference_badge">מסקנה אפשרית</string>
+    <string name="source_explicit_patient">נאמר במפורש על ידי המטופל/ת</string>
+    <string name="source_therapist_reported">דווח על ידי המטפל/ת</string>
+    <string name="source_therapist_inferred">השערת המטפל/ת</string>
+    <string name="source_ai_inferred">השערת AI</string>
+    <string name="possible_cognitive_patterns_label">דפוסי חשיבה אפשריים</string>
+    <string name="confidence_high">ודאות גבוהה</string>
+    <string name="confidence_medium">ודאות בינונית</string>
+    <string name="confidence_low">ודאות נמוכה</string>
+    <string name="question_placeholder">שאלה</string>
+    <string name="why_it_matters_label">למה זה חשוב</string>
+    <string name="reason_placeholder">סיבה</string>
+    <string name="discussed_action">נידון</string>
+    <string name="follow_up_action">למעקב</string>
+    <string name="not_relevant_action">לא רלוונטי</string>
+    <string name="therapist_hypotheses_section">השערות המטפל/ת</string>
+    <string name="evidence_label">ראיות</string>
+    <string name="session_preparation_title">הכנה לפגישה הבאה</string>
+    <string name="preparation_outdated_message">לא מעודכן — התקיימה פגישה מאז הכנת ההכנה.</string>
+    <string name="recurring_nats_section">💭 מחשבות אוטומטיות שליליות חוזרות</string>
+    <string name="maintenance_cycles_section">🔄 מחזורי שימור אפשריים</string>
+    <string name="maintenance_cycles_subtitle">השערות AI — מנגנונים שכדאי לבדוק, לא עובדות</string>
+    <string name="questionnaire_insights_section">📊 תובנות מהשאלונים</string>
+    <string name="priority_follow_ups_section">🔎 נושאים בעדיפות להמשך</string>
+    <string name="treatment_focus_section">🎯 מוקד טיפול אפשרי</string>
+    <string name="treatment_focus_subtitle">תחומים שכדאי לשקול — לא הנחיות</string>
+    <string name="suggested_questions_section">❓ שאלות מוצעות</string>
+    <string name="ai_disclaimer">תמיכה קלינית שנוצרה באמצעות AI. יש להפעיל שיקול דעת מקצועי.</string>
+    <string name="situations_label">מצבים</string>
+    <string name="possible_thinking_patterns_label">דפוסי חשיבה אפשריים</string>
+    <string name="possible_maintenance_cycle_label">מחזור שימור אפשרי</string>
+    <string name="automatic_thought_label">מחשבה אוטומטית</string>
+    <string name="short_term_consequence_label">השלכה בטווח הקצר</string>
+    <string name="long_term_consequence_label">השלכה בטווח הארוך</string>
+    <string name="possible_core_belief_section">אמונת ליבה אפשרית</string>
+    <string name="core_belief_subtitle">השערת AI — כדאי לדון ולבדוק, לא להניח שהיא נכונה</string>
+    <string name="hypothesis_badge">השערה</string>
+    <string name="priority_high">גבוהה</string>
+    <string name="priority_medium">בינונית</string>
+    <string name="priority_low">נמוכה</string>
+    <string name="treatment_goal_section">מטרת הטיפול</string>
+    <string name="no_treatment_goal_placeholder">לא הוגדרה מטרת טיפול — הוספת מטרה</string>
+    <string name="goal_format_warning" formatted="false">הפורמט הרצוי: „להפחית את רמת רגש ה-X מ-Y% ל-Z% במצבים של…”</string>
+    <string name="core_belief_section">🧠 אמונת ליבה</string>
+    <string name="no_core_belief_placeholder">לא הוגדרה אמונת ליבה</string>
+    <string name="key_automatic_thoughts_section">💭 מחשבות אוטומטיות מרכזיות</string>
+    <string name="add_thought_action">הוספת מחשבה</string>
+    <string name="maintaining_behaviors_section">🔄 התנהגויות משמרות</string>
+    <string name="add_behavior_action">הוספת התנהגות</string>
+    <string name="key_cbt_cycle_section">🔁 מחזור CBT מרכזי</string>
+    <string name="remove_cycle_action">הסרת מחזור</string>
+    <string name="no_key_cbt_cycle_label">לא הוגדר מחזור CBT מרכזי</string>
+    <string name="add_cbt_cycle_action">הוספת מחזור CBT</string>
+    <string name="therapist_hypothesis_section">🧩 השערת המטפל/ת</string>
+    <string name="therapist_hypothesis_placeholder">השערת העבודה לגבי הגורמים המשמרים את הבעיה</string>
+    <string name="automatic_thought_title">מחשבה אוטומטית</string>
+    <string name="challenge_formulation_action">אתגור הניסוח שלי</string>
+    <string name="analyzing_formulation_label">ניתוח הניסוח…</string>
+    <string name="add_formulation_content_hint">כדאי להוסיף מידע לניסוח לפני בקשת אתגור מה-AI.</string>
+    <string name="what_am_i_missing_action">מה חסר לי?</string>
+    <string name="looking_across_history_label">בחינת ההיסטוריה של המטופל/ת…</string>
+    <string name="ai_supervision_section">🧠 הדרכת AI</string>
+    <string name="ai_supervision_footer">ה-AI בוחן את הניסוח ואת ההיסטוריה של המטופל/ת. הוא אינו משנה את הניסוח.</string>
+    <string name="longitudinal_review_action">סקירה לאורך זמן</string>
+    <string name="analyzing_over_time_label">ניתוח התהליך לאורך זמן…</string>
+    <string name="longitudinal_case_review_title">📈 סקירת המקרה לאורך זמן</string>
+    <string name="longitudinal_review_footer">תמונה לאורך זמן: מה השתנה, מה נשאר ומה דורש תשומת לב.</string>
+    <string name="ai_generated_supervision_label">הדרכה מבוססת AI</string>
+    <string name="supervision_disclaimer_body">אלו השערות לצורך חשיבה קלינית, ולא מסקנות מבוססות.</string>
+    <string name="supports_formulation_section">✓ מה תומך בפורמולציה?</string>
+    <string name="may_not_fit_section">⚠ מה עשוי שלא להתאים?</string>
+    <string name="may_not_fit_subtitle">מידע שעשוי שלא להתאים באופן מלא לפורמולציה הנוכחית — נקודה לשיקול, לא מסקנה</string>
+    <string name="alternative_formulations_section">🔄 פורמולציות חלופיות</string>
+    <string name="alternative_formulations_subtitle">אפשרויות נוספות לשקול — לא אבחנות או מסקנות</string>
+    <string name="questions_to_explore_section">❓ שאלות שכדאי לבחון</string>
+    <string name="treatment_implications_section">🎯 השלכות אפשריות לטיפול</string>
+    <string name="treatment_implications_subtitle">כיוונים אפשריים לשקול — לא הנחיות</string>
+    <string name="possible_blind_spots_section">👁 נקודות עיוורון אפשריות</string>
+    <string name="blind_spots_subtitle">השערות, לא עובדות — היבטים שייתכן שאינם מקבלים ביטוי בפורמולציה</string>
+    <string name="possible_formulation_label">פורמולציה אפשרית</string>
+    <string name="what_this_might_explain_label">מה זה עשוי להסביר</string>
+    <string name="possible_area_to_consider_label">כיוון אפשרי לשקול</string>
+    <string name="what_am_i_missing_title">🔎 מה אולי חסר לי?</string>
+    <string name="no_additional_patterns_message">לא זוהו דפוסים משמעותיים נוספים על סמך המידע הקיים.</string>
+    <string name="why_this_might_matter_label">למה זה עשוי להיות משמעותי</string>
+    <string name="question_for_therapist_label">שאלה למטפל/ת</string>
+    <string name="category_recurring_nat">מחשבה אוטומטית חוזרת</string>
+    <string name="category_cognitive_pattern">דפוס חשיבה</string>
+    <string name="category_maintaining_behavior">התנהגות משמרת</string>
+    <string name="category_discrepancy">פער אפשרי</string>
+    <string name="category_persistent_symptom">תסמין מתמשך</string>
+    <string name="category_repeated_situation">מצב חוזר</string>
+    <string name="category_unexplored_theme">נושא אפשרי שטרם נבחן</string>
+    <string name="category_possible_connection">קשר אפשרי</string>
+    <string name="category_treatment_opportunity">הזדמנות טיפולית אפשרית</string>
+    <string name="category_risk_review">בחינת סיכון</string>
+    <string name="high_confidence_label">ודאות גבוהה</string>
+    <string name="medium_confidence_label">ודאות בינונית</string>
+    <string name="low_confidence_label">ודאות נמוכה</string>
+    <string name="improvements_section">✅ שיפורים</string>
+    <string name="persistent_difficulties_section">⚠️ קשיים מתמשכים</string>
+    <string name="persistent_difficulties_subtitle">היבטים שעדיין לא נראה בהם שינוי מספק</string>
+    <string name="recurring_patterns_section">🔄 דפוסים חוזרים</string>
+    <string name="recurring_patterns_subtitle">דפוסים שחוזרים לאורך הטיפול</string>
+    <string name="important_changes_section">🔀 שינויים משמעותיים</string>
+    <string name="treatment_goal_progress_section">🎯 התקדמות לעבר מטרת הטיפול</string>
+    <string name="formulation_evolution_section">🧠 התפתחות הפורמולציה</string>
+    <string name="formulation_evolution_subtitle">מה מתחיל להתבהר? השערות ופרשנויות, לא עובדות מבוססות</string>
+    <string name="worth_attention_section">👀 נקודות שכדאי לשים לב אליהן</string>
+    <string name="worth_attention_subtitle">כיוונים שאולי כדאי לבחון — לא הנחיות</string>
+    <string name="overall_trajectory_section">📈 מגמה כללית</string>
+    <string name="insufficient_longitudinal_data_message">אין מספיק מידע לאורך זמן כדי להסיק מסקנות נוספות בשלב זה.</string>
+    <string name="what_improved_label">מה השתפר</string>
+    <string name="possible_interpretation_hebrew_label">פרשנות אפשרית</string>
+    <string name="why_we_think_so_label">מה תומך בפרשנות הזו</string>
+    <string name="possible_interpretation_label">פרשנות אפשרית</string>
+    <string name="current_estimate_label">הערכה נוכחית</string>
+    <string name="possible_next_step_label">צעד אפשרי להמשך</string>
+    <string name="questions_for_therapist_section">❓ שאלות למטפל/ת</string>
+    <string name="questions_for_therapist_subtitle">לחשיבה במסגרת ההדרכה — אין צורך בתשובה מחייבת</string>
+    <string name="goal_status_progressing">בתהליך התקדמות</string>
+    <string name="goal_status_partially_progressing">התקדמות חלקית</string>
+    <string name="goal_status_unchanged">ללא שינוי</string>
+    <string name="goal_status_worsening">החמרה</string>
+    <string name="goal_status_achieved">הושגה</string>
+    <string name="goal_status_unclear">לא ברור</string>
+    <string name="session_analysis_failed_error">ניתוח הפגישה נכשל</string>
+    <string name="invalid_input_error">הקלט אינו תקין.</string>
+    <string name="invalid_server_response_error">התקבלה תגובה לא תקינה מהשרת.</string>
+    <string name="empty_ai_response_error">שירות ה-AI החזיר תגובה ריקה.</string>
+    <string name="supabase_not_configured_error">Supabase אינו מוגדר. יש להזין את כתובת הפרויקט ואת מפתח ה-anon בקובץ SupabaseConfig.swift.</string>
+    <string name="patient_not_saved_error">המטופל/ת עדיין לא נשמר/ה במסד הנתונים.</string>
+    <string name="session_not_saved_error">הפגישה עדיין לא נשמרה במסד הנתונים.</string>
+    <string name="update_rejected_error">השרת קיבל את הבקשה, אך לא בוצע שינוי. יש לבדוק את מדיניות אבטחת השורות (RLS) של הטבלה — ייתכן שחסרה הרשאת UPDATE.</string>
+    <string name="anonymization_failed_error">לא ניתן היה להסיר פרטים מזהים ולכן המידע לא נשמר. אפשר לנסות שוב.</string>
+    <string name="anonymizing_status_label">הסרת פרטים מזהים…</string>
+    <string name="session_type_first_phone_call">שיחת טלפון ראשונית</string>
+    <string name="session_type_intake">אינטייק</string>
+    <string name="session_type_psycho_education">פסיכו-חינוכי</string>
+    <string name="session_type_diary_one">יומן 1</string>
+    <string name="session_type_diary_two">יומן 2</string>
+    <string name="session_type_diary_three">יומן 3</string>
+    <string name="session_type_case_formulation">המשגה</string>
+    <string name="session_type_behavioral_interventions">חשיפות</string>
+    <string name="session_type_relapse_prevention_and_termination">סיכום טיפול והישנות</string>
+    <string name="gad7_severity_minimal">ללא חרדה משמעותית</string>
+    <string name="gad7_severity_mild">חרדה קלה</string>
+    <string name="gad7_severity_substantial">חרדה משמעותית</string>
+    <string name="gad7_severity_extreme">חרדה קשה</string>
+    <string name="phq9_severity_minimal">דיכאוןם מינימאלי</string>
+    <string name="phq9_severity_mild">דיכאון קל</string>
+    <string name="phq9_severity_moderate">דיכאון בינוני</string>
+    <string name="phq9_severity_moderately_severe">דיכאון בינוני כבד</string>
+    <string name="phq9_severity_severe">דיכאון כבד</string>
+    <string name="phq9_suggestion_minimal">אין צורך בטיפול לדיכאון</string>
+    <string name="phq9_suggestion_mild">כדאי לשקול טיפול ע״פ דיווח הסימפטומים של המטופל וע״פ התפקוד הכללי</string>
+    <string name="phq9_suggestion_moderate">כדאי לשקול טיפול ע״פ דיווח הסימפטומים של המטופל וע״פ התפקוד הכללי</string>
+    <string name="phq9_suggestion_moderately_severe">מומלץ טיפול בדיכאון בתרופות, פסיכוטרפיה או שילוב שלהם</string>
+    <string name="phq9_suggestion_severe">מומלץ טיפול בדיכאון בתרופות, פסיכוטרפיה או שילוב שלהם</string>
+    <string name="verify_email_message">שלחנו קישור אימות לכתובת %1$s. יש לפתוח את הקישור כדי להשלים את ההרשמה.</string>
+    <string name="session">פגישה %1$d</string>
+    <string name="session_editor_title">פגישה%1$s</string>
+    <string name="more_follow_ups">עוד (%1$d)</string>
+    <string name="delete_code_message">להשלמת המחיקה יש להקליד את הקוד:\n%1$s</string>
+    <string name="sessions_count_one">פגישה אחת</string>
+    <string name="sessions_count_other">%d פגישות</string>
+    <string name="last_session_summary">%1$s · %2$s</string>
+    <string name="app_version_label">גרסה %1$s (%2$s)</string>
+    <string name="ai_prompt_placeholder">שאל/י על %1$s</string>
+    <string name="gad_phq_scores">GAD-7: %1$d · PHQ-9: %2$d</string>
+    <string name="score_badge">%1$s: %2$d</string>
+    <string name="total_score_line">ציון כולל: %1$d</string>
+    <string name="previous_score_line">קודם, %1$s: %2$d</string>
+    <string name="previous_score_label">קודם, %1$s</string>
+    <string name="previous_answer_legend">הערך המוקף = תשובה מהשאלון הקודם מתאריך %1$s</string>
+    <string name="tokens_used">אסימונים בשימוש: %1$d</string>
+    <string name="source_line">מקור: %1$s</string>
+    <string name="confidence_line">רמת ביטחון: %1$s</string>
+    <string name="bulleted">• %1$s</string>
+    <string name="purpose_line">מטרה: %1$s</string>
+    <string name="transcription_failed">התמלול נכשל: %1$s</string>
+    <string name="could_not_read_audio_file">לא ניתן לקרוא את קובץ השמע: %1$s</string>
+    <string name="not_implemented_error">%1$s עדיין לא זמין.</string>
+    <string-array name="answer_descriptions">
+        <item>0 - כלל לא</item>
+        <item>1 - כמה ימים</item>
+        <item>2 - יותר ממחצית מהימים</item>
+        <item>3 - כמעט כל יום</item>
+    </string-array>
+    <string-array name="gad7_question_short_names">
+        <item>עצבות/חרדה/מתח</item>
+        <item>חוסר שליטה בדאגה</item>
+        <item>דאגה מוגזמת</item>
+        <item>קושי להירגע</item>
+        <item>חוסר מנוחה</item>
+        <item>עצבנות/התרגשות</item>
+        <item>פחד מאסון</item>
+    </string-array>
+    <string-array name="phq9_question_short_names">
+        <item>אובדן עניין/הנאה</item>
+        <item>מצב רוח ירוד</item>
+        <item>קשיי שינה</item>
+        <item>עייפות/חוסר אנרגיה</item>
+        <item>תיאבון מועט/מוגבר</item>
+        <item>ערך עצמי נמוך</item>
+        <item>קושי בריכוז</item>
+        <item>איטיות / אי-שקט</item>
+        <item>מחשבות על פגיעה עצמית</item>
+    </string-array>
+    <string-array name="gad7_questions">
+        <item>הרגשתי עצבות, חרדה או מתח רב</item>
+        <item>לא הייתי מסוגל/ת להפסיק לדאוג או לשלוט בחרדה</item>
+        <item>הייתי מודאג/ת יותר מדי בקשר לדברים שונים</item>
+        <item>התקשיתי להירגע</item>
+        <item>הייתי כל כך חסר/ת מנוחה שהיה לי קשה לשבת בלי לנוע</item>
+        <item>התעצבנתי או התרגשתי בקלות</item>
+        <item>פחדתי שמשהו נורא עומד לקרות</item>
+    </string-array>
+    <string-array name="phq9_questions">
+        <item>עניין או הנאה מועטים מעשיית דברים</item>
+        <item>תחושת דכדוך, דיכאון או חוסר תקווה</item>
+        <item>קשיים בהירדמות או בשינה רצופה, או עודף שינה</item>
+        <item>תחושה של עייפות או אנרגיה מועטה</item>
+        <item>תיאבון מועט או אכילת יתר</item>
+        <item>הרגשה רעה לגבי עצמך - מרגיש/ה שאת/ה כישלון או שאכזבת את עצמך או את משפחתך</item>
+        <item>קושי להתרכז בדברים כמו קריאה בעיתון או צפייה בטלוויזיה</item>
+        <item>דיבור או תנועה באיטיות רבה מהרגיל או להיפך, חוסר שקט כה רב עד כי צריך להסתובב יותר מהרגיל</item>
+        <item>מחשבות שהיה עדיף לו היית מת/ה או מחשבות על פגיעה בעצמך בדרך כלשהי</item>
+    </string-array>
+    <string-array name="phq9_interference_options">
+        <item>לא הקשו בכלל</item>
+        <item>הקשו במידת מה</item>
+        <item>הקשו מאוד</item>
+        <item>הקשו באופן קיצוני</item>
+    </string-array>
+    <string-array name="ai_suggested_questions">
+        <item>סיכום קצר של המצב הנוכחי</item>
+        <item>מה השתנה מאז תחילת הטיפול?</item>
+        <item>אילו דפוסים חוזרים בפגישות?</item>
+    </string-array>
+    <string name="executive_summary_section">תקציר</string>
+</resources>
