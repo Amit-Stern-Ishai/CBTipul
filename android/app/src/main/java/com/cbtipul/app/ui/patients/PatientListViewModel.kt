@@ -13,6 +13,7 @@ import com.cbtipul.app.model.CombinedMoodQuestionnaire
 import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.ConsentDeclinedException
 import com.cbtipul.app.model.DatabaseId
+import com.cbtipul.app.model.FollowUpStatus
 import com.cbtipul.app.model.FormulationSupervision
 import com.cbtipul.app.model.LongitudinalCaseReviewResponse
 import com.cbtipul.app.model.Patient
@@ -133,6 +134,7 @@ class PatientListViewModel(
         patientId: DatabaseId,
         session: Session,
         isNew: Boolean,
+        leaveAfterSave: Boolean,
         notConfigured: String,
         rejected: String,
         sessionNotSaved: String,
@@ -145,7 +147,7 @@ class PatientListViewModel(
                 if (isNew) repository.addSession(patientId, session)
                 else repository.updateSession(session)
                 _ui.update { it.copy(isSavingSession = false) }
-                if (isNew) onDone()
+                if (leaveAfterSave) onDone()
             } catch (error: Exception) {
                 _ui.update {
                     it.copy(
@@ -181,6 +183,34 @@ class PatientListViewModel(
             }
         }
     }
+
+    fun markFollowUpDiscussed(
+        session: Session,
+        questionIndex: Int,
+        notConfigured: String,
+        rejected: String,
+        sessionNotSaved: String,
+        anonymizationFailed: String,
+    ) {
+        val analysis = session.structuredNotes ?: return
+        if (questionIndex !in analysis.followUpQuestions.indices) return
+        val questions = analysis.followUpQuestions.toMutableList()
+        questions[questionIndex] = questions[questionIndex].copy(status = FollowUpStatus.Discussed)
+        val updated = session.copy(structuredNotes = analysis.copy(followUpQuestions = questions))
+        viewModelScope.launch {
+            try {
+                repository.updateSession(updated)
+            } catch (error: Exception) {
+                _ui.update {
+                    it.copy(
+                        sessionError = mapSessionError(error, notConfigured, rejected, sessionNotSaved, anonymizationFailed),
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearPendingAnalysis() = _ui.update { it.copy(pendingAnalysis = null) }
 
     fun transcribeVoice(
         file: File,
@@ -473,12 +503,14 @@ class PatientListViewModel(
         rejected: String,
         sessionNotSaved: String,
         anonymizationFailed: String,
+        onDone: () -> Unit = {},
     ) {
         viewModelScope.launch {
             _ui.update { it.copy(isSavingNotes = true, sessionError = null) }
             try {
                 repository.updatePatientNotes(patientId, notes)
                 _ui.update { it.copy(isSavingNotes = false) }
+                onDone()
             } catch (error: Exception) {
                 _ui.update {
                     it.copy(

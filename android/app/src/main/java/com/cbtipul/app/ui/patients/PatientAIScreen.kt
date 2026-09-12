@@ -1,6 +1,7 @@
 package com.cbtipul.app.ui.patients
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -187,15 +188,21 @@ fun PatientAIScreen(
                 ) {
                     items(entries, key = { it.id }) { entry ->
                         val mine = entry.role == "user"
+                        val accent = PatientAvatarColor.background(patient.id)
+                        val bubbleShape = RoundedCornerShape(18.dp)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
                             Text(
-                                entry.displayed ?: entry.text,
-                                color = if (mine) colors.textOnAccent else colors.textBright,
+                                text = aiMarkdown(entry.displayed ?: entry.text),
+                                color = colors.textBright,
                                 modifier = Modifier
                                     .widthIn(max = 320.dp)
                                     .background(
-                                        if (mine) colors.gold else colors.surface,
-                                        RoundedCornerShape(18.dp),
+                                        if (mine) colors.goldGhost else colors.surface,
+                                        bubbleShape,
+                                    )
+                                    .then(
+                                        if (mine) Modifier
+                                        else Modifier.border(1.dp, accent.copy(alpha = 0.35f), bubbleShape),
                                     )
                                     .padding(horizontal = 14.dp, vertical = 10.dp),
                             )

@@ -128,7 +128,7 @@ fun PatientsNavHost(
                 isSavingNotes = ui.isSavingNotes,
                 isTranscribing = ui.isTranscribing,
                 isAnonymizingTranscription = ui.isAnonymizingTranscription,
-                onSaveNotes = { notes ->
+                onSaveNotes = { notes, leave ->
                     val databaseId = patient?.id ?: return@PatientDetailScreen
                     viewModel.savePatientNotes(
                         databaseId,
@@ -137,7 +137,9 @@ fun PatientsNavHost(
                         rejected,
                         sessionNotSaved,
                         anonymizationFailed,
-                    )
+                    ) {
+                        if (leave) navController.popBackStack()
+                    }
                 },
                 onTranscribe = { file, existing, onNotes, onDone ->
                     viewModel.transcribeVoice(
@@ -311,6 +313,8 @@ fun PatientsNavHost(
             LaunchedEffect(id) { patient?.id?.let(viewModel::loadQuestionnaires) }
             SessionEditorScreen(
                 session = session,
+                patient = patient,
+                unnamed = unnamed,
                 isNew = isNew,
                 isSaving = ui.isSavingSession,
                 isTranscribing = ui.isTranscribing,
@@ -321,12 +325,13 @@ fun PatientsNavHost(
                     viewModel.clearSessionError()
                     navController.popBackStack()
                 },
-                onSave = { edited ->
+                onSave = { edited, leave ->
                     val patientId = patient?.id ?: return@SessionEditorScreen
                     viewModel.saveSession(
                         patientId,
                         edited,
                         isNew,
+                        leaveAfterSave = leave,
                         notConfigured,
                         rejected,
                         sessionNotSaved,
@@ -396,6 +401,16 @@ fun PatientsNavHost(
                     val key = session?.databaseId?.queryValue ?: return@SessionEditorScreen
                     navController.navigate("patient/$id/session/$key/questionnaire")
                 },
+                onMarkFollowUpDiscussed = { source, questionIndex ->
+                    viewModel.markFollowUpDiscussed(
+                        source,
+                        questionIndex,
+                        notConfigured,
+                        rejected,
+                        sessionNotSaved,
+                        anonymizationFailed,
+                    )
+                },
             )
         }
         composable(
@@ -412,7 +427,7 @@ fun PatientsNavHost(
             SessionAnalysisScreen(
                 analysis = session?.structuredNotes ?: ui.pendingAnalysis,
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
-                canSave = session?.databaseId != null,
+                persisted = session?.databaseId != null,
                 isSaving = ui.isSavingSession,
                 errorMessage = ui.sessionError,
                 onBack = {
@@ -420,18 +435,28 @@ fun PatientsNavHost(
                     navController.popBackStack()
                 },
                 onSave = { analysis ->
-                    val target = session ?: return@SessionAnalysisScreen
-                    viewModel.saveAnalysis(
-                        target,
-                        analysis,
-                        notConfigured,
-                        rejected,
-                        sessionNotSaved,
-                        anonymizationFailed,
-                    ) {
+                    val target = session
+                    if (target?.databaseId != null) {
+                        viewModel.saveAnalysis(
+                            target,
+                            analysis,
+                            notConfigured,
+                            rejected,
+                            sessionNotSaved,
+                            anonymizationFailed,
+                        ) {
+                            viewModel.clearSessionError()
+                            navController.popBackStack()
+                        }
+                    } else {
                         viewModel.clearSessionError()
                         navController.popBackStack()
                     }
+                },
+                onDiscard = {
+                    if (session?.databaseId == null) viewModel.clearPendingAnalysis()
+                    viewModel.clearSessionError()
+                    navController.popBackStack()
                 },
             )
         }

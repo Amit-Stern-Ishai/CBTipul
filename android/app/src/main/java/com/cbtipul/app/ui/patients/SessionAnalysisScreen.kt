@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,12 +28,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cbtipul.app.R
-import com.cbtipul.app.model.FollowUpStatus
 import com.cbtipul.app.model.CBTCycle
 import com.cbtipul.app.model.CBTSessionAnalysis
+import com.cbtipul.app.model.FollowUpStatus
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.themedScreen
 
@@ -41,11 +43,12 @@ import com.cbtipul.app.ui.theme.themedScreen
 fun SessionAnalysisScreen(
     analysis: CBTSessionAnalysis?,
     atmosphere: Color?,
-    canSave: Boolean,
+    persisted: Boolean,
     isSaving: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
     onSave: (CBTSessionAnalysis) -> Unit,
+    onDiscard: () -> Unit,
 ) {
     val colors = Theme.colors
     if (analysis == null) {
@@ -56,6 +59,16 @@ fun SessionAnalysisScreen(
         return
     }
     var edited by remember(analysis.sessionSummary) { mutableStateOf(analysis) }
+    var showLeave by remember { mutableStateOf(false) }
+    val needsDecision = !persisted || edited != analysis
+
+    fun requestBack() {
+        if (isSaving) return
+        if (needsDecision) showLeave = true else onBack()
+    }
+
+    BackHandler(enabled = !isSaving) { requestBack() }
+
     Scaffold(
         modifier = Modifier.themedScreen(atmosphere),
         containerColor = Color.Transparent,
@@ -63,15 +76,13 @@ fun SessionAnalysisScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.session_summary_title), color = colors.textBright) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isSaving) {
+                    IconButton(onClick = { requestBack() }, enabled = !isSaving) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
                 actions = {
-                    if (canSave) {
-                        TextButton(onClick = { onSave(edited) }, enabled = !isSaving) {
-                            Text(stringResource(R.string.done), color = colors.gold)
-                        }
+                    TextButton(onClick = { onSave(edited) }, enabled = !isSaving) {
+                        Text(stringResource(R.string.done), color = colors.gold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -86,131 +97,156 @@ fun SessionAnalysisScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            OutlinedTextField(
-                value = edited.sessionSummary,
-                onValueChange = { edited = edited.copy(sessionSummary = it) },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 4,
-                placeholder = { Text(stringResource(R.string.session_summary_placeholder)) },
-            )
+            ClinicalCard(accent = atmosphere) {
+                OutlinedTextField(
+                    value = edited.sessionSummary,
+                    onValueChange = { edited = edited.copy(sessionSummary = it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    placeholder = { Text(stringResource(R.string.session_summary_placeholder)) },
+                )
+            }
             if (edited.keySituations.isNotEmpty()) {
                 Text(stringResource(R.string.key_situations_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 edited.keySituations.forEachIndexed { index, item ->
-                    OutlinedTextField(
-                        value = item.situation,
-                        onValueChange = { value ->
-                            edited = edited.copy(
-                                keySituations = edited.keySituations.toMutableList().also {
-                                    it[index] = item.copy(situation = value)
-                                },
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.situation_label)) },
-                    )
-                    OutlinedTextField(
-                        value = item.whyItMatters,
-                        onValueChange = { value ->
-                            edited = edited.copy(
-                                keySituations = edited.keySituations.toMutableList().also {
-                                    it[index] = item.copy(whyItMatters = value)
-                                },
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.why_it_matters_label)) },
-                    )
+                    ClinicalCard(accent = atmosphere) {
+                        OutlinedTextField(
+                            value = item.situation,
+                            onValueChange = { value ->
+                                edited = edited.copy(
+                                    keySituations = edited.keySituations.toMutableList().also {
+                                        it[index] = item.copy(situation = value)
+                                    },
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.situation_label)) },
+                        )
+                        OutlinedTextField(
+                            value = item.whyItMatters,
+                            onValueChange = { value ->
+                                edited = edited.copy(
+                                    keySituations = edited.keySituations.toMutableList().also {
+                                        it[index] = item.copy(whyItMatters = value)
+                                    },
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.why_it_matters_label)) },
+                        )
+                    }
                 }
             }
             if (edited.possibleNats.isNotEmpty()) {
                 Text(stringResource(R.string.possible_automatic_thoughts_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 edited.possibleNats.forEachIndexed { index, item ->
-                    OutlinedTextField(
-                        value = item.thought,
-                        onValueChange = { value ->
-                            edited = edited.copy(
-                                possibleNats = edited.possibleNats.toMutableList().also {
-                                    it[index] = item.copy(thought = value)
-                                },
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.thought_label)) },
-                    )
-                    OutlinedTextField(
-                        value = item.situation,
-                        onValueChange = { value ->
-                            edited = edited.copy(
-                                possibleNats = edited.possibleNats.toMutableList().also {
-                                    it[index] = item.copy(situation = value)
-                                },
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.situation_label)) },
-                    )
-                    Text(item.emotion.orEmpty(), color = colors.textBody)
-                    Text(item.behavior.orEmpty(), color = colors.textBody)
+                    ClinicalCard(accent = atmosphere) {
+                        if (item.source.isNotBlank()) SourceBadge(item.source)
+                        OutlinedTextField(
+                            value = item.thought,
+                            onValueChange = { value ->
+                                edited = edited.copy(
+                                    possibleNats = edited.possibleNats.toMutableList().also {
+                                        it[index] = item.copy(thought = value)
+                                    },
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.thought_label)) },
+                            textStyle = androidx.compose.ui.text.TextStyle(fontStyle = FontStyle.Italic),
+                        )
+                        OutlinedTextField(
+                            value = item.situation,
+                            onValueChange = { value ->
+                                edited = edited.copy(
+                                    possibleNats = edited.possibleNats.toMutableList().also {
+                                        it[index] = item.copy(situation = value)
+                                    },
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.situation_label)) },
+                        )
+                        item.emotion?.takeIf { it.isNotBlank() }?.let {
+                            Text("${stringResource(R.string.emotion_label)}: $it", color = colors.textBody)
+                        }
+                        item.behavior?.takeIf { it.isNotBlank() }?.let {
+                            Text("${stringResource(R.string.behavior_label)}: $it", color = colors.textBody)
+                        }
+                        if (item.cognitivePatterns.isNotEmpty()) {
+                            Text(stringResource(R.string.possible_cognitive_patterns_label), color = colors.textBody, fontWeight = FontWeight.SemiBold)
+                            item.cognitivePatterns.forEach { pattern ->
+                                Text(pattern.pattern, color = colors.textBright, fontWeight = FontWeight.Medium)
+                                if (pattern.evidence.isNotBlank()) Text(pattern.evidence, color = colors.textBody)
+                            }
+                        }
+                    }
                 }
             }
             if (edited.cbtCycles.isNotEmpty()) {
                 Text(stringResource(R.string.cbt_cycle_section), color = colors.textBright, fontWeight = FontWeight.Bold)
-                edited.cbtCycles.forEach { CycleLines(it) }
+                edited.cbtCycles.forEach {
+                    ClinicalCard(accent = atmosphere) { CycleLines(it) }
+                }
             }
             if (edited.therapistHypotheses.isNotEmpty()) {
                 Text(stringResource(R.string.therapist_hypotheses_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 edited.therapistHypotheses.forEach { item ->
-                    Text(item.hypothesis, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    if (item.evidence.isNotEmpty()) Text(item.evidence, color = colors.textBody)
+                    ClinicalCard(accent = atmosphere) {
+                        Text(item.hypothesis, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                        if (item.evidence.isNotEmpty()) Text(item.evidence, color = colors.textBody)
+                    }
                 }
             }
             if (edited.followUpQuestions.isNotEmpty()) {
                 Text(stringResource(R.string.questions_to_revisit_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 edited.followUpQuestions.forEachIndexed { index, item ->
-                    OutlinedTextField(
-                        value = item.question,
-                        onValueChange = { value ->
-                            edited = edited.copy(
-                                followUpQuestions = edited.followUpQuestions.toMutableList().also {
-                                    it[index] = item.copy(question = value)
-                                },
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.question_placeholder)) },
-                    )
-                    OutlinedTextField(
-                        value = item.reason,
-                        onValueChange = { value ->
-                            edited = edited.copy(
-                                followUpQuestions = edited.followUpQuestions.toMutableList().also {
-                                    it[index] = item.copy(reason = value)
-                                },
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FollowUpStatus.entries.forEach { status ->
-                            val selected = item.status == status
-                            TextButton(onClick = {
+                    ClinicalCard(accent = atmosphere) {
+                        OutlinedTextField(
+                            value = item.question,
+                            onValueChange = { value ->
                                 edited = edited.copy(
                                     followUpQuestions = edited.followUpQuestions.toMutableList().also {
-                                        it[index] = item.copy(status = status)
+                                        it[index] = item.copy(question = value)
                                     },
                                 )
-                            }) {
-                                Text(
-                                    stringResource(
-                                        when (status) {
-                                            FollowUpStatus.Discussed -> R.string.discussed_action
-                                            FollowUpStatus.FollowUp -> R.string.follow_up_action
-                                            FollowUpStatus.NotRelevant -> R.string.not_relevant_action
-                                        },
-                                    ),
-                                    color = if (selected) colors.gold else colors.textBody,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.question_placeholder)) },
+                        )
+                        OutlinedTextField(
+                            value = item.reason,
+                            onValueChange = { value ->
+                                edited = edited.copy(
+                                    followUpQuestions = edited.followUpQuestions.toMutableList().also {
+                                        it[index] = item.copy(reason = value)
+                                    },
                                 )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FollowUpStatus.entries.forEach { status ->
+                                val selected = item.status == status
+                                TextButton(onClick = {
+                                    edited = edited.copy(
+                                        followUpQuestions = edited.followUpQuestions.toMutableList().also {
+                                            it[index] = item.copy(status = status)
+                                        },
+                                    )
+                                }) {
+                                    Text(
+                                        stringResource(
+                                            when (status) {
+                                                FollowUpStatus.Discussed -> R.string.discussed_action
+                                                FollowUpStatus.FollowUp -> R.string.follow_up_action
+                                                FollowUpStatus.NotRelevant -> R.string.not_relevant_action
+                                            },
+                                        ),
+                                        color = if (selected) colors.gold else colors.textBody,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    )
+                                }
                             }
                         }
                     }
@@ -219,13 +255,28 @@ fun SessionAnalysisScreen(
             if (edited.assignmentsForNextWeek.isNotEmpty()) {
                 Text(stringResource(R.string.assignments_for_next_week_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 edited.assignmentsForNextWeek.forEach { item ->
-                    Text(item.assignment, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    item.details?.takeIf { it.isNotBlank() }?.let { Text(it, color = colors.textBody) }
+                    ClinicalCard(accent = atmosphere) {
+                        Text(item.assignment, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                        item.details?.takeIf { it.isNotBlank() }?.let { Text(it, color = colors.textBody) }
+                    }
                 }
             }
             errorMessage?.let { Text(it, color = colors.error) }
         }
     }
+
+    AnalysisLeaveDialog(
+        visible = showLeave,
+        onSave = {
+            showLeave = false
+            onSave(edited)
+        },
+        onDiscard = {
+            showLeave = false
+            onDiscard()
+        },
+        onKeepViewing = { showLeave = false },
+    )
 }
 
 @Composable

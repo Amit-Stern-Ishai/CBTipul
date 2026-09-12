@@ -22,6 +22,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -47,9 +50,8 @@ import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.GAD7Severity
 import com.cbtipul.app.model.PHQ9Severity
 import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.themedScreen
-import java.text.DateFormat
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +62,7 @@ fun PatientQuestionnairesScreen(
     onOpen: (CompletedQuestionnaire) -> Unit,
 ) {
     val colors = Theme.colors
-    val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM, Locale("iw")) }
+    var graphsMode by remember { mutableStateOf(false) }
     val newestFirst = remember(records) { records.sortedByDescending { it.answeredDate.time } }
     val oldestFirst = remember(records) { records.sortedBy { it.answeredDate.time } }
 
@@ -92,6 +94,27 @@ fun PatientQuestionnairesScreen(
             contentPadding = PaddingValues(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf(false, true).forEachIndexed { index, graphs ->
+                        SegmentedButton(
+                            selected = graphsMode == graphs,
+                            onClick = { graphsMode = graphs },
+                            shape = SegmentedButtonDefaults.itemShape(index, 2),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = colors.gold,
+                                activeContentColor = colors.textOnAccent,
+                                inactiveContainerColor = colors.surface,
+                                inactiveContentColor = colors.textBright,
+                            ),
+                            label = {
+                                Text(stringResource(if (graphs) R.string.graphs_mode_title else R.string.list_mode_title))
+                            },
+                        )
+                    }
+                }
+            }
+            if (graphsMode) {
             item {
                 val theme = Theme.colors
                 QuestionnaireScoreChart(
@@ -126,6 +149,7 @@ fun PatientQuestionnairesScreen(
                     },
                 )
             }
+            } else {
             itemsIndexed(newestFirst, key = { _, item -> item.databaseId.queryValue }) { index, record ->
                 val previous = newestFirst.getOrNull(index + 1)?.questionnaire
                 Column(
@@ -135,12 +159,13 @@ fun PatientQuestionnairesScreen(
                         .padding(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(dateFormat.format(record.answeredDate), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                    Text(hebrewDate(record.answeredDate), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         GAD7ScoreCapsule(record.questionnaire, previous)
                         PHQ9ScoreCapsule(record.questionnaire, previous)
                     }
                 }
+            }
             }
         }
     }

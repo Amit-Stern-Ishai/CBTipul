@@ -2,6 +2,7 @@ package com.cbtipul.app.ui.patients
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -92,7 +93,7 @@ fun PatientDetailScreen(
     isSavingNotes: Boolean,
     isTranscribing: Boolean,
     isAnonymizingTranscription: Boolean,
-    onSaveNotes: (String) -> Unit,
+    onSaveNotes: (String, Boolean) -> Unit,
     onTranscribe: (File, String, (String) -> Unit, () -> Unit) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -132,6 +133,15 @@ fun PatientDetailScreen(
     @Suppress("UNUSED_VARIABLE")
     val observed = recorderTick
     var notes by remember(patient.id.queryValue, patient.notes) { mutableStateOf(patient.notes) }
+    var showDiscard by remember { mutableStateOf(false) }
+    val hasUnsavedChanges = notes != patient.notes || recorder.recordingFile != null
+
+    fun requestBack() {
+        if (busy) return
+        if (hasUnsavedChanges) showDiscard = true else onBack()
+    }
+
+    BackHandler(enabled = !busy) { requestBack() }
 
     fun transcribePending() {
         val file = recorder.recordingFile ?: return
@@ -151,7 +161,7 @@ fun PatientDetailScreen(
             TopAppBar(
                 title = { Text(name, color = colors.textBright) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { requestBack() }) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
@@ -347,7 +357,7 @@ fun PatientDetailScreen(
             recorder.errorMessage?.let { Text(it, color = colors.error) }
 
             Button(
-                onClick = { onSaveNotes(notes) },
+                onClick = { onSaveNotes(notes, false) },
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
@@ -486,6 +496,21 @@ fun PatientDetailScreen(
             onDelete()
         },
         onDismiss = { showDeleteCode = false },
+    )
+    DiscardChangesDialog(
+        visible = showDiscard,
+        canSave = true,
+        onSave = {
+            showDiscard = false
+            onSaveNotes(notes, true)
+        },
+        onDiscard = {
+            showDiscard = false
+            recorder.discard()
+            notes = patient.notes
+            onBack()
+        },
+        onKeepEditing = { showDiscard = false },
     )
 }
 

@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -79,11 +80,21 @@ fun QuestionnaireScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showDeleteCode by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    var showDiscard by remember { mutableStateOf(false) }
+    val initial = remember { existing ?: CombinedMoodQuestionnaire() }
+    val hasUnsavedChanges = isEditing && draft != initial
     val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM, Locale("iw")) }
     val gad7 = stringArrayResource(R.array.gad7_questions)
     val phq9 = stringArrayResource(R.array.phq9_questions)
     val answers = stringArrayResource(R.array.answer_descriptions)
     val interference = stringArrayResource(R.array.phq9_interference_options)
+
+    fun requestBack() {
+        if (isSaving) return
+        if (hasUnsavedChanges) showDiscard = true else onBack()
+    }
+
+    BackHandler(enabled = !isSaving) { requestBack() }
 
     Scaffold(
         modifier = Modifier.themedScreen(atmosphere),
@@ -92,7 +103,7 @@ fun QuestionnaireScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.questionnaire_section_title), color = colors.textBright) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isSaving) {
+                    IconButton(onClick = { requestBack() }, enabled = !isSaving) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
@@ -264,6 +275,20 @@ fun QuestionnaireScreen(
             onDelete()
         },
         onDismiss = { showDeleteCode = false },
+    )
+    DiscardChangesDialog(
+        visible = showDiscard,
+        canSave = draft.isComplete,
+        onSave = {
+            showDiscard = false
+            if (draft.isComplete) onSave(draft) else showIncomplete = true
+        },
+        onDiscard = {
+            showDiscard = false
+            draft = initial
+            onBack()
+        },
+        onKeepEditing = { showDiscard = false },
     )
 }
 

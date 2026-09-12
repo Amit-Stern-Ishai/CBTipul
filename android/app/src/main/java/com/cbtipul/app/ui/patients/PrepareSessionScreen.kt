@@ -81,59 +81,82 @@ fun PrepareSessionScreen(
             }
             if (preparation.executiveSummary.isNotBlank()) {
                 Text(stringResource(R.string.executive_summary_section), color = colors.textBright, fontWeight = FontWeight.Bold)
-                Text(preparation.executiveSummary, color = colors.textBright)
+                ClinicalCard(accent = atmosphere) {
+                    Text(preparation.executiveSummary, color = colors.textBright)
+                }
             }
             if (preparation.assignmentsToCheck.isNotEmpty()) {
                 Text(stringResource(R.string.assignments_to_check_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 preparation.assignmentsToCheck.forEach { item ->
-                    Text(item.assignment, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    item.details?.takeIf { it.isNotBlank() }?.let { Text(it, color = colors.textBody) }
+                    ClinicalCard(accent = atmosphere) {
+                        Text(item.assignment, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                        item.details?.takeIf { it.isNotBlank() }?.let { Text(it, color = colors.textBody) }
+                    }
                 }
             }
             if (preparation.priorityFollowUps.isNotEmpty()) {
                 Text(stringResource(R.string.priority_follow_ups_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 preparation.priorityFollowUps.forEach { item ->
-                    Text(item.item, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    if (item.reason.isNotBlank()) Text(item.reason, color = colors.textBody)
-                    if (item.source.isNotBlank()) Text(stringResource(R.string.source_line, item.source), color = colors.textFaint)
+                    ClinicalCard(accent = atmosphere) {
+                        if (item.source.isNotBlank()) SourceBadge(item.source)
+                        Text(item.item, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                        if (item.reason.isNotBlank()) Text(item.reason, color = colors.textBody)
+                    }
                 }
             }
             if (preparation.recurringNats.isNotEmpty()) {
                 Text(stringResource(R.string.recurring_nats_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 preparation.recurringNats.forEach { item ->
-                    Text(item.thought, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    if (item.situations.isNotEmpty()) Text(item.situations.joinToString(), color = colors.textBody)
+                    ClinicalCard(accent = atmosphere) {
+                        Text(item.thought, color = colors.textBright, fontWeight = FontWeight.SemiBold, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                        if (item.situations.isNotEmpty()) Text(item.situations.joinToString(), color = colors.textBody)
+                        if (item.cognitivePatterns.isNotEmpty()) {
+                            item.cognitivePatterns.forEach { pattern ->
+                                Text(pattern.pattern, color = colors.textBody)
+                            }
+                        }
+                    }
                 }
             }
             if (preparation.cbtCycles.isNotEmpty()) {
                 Text(stringResource(R.string.maintenance_cycles_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 Text(stringResource(R.string.maintenance_cycles_subtitle), color = colors.textBody)
-                preparation.cbtCycles.forEach { CycleLines(it) }
+                preparation.cbtCycles.forEach {
+                    ClinicalCard(accent = atmosphere) { CycleLines(it) }
+                }
             }
             if (preparation.questionnaireInsights.isNotEmpty()) {
                 Text(stringResource(R.string.questionnaire_insights_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 preparation.questionnaireInsights.forEach { item ->
-                    Text(item.observation, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    if (item.clinicalRelevance.isNotBlank()) Text(item.clinicalRelevance, color = colors.textBody)
+                    ClinicalCard(accent = atmosphere) {
+                        Text(item.observation, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                        if (item.clinicalRelevance.isNotBlank()) Text(item.clinicalRelevance, color = colors.textBody)
+                    }
                 }
             }
             preparation.treatmentFocus?.let { focus ->
                 Text(stringResource(R.string.treatment_focus_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 Text(stringResource(R.string.treatment_focus_subtitle), color = colors.textBody)
-                Text(focus.focus, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                if (focus.rationale.isNotBlank()) Text(focus.rationale, color = colors.textBody)
+                ClinicalCard(accent = atmosphere) {
+                    Text(focus.focus, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                    if (focus.rationale.isNotBlank()) Text(focus.rationale, color = colors.textBody)
+                }
             }
             if (preparation.suggestedQuestions.isNotEmpty()) {
                 Text(stringResource(R.string.suggested_questions_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 preparation.suggestedQuestions.forEach { item ->
-                    Text(item.question, color = colors.textBright, fontWeight = FontWeight.Medium)
-                    if (item.purpose.isNotBlank()) Text(item.purpose, color = colors.textBody)
+                    ClinicalCard(accent = atmosphere) {
+                        Text(item.question, color = colors.textBright, fontWeight = FontWeight.Medium)
+                        if (item.purpose.isNotBlank()) Text(item.purpose, color = colors.textBody)
+                    }
                 }
             }
             preparation.coreBeliefHypothesis?.let { belief ->
                 Text(stringResource(R.string.possible_core_belief_section), color = colors.textBright, fontWeight = FontWeight.Bold)
                 Text(stringResource(R.string.core_belief_subtitle), color = colors.textBody)
-                Text(belief.belief, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                ClinicalCard(accent = atmosphere) {
+                    Text(belief.belief, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
