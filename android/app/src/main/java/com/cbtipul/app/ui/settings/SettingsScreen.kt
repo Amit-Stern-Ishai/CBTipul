@@ -19,7 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,7 +47,9 @@ import com.cbtipul.app.BuildConfig
 import com.cbtipul.app.R
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
+import com.cbtipul.app.ui.patients.ConfirmDeleteOverlay
 import com.cbtipul.app.ui.patients.DeleteCodeDialog
+import com.cbtipul.app.ui.patients.MessageOverlay
 import com.cbtipul.app.ui.theme.BusyOverlay
 import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.GroupedListDivider
@@ -185,19 +186,16 @@ fun SettingsScreen(
     }
 
     if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.delete_account_confirm_title)) },
-            text = { Text(stringResource(R.string.delete_account_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    codeChallenge = true
-                }) { Text(stringResource(R.string.delete_account_action), color = Theme.colors.error) }
+        ConfirmDeleteOverlay(
+            visible = true,
+            title = stringResource(R.string.delete_account_confirm_title),
+            message = stringResource(R.string.delete_account_confirm_message),
+            confirmLabel = stringResource(R.string.delete_account_action),
+            onConfirm = {
+                confirmDelete = false
+                codeChallenge = true
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) }
-            },
+            onDismiss = { confirmDelete = false },
         )
     }
     DeleteCodeDialog(
@@ -208,16 +206,12 @@ fun SettingsScreen(
         },
         onDismiss = { codeChallenge = false },
     )
-    if (deleteError != null) {
-        AlertDialog(
-            onDismissRequest = onClearDeleteError,
-            title = { Text(stringResource(R.string.delete_account_failed_title)) },
-            text = { Text(deleteError) },
-            confirmButton = {
-                TextButton(onClick = onClearDeleteError) { Text(stringResource(R.string.ok)) }
-            },
-        )
-    }
+    MessageOverlay(
+        visible = deleteError != null,
+        title = stringResource(R.string.delete_account_failed_title),
+        message = deleteError.orEmpty(),
+        onDismiss = onClearDeleteError,
+    )
 }
 
 @Composable

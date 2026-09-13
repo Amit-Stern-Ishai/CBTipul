@@ -37,7 +37,6 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -547,19 +546,16 @@ fun PatientDetailScreen(
         )
     }
     if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.delete_patient_confirm_title)) },
-            text = { Text(stringResource(R.string.delete_patient_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteConfirm = false
-                    showDeleteCode = true
-                }) { Text(stringResource(R.string.delete_patient_action), color = colors.error) }
+        ConfirmDeleteOverlay(
+            visible = true,
+            title = stringResource(R.string.delete_patient_confirm_title),
+            message = stringResource(R.string.delete_patient_confirm_message),
+            confirmLabel = stringResource(R.string.delete_patient_action),
+            onConfirm = {
+                showDeleteConfirm = false
+                showDeleteCode = true
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.cancel)) }
-            },
+            onDismiss = { showDeleteConfirm = false },
         )
     }
     DeleteCodeDialog(
@@ -698,25 +694,56 @@ private fun RenameDialog(
 ) {
     var first by remember { mutableStateOf(initialFirst) }
     var last by remember { mutableStateOf(initialLast) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.edit_patient_name_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = first, onValueChange = { first = it }, placeholder = { Text(stringResource(R.string.first_name_placeholder)) })
-                OutlinedTextField(value = last, onValueChange = { last = it }, placeholder = { Text(stringResource(R.string.last_name_placeholder)) })
-            }
-        },
-        confirmButton = {
+    AppDialogOverlay(onDismiss = onDismiss) {
+        Text(
+            stringResource(R.string.edit_patient_name_title),
+            color = Theme.colors.textBright,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Right,
+        )
+        OutlinedTextField(
+            value = first,
+            onValueChange = { first = it },
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = TextStyle(
+                color = Theme.colors.textBright,
+                textDirection = TextDirection.Rtl,
+                textAlign = TextAlign.Right,
+            ),
+            placeholder = {
+                Text(
+                    stringResource(R.string.first_name_placeholder),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right,
+                )
+            },
+        )
+        OutlinedTextField(
+            value = last,
+            onValueChange = { last = it },
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = TextStyle(
+                color = Theme.colors.textBright,
+                textDirection = TextDirection.Rtl,
+                textAlign = TextAlign.Right,
+            ),
+            placeholder = {
+                Text(
+                    stringResource(R.string.last_name_placeholder),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right,
+                )
+            },
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(
                 onClick = { onSave(first.trim(), last.trim()) },
                 enabled = first.trim().isNotEmpty() || last.trim().isNotEmpty(),
-            ) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
+            ) { Text(stringResource(R.string.save), color = Theme.colors.gold) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = Theme.colors.gold) }
+        }
+    }
 }
 
 private fun formatDuration(seconds: Double): String {

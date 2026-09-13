@@ -21,10 +21,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -45,7 +44,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cbtipul.app.R
@@ -276,29 +278,24 @@ fun QuestionnaireScreen(
     }
 
     if (showIncomplete) {
-        AlertDialog(
-            onDismissRequest = { showIncomplete = false },
-            title = { Text(stringResource(R.string.questionnaire_incomplete_title)) },
-            text = { Text(stringResource(R.string.questionnaire_incomplete_message)) },
-            confirmButton = {
-                TextButton(onClick = { showIncomplete = false }) { Text(stringResource(R.string.ok)) }
-            },
+        MessageOverlay(
+            visible = true,
+            title = stringResource(R.string.questionnaire_incomplete_title),
+            message = stringResource(R.string.questionnaire_incomplete_message),
+            onDismiss = { showIncomplete = false },
         )
     }
     if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.delete_questionnaire_confirm_title)) },
-            text = { Text(stringResource(R.string.delete_questionnaire_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteConfirm = false
-                    showDeleteCode = true
-                }) { Text(stringResource(R.string.delete_questionnaire_action), color = colors.error) }
+        ConfirmDeleteOverlay(
+            visible = true,
+            title = stringResource(R.string.delete_questionnaire_confirm_title),
+            message = stringResource(R.string.delete_questionnaire_confirm_message),
+            confirmLabel = stringResource(R.string.delete_questionnaire_action),
+            onConfirm = {
+                showDeleteConfirm = false
+                showDeleteCode = true
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.cancel)) }
-            },
+            onDismiss = { showDeleteConfirm = false },
         )
     }
     DeleteCodeDialog(
@@ -506,27 +503,40 @@ private fun NoteButton(note: String, editable: Boolean, onNote: (String) -> Unit
     }
     if (show) {
         var value by remember { mutableStateOf(note) }
-        AlertDialog(
-            onDismissRequest = { show = false },
-            title = { Text(stringResource(R.string.question_note_title)) },
-            text = {
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = { value = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 4,
-                    placeholder = { Text(stringResource(R.string.notes_field_placeholder)) },
-                )
-            },
-            confirmButton = {
+        val colors = Theme.colors
+        AppDialogOverlay(onDismiss = { show = false }) {
+            Text(
+                stringResource(R.string.question_note_title),
+                color = colors.textBright,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Right,
+            )
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 4,
+                textStyle = TextStyle(
+                    color = colors.textBright,
+                    textDirection = TextDirection.Rtl,
+                    textAlign = TextAlign.Right,
+                ),
+                placeholder = {
+                    Text(
+                        stringResource(R.string.notes_field_placeholder),
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Right,
+                    )
+                },
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = {
                     onNote(value.trim())
                     show = false
-                }) { Text(stringResource(R.string.save)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { show = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
+                }) { Text(stringResource(R.string.save), color = colors.gold) }
+                TextButton(onClick = { show = false }) { Text(stringResource(R.string.cancel), color = colors.gold) }
+            }
+        }
     }
 }

@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Button
@@ -132,6 +131,7 @@ fun SessionEditorScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var typeExpanded by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
+    var showDeleteCode by remember { mutableStateOf(false) }
     var showDiscard by remember { mutableStateOf(false) }
     var showAllFollowUps by remember { mutableStateOf(false) }
     var overflow by remember { mutableStateOf(false) }
@@ -614,6 +614,25 @@ fun SessionEditorScreen(
                 stringResource(R.string.anonymizing_status_label)
             } else null,
         )
+        ConfirmDeleteOverlay(
+            visible = showDelete,
+            title = stringResource(R.string.delete_session_confirm_title),
+            message = stringResource(R.string.delete_session_confirm_message),
+            confirmLabel = stringResource(R.string.delete_session_action),
+            onConfirm = {
+                showDelete = false
+                showDeleteCode = true
+            },
+            onDismiss = { showDelete = false },
+        )
+        DeleteCodeDialog(
+            visible = showDeleteCode,
+            onConfirm = {
+                showDeleteCode = false
+                onDelete(initial.copy(date = date, notes = notes, type = type))
+            },
+            onDismiss = { showDeleteCode = false },
+        )
     }
 
     if (showDatePicker) {
@@ -674,23 +693,6 @@ fun SessionEditorScreen(
                 }
             }
         }
-    }
-
-    if (showDelete) {
-        AlertDialog(
-            onDismissRequest = { showDelete = false },
-            title = { Text(stringResource(R.string.delete_session_confirm_title)) },
-            text = { Text(stringResource(R.string.delete_session_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDelete = false
-                    onDelete(initial.copy(date = date, notes = notes, type = type))
-                }) { Text(stringResource(R.string.delete_session_action), color = colors.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDelete = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
     }
 }
 
