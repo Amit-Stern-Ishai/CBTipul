@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -197,45 +198,52 @@ fun PatientDetailScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 InitialsAvatar(name = name, patientId = patient.id, size = 64.dp)
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(name, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                    val chipColor = PatientAvatarColor.background(patient.id)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(chipColor.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
-                            .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            if (treatmentGoal.isEmpty()) {
-                                stringResource(R.string.no_treatment_goal_placeholder)
-                            } else {
-                                treatmentGoal
-                            },
-                            color = if (treatmentGoal.isEmpty()) colors.textBody else colors.textBright,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f),
+                Text(
+                    name,
+                    color = colors.textBright,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    textAlign = TextAlign.Center,
+                )
+                val chipColor = PatientAvatarColor.background(patient.id)
+                Row(
+                    modifier = Modifier
+                        .background(chipColor.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+                        .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        if (treatmentGoal.isEmpty()) {
+                            stringResource(R.string.no_treatment_goal_placeholder)
+                        } else {
+                            treatmentGoal
+                        },
+                        color = if (treatmentGoal.isEmpty()) colors.textBody else colors.textBright,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                    )
+                    IconButton(onClick = {
+                        goalDraft = treatmentGoal
+                        showGoal = true
+                    }) {
+                        Icon(
+                            Icons.Outlined.Edit,
+                            contentDescription = stringResource(R.string.edit_treatment_goal_action),
+                            tint = chipColor,
                         )
-                        IconButton(onClick = {
-                            goalDraft = treatmentGoal
-                            showGoal = true
-                        }) {
-                            Icon(
-                                Icons.Outlined.Edit,
-                                contentDescription = stringResource(R.string.edit_treatment_goal_action),
-                                tint = chipColor,
-                            )
-                        }
                     }
                 }
             }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (lastQuestionnaire != null) {
