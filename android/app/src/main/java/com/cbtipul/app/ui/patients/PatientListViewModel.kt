@@ -36,7 +36,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class PatientListUiState(
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
+    val hasLoaded: Boolean = false,
     val loadError: String? = null,
     val isAdding: Boolean = false,
     val addError: String? = null,
@@ -80,6 +81,7 @@ class PatientListViewModel(
 
     init {
         repository.loadCachedPatients()
+        refresh()
     }
 
     fun refresh() {
@@ -87,9 +89,9 @@ class PatientListViewModel(
             _ui.update { it.copy(isLoading = true, loadError = null) }
             try {
                 repository.loadPatients()
-                _ui.update { it.copy(isLoading = false) }
+                _ui.update { it.copy(isLoading = false, hasLoaded = true) }
             } catch (error: Exception) {
-                _ui.update { it.copy(isLoading = false, loadError = error.message ?: error.toString()) }
+                _ui.update { it.copy(isLoading = false, hasLoaded = true, loadError = error.message ?: error.toString()) }
             }
         }
     }

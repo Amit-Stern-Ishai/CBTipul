@@ -45,6 +45,9 @@ class AuthViewModel(
     ) { email, signedOut -> if (signedOut) null else email }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    private val _listSession = MutableStateFlow(0)
+    val listSession: StateFlow<Int> = _listSession.asStateFlow()
+
     val isRecoveringPassword: StateFlow<Boolean> = auth.isRecoveringPassword
     val callbackError: StateFlow<String?> = auth.callbackError
 
@@ -175,6 +178,7 @@ class AuthViewModel(
 
     fun signOut() {
         _treatAsSignedOut.value = true
+        _listSession.update { it + 1 }
         _ui.value = AuthUiState()
         viewModelScope.launch {
             auth.signOut()
@@ -194,6 +198,7 @@ class AuthViewModel(
                 auth.deleteAccount()
                 patients.wipeLocalData()
                 _ui.value = AuthUiState()
+                _listSession.update { it + 1 }
                 onSuccess()
             } catch (error: Exception) {
                 onError(mapError(error, notConfigured, emailNotConfirmed, tooManyRequests))

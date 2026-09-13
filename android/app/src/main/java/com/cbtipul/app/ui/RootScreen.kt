@@ -2,6 +2,7 @@ package com.cbtipul.app.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -9,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -26,6 +28,8 @@ import com.cbtipul.app.ui.patients.PatientsNavHost
 import com.cbtipul.app.ui.settings.SettingsScreen
 import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
+import com.cbtipul.app.ui.theme.Theme
+import com.cbtipul.app.ui.theme.themedScreen
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
@@ -36,13 +40,19 @@ fun RootScreen() {
         factory = AuthViewModel.Factory(app.authRepository, app.preferences, app.patientRepository),
     )
     val email by authViewModel.currentUserEmail.collectAsStateWithLifecycle()
+    val listSession by authViewModel.listSession.collectAsStateWithLifecycle()
     val recovering by authViewModel.isRecoveringPassword.collectAsStateWithLifecycle()
     val callbackError by authViewModel.callbackError.collectAsStateWithLifecycle()
     val ui by authViewModel.ui.collectAsStateWithLifecycle()
-    val termsFlow = remember(email) {
-        email?.let { app.preferences.hasAcceptedTerms(it) } ?: flowOf(false)
+    val termsAccepted = remember(email) { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(email) {
+        val signedIn = email
+        if (signedIn == null) {
+            termsAccepted.value = null
+            return@LaunchedEffect
+        }
+        app.preferences.hasAcceptedTerms(signedIn).collect { termsAccepted.value = it }
     }
-    val termsAccepted by termsFlow.collectAsStateWithLifecycle(initialValue = false)
     val consentPrompt by app.aiConsentStore.promptVisible.collectAsStateWithLifecycle()
     val appearance by app.preferences.appearance.collectAsStateWithLifecycle(AppAppearance.Dark)
     val textSize by app.preferences.textSize.collectAsStateWithLifecycle(AppTextSize.Standard)
@@ -68,26 +78,31 @@ fun RootScreen() {
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
-            email != null && termsAccepted -> {
+            email != null && termsAccepted.value == true -> {
                 val patientsViewModel: PatientListViewModel = viewModel(
-                    key = email,
+                    key = "$email-$listSession",
                     factory = PatientListViewModel.Factory(app.patientRepository),
                 )
-                LaunchedEffect(email) {
-                    patientsViewModel.refresh()
-                }
                 PatientsNavHost(
                     viewModel = patientsViewModel,
                     onOpenSettings = { showSettings = true },
                 )
             }
-            email != null -> {
+            email != null && termsAccepted.value == false -> {
                 TermsScreen(
                     onAgree = {
                         val signedIn = email ?: return@TermsScreen
                         scope.launch { authViewModel.acceptTerms(signedIn) }
                     },
                 )
+            }
+            email != null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = Theme.colors.gold)
+                }
             }
             else -> {
                 AuthScreen(

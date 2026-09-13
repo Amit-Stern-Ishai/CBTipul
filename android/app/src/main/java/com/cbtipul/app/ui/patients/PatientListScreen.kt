@@ -93,7 +93,7 @@ fun PatientListScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             when {
-                ui.isLoading && patients.isEmpty() -> {
+                patients.isEmpty() && ui.loadError == null && (ui.isLoading || !ui.hasLoaded) -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(color = colors.gold)
