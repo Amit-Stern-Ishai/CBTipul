@@ -34,12 +34,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cbtipul.app.R
+import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.PatientStatus
 import com.cbtipul.app.model.SessionType
@@ -66,6 +66,7 @@ fun PatientListScreen(
     onAddPatient: () -> Unit,
 ) {
     val patients by viewModel.patients.collectAsStateWithLifecycle()
+    val questionnaires by viewModel.questionnaires.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val colors = Theme.colors
 
@@ -128,8 +129,10 @@ fun PatientListScreen(
                             PatientRow(
                                 patient = patient,
                                 unnamed = unnamed,
+                                records = questionnaires[patient.id.queryValue],
                                 position = GroupRowPosition.at(index, patients.size),
                                 onClick = { onOpenPatient(patient.id.queryValue) },
+                                onLoadScores = { viewModel.ensureQuestionnaires(patient.id) },
                             )
                         }
                     }
@@ -143,10 +146,19 @@ fun PatientListScreen(
 private fun PatientRow(
     patient: Patient,
     unnamed: String,
+    records: List<CompletedQuestionnaire>?,
     position: GroupRowPosition,
     onClick: () -> Unit,
+    onLoadScores: () -> Unit,
 ) {
     val colors = Theme.colors
+    LaunchedEffect(patient.id.queryValue) { onLoadScores() }
+    val last = records?.maxByOrNull { it.answeredDate.time }
+    val previous = last?.let { latest ->
+        records
+            .filter { it.databaseId != latest.databaseId && !it.answeredDate.after(latest.answeredDate) }
+            .maxByOrNull { it.answeredDate.time }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -172,6 +184,30 @@ private fun PatientRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(patient.displayName(unnamed), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             Text(patientSubtitle(patient), color = colors.textBody, fontSize = 13.sp)
+        }
+        when {
+            last != null -> {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
+                    GAD7ScoreCapsule(last.questionnaire, previous?.questionnaire)
+                    PHQ9ScoreCapsule(last.questionnaire, previous?.questionnaire)
+                }
+            }
+            records == null -> {
+                Column(
+                    modifier = Modifier.alpha(0.4f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalAlignment = Alignment.End,
+                ) {
+                    ScoreCapsule(
+                        text = stringResource(R.string.score_badge, stringResource(R.string.gad7_short_name), 10),
+                        color = colors.textFaint,
+                    )
+                    ScoreCapsule(
+                        text = stringResource(R.string.score_badge, stringResource(R.string.phq9_short_name), 10),
+                        color = colors.textFaint,
+                    )
+                }
+            }
         }
     }
 }

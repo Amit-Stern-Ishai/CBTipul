@@ -273,6 +273,17 @@ class PatientListViewModel(
         }
     }
 
+    fun ensureQuestionnaires(patientId: DatabaseId) {
+        viewModelScope.launch {
+            if (repository.cachedQuestionnaires(patientId.queryValue) != null) return@launch
+            try {
+                repository.loadQuestionnaires(patientId)
+            } catch (_: Exception) {
+                // List-row scores are best-effort, matching iOS.
+            }
+        }
+    }
+
     fun loadQuestionnaires(patientId: DatabaseId, notConfigured: String, rejected: String) {
         viewModelScope.launch {
             val hasCache = repository.cachedQuestionnaires(patientId.queryValue) != null
