@@ -1,8 +1,8 @@
 package com.cbtipul.app.ui.patients
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,9 +31,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -361,7 +358,6 @@ private fun QuestionBlock(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AnswerScale(
     selection: Int?,
@@ -371,30 +367,36 @@ private fun AnswerScale(
     onSelect: (Int) -> Unit,
 ) {
     val colors = Theme.colors
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+    val shape = RoundedCornerShape(8.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         (0..3).forEach { value ->
             val selected = selection == value
             val previous = previousAnswer == value
-            SegmentedButton(
-                selected = selected,
-                onClick = { if (editable) onSelect(value) },
-                enabled = editable,
-                shape = SegmentedButtonDefaults.itemShape(index = value, count = 4),
-                colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = colors.accentFill,
-                    activeContentColor = colors.textOnAccent,
-                    inactiveContainerColor = colors.elevated,
-                    inactiveContentColor = colors.textBright,
-                    inactiveBorderColor = if (previous) colors.warning else accent.copy(alpha = 0.35f),
-                    activeBorderColor = if (previous) colors.warning else colors.accentFill,
-                ),
-                border = BorderStroke(
-                    width = if (previous) 2.dp else 1.dp,
-                    color = if (previous) colors.warning else if (selected) colors.accentFill else accent.copy(alpha = 0.35f),
-                ),
-                icon = {},
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(if (selected) colors.gold else colors.elevated, shape)
+                    .border(
+                        width = if (previous) 2.dp else 1.dp,
+                        color = when {
+                            previous -> colors.warning
+                            selected -> colors.gold
+                            else -> accent.copy(alpha = 0.35f)
+                        },
+                        shape = shape,
+                    )
+                    .clickable(enabled = editable) { onSelect(value) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Text("$value", fontWeight = FontWeight.Medium)
+                Text(
+                    "$value",
+                    color = if (selected) colors.textOnAccent else colors.textBright,
+                    fontWeight = FontWeight.Medium,
+                )
             }
         }
     }
