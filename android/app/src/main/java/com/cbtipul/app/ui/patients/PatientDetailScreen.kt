@@ -11,10 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -35,10 +33,10 @@ import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -124,6 +122,7 @@ fun PatientDetailScreen(
     var goalDraft by remember { mutableStateOf("") }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showDeleteCode by remember { mutableStateOf(false) }
+    var overflow by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
     val name = patient.displayName(unnamed)
     val treatmentGoal = patient.formulation?.treatmentGoal.orEmpty()
@@ -183,6 +182,29 @@ fun PatientDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = { requestBack() }) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
+                    }
+                },
+                actions = {
+                    TextButton(
+                        onClick = { onSaveNotes(notes, false) },
+                        enabled = !busy && hasUnsavedChanges,
+                    ) {
+                        Text(
+                            stringResource(R.string.save),
+                            color = if (!busy && hasUnsavedChanges) colors.gold else colors.textFaint,
+                        )
+                    }
+                    IconButton(onClick = { overflow = true }, enabled = !busy) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = null, tint = colors.gold)
+                    }
+                    DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.delete_patient_action), color = colors.error) },
+                            onClick = {
+                                overflow = false
+                                showDeleteConfirm = true
+                            },
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -471,25 +493,8 @@ fun PatientDetailScreen(
                 }
             }
 
-            Button(
-                onClick = { onSaveNotes(notes, false) },
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-            ) {
-                if (isSavingNotes) CircularProgressIndicator(Modifier.size(18.dp), color = colors.textOnAccent, strokeWidth = 2.dp)
-                else Text(stringResource(R.string.save_changes_action))
-            }
             notesError?.let { Text(it, color = colors.error) }
             prepareError?.let { Text(it, color = colors.error) }
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = { showDeleteConfirm = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = colors.textBright),
-            ) {
-                Text(stringResource(R.string.delete_patient_action))
-            }
         }
     }
         BusyOverlay(

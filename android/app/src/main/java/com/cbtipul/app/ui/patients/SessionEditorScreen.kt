@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Description
@@ -133,6 +134,7 @@ fun SessionEditorScreen(
     var showDelete by remember { mutableStateOf(false) }
     var showDiscard by remember { mutableStateOf(false) }
     var showAllFollowUps by remember { mutableStateOf(false) }
+    var overflow by remember { mutableStateOf(false) }
     var baselineDate by remember(initial.id) { mutableStateOf(initial.date) }
     var baselineNotes by remember(initial.id) { mutableStateOf(initial.notes) }
     var baselineType by remember(initial.id) { mutableStateOf(initial.type) }
@@ -236,6 +238,31 @@ fun SessionEditorScreen(
                 navigationIcon = {
                     IconButton(onClick = { requestBack() }, enabled = !busy) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
+                    }
+                },
+                actions = {
+                    if (!isNew) {
+                        TextButton(
+                            onClick = { persist(leave = false) },
+                            enabled = !busy && hasUnsavedChanges,
+                        ) {
+                            Text(
+                                stringResource(R.string.save),
+                                color = if (!busy && hasUnsavedChanges) colors.gold else colors.textFaint,
+                            )
+                        }
+                        IconButton(onClick = { overflow = true }, enabled = !busy) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = null, tint = colors.gold)
+                        }
+                        DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.delete_session_action), color = colors.error) },
+                                onClick = {
+                                    overflow = false
+                                    showDelete = true
+                                },
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -567,32 +594,16 @@ fun SessionEditorScreen(
             }
 
             errorMessage?.let { Text(it, color = colors.error) }
-            if (isSaving) {
-                Text(
-                    if (hasText) stringResource(R.string.anonymizing_status_label)
-                    else stringResource(R.string.save),
-                    color = colors.textBody,
-                )
-            }
 
-            Button(
-                onClick = { persist(leave = isNew) },
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-            ) {
-                if (isSaving) CircularProgressIndicator(Modifier.size(22.dp), color = colors.textOnAccent, strokeWidth = 2.dp)
-                else Text(stringResource(if (isNew) R.string.add_session_action else R.string.save_changes_action), fontWeight = FontWeight.SemiBold)
-            }
-
-            if (!isNew) {
+            if (isNew) {
                 Button(
-                    onClick = { showDelete = true },
+                    onClick = { persist(leave = true) },
                     enabled = !busy,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = colors.textBright),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
                 ) {
-                    Text(stringResource(R.string.delete_session_action))
+                    if (isSaving) CircularProgressIndicator(Modifier.size(22.dp), color = colors.textOnAccent, strokeWidth = 2.dp)
+                    else Text(stringResource(R.string.add_session_action), fontWeight = FontWeight.SemiBold)
                 }
             }
         }
