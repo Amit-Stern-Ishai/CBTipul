@@ -80,7 +80,6 @@ class PatientListViewModel(
 
     init {
         repository.loadCachedPatients()
-        refresh()
     }
 
     fun refresh() {

@@ -80,8 +80,12 @@ fun RootScreen() {
         when {
             email != null && termsAccepted -> {
                 val patientsViewModel: PatientListViewModel = viewModel(
+                    key = email,
                     factory = PatientListViewModel.Factory(app.patientRepository),
                 )
+                LaunchedEffect(email) {
+                    patientsViewModel.refresh()
+                }
                 PatientsNavHost(
                     viewModel = patientsViewModel,
                     onOpenSettings = { showSettings = true },
