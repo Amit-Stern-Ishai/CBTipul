@@ -2,6 +2,7 @@ package com.cbtipul.app.ui.patients
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,8 @@ import com.cbtipul.app.model.GAD7Severity
 import com.cbtipul.app.model.PHQ9Severity
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.settings.AIResponseStyle
+import com.cbtipul.app.ui.theme.GroupedListCard
+import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.theme.themedScreen
@@ -225,13 +228,21 @@ fun PatientAIScreen(
                     Column(
                         modifier = Modifier.align(Alignment.Center).padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Text(stringResource(R.string.ai_title), color = colors.textBright, fontWeight = FontWeight.Bold)
                         Text(stringResource(R.string.ai_empty_message), color = colors.textBody)
-                        suggested.forEach { question ->
-                            TextButton(onClick = { prompt = question }) {
-                                Text(question, color = colors.gold)
+                        GroupedListCard(accent = PatientAvatarColor.background(patient.id)) {
+                            suggested.forEachIndexed { index, question ->
+                                Text(
+                                    question,
+                                    color = colors.gold,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { prompt = question }
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                )
+                                if (index < suggested.lastIndex) GroupedListDivider()
                             }
                         }
                     }

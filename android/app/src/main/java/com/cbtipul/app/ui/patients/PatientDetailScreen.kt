@@ -260,32 +260,36 @@ fun PatientDetailScreen(
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (lastQuestionnaire != null) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        GAD7ScoreCapsule(lastQuestionnaire, previousQuestionnaire)
-                        PHQ9ScoreCapsule(lastQuestionnaire, previousQuestionnaire)
+            val accent = PatientAvatarColor.background(patient.id)
+            GroupedListCard(accent = accent) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (lastQuestionnaire != null) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            GAD7ScoreCapsule(lastQuestionnaire, previousQuestionnaire)
+                            PHQ9ScoreCapsule(lastQuestionnaire, previousQuestionnaire)
+                        }
                     }
+                    lastSessionType?.let {
+                        Text(stringResource(it.labelRes()), color = colors.textBody, fontWeight = FontWeight.SemiBold)
+                    }
+                    Text(
+                        if (patient.sessionsUpToTodayCount == 1) {
+                            stringResource(R.string.sessions_count_one)
+                        } else {
+                            stringResource(R.string.sessions_count_other, patient.sessionsUpToTodayCount)
+                        },
+                        color = colors.textBody,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
-                lastSessionType?.let {
-                    Text(stringResource(it.labelRes()), color = colors.textBody, fontWeight = FontWeight.SemiBold)
-                }
-                Text(
-                    if (patient.sessionsUpToTodayCount == 1) {
-                        stringResource(R.string.sessions_count_one)
-                    } else {
-                        stringResource(R.string.sessions_count_other, patient.sessionsUpToTodayCount)
-                    },
-                    color = colors.textBody,
-                    fontWeight = FontWeight.SemiBold,
-                )
             }
 
-            val accent = PatientAvatarColor.background(patient.id)
             GroupedListCard(accent = accent) {
             ExposedDropdownMenuBox(
                 expanded = statusExpanded,
