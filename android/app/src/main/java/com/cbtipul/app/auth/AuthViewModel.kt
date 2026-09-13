@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -36,11 +37,13 @@ class AuthViewModel(
     private val patients: com.cbtipul.app.data.PatientRepository,
 ) : ViewModel() {
 
-    val currentUserEmail: StateFlow<String?> = auth.currentUserEmail.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5_000),
-        null,
-    )
+    private val _treatAsSignedOut = MutableStateFlow(false)
+
+    val currentUserEmail: StateFlow<String?> = combine(
+        auth.currentUserEmail,
+        _treatAsSignedOut,
+    ) { email, signedOut -> if (signedOut) null else email }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val isRecoveringPassword: StateFlow<Boolean> = auth.isRecoveringPassword
     val callbackError: StateFlow<String?> = auth.callbackError
@@ -171,9 +174,11 @@ class AuthViewModel(
     }
 
     fun signOut() {
+        _treatAsSignedOut.value = true
+        _ui.value = AuthUiState()
         viewModelScope.launch {
-            patients.clearAllCaches()
             auth.signOut()
+            patients.clearAllCaches()
         }
     }
 
@@ -188,6 +193,7 @@ class AuthViewModel(
             try {
                 auth.deleteAccount()
                 patients.wipeLocalData()
+                _ui.value = AuthUiState()
                 onSuccess()
             } catch (error: Exception) {
                 onError(mapError(error, notConfigured, emailNotConfirmed, tooManyRequests))
@@ -206,6 +212,7 @@ class AuthViewModel(
         action: suspend () -> String?,
     ) {
         viewModelScope.launch {
+            _treatAsSignedOut.value = false
             _ui.update { it.copy(isWorking = true, errorMessage = null, infoMessage = null) }
             try {
                 val info = action()

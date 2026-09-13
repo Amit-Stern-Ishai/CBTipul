@@ -167,8 +167,8 @@ fun RootScreen() {
                 onAppearance = { value -> scope.launch { app.preferences.setAppearance(value) } },
                 onTextSize = { value -> scope.launch { app.preferences.setTextSize(value) } },
                 onSignOut = {
-                    showSettings = false
                     authViewModel.signOut()
+                    showSettings = false
                 },
                 onDeleteAccount = {
                     isDeletingAccount = true
