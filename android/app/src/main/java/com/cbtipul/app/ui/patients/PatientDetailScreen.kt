@@ -15,11 +15,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -380,75 +382,105 @@ fun PatientDetailScreen(
             }
 
             Text(stringResource(R.string.notes_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    modifier = Modifier.weight(1f),
-                    minLines = 3,
-                    placeholder = { Text(stringResource(R.string.optional_notes_placeholder)) },
-                    enabled = !busy,
-                )
-                if (recorder.isRecording) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
-                        IconButton(onClick = {
-                            recorder.stopRecording()
-                            transcribePending()
-                        }) {
-                            Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.recording_label), tint = colors.error)
+            GroupedListCard(accent = accent) {
+                val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
+                Box(Modifier.fillMaxWidth()) {
+                    BasicTextField(
+                        value = notes,
+                        onValueChange = { notes = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 96.dp)
+                            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 48.dp),
+                        enabled = !busy,
+                        textStyle = TextStyle(color = colors.textBright, fontSize = 16.sp),
+                        minLines = 3,
+                        decorationBox = { inner ->
+                            Box {
+                                if (notes.isEmpty()) {
+                                    Text(
+                                        stringResource(R.string.optional_notes_placeholder),
+                                        color = colors.textBody,
+                                    )
+                                }
+                                inner()
+                            }
+                        },
+                    )
+                    if (recorder.isRecording) {
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
+                            IconButton(onClick = {
+                                recorder.stopRecording()
+                                transcribePending()
+                            }) {
+                                Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.recording_label), tint = colors.error)
+                            }
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { startMic() },
+                            enabled = !busy,
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                        ) {
+                            Icon(Icons.Filled.Mic, contentDescription = stringResource(R.string.record_voice_note_action), tint = colors.gold)
                         }
                     }
-                } else {
-                    IconButton(onClick = { startMic() }, enabled = !busy) {
-                        Icon(Icons.Filled.Mic, contentDescription = stringResource(R.string.record_voice_note_action), tint = colors.gold)
+                }
+                if (pending) {
+                    GroupedListDivider()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = { recorder.togglePlayback() }) {
+                            Icon(
+                                if (recorder.isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                tint = colors.gold,
+                            )
+                            Text(
+                                stringResource(if (recorder.isPlaying) R.string.stop_playback_action else R.string.play_recording_action),
+                                color = colors.gold,
+                            )
+                        }
+                        TextButton(onClick = { transcribePending() }) {
+                            Text(stringResource(R.string.transcribe_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
+                        }
+                        IconButton(onClick = { recorder.discard() }) {
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.discard_recording_action), tint = colors.error)
+                        }
                     }
                 }
-            }
-
-            val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
-            if (pending) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TextButton(onClick = { recorder.togglePlayback() }) {
-                        Icon(
-                            if (recorder.isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            tint = colors.gold,
-                        )
+                if (isTranscribing || isAnonymizingTranscription) {
+                    GroupedListDivider()
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
                         Text(
-                            stringResource(if (recorder.isPlaying) R.string.stop_playback_action else R.string.play_recording_action),
-                            color = colors.gold,
+                            stringResource(
+                                if (isTranscribing) R.string.transcribing_label else R.string.anonymizing_status_label,
+                            ),
+                            color = colors.textBody,
                         )
                     }
-                    TextButton(onClick = { transcribePending() }) {
-                        Text(stringResource(R.string.transcribe_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
-                    }
-                    IconButton(onClick = { recorder.discard() }) {
-                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.discard_recording_action), tint = colors.error)
-                    }
+                }
+                recorder.errorMessage?.let {
+                    GroupedListDivider()
+                    Text(it, color = colors.error, modifier = Modifier.padding(16.dp))
                 }
             }
-
-            if (isTranscribing || isAnonymizingTranscription) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
-                    Text(
-                        stringResource(
-                            if (isTranscribing) R.string.transcribing_label else R.string.anonymizing_status_label,
-                        ),
-                        color = colors.textBody,
-                    )
-                }
-            }
-            recorder.errorMessage?.let { Text(it, color = colors.error) }
 
             Button(
                 onClick = { onSaveNotes(notes, false) },
