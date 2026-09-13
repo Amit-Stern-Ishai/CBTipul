@@ -89,7 +89,7 @@ fun PatientListScreen(
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = ui.isLoading && patients.isNotEmpty(),
-            onRefresh = viewModel::refresh,
+            onRefresh = { viewModel.refresh(fromUser = true) },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             when {

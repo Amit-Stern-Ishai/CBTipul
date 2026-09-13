@@ -65,28 +65,32 @@ class PatientListViewModel(
     private val repository: PatientRepository,
 ) : ViewModel() {
 
+    init {
+        repository.loadCachedPatients()
+    }
+
     val patients: StateFlow<List<Patient>> = repository.patients
-        .map { list ->
-            list.sortedWith(
-                compareByDescending<Patient> { it.status == PatientStatus.Active }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.localName.orEmpty() },
-            )
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .map { list -> sortPatients(list) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, sortPatients(repository.patients.value))
 
     val questionnaires: StateFlow<Map<String, List<CompletedQuestionnaire>>> = repository.questionnaires
 
-    private val _ui = MutableStateFlow(PatientListUiState())
+    private val _ui = MutableStateFlow(
+        PatientListUiState(
+            isLoading = repository.patients.value.isEmpty(),
+            hasLoaded = repository.patients.value.isNotEmpty(),
+        ),
+    )
     val ui: StateFlow<PatientListUiState> = _ui.asStateFlow()
 
     init {
-        repository.loadCachedPatients()
         refresh()
     }
 
-    fun refresh() {
+    fun refresh(fromUser: Boolean = false) {
         viewModelScope.launch {
-            _ui.update { it.copy(isLoading = true, loadError = null) }
+            val blocking = fromUser || repository.patients.value.isEmpty()
+            _ui.update { it.copy(isLoading = blocking, loadError = null) }
             try {
                 repository.loadPatients()
                 _ui.update { it.copy(isLoading = false, hasLoaded = true) }
@@ -701,6 +705,11 @@ class PatientListViewModel(
             }
         }
     }
+
+    private fun sortPatients(list: List<Patient>): List<Patient> = list.sortedWith(
+        compareByDescending<Patient> { it.status == PatientStatus.Active }
+            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.localName.orEmpty() },
+    )
 
     private fun mapError(error: Exception, notConfigured: String, rejected: String): String =
         mapSessionError(error, notConfigured, rejected, rejected, rejected) ?: (error.message ?: error.toString())

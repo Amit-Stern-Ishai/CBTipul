@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -53,11 +55,12 @@ class PatientRepository(
     val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
     private val _questionnaires = MutableStateFlow<Map<String, List<CompletedQuestionnaire>>>(emptyMap())
     val questionnaires: StateFlow<Map<String, List<CompletedQuestionnaire>>> = _questionnaires.asStateFlow()
+    private val cacheLock = Mutex()
 
     fun loadCachedPatients() {
         if (_patients.value.isNotEmpty()) return
         val cached = cache.load() ?: return
-        _patients.value = cached.map { patient ->
+        _patients.value = cached.patients.map { patient ->
             textGate.markSafe(patient.notes)
             markFormulationSafe(patient.formulation)
             patient.sessions.forEach {
@@ -66,10 +69,27 @@ class PatientRepository(
             }
             patient.copy(localName = identityStore.name(patient.id))
         }
+        _questionnaires.value = cached.questionnaires.mapValues { (_, records) ->
+            records.onEach { record ->
+                record.questionnaire.gad7Notes.forEach { textGate.markSafe(it) }
+                record.questionnaire.phq9Notes.forEach { textGate.markSafe(it) }
+                textGate.markSafe(record.questionnaire.interferenceNote)
+            }
+        }
+    }
+
+    private fun persistCache() {
+        cache.save(_patients.value, _questionnaires.value)
     }
 
     suspend fun loadPatients() {
         ensureConfigured()
+        cacheLock.withLock {
+            loadPatientsLocked()
+        }
+    }
+
+    private suspend fun loadPatientsLocked() {
         val patientRows = client.from("Patients")
             .select(Columns.raw("id, active, notes, formulation"))
             .decodeList<PatientRow>()
@@ -115,7 +135,7 @@ class PatientRepository(
             loaded.associate { it.id to it.backendName },
         )
         _patients.value = loaded.map { it.copy(localName = identityStore.name(it.id)) }
-        cache.save(_patients.value)
+        persistCache()
     }
 
     suspend fun addPatient(firstName: String, lastName: String, status: PatientStatus) {
@@ -134,7 +154,7 @@ class PatientRepository(
         identityStore.upsertIdentities(mapOf(patient.id to patient.backendName))
         val named = patient.copy(localName = identityStore.name(patient.id))
         _patients.update { it + named }
-        cache.save(_patients.value)
+        persistCache()
     }
 
     fun renamePatient(patientId: DatabaseId, firstName: String, lastName: String) {
@@ -154,16 +174,18 @@ class PatientRepository(
 
     suspend fun deletePatient(patientId: DatabaseId) {
         ensureConfigured()
-        val deleted = client.from("Patients").delete {
-            filter { eq("id", patientId.queryValue) }
-            select(Columns.raw("id"))
-        }.decodeList<InsertedRow>()
-        if (deleted.isEmpty()) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
-        runCatching { identityStore.delete(patientId) }
-        _patients.update { it.filterNot { patient -> patient.id.queryValue == patientId.queryValue } }
-        _questionnaires.update { it - patientId.queryValue }
-        cache.deletePreparation(patientId.queryValue)
-        cache.save(_patients.value)
+        cacheLock.withLock {
+            val deleted = client.from("Patients").delete {
+                filter { eq("id", patientId.queryValue) }
+                select(Columns.raw("id"))
+            }.decodeList<InsertedRow>()
+            if (deleted.isEmpty()) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
+            runCatching { identityStore.delete(patientId) }
+            _patients.update { it.filterNot { patient -> patient.id.queryValue == patientId.queryValue } }
+            _questionnaires.update { it - patientId.queryValue }
+            cache.deletePreparation(patientId.queryValue)
+            persistCache()
+        }
     }
 
     suspend fun addSession(patientId: DatabaseId, session: Session) {
@@ -185,7 +207,7 @@ class PatientRepository(
                 }
             }
         }
-        cache.save(_patients.value)
+        persistCache()
     }
 
     suspend fun updateSession(session: Session) {
@@ -211,29 +233,36 @@ class PatientRepository(
                 )
             }
         }
-        cache.save(_patients.value)
+        persistCache()
     }
 
     suspend fun deleteSession(session: Session) {
         ensureConfigured()
         val sessionId = session.databaseId
             ?: throw PatientStoreException(PatientStoreException.Kind.SessionNotSaved)
-        val deleted = client.from("Sessions").delete {
-            filter { eq("id", sessionId.queryValue) }
-            select(Columns.raw("id"))
-        }.decodeList<InsertedRow>()
-        if (deleted.isEmpty()) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
-        _patients.update { list ->
-            list.map { patient ->
-                patient.copy(sessions = patient.sessions.filterNot { it.id == session.id })
+        cacheLock.withLock {
+            val deleted = client.from("Sessions").delete {
+                filter { eq("id", sessionId.queryValue) }
+                select(Columns.raw("id"))
+            }.decodeList<InsertedRow>()
+            if (deleted.isEmpty()) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
+            _patients.update { list ->
+                list.map { patient ->
+                    patient.copy(
+                        sessions = patient.sessions.filterNot { existing ->
+                            existing.id == session.id ||
+                                existing.databaseId?.queryValue == sessionId.queryValue
+                        },
+                    )
+                }
             }
-        }
-        session.databaseId?.queryValue?.let { sessionId ->
-            _questionnaires.update { cache ->
-                cache.mapValues { (_, records) -> records.filterNot { it.sessionId?.queryValue == sessionId } }
+            _questionnaires.update { cached ->
+                cached.mapValues { (_, records) ->
+                    records.filterNot { it.sessionId?.queryValue == sessionId.queryValue }
+                }
             }
+            persistCache()
         }
-        cache.save(_patients.value)
     }
 
     suspend fun anonymizedText(text: String): String = textGate.prepare(text).orEmpty()
@@ -275,7 +304,7 @@ class PatientRepository(
                 if (it.id.queryValue == patientId.queryValue) it.copy(notes = prepared.orEmpty()) else it
             }
         }
-        cache.save(_patients.value)
+        persistCache()
     }
 
     suspend fun updatePatientStatus(patientId: DatabaseId, status: PatientStatus) {
@@ -294,7 +323,7 @@ class PatientRepository(
                 if (it.id.queryValue == patientId.queryValue) it.copy(status = status) else it
             }
         }
-        cache.save(_patients.value)
+        persistCache()
     }
 
     suspend fun saveFormulation(patientId: DatabaseId, formulation: PatientFormulation) {
@@ -314,7 +343,7 @@ class PatientRepository(
                 if (it.id.queryValue == patientId.queryValue) it.copy(formulation = anonymized) else it
             }
         }
-        cache.save(_patients.value)
+        persistCache()
     }
 
     suspend fun challengeFormulation(patientId: DatabaseId): FormulationSupervision {
@@ -370,6 +399,7 @@ class PatientRepository(
             )
         }
         _questionnaires.update { it + (patientId.queryValue to loaded) }
+        persistCache()
         return loaded
     }
 
@@ -420,6 +450,7 @@ class PatientRepository(
                 .filterNot { it.sessionId?.queryValue == sessionId.queryValue } + completed
             cache + (patientId.queryValue to current.sortedByDescending { it.answeredDate.time })
         }
+        persistCache()
     }
 
     suspend fun deleteQuestionnaire(patientId: DatabaseId, session: Session) {
@@ -436,6 +467,7 @@ class PatientRepository(
                 .filterNot { it.sessionId?.queryValue == sessionId.queryValue }
             cache + (patientId.queryValue to current)
         }
+        persistCache()
     }
 
     fun patient(id: String): Patient? = _patients.value.find { it.id.queryValue == id }
