@@ -1,10 +1,11 @@
 package com.cbtipul.app.data
 
 import com.cbtipul.app.model.AssignmentForNextWeek
-import com.cbtipul.app.model.CBTSessionAnalysis
+import com.cbtipul.app.model.CBTCycle
 import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.FollowUpStatus
 import com.cbtipul.app.model.Patient
+import com.cbtipul.app.model.SessionType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.text.SimpleDateFormat
@@ -38,10 +39,17 @@ data class PatientContext(
         @SerialName("phq9_answers") val phq9Answers: List<Int?>,
         @SerialName("phq9_score") val phq9Score: Int,
         @SerialName("interference_level") val interferenceLevel: Int? = null,
+        @SerialName("gad7_notes") val gad7Notes: List<String> = emptyList(),
+        @SerialName("phq9_notes") val phq9Notes: List<String> = emptyList(),
+        @SerialName("interference_note") val interferenceNote: String? = null,
     )
 
     @Serializable
-    data class SessionNote(val date: String, val notes: String)
+    data class SessionNote(
+        val date: String,
+        val notes: String,
+        val type: SessionType? = null,
+    )
 
     @Serializable
     data class SessionReview(
@@ -65,6 +73,9 @@ data class PatientContext(
         val formulation: String? = null,
         @SerialName("treatment_goals") val treatmentGoals: String? = null,
         @SerialName("current_focus") val currentFocus: String? = null,
+        @SerialName("key_automatic_thoughts") val keyAutomaticThoughts: List<String> = emptyList(),
+        @SerialName("maintaining_behaviors") val maintainingBehaviors: List<String> = emptyList(),
+        @SerialName("key_cbt_cycle") val keyCbtCycle: CBTCycle? = null,
     )
 
     @Serializable
@@ -82,7 +93,6 @@ data class PatientContext(
             val background = patient.notes.trim().ifEmpty { null }
             val assessments = questionnaires
                 .sortedByDescending { it.answeredDate.time }
-                .take(6)
                 .map { record ->
                     Assessment(
                         date = dateOnly.format(record.answeredDate),
@@ -91,12 +101,18 @@ data class PatientContext(
                         phq9Answers = record.questionnaire.phq9Answers,
                         phq9Score = record.questionnaire.phq9Score,
                         interferenceLevel = record.questionnaire.interferenceLevel,
+                        gad7Notes = record.questionnaire.gad7Notes,
+                        phq9Notes = record.questionnaire.phq9Notes,
+                        interferenceNote = record.questionnaire.interferenceNote.trim().ifEmpty { null },
                     )
                 }
-            val recentSessions = sessions
-                .filter { it.notes.trim().isNotEmpty() }
-                .take(5)
-                .map { SessionNote(dateOnly.format(it.date), it.notes) }
+            val recentSessions = sessions.map {
+                SessionNote(
+                    date = dateOnly.format(it.date),
+                    notes = it.notes,
+                    type = it.type,
+                )
+            }
             val recentReviews = sessions.mapNotNull { session ->
                 session.structuredNotes?.let { analysis ->
                     SessionReview(
@@ -108,7 +124,7 @@ data class PatientContext(
                         assignmentsForNextWeek = analysis.assignmentsForNextWeek,
                     )
                 }
-            }.take(5)
+            }
             val openFollowUps = sessions.flatMap { session ->
                 (session.structuredNotes?.followUpQuestions ?: emptyList())
                     .filter { it.status != FollowUpStatus.Discussed && it.status != FollowUpStatus.NotRelevant }
@@ -127,9 +143,14 @@ data class PatientContext(
                     lastSessionDate = sessions.firstOrNull()?.let { dateOnly.format(it.date) },
                 ),
                 formulation = PatientContext.Formulation(
-                    formulation = patient.formulation?.therapistHypothesis,
-                    treatmentGoals = patient.formulation?.treatmentGoal,
-                    currentFocus = patient.formulation?.coreBelief,
+                    formulation = patient.formulation?.therapistHypothesis?.trim()?.ifEmpty { null },
+                    treatmentGoals = patient.formulation?.treatmentGoal?.trim()?.ifEmpty { null },
+                    currentFocus = patient.formulation?.coreBelief?.trim()?.ifEmpty { null },
+                    keyAutomaticThoughts = patient.formulation?.keyAutomaticThoughts.orEmpty()
+                        .map { it.trim() }.filter { it.isNotEmpty() },
+                    maintainingBehaviors = patient.formulation?.maintainingBehaviors.orEmpty()
+                        .map { it.trim() }.filter { it.isNotEmpty() },
+                    keyCbtCycle = patient.formulation?.keyCBTCycle,
                 ),
             )
         }

@@ -287,17 +287,40 @@ private fun fullContext(
     if (patient.notes.isNotBlank()) {
         parts += "Patient notes (general, not tied to a session):\n${patient.notes.trim()}"
     }
+    patient.formulation?.takeIf { it.hasContent() }?.let { formulation ->
+        val lines = mutableListOf("Therapist formulation:")
+        formulation.treatmentGoal?.trim()?.takeIf { it.isNotEmpty() }?.let { lines += "Treatment goal: $it" }
+        formulation.coreBelief?.trim()?.takeIf { it.isNotEmpty() }?.let { lines += "Core belief: $it" }
+        formulation.therapistHypothesis?.trim()?.takeIf { it.isNotEmpty() }?.let { lines += "Hypothesis: $it" }
+        val thoughts = formulation.keyAutomaticThoughts.map { it.trim() }.filter { it.isNotEmpty() }
+        if (thoughts.isNotEmpty()) {
+            lines += "Key automatic thoughts:"
+            thoughts.forEach { lines += "- $it" }
+        }
+        val behaviors = formulation.maintainingBehaviors.map { it.trim() }.filter { it.isNotEmpty() }
+        if (behaviors.isNotEmpty()) {
+            lines += "Maintaining behaviors:"
+            behaviors.forEach { lines += "- $it" }
+        }
+        formulation.keyCBTCycle?.let { cycle ->
+            val stages = listOfNotNull(
+                cycle.triggerSituation, cycle.automaticThought, cycle.emotion,
+                cycle.behavior, cycle.shortTermConsequence, cycle.longTermConsequence,
+            ).filter { it.isNotBlank() }
+            if (stages.isNotEmpty()) lines += "Key CBT cycle: ${stages.joinToString(" → ")}"
+        }
+        parts += lines.joinToString("\n")
+    }
     val sessions = patient.sessions.sortedBy { it.date.time }
-    val recentReviewIds = sessions.filter { it.structuredNotes != null }.takeLast(5).map { it.id }.toSet()
     if (sessions.isEmpty()) {
         parts += "No sessions yet."
     } else {
         val lines = mutableListOf("Sessions:")
         sessions.forEach { session ->
             var line = "- Session on ${dateFormat.format(session.date)}"
+            session.type?.let { line += " (${it.name})" }
             if (session.notes.isNotEmpty()) line += "\n  Notes: ${session.notes}"
-            val analysis = session.structuredNotes
-            if (analysis != null && session.id in recentReviewIds) {
+            session.structuredNotes?.let { analysis ->
                 val digest = structuredContext(analysis).lines().joinToString("\n") { "  $it" }
                 line += "\n  Structured AI review:\n$digest"
             }
