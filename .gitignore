@@ -1,5 +1,5 @@
 .DS_Store
-MyApp/OpenAIConfig.swift
+ios/OpenAIConfig.swift
 
 # Android
 android/.gradle/

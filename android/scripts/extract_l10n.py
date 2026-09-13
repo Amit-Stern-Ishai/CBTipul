@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Android string resources from MyApp/Localization.swift."""
+"""Generate Android string resources from ios/Localization.swift."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SWIFT = ROOT / "MyApp" / "Localization.swift"
+SWIFT = ROOT / "ios" / "Localization.swift"
 RES = ROOT / "android" / "app" / "src" / "main" / "res"
 VALUES = RES / "values"
 RAW = RES / "raw"

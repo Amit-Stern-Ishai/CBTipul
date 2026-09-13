@@ -1,6 +1,6 @@
 # CBTipul Android porting guide
 
-Port the existing iOS app (`MyApp/`) to Android as a **feature-and-contract replica**, not a rewrite of the product. Keep the same Supabase project, tables, Edge Functions, JSON shapes, privacy rules, and Hebrew RTL UX.
+Port the existing iOS app (`ios/`) to Android as a **feature-and-contract replica**, not a rewrite of the product. Keep the same Supabase project, tables, Edge Functions, JSON shapes, privacy rules, and Hebrew RTL UX.
 
 Do **not** share OpenAI keys with the client. All AI traffic stays on the existing Edge Functions.
 
@@ -340,4 +340,4 @@ Do not add OAuth, name sync, or new tables in the first Android release.
 
 Config lives in iOS `SupabaseConfig.swift`. Put Android URL + publishable key in `local.properties` / BuildConfig; do not commit a second copy if you can avoid it.
 
-Source of truth for wording: `MyApp/Localization.swift`. Translate keys to `strings.xml`; do not rewrite Hebrew clinical copy.
+Source of truth for wording: `ios/Localization.swift`. Translate keys to `strings.xml`; do not rewrite Hebrew clinical copy.

@@ -33,9 +33,9 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		000000000000000000000010 /* MyApp */ = {
+		000000000000000000000010 /* ios */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MyApp;
+			path = ios;
 			sourceTree = "<group>";
 		};
 		45BE139D3042E1F5005EB38C /* CBTipulTests */ = {
@@ -69,7 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				45203610303360E0006FC5A3 /* CLAUDE.md */,
-				000000000000000000000010 /* MyApp */,
+				000000000000000000000010 /* ios */,
 				45BE139D3042E1F5005EB38C /* CBTipulTests */,
 				000000000000000000000020 /* Products */,
 			);
@@ -98,7 +98,7 @@
 			buildRules = (
 			);
 			fileSystemSynchronizedGroups = (
-				000000000000000000000010 /* MyApp */,
+				000000000000000000000010 /* ios */,
 			);
 			name = CBTipul;
 			packageProductDependencies = (
