@@ -21,13 +21,10 @@ class MainActivity : ComponentActivity() {
         handleAuthIntent(intent)
         val preferences = (application as CbTipulApp).preferences
         setContent {
-            val appearance by preferences.appearance.collectAsStateWithLifecycle(
-                initialValue = AppAppearance.Dark,
-            )
             val textSize by preferences.textSize.collectAsStateWithLifecycle(
                 initialValue = AppTextSize.Standard,
             )
-            CbTipulTheme(appearance = appearance, textSize = textSize) {
+            CbTipulTheme(appearance = AppAppearance.Dark, textSize = textSize) {
                 RootScreen()
             }
         }

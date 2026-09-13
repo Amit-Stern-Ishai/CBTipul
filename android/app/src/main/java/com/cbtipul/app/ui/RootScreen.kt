@@ -27,7 +27,6 @@ import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.patients.PatientListViewModel
 import com.cbtipul.app.ui.patients.PatientsNavHost
 import com.cbtipul.app.ui.settings.SettingsScreen
-import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.themedScreen
@@ -56,7 +55,6 @@ fun RootScreen() {
         app.preferences.hasAcceptedTerms(signedIn).collect { termsAccepted.value = it }
     }
     val consentPrompt by app.aiConsentStore.promptVisible.collectAsStateWithLifecycle()
-    val appearance by app.preferences.appearance.collectAsStateWithLifecycle(AppAppearance.Dark)
     val textSize by app.preferences.textSize.collectAsStateWithLifecycle(AppTextSize.Standard)
     val consentAcceptedFlow = remember(email) {
         email?.let { app.preferences.hasAcceptedAiConsent(it) } ?: flowOf(false)
@@ -166,12 +164,10 @@ fun RootScreen() {
         if (showSettings) {
             SettingsScreen(
                 email = email,
-                appearance = appearance,
                 textSize = textSize,
                 aiConsentAccepted = aiConsentAccepted,
                 isDeleting = isDeletingAccount,
                 deleteError = deleteAccountError,
-                onAppearance = { value -> scope.launch { app.preferences.setAppearance(value) } },
                 onTextSize = { value -> scope.launch { app.preferences.setTextSize(value) } },
                 onSignOut = {
                     authViewModel.signOut()

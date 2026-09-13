@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.cbtipul.app.BuildConfig
 import com.cbtipul.app.R
-import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.patients.DeleteCodeDialog
@@ -67,12 +66,10 @@ private sealed class SettingsPage {
 @Composable
 fun SettingsScreen(
     email: String?,
-    appearance: AppAppearance,
     textSize: AppTextSize,
     aiConsentAccepted: Boolean,
     isDeleting: Boolean,
     deleteError: String?,
-    onAppearance: (AppAppearance) -> Unit,
     onTextSize: (AppTextSize) -> Unit,
     onSignOut: () -> Unit,
     onDeleteAccount: () -> Unit,
@@ -119,18 +116,6 @@ fun SettingsScreen(
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    Text(stringResource(R.string.settings_appearance_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    GroupedListCard(accent = colors.gold) {
-                        AppAppearance.entries.forEachIndexed { index, option ->
-                            SettingsRow(
-                                title = stringResource(option.labelRes()),
-                                selected = appearance == option,
-                                onClick = { onAppearance(option) },
-                            )
-                            if (index < AppAppearance.entries.lastIndex) GroupedListDivider()
-                        }
-                    }
-
                     Text(stringResource(R.string.settings_accessibility_section_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                     GroupedListCard(accent = colors.gold) {
                         SettingsRow(
@@ -344,11 +329,6 @@ private fun OfficialWebView(url: String, onFinished: () -> Unit) {
         modifier = Modifier.fillMaxSize(),
         onRelease = { it.destroy() },
     )
-}
-
-private fun AppAppearance.labelRes(): Int = when (this) {
-    AppAppearance.Light -> R.string.appearance_light
-    AppAppearance.Dark -> R.string.appearance_dark
 }
 
 private fun AppTextSize.labelRes(): Int = when (this) {
