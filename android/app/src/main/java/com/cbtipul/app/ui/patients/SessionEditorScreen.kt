@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.DateRange
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -62,6 +64,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -74,6 +77,8 @@ import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.Session
 import com.cbtipul.app.model.SessionType
 import com.cbtipul.app.ui.theme.BusyOverlay
+import com.cbtipul.app.ui.theme.GroupedListCard
+import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.theme.hebrewDate
@@ -344,76 +349,103 @@ fun SessionEditorScreen(
                 }
             }
 
-            Text(stringResource(R.string.notes_section_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start)
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    modifier = Modifier.weight(1f).height(180.dp),
-                    placeholder = { Text(stringResource(R.string.notes_field_placeholder), color = colors.textFaint) },
-                    enabled = !busy,
-                )
-                if (recorder.isRecording) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
-                        IconButton(onClick = {
-                            recorder.stopRecording()
-                            transcribePending()
-                        }) {
-                            Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.recording_label), tint = colors.error)
+            Text(stringResource(R.string.session_summary_section), color = colors.textBright, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start)
+            val accent = atmosphere ?: colors.gold
+            GroupedListCard(accent = accent) {
+                val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
+                Box(Modifier.fillMaxWidth()) {
+                    BasicTextField(
+                        value = notes,
+                        onValueChange = { notes = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 160.dp)
+                            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 48.dp),
+                        enabled = !busy,
+                        textStyle = TextStyle(color = colors.textBright, fontSize = 16.sp),
+                        minLines = 5,
+                    )
+                    if (recorder.isRecording) {
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
+                            IconButton(onClick = {
+                                recorder.stopRecording()
+                                transcribePending()
+                            }) {
+                                Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.recording_label), tint = colors.error)
+                            }
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { startMic() },
+                            enabled = !busy,
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                        ) {
+                            Icon(Icons.Filled.Mic, contentDescription = stringResource(R.string.record_voice_note_action), tint = colors.gold)
                         }
                     }
-                } else {
-                    IconButton(onClick = { startMic() }, enabled = !busy) {
-                        Icon(Icons.Filled.Mic, contentDescription = stringResource(R.string.record_voice_note_action), tint = colors.gold)
+                }
+                if (pending) {
+                    GroupedListDivider()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = { recorder.togglePlayback() }) {
+                            Icon(
+                                if (recorder.isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                tint = colors.gold,
+                            )
+                            Text(
+                                stringResource(if (recorder.isPlaying) R.string.stop_playback_action else R.string.play_recording_action),
+                                color = colors.gold,
+                            )
+                        }
+                        TextButton(onClick = { transcribePending() }) {
+                            Text(stringResource(R.string.transcribe_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
+                        }
+                        IconButton(onClick = { recorder.discard() }) {
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.discard_recording_action), tint = colors.error)
+                        }
                     }
                 }
-            }
-
-            val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
-            if (pending) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TextButton(onClick = { recorder.togglePlayback() }) {
-                        Icon(
-                            if (recorder.isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            tint = colors.gold,
-                        )
+                if (isTranscribing || isAnonymizingTranscription) {
+                    GroupedListDivider()
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
                         Text(
-                            stringResource(if (recorder.isPlaying) R.string.stop_playback_action else R.string.play_recording_action),
-                            color = colors.gold,
+                            stringResource(
+                                if (isTranscribing) R.string.transcribing_label else R.string.anonymizing_status_label,
+                            ),
+                            color = colors.textBody,
                         )
                     }
-                    TextButton(onClick = { transcribePending() }) {
-                        Text(stringResource(R.string.transcribe_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
-                    }
-                    IconButton(onClick = { recorder.discard() }) {
-                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.discard_recording_action), tint = colors.error)
-                    }
+                }
+                recorder.errorMessage?.let {
+                    GroupedListDivider()
+                    Text(it, color = colors.error, modifier = Modifier.padding(16.dp))
                 }
             }
 
-            if (isTranscribing || isAnonymizingTranscription || isAnalyzing) {
+            if (isAnalyzing) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
-                    Text(
-                        stringResource(
-                            when {
-                                isTranscribing -> R.string.transcribing_label
-                                isAnonymizingTranscription -> R.string.anonymizing_status_label
-                                else -> R.string.ai_thinking_label
-                            },
-                        ),
-                        color = colors.textBody,
-                    )
+                    Text(stringResource(R.string.ai_thinking_label), color = colors.textBody)
                 }
             }
-
-            recorder.errorMessage?.let { Text(it, color = colors.error) }
 
             Button(
                 onClick = {

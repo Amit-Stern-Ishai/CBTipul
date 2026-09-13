@@ -395,17 +395,6 @@ fun PatientDetailScreen(
                         enabled = !busy,
                         textStyle = TextStyle(color = colors.textBright, fontSize = 16.sp),
                         minLines = 3,
-                        decorationBox = { inner ->
-                            Box {
-                                if (notes.isEmpty()) {
-                                    Text(
-                                        stringResource(R.string.optional_notes_placeholder),
-                                        color = colors.textBody,
-                                    )
-                                }
-                                inner()
-                            }
-                        },
                     )
                     if (recorder.isRecording) {
                         Row(
