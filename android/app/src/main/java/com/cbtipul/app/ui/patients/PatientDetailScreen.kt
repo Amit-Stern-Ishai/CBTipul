@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -45,6 +45,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -61,8 +62,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -101,7 +104,6 @@ fun PatientDetailScreen(
     prepareError: String?,
     onPrepare: () -> Unit,
     onOpenLastPreparation: () -> Unit,
-    onOpenFormulation: () -> Unit,
     notesError: String?,
     isSavingNotes: Boolean,
     isTranscribing: Boolean,
@@ -347,12 +349,6 @@ fun PatientDetailScreen(
             )
             GroupedListDivider(startInset = 56.dp)
             IconChipRow(
-                icon = Icons.Outlined.EditNote,
-                title = stringResource(R.string.my_formulation_title),
-                onClick = onOpenFormulation,
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
                 icon = Icons.Outlined.AutoFixHigh,
                 title = stringResource(R.string.prepare_next_session_action),
                 enabled = !isPreparing,
@@ -475,6 +471,17 @@ fun PatientDetailScreen(
             isBusy = isSavingNotes || isAnonymizingTranscription,
             label = if (isAnonymizingTranscription) stringResource(R.string.anonymizing_status_label) else null,
         )
+        if (showGoal) {
+            EditGoalOverlay(
+                value = goalDraft,
+                onValueChange = { goalDraft = it },
+                onDismiss = { showGoal = false },
+                onSave = {
+                    onSaveGoal(goalDraft.trim())
+                    showGoal = false
+                },
+            )
+        }
     }
 
     if (showRename) {
@@ -485,30 +492,6 @@ fun PatientDetailScreen(
             onSave = { first, last ->
                 onRename(first, last)
                 showRename = false
-            },
-        )
-    }
-    if (showGoal) {
-        AlertDialog(
-            onDismissRequest = { showGoal = false },
-            title = { Text(stringResource(R.string.edit_treatment_goal_action)) },
-            text = {
-                OutlinedTextField(
-                    value = goalDraft,
-                    onValueChange = { goalDraft = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                    placeholder = { Text(stringResource(R.string.no_treatment_goal_placeholder)) },
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    onSaveGoal(goalDraft.trim())
-                    showGoal = false
-                }) { Text(stringResource(R.string.save)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showGoal = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -589,6 +572,69 @@ private fun IconChipRow(
         }
         Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
         trailing()
+    }
+}
+
+@Composable
+private fun EditGoalOverlay(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit,
+) {
+    val colors = Theme.colors
+    BackHandler(onBack = onDismiss)
+    Box(Modifier.fillMaxSize().imePadding()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable(onClick = onDismiss),
+        )
+        Surface(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(24.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            color = colors.elevated,
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    stringResource(R.string.edit_treatment_goal_action),
+                    color = colors.textBright,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    textStyle = TextStyle(
+                        color = colors.textBright,
+                        textDirection = TextDirection.Rtl,
+                        textAlign = TextAlign.Right,
+                    ),
+                    placeholder = {
+                        Text(
+                            stringResource(R.string.no_treatment_goal_placeholder),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Right,
+                        )
+                    },
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(onClick = onSave) { Text(stringResource(R.string.save)) }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                }
+            }
+        }
     }
 }
 

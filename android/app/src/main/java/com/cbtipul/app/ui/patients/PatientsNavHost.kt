@@ -134,7 +134,6 @@ fun PatientsNavHost(
                     }
                 },
                 onOpenLastPreparation = { navController.navigate("patient/$id/prepare") },
-                onOpenFormulation = { navController.navigate("patient/$id/formulation") },
                 notesError = ui.sessionError,
                 isSavingNotes = ui.isSavingNotes,
                 isTranscribing = ui.isTranscribing,
