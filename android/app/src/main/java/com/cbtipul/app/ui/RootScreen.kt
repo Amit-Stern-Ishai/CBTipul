@@ -1,7 +1,5 @@
 package com.cbtipul.app.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -26,10 +24,8 @@ import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.patients.PatientListViewModel
 import com.cbtipul.app.ui.patients.PatientsNavHost
 import com.cbtipul.app.ui.settings.SettingsScreen
-import com.cbtipul.app.ui.splash.SplashScreen
 import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
@@ -61,12 +57,6 @@ fun RootScreen() {
     var showSettings by remember { mutableStateOf(false) }
     var isDeletingAccount by remember { mutableStateOf(false) }
     var deleteAccountError by remember { mutableStateOf<String?>(null) }
-
-    var showSplash by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) {
-        delay(1_500)
-        showSplash = false
-    }
 
     val notConfigured = stringResource(R.string.supabase_not_configured_error)
     val emailNotConfirmed = stringResource(R.string.email_not_confirmed_error)
@@ -190,10 +180,6 @@ fun RootScreen() {
                 onClearDeleteError = { deleteAccountError = null },
                 onDone = { showSettings = false },
             )
-        }
-
-        AnimatedVisibility(visible = showSplash, exit = fadeOut()) {
-            SplashScreen()
         }
     }
 }
