@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
+import com.cbtipul.app.auth.AuthSession
 import com.cbtipul.app.auth.AuthViewModel
 import com.cbtipul.app.ui.auth.AuthScreen
 import com.cbtipul.app.ui.auth.NewPasswordSheet
@@ -39,7 +40,8 @@ fun RootScreen() {
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModel.Factory(app.authRepository, app.preferences, app.patientRepository),
     )
-    val email by authViewModel.currentUserEmail.collectAsStateWithLifecycle()
+    val session by authViewModel.session.collectAsStateWithLifecycle()
+    val email = (session as? AuthSession.SignedIn)?.email
     val listSession by authViewModel.listSession.collectAsStateWithLifecycle()
     val recovering by authViewModel.isRecoveringPassword.collectAsStateWithLifecycle()
     val callbackError by authViewModel.callbackError.collectAsStateWithLifecycle()
@@ -78,6 +80,14 @@ fun RootScreen() {
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
+            session is AuthSession.Loading || (email != null && termsAccepted.value == null) -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = Theme.colors.gold)
+                }
+            }
             email != null && termsAccepted.value == true -> {
                 val patientsViewModel: PatientListViewModel = viewModel(
                     key = "$email-$listSession",
@@ -95,14 +105,6 @@ fun RootScreen() {
                         scope.launch { authViewModel.acceptTerms(signedIn) }
                     },
                 )
-            }
-            email != null -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = Theme.colors.gold)
-                }
             }
             else -> {
                 AuthScreen(

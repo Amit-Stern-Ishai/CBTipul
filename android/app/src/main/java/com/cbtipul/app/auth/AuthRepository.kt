@@ -20,10 +20,11 @@ import kotlinx.coroutines.flow.map
 
 class AuthRepository(private val client: SupabaseClient) {
 
-    val currentUserEmail = client.auth.sessionStatus.map { status ->
+    val session = client.auth.sessionStatus.map { status ->
         when (status) {
-            is SessionStatus.Authenticated -> status.session.user?.email
-            else -> null
+            SessionStatus.Initializing, is SessionStatus.RefreshFailure -> AuthSession.Loading
+            is SessionStatus.Authenticated -> AuthSession.SignedIn(status.session.user?.email)
+            is SessionStatus.NotAuthenticated -> AuthSession.SignedOut
         }
     }
 
@@ -133,6 +134,12 @@ class AuthRepository(private val client: SupabaseClient) {
     companion object {
         fun normalize(email: String): String = email.trim().lowercase()
     }
+}
+
+sealed interface AuthSession {
+    data object Loading : AuthSession
+    data object SignedOut : AuthSession
+    data class SignedIn(val email: String?) : AuthSession
 }
 
 enum class AuthErrorKind {

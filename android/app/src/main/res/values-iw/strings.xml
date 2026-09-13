@@ -36,7 +36,7 @@
     <string name="password_reset_sent_message">מייל לאיפוס סיסמא נשלח. אנא לבדוק במייל ולאפס סיסמא</string>
     <string name="sign_out_action">התנתק/י</string>
     <string name="patients_title">מטופלים/ות</string>
-    <string name="loading_patients_label">טוענת מטופלים...</string>
+    <string name="loading_patients_label">טעינת מטופלים...</string>
     <string name="couldnt_load_patients_title">טעינת מטופלים נכשלה</string>
     <string name="no_patients_title">אין מטופלים עדיין</string>
     <string name="add_first_patient_message">אנא ליצור מטופל/ת כדי להתחיל</string>

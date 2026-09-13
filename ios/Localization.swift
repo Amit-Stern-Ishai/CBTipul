@@ -54,7 +54,7 @@ enum L10n {
     // MARK: - Patients
     
     static let patientsTitle = "מטופלים/ות"
-    static let loadingPatientsLabel = "טוענת מטופלים..."
+    static let loadingPatientsLabel = "טעינת מטופלים..."
     static let couldntLoadPatientsTitle = "טעינת מטופלים נכשלה"
     static let noPatientsTitle = "אין מטופלים עדיין"
     static let addFirstPatientMessage = "אנא ליצור מטופל/ת כדי להתחיל"
