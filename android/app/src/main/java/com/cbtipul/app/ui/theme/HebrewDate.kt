@@ -6,3 +6,6 @@ import java.util.Locale
 
 fun hebrewDate(date: Date): String =
     DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.forLanguageTag("he-IL")).format(date)
+
+fun hebrewShortDate(date: Date): String =
+    DateFormat.getDateInstance(DateFormat.SHORT, Locale.forLanguageTag("he-IL")).format(date)
