@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -56,9 +59,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -81,8 +86,10 @@ import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.theme.themedScreen
 import java.io.File
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PatientDetailScreen(
     patient: Patient?,
@@ -151,6 +158,8 @@ fun PatientDetailScreen(
     var notes by remember(patient.id.queryValue, patient.notes) { mutableStateOf(patient.notes) }
     var showDiscard by remember { mutableStateOf(false) }
     val hasUnsavedChanges = notes != patient.notes || recorder.recordingFile != null
+    val notesBringIntoView = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
 
     fun requestBack() {
         if (busy) return
@@ -215,6 +224,7 @@ fun PatientDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -404,7 +414,10 @@ fun PatientDetailScreen(
             }
 
             Text(stringResource(R.string.notes_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-            GroupedListCard(accent = accent) {
+            GroupedListCard(
+                accent = accent,
+                modifier = Modifier.bringIntoViewRequester(notesBringIntoView),
+            ) {
                 val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
                 Box(Modifier.fillMaxWidth()) {
                     BasicTextField(
@@ -413,7 +426,15 @@ fun PatientDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 96.dp)
-                            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 48.dp),
+                            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 48.dp)
+                            .onFocusEvent { focus ->
+                                if (focus.isFocused) {
+                                    scope.launch {
+                                        delay(300)
+                                        notesBringIntoView.bringIntoView()
+                                    }
+                                }
+                            },
                         enabled = !busy,
                         textStyle = TextStyle(color = colors.textBright, fontSize = 16.sp),
                         minLines = 3,
