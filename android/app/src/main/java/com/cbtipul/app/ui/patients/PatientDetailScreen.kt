@@ -181,11 +181,6 @@ fun PatientDetailScreen(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
-                actions = {
-                    IconButton(onClick = { showRename = true }) {
-                        Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_patient_name_action), tint = colors.gold)
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
@@ -204,18 +199,37 @@ fun PatientDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 InitialsAvatar(name = name, patientId = patient.id, size = 64.dp)
-                Text(
-                    name,
-                    color = colors.textBright,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp,
-                    textAlign = TextAlign.Center,
-                )
                 val chipColor = PatientAvatarColor.background(patient.id)
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        name,
+                        color = colors.textBright,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Icon(
+                        Icons.Outlined.Edit,
+                        contentDescription = stringResource(R.string.edit_patient_name_action),
+                        tint = chipColor,
+                        modifier = Modifier
+                            .padding(start = 6.dp)
+                            .size(36.dp)
+                            .clickable { showRename = true }
+                            .padding(6.dp),
+                    )
+                }
+                Row(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .background(chipColor.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
                         .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -227,17 +241,20 @@ fun PatientDetailScreen(
                         color = if (treatmentGoal.isEmpty()) colors.textBody else colors.textBright,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
-                    IconButton(onClick = {
-                        goalDraft = treatmentGoal
-                        showGoal = true
-                    }) {
-                        Icon(
-                            Icons.Outlined.Edit,
-                            contentDescription = stringResource(R.string.edit_treatment_goal_action),
-                            tint = chipColor,
-                        )
-                    }
+                    Icon(
+                        Icons.Outlined.Edit,
+                        contentDescription = stringResource(R.string.edit_treatment_goal_action),
+                        tint = chipColor,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clickable {
+                                goalDraft = treatmentGoal
+                                showGoal = true
+                            }
+                            .padding(6.dp),
+                    )
                 }
             }
 
