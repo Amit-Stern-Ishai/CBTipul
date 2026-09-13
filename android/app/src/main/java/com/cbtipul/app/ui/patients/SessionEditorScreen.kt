@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -30,6 +32,9 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -438,49 +443,125 @@ fun SessionEditorScreen(
                     GroupedListDivider()
                     Text(it, color = colors.error, modifier = Modifier.padding(16.dp))
                 }
-            }
-
-            if (isAnalyzing) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
-                    Text(stringResource(R.string.ai_thinking_label), color = colors.textBody)
+                GroupedListDivider()
+                if (isAnalyzing) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
+                        Text(stringResource(R.string.analyzing_label), color = colors.textBody)
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                enabled = !busy && hasText,
+                                onClick = {
+                                    onAnalyze(currentSession(), { notes = it }, { structuredNotes = it })
+                                },
+                            )
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(colors.goldGhost, RoundedCornerShape(7.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
+                        }
+                        Text(
+                            stringResource(R.string.ai_summary_action),
+                            color = if (!busy && hasText) colors.gold else colors.textFaint,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
-            }
-
-            Button(
-                onClick = {
-                    onAnalyze(currentSession(), { notes = it }, { structuredNotes = it })
-                },
-                enabled = !busy && hasText,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-            ) {
-                Text(stringResource(R.string.ai_summary_action))
             }
 
             structuredNotes?.let { analysis ->
                 Text(stringResource(R.string.structured_summary_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                Text(analysis.sessionSummary, color = colors.textBody)
-                TextButton(onClick = onOpenAnalysis, enabled = !busy) {
-                    Text(stringResource(R.string.show_structured_summary_action), color = colors.gold)
+                GroupedListCard(accent = accent) {
+                    Text(
+                        analysis.sessionSummary,
+                        color = colors.textBody,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    )
+                    GroupedListDivider()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !busy, onClick = onOpenAnalysis)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(colors.goldGhost, RoundedCornerShape(7.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Outlined.Description, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
+                        }
+                        Text(
+                            stringResource(R.string.show_structured_summary_action),
+                            color = colors.gold,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             }
 
             if (initial.databaseId != null) {
                 Text(stringResource(R.string.questionnaire_section_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                if (questionnaire != null) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().clickable { onOpenQuestionnaire() },
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            GAD7ScoreCapsule(questionnaire.questionnaire, previousQuestionnaire?.questionnaire)
-                            PHQ9ScoreCapsule(questionnaire.questionnaire, previousQuestionnaire?.questionnaire)
+                GroupedListCard(accent = accent) {
+                    if (questionnaire != null) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !busy, onClick = onOpenQuestionnaire)
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                hebrewDate(questionnaire.answeredDate),
+                                color = colors.textBright,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                GAD7ScoreCapsule(questionnaire.questionnaire, previousQuestionnaire?.questionnaire)
+                                PHQ9ScoreCapsule(questionnaire.questionnaire, previousQuestionnaire?.questionnaire)
+                            }
                         }
-                    }
-                } else {
-                    TextButton(onClick = onOpenQuestionnaire, enabled = !busy) {
-                        Text(stringResource(R.string.add_questionnaire_action), color = colors.gold)
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !busy, onClick = onOpenQuestionnaire)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(colors.goldGhost, RoundedCornerShape(7.dp)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(Icons.Outlined.Add, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
+                            }
+                            Text(
+                                stringResource(R.string.add_questionnaire_action),
+                                color = colors.textBright,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
             }
