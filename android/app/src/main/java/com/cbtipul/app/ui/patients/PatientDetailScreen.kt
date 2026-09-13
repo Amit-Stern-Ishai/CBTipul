@@ -71,10 +71,10 @@ import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.PatientStatus
 import com.cbtipul.app.model.SessionType
 import com.cbtipul.app.ui.theme.BusyOverlay
-import com.cbtipul.app.ui.theme.GroupRowPosition
+import com.cbtipul.app.ui.theme.GroupedListCard
+import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
-import com.cbtipul.app.ui.theme.groupBordered
 import com.cbtipul.app.ui.theme.themedScreen
 import java.io.File
 
@@ -259,11 +259,11 @@ fun PatientDetailScreen(
             }
 
             val accent = PatientAvatarColor.background(patient.id)
-            val actionCount = 6 + if (savedPreparationDate != null) 1 else 0
+            GroupedListCard(accent = accent) {
             ExposedDropdownMenuBox(
                 expanded = statusExpanded,
                 onExpandedChange = { statusExpanded = it },
-                modifier = Modifier.groupBordered(GroupRowPosition.at(0, actionCount), accent),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 OutlinedTextField(
                     value = stringResource(
@@ -302,39 +302,34 @@ fun PatientDetailScreen(
                     }
                 }
             }
+            GroupedListDivider(startInset = 56.dp)
             IconChipRow(
                 icon = Icons.Outlined.DateRange,
                 title = stringResource(R.string.sessions_title),
-                position = GroupRowPosition.at(1, actionCount),
-                accent = accent,
                 onClick = onOpenSessions,
             )
+            GroupedListDivider(startInset = 56.dp)
             IconChipRow(
                 icon = Icons.Outlined.ShowChart,
                 title = stringResource(R.string.view_questionnaires_action),
-                position = GroupRowPosition.at(2, actionCount),
-                accent = accent,
                 onClick = onOpenQuestionnaires,
             )
+            GroupedListDivider(startInset = 56.dp)
             IconChipRow(
                 icon = Icons.Outlined.AutoAwesome,
                 title = stringResource(R.string.ai_action),
-                position = GroupRowPosition.at(3, actionCount),
-                accent = accent,
                 onClick = onOpenChat,
             )
+            GroupedListDivider(startInset = 56.dp)
             IconChipRow(
                 icon = Icons.Outlined.EditNote,
                 title = stringResource(R.string.my_formulation_title),
-                position = GroupRowPosition.at(4, actionCount),
-                accent = accent,
                 onClick = onOpenFormulation,
             )
+            GroupedListDivider(startInset = 56.dp)
             IconChipRow(
                 icon = Icons.Outlined.AutoFixHigh,
                 title = stringResource(R.string.prepare_next_session_action),
-                position = GroupRowPosition.at(5, actionCount),
-                accent = accent,
                 enabled = !isPreparing,
                 trailing = {
                     if (isPreparing) CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
@@ -342,11 +337,10 @@ fun PatientDetailScreen(
                 onClick = onPrepare,
             )
             if (savedPreparationDate != null) {
+                GroupedListDivider(startInset = 56.dp)
                 IconChipRow(
                     icon = Icons.Outlined.Description,
                     title = stringResource(R.string.last_preparation_action),
-                    position = GroupRowPosition.at(6, actionCount),
-                    accent = accent,
                     trailing = {
                         Column(horizontalAlignment = Alignment.End) {
                             Text(savedPreparationDate, color = colors.textBody, fontSize = 12.sp)
@@ -357,6 +351,7 @@ fun PatientDetailScreen(
                     },
                     onClick = onOpenLastPreparation,
                 )
+            }
             }
 
             Text(stringResource(R.string.notes_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
@@ -546,8 +541,6 @@ private fun BoxMissing(onBack: () -> Unit) {
 private fun IconChipRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
-    position: GroupRowPosition,
-    accent: Color,
     enabled: Boolean = true,
     trailing: @Composable () -> Unit = {},
     onClick: () -> Unit,
@@ -556,9 +549,8 @@ private fun IconChipRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .groupBordered(position, accent)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

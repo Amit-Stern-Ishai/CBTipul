@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Settings
@@ -29,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -50,9 +47,9 @@ import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.PatientStatus
 import com.cbtipul.app.model.SessionType
-import com.cbtipul.app.ui.theme.GroupRowPosition
+import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
-import com.cbtipul.app.ui.theme.groupBordered
+import com.cbtipul.app.ui.theme.groupedListCard
 import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.themedScreen
 
@@ -123,17 +120,21 @@ fun PatientListScreen(
                 }
                 else -> {
                     LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .groupedListCard(colors.gold),
                     ) {
                         itemsIndexed(patients, key = { _, it -> it.id.queryValue }) { index, patient ->
                             PatientRow(
                                 patient = patient,
                                 unnamed = unnamed,
                                 records = questionnaires[patient.id.queryValue],
-                                position = GroupRowPosition.at(index, patients.size),
                                 onClick = { onOpenPatient(patient.id.queryValue) },
                                 onLoadScores = { viewModel.ensureQuestionnaires(patient.id) },
                             )
+                            if (index < patients.lastIndex) {
+                                GroupedListDivider(startInset = 72.dp)
+                            }
                         }
                     }
                 }
@@ -147,7 +148,6 @@ private fun PatientRow(
     patient: Patient,
     unnamed: String,
     records: List<CompletedQuestionnaire>?,
-    position: GroupRowPosition,
     onClick: () -> Unit,
     onLoadScores: () -> Unit,
 ) {
@@ -162,9 +162,8 @@ private fun PatientRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .groupBordered(position, colors.gold)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

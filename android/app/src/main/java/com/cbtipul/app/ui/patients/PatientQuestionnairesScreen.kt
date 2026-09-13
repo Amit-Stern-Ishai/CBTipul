@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -68,9 +67,10 @@ import com.cbtipul.app.R
 import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.GAD7Severity
 import com.cbtipul.app.model.PHQ9Severity
-import com.cbtipul.app.ui.theme.GroupRowPosition
+import com.cbtipul.app.ui.theme.GroupedListCard
+import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
-import com.cbtipul.app.ui.theme.groupBordered
+import com.cbtipul.app.ui.theme.groupedListCard
 import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.hebrewShortDate
 import com.cbtipul.app.ui.theme.themedScreen
@@ -197,20 +197,26 @@ fun PatientQuestionnairesScreen(
                 )
             }
             } else {
-            itemsIndexed(newestFirst, key = { _, item -> item.databaseId.queryValue }) { index, record ->
-                val previous = newestFirst.getOrNull(index + 1)?.questionnaire
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .groupBordered(GroupRowPosition.at(index, newestFirst.size), atmosphere ?: colors.gold)
-                        .clickable { onOpen(record) }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(hebrewDate(record.answeredDate), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        GAD7ScoreCapsule(record.questionnaire, previous)
-                        PHQ9ScoreCapsule(record.questionnaire, previous)
+            item {
+                GroupedListCard(accent = atmosphere ?: colors.gold) {
+                    newestFirst.forEachIndexed { index, record ->
+                        val previous = newestFirst.getOrNull(index + 1)?.questionnaire
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpen(record) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(hebrewDate(record.answeredDate), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                GAD7ScoreCapsule(record.questionnaire, previous)
+                                PHQ9ScoreCapsule(record.questionnaire, previous)
+                            }
+                        }
+                        if (index < newestFirst.lastIndex) {
+                            GroupedListDivider()
+                        }
                     }
                 }
             }
@@ -260,8 +266,7 @@ private fun QuestionnaireScoreChart(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(16.dp))
-            .border(1.dp, colors.borderFaint, RoundedCornerShape(16.dp))
+            .groupedListCard(tint)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

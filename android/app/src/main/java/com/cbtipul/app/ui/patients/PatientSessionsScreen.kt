@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -41,9 +40,9 @@ import com.cbtipul.app.model.CombinedMoodQuestionnaire
 import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.Session
-import com.cbtipul.app.ui.theme.GroupRowPosition
+import com.cbtipul.app.ui.theme.GroupedListCard
+import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
-import com.cbtipul.app.ui.theme.groupBordered
 import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.themedScreen
 import java.text.SimpleDateFormat
@@ -121,48 +120,54 @@ fun PatientSessionsScreen(
                             modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
                         )
                     }
-                    itemsIndexed(group.items, key = { _, item -> item.session.id }) { row, item ->
-                        val number = sorted.size - item.index
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .groupBordered(GroupRowPosition.at(row, group.items.size), accent)
-                                .clickable { onOpenSession(item.session) }
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .background(colors.goldGhost, CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text("$number", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            }
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    item(key = "group-${group.month.time}") {
+                        GroupedListCard(accent = accent) {
+                            group.items.forEachIndexed { row, item ->
+                                val number = sorted.size - item.index
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onOpenSession(item.session) }
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    Text(hebrewDate(item.session.date), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                                    if (item.session.structuredNotes != null) {
-                                        Icon(
-                                            Icons.Outlined.Description,
-                                            contentDescription = stringResource(R.string.has_structured_summary_label),
-                                            tint = colors.textBody,
-                                            modifier = Modifier.size(16.dp),
-                                        )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .background(colors.goldGhost, CircleShape),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text("$number", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Text(hebrewDate(item.session.date), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                                            if (item.session.structuredNotes != null) {
+                                                Icon(
+                                                    Icons.Outlined.Description,
+                                                    contentDescription = stringResource(R.string.has_structured_summary_label),
+                                                    tint = colors.textBody,
+                                                    modifier = Modifier.size(16.dp),
+                                                )
+                                            }
+                                        }
+                                        item.session.type?.let {
+                                            Text(stringResource(it.labelRes()), color = colors.textBody, fontSize = 14.sp)
+                                        }
+                                    }
+                                    sessionScores(item.session, item.index, sorted, questionnaires)?.let { preview ->
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
+                                            GAD7ScoreCapsule(preview.first, preview.second)
+                                            PHQ9ScoreCapsule(preview.first, preview.second)
+                                        }
                                     }
                                 }
-                                item.session.type?.let {
-                                    Text(stringResource(it.labelRes()), color = colors.textBody, fontSize = 14.sp)
-                                }
-                            }
-                            sessionScores(item.session, item.index, sorted, questionnaires)?.let { preview ->
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
-                                    GAD7ScoreCapsule(preview.first, preview.second)
-                                    PHQ9ScoreCapsule(preview.first, preview.second)
+                                if (row < group.items.lastIndex) {
+                                    GroupedListDivider(startInset = 62.dp)
                                 }
                             }
                         }

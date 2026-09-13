@@ -41,10 +41,9 @@ import androidx.compose.ui.unit.dp
 import com.cbtipul.app.R
 import com.cbtipul.app.model.PatientStatus
 import com.cbtipul.app.ui.theme.BusyOverlay
-import com.cbtipul.app.ui.theme.GroupRowPosition
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
-import com.cbtipul.app.ui.theme.groupBordered
+import com.cbtipul.app.ui.theme.groupedListCard
 import com.cbtipul.app.ui.theme.themedScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -98,7 +97,7 @@ fun AddPatientScreen(
                         .background(colors.accentFill, CircleShape)
                         .padding(16.dp),
                 )
-                Column(Modifier.fillMaxWidth().groupBordered(GroupRowPosition.Only, colors.gold).padding(16.dp)) {
+                Column(Modifier.fillMaxWidth().groupedListCard(colors.gold).padding(16.dp)) {
                     Text(
                         stringResource(R.string.patient_section_title),
                         color = colors.textBright,

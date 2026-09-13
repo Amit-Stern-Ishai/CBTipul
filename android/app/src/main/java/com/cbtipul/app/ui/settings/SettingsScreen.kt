@@ -51,9 +51,9 @@ import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.patients.DeleteCodeDialog
 import com.cbtipul.app.ui.theme.BusyOverlay
-import com.cbtipul.app.ui.theme.GroupRowPosition
+import com.cbtipul.app.ui.theme.GroupedListCard
+import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
-import com.cbtipul.app.ui.theme.groupBordered
 import com.cbtipul.app.ui.theme.themedScreen
 
 private sealed class SettingsPage {
@@ -120,43 +120,48 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     Text(stringResource(R.string.settings_appearance_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    AppAppearance.entries.forEachIndexed { index, option ->
-                        SettingsRow(
-                            title = stringResource(option.labelRes()),
-                            selected = appearance == option,
-                            position = GroupRowPosition.at(index, AppAppearance.entries.size),
-                            onClick = { onAppearance(option) },
-                        )
+                    GroupedListCard(accent = colors.gold) {
+                        AppAppearance.entries.forEachIndexed { index, option ->
+                            SettingsRow(
+                                title = stringResource(option.labelRes()),
+                                selected = appearance == option,
+                                onClick = { onAppearance(option) },
+                            )
+                            if (index < AppAppearance.entries.lastIndex) GroupedListDivider()
+                        }
                     }
 
                     Text(stringResource(R.string.settings_accessibility_section_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    SettingsRow(
-                        title = stringResource(R.string.settings_text_size_title),
-                        trailing = stringResource(textSize.labelRes()),
-                        position = GroupRowPosition.Only,
-                        onClick = { page = SettingsPage.TextSize },
-                    )
+                    GroupedListCard(accent = colors.gold) {
+                        SettingsRow(
+                            title = stringResource(R.string.settings_text_size_title),
+                            trailing = stringResource(textSize.labelRes()),
+                            onClick = { page = SettingsPage.TextSize },
+                        )
+                    }
 
                     val privacy = stringResource(R.string.privacy_policy_title)
                     val support = stringResource(R.string.settings_support_title)
                     val choices = stringResource(R.string.settings_privacy_choices_title)
-                    val legalCount = 4 + if (aiConsentAccepted) 1 else 0
-                    SettingsRow(
-                        title = stringResource(R.string.terms_title),
-                        position = GroupRowPosition.at(0, legalCount),
-                        onClick = { page = SettingsPage.Terms },
-                    )
-                    SettingsRow(title = privacy, position = GroupRowPosition.at(1, legalCount), onClick = { page = SettingsPage.Web(privacy, "https://cbtipul.com/privacy") })
-                    SettingsRow(title = support, position = GroupRowPosition.at(2, legalCount), onClick = { page = SettingsPage.Web(support, "https://cbtipul.com/support") })
-                    SettingsRow(title = choices, position = GroupRowPosition.at(3, legalCount), onClick = { page = SettingsPage.Web(choices, "https://cbtipul.com/privacy-choices") })
-
-                    if (aiConsentAccepted) {
+                    GroupedListCard(accent = colors.gold) {
                         SettingsRow(
-                            title = stringResource(R.string.settings_ai_consent_title),
-                            trailing = stringResource(R.string.settings_ai_consent_approved_status),
-                            position = GroupRowPosition.at(4, legalCount),
-                            onClick = null,
+                            title = stringResource(R.string.terms_title),
+                            onClick = { page = SettingsPage.Terms },
                         )
+                        GroupedListDivider()
+                        SettingsRow(title = privacy, onClick = { page = SettingsPage.Web(privacy, "https://cbtipul.com/privacy") })
+                        GroupedListDivider()
+                        SettingsRow(title = support, onClick = { page = SettingsPage.Web(support, "https://cbtipul.com/support") })
+                        GroupedListDivider()
+                        SettingsRow(title = choices, onClick = { page = SettingsPage.Web(choices, "https://cbtipul.com/privacy-choices") })
+                        if (aiConsentAccepted) {
+                            GroupedListDivider()
+                            SettingsRow(
+                                title = stringResource(R.string.settings_ai_consent_title),
+                                trailing = stringResource(R.string.settings_ai_consent_approved_status),
+                                onClick = null,
+                            )
+                        }
                     }
 
                     Text(stringResource(R.string.settings_account_section_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
@@ -235,16 +240,14 @@ private fun SettingsRow(
     title: String,
     trailing: String? = null,
     selected: Boolean = false,
-    position: GroupRowPosition = GroupRowPosition.Only,
     onClick: (() -> Unit)?,
 ) {
     val colors = Theme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .groupBordered(position, colors.gold)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -279,13 +282,16 @@ private fun TextSizePicker(
             )
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            AppTextSize.entries.forEach { size ->
-                SettingsRow(
-                    title = stringResource(size.labelRes()),
-                    selected = selected == size,
-                    onClick = { onSelect(size) },
-                )
+        Column(Modifier.fillMaxSize().padding(padding).padding(24.dp)) {
+            GroupedListCard(accent = colors.gold) {
+                AppTextSize.entries.forEachIndexed { index, size ->
+                    SettingsRow(
+                        title = stringResource(size.labelRes()),
+                        selected = selected == size,
+                        onClick = { onSelect(size) },
+                    )
+                    if (index < AppTextSize.entries.lastIndex) GroupedListDivider()
+                }
             }
         }
     }
