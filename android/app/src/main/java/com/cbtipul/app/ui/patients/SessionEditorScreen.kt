@@ -382,21 +382,21 @@ fun SessionEditorScreen(
             val accent = atmosphere ?: colors.gold
             GroupedListCard(accent = accent) {
                 val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
-                Box(Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, top = 14.dp, end = 8.dp, bottom = 14.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
                     NotesField(
                         value = notes,
                         onValueChange = { notes = it },
                         placeholder = stringResource(R.string.optional_notes_placeholder),
-                        modifier = Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 48.dp),
+                        modifier = Modifier.weight(1f),
                         enabled = !busy,
                     )
                     if (recorder.isRecording) {
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
                             IconButton(onClick = {
                                 recorder.stopRecording()
@@ -406,11 +406,7 @@ fun SessionEditorScreen(
                             }
                         }
                     } else {
-                        IconButton(
-                            onClick = { startMic() },
-                            enabled = !busy,
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
-                        ) {
+                        IconButton(onClick = { startMic() }, enabled = !busy) {
                             Icon(Icons.Filled.Mic, contentDescription = stringResource(R.string.record_voice_note_action), tint = colors.gold)
                         }
                     }

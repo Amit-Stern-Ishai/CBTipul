@@ -64,34 +64,28 @@ fun NotesField(
             }
     }
 
-    Box(
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = minHeight, max = maxHeight),
-    ) {
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = minHeight)
-                .verticalScroll(scrollState)
-                .onFocusChanged { focus ->
-                    focused = focus.isFocused
-                    onFocusChanged?.invoke(focus.isFocused)
-                },
-            enabled = enabled,
-            readOnly = readOnly,
-            textStyle = style,
-            cursorBrush = SolidColor(colors.gold),
-            decorationBox = { inner ->
-                Box(Modifier.fillMaxWidth()) {
-                    if (value.isEmpty() && placeholder.isNotEmpty()) {
-                        Text(placeholder, color = colors.textFaint, style = style)
-                    }
-                    inner()
-                }
+            .heightIn(min = minHeight, max = maxHeight)
+            .verticalScroll(scrollState)
+            .onFocusChanged { focus ->
+                focused = focus.isFocused
+                onFocusChanged?.invoke(focus.isFocused)
             },
-        )
-    }
+        enabled = enabled,
+        readOnly = readOnly,
+        textStyle = style,
+        cursorBrush = SolidColor(colors.gold),
+        decorationBox = { inner ->
+            Box(Modifier.fillMaxWidth()) {
+                if (value.isEmpty() && placeholder.isNotEmpty()) {
+                    Text(placeholder, color = colors.textFaint, style = style)
+                }
+                inner()
+            }
+        },
+    )
 }
