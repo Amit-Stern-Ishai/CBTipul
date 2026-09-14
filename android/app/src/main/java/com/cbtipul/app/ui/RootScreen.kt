@@ -78,6 +78,22 @@ fun RootScreen() {
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
+            recovering -> {
+                NewPasswordSheet(
+                    state = ui,
+                    onPasswordChange = authViewModel::updateNewPassword,
+                    onConfirmChange = authViewModel::updateNewPasswordConfirm,
+                    onSave = {
+                        authViewModel.saveNewPassword(
+                            notConfigured,
+                            emailNotConfirmed,
+                            tooManyRequests,
+                            passwordsDontMatch,
+                        )
+                    },
+                    onCancel = authViewModel::cancelRecovery,
+                )
+            }
             session is AuthSession.Loading || (email != null && termsAccepted.value == null) -> {
                 Box(
                     modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
@@ -137,24 +153,7 @@ fun RootScreen() {
             }
         }
 
-        if (recovering) {
-            NewPasswordSheet(
-                state = ui,
-                onPasswordChange = authViewModel::updateNewPassword,
-                onConfirmChange = authViewModel::updateNewPasswordConfirm,
-                onSave = {
-                    authViewModel.saveNewPassword(
-                        notConfigured,
-                        emailNotConfirmed,
-                        tooManyRequests,
-                        passwordsDontMatch,
-                    )
-                },
-                onCancel = authViewModel::cancelRecovery,
-            )
-        }
-
-        if (consentPrompt) {
+        if (consentPrompt && !recovering) {
             AiConsentDialog(
                 onAccept = { scope.launch { app.aiConsentStore.accept() } },
                 onDecline = { scope.launch { app.aiConsentStore.decline() } },
