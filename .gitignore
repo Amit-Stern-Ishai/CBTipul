@@ -9,3 +9,9 @@ android/app/build/
 android/local.properties
 android/*.iml
 android/captures/
+android/*.jks
+android/*.keystore
+android/app/*.jks
+android/app/*.keystore
+*.jks
+*.keystore

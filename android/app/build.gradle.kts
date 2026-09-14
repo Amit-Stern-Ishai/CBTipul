@@ -4,18 +4,51 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+import java.util.Properties
+
+// Load ~/.gradle/gradle.properties explicitly so signing works even when
+// GRADLE_USER_HOME is redirected (e.g. CI/agent sandboxes). Never commit secrets.
+val homeGradleProperties = Properties().apply {
+    val file = file("${System.getProperty("user.home")}/.gradle/gradle.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+fun signingValue(propertyName: String, envName: String): String? {
+    val fromGradle = providers.gradleProperty(propertyName).orNull?.takeIf { it.isNotBlank() }
+    val fromHome = homeGradleProperties.getProperty(propertyName)?.takeIf { it.isNotBlank() }
+    val fromEnv = providers.environmentVariable(envName).orNull?.takeIf { it.isNotBlank() }
+    return fromGradle ?: fromHome ?: fromEnv
+}
+
 android {
     namespace = "com.cbtipul.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.cbtipul.app"
+        applicationId = "com.CBTipul.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
         androidResources {
             localeFilters += listOf("iw")
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            val storePath = signingValue("cbtipul.storeFile", "CBTIPUL_STORE_FILE")
+            val storePass = signingValue("cbtipul.storePassword", "CBTIPUL_STORE_PASSWORD")
+            val alias = signingValue("cbtipul.keyAlias", "CBTIPUL_KEY_ALIAS")
+            val keyPass = signingValue("cbtipul.keyPassword", "CBTIPUL_KEY_PASSWORD")
+            if (storePath != null && storePass != null && alias != null && keyPass != null) {
+                storeFile = file(storePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+            }
         }
     }
 
@@ -26,6 +59,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
