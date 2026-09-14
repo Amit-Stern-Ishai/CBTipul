@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="splash_background">#07080F</color>
+    <!-- Solid navy from the provided icon background (no grain). -->
+    <color name="ic_launcher_background">#01214F</color>
 </resources>
