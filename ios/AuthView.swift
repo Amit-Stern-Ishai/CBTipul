@@ -3,8 +3,8 @@ import SwiftUI
 /// Sign-in / sign-up screen using email and password.
 struct AuthView: View {
     private enum Mode: String, CaseIterable {
-        case signIn = "התחבר/י"
-        case signUp = "הרשמ/י"
+        case signIn = "התחברות"
+        case signUp = "הרשמה"
     }
 
     @Environment(AuthManager.self) private var auth

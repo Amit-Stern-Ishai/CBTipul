@@ -19,12 +19,12 @@ enum L10n {
     // MARK: - Auth
     
     static let appTitle = "CBTipul"
-    static let authWelcomeSignIn = "ברוכ/ה השב/ה, נא להתחבר כדי להמשיך"
+    static let authWelcomeSignIn = "נא להתחבר כדי להמשיך"
     static let authWelcomeSignUp = "אנא ליצור חשבון על מנת להמשיך"
     static let authModePickerTitle = "Mode"
     static let emailPlaceholder = "אימייל"
     static let passwordPlaceholder = "סיסמא"
-    static let forgotPasswordAction = "שכחת סיסמא?"
+    static let forgotPasswordAction = "איפוס סיסמה"
     static let verifyEmailTitle = "אימות כתובת האימייל"
     /// The post-sign-up screen: where the verification link went and that
     /// opening it completes the registration.
@@ -47,9 +47,9 @@ enum L10n {
     static let passwordRuleLowercase = "לפחות אות קטנה אחת (a-z)"
     static let passwordRuleDigit = "לפחות ספרה אחת"
     static let passwordRuleSpecial = "לפחות תו מיוחד אחד (! @ # $ %)"
-    static let enterEmailFirstMessage = "אנא לכתוב את האימייל קודם, ואז ללחוץ על ״שכחת סיסמא?״"
+    static let enterEmailFirstMessage = "אנא לכתוב את האימייל קודם, ואז ללחוץ על ״איפוס סיסמה״"
     static let passwordResetSentMessage = "מייל לאיפוס סיסמא נשלח. אנא לבדוק במייל ולאפס סיסמא"
-    static let signOutAction = "התנתק/י"
+    static let signOutAction = "התנתקות"
     
     // MARK: - Patients
     
@@ -798,9 +798,9 @@ amitishai@gmail.com
     
     static let aiChatNavigationTitle = "שיחת AI"
     
-    /// Hint in the chat's message field, e.g. "שאל/י על באגס באני".
+    /// Hint in the chat's message field, e.g. "שאלה על באגס באני".
     static func aiPromptPlaceholder(_ name: String) -> String {
-        "שאל/י על \(name)"
+        "שאלה על \(name)"
     }
     
     /// Shown in the middle of the chat before the first question.
