@@ -6,11 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,16 +18,17 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,11 +43,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
@@ -59,8 +64,6 @@ import com.cbtipul.app.model.GAD7Severity
 import com.cbtipul.app.model.PHQ9Severity
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.settings.AIResponseStyle
-import com.cbtipul.app.ui.theme.GroupedListCard
-import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.theme.themedScreen
@@ -169,14 +172,32 @@ fun PatientAIScreen(
         }) { isLoading = false }
     }
 
+    val displayName = patient.displayName(unnamed)
+    val accent = PatientAvatarColor.background(patient.id)
+    val patientOutline = accent.copy(alpha = 0.35f)
+    val bubbleShape = RoundedCornerShape(18.dp)
+    val canSend = !isLoading && prompt.isNotBlank()
+
     Scaffold(
         modifier = Modifier
-            .themedScreen(PatientAvatarColor.background(patient.id))
+            .themedScreen(accent)
             .dismissKeyboardOnTap(),
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.ai_chat_navigation_title), color = colors.textBright) },
+                title = {
+                    Column {
+                        Text(
+                            stringResource(R.string.ai_chat_navigation_title),
+                            color = colors.textBright,
+                        )
+                        Text(
+                            displayName,
+                            color = colors.textBody,
+                            fontSize = 13.sp,
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
@@ -192,12 +213,14 @@ fun PatientAIScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp),
                 ) {
                     items(entries, key = { it.id }) { entry ->
                         val mine = entry.role == "user"
-                        val accent = PatientAvatarColor.background(patient.id)
-                        val bubbleShape = RoundedCornerShape(18.dp)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
+                        ) {
                             Text(
                                 text = aiMarkdown(entry.displayed ?: entry.text),
                                 color = colors.textBright,
@@ -209,7 +232,7 @@ fun PatientAIScreen(
                                     )
                                     .then(
                                         if (mine) Modifier
-                                        else Modifier.border(1.dp, accent.copy(alpha = 0.35f), bubbleShape),
+                                        else Modifier.border(1.dp, patientOutline, bubbleShape),
                                     )
                                     .padding(horizontal = 14.dp, vertical = 10.dp),
                             )
@@ -217,58 +240,144 @@ fun PatientAIScreen(
                     }
                     if (isLoading) {
                         item {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
-                                Text(stringResource(R.string.ai_thinking_label), color = colors.textBody)
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier
+                                        .background(colors.surface, bubbleShape)
+                                        .border(1.dp, patientOutline, bubbleShape)
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        color = colors.gold,
+                                        strokeWidth = 2.dp,
+                                    )
+                                    Text(stringResource(R.string.ai_thinking_label), color = colors.textBody)
+                                }
                             }
                         }
                     }
                 }
-                if (entries.isEmpty() && !isLoading) {
+                if (entries.isEmpty() && !isLoading && errorMessage == null) {
                     Column(
-                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(stringResource(R.string.ai_title), color = colors.textBright, fontWeight = FontWeight.Bold)
-                        Text(stringResource(R.string.ai_empty_message), color = colors.textBody)
-                        GroupedListCard(accent = PatientAvatarColor.background(patient.id)) {
-                            suggested.forEachIndexed { index, question ->
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .background(colors.goldGhost, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                tint = colors.gold,
+                                modifier = Modifier.size(36.dp),
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.ai_title),
+                            color = colors.textBright,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                        )
+                        Text(
+                            stringResource(R.string.ai_empty_message),
+                            color = colors.textBody,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                        Column(
+                            modifier = Modifier.padding(top = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            suggested.forEach { question ->
                                 Text(
                                     question,
-                                    color = colors.gold,
+                                    color = colors.textBright,
+                                    fontSize = 14.sp,
                                     modifier = Modifier
-                                        .fillMaxWidth()
+                                        .background(colors.surface, RoundedCornerShape(50))
+                                        .border(1.dp, patientOutline, RoundedCornerShape(50))
                                         .clickable { prompt = question }
-                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        .padding(horizontal = 14.dp, vertical = 9.dp),
                                 )
-                                if (index < suggested.lastIndex) GroupedListDivider()
                             }
                         }
                     }
                 }
             }
-            errorMessage?.let { Text(it, color = colors.error, modifier = Modifier.padding(horizontal = 16.dp)) }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(
-                    value = prompt,
-                    onValueChange = { prompt = it },
-                    modifier = Modifier.weight(1f),
-                    enabled = !isLoading,
+            errorMessage?.let {
+                Text(
+                    it,
+                    color = colors.error,
+                    fontSize = 13.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                 )
-                Button(
-                    onClick = { send(prompt) },
-                    enabled = !isLoading && prompt.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.surface)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                val fieldShape = RoundedCornerShape(20.dp)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 40.dp)
+                        .background(colors.elevated, fieldShape)
+                        .border(1.dp, patientOutline, fieldShape)
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
                 ) {
-                    Text(stringResource(R.string.ai_send_action))
+                    if (prompt.isEmpty()) {
+                        Text(
+                            stringResource(R.string.ai_prompt_placeholder, displayName),
+                            color = colors.textBody,
+                            fontSize = 16.sp,
+                        )
+                    }
+                    BasicTextField(
+                        value = prompt,
+                        onValueChange = { prompt = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading,
+                        textStyle = TextStyle(color = colors.textBright, fontSize = 16.sp),
+                        cursorBrush = SolidColor(colors.gold),
+                        maxLines = 5,
+                    )
+                }
+                IconButton(
+                    onClick = { send(prompt) },
+                    enabled = canSend,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(if (canSend) colors.gold else colors.textFaint, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.ArrowUpward,
+                            contentDescription = stringResource(R.string.ai_send_action),
+                            tint = colors.textOnAccent,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
-            Spacer(Modifier.height(4.dp))
         }
     }
 }
