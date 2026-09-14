@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -53,7 +54,7 @@ fun ClinicalCard(
 }
 
 @Composable
-fun HypothesisBadge() {
+fun HypothesisBadge(labelRes: Int = R.string.hypothesis_badge) {
     val colors = Theme.colors
     Row(
         modifier = Modifier
@@ -69,7 +70,7 @@ fun HypothesisBadge() {
             modifier = Modifier.size(14.dp),
         )
         Text(
-            stringResource(R.string.hypothesis_badge),
+            stringResource(labelRes),
             color = colors.warning,
             fontWeight = FontWeight.SemiBold,
             fontSize = 12.sp,
@@ -136,15 +137,26 @@ fun SourceBadge(source: String) {
         },
     )
     val tint = if (reported) colors.gold else colors.warning
-    Text(
-        label,
-        color = tint,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 12.sp,
+    Row(
         modifier = Modifier
             .background(tint.copy(alpha = 0.12f), RoundedCornerShape(50))
             .padding(horizontal = 8.dp, vertical = 4.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            if (reported) Icons.Outlined.FormatQuote else Icons.Outlined.Lightbulb,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(14.dp),
+        )
+        Text(
+            label,
+            color = tint,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 12.sp,
+        )
+    }
 }
 
 fun confidenceCaption(raw: String, high: String, medium: String, low: String): String? {

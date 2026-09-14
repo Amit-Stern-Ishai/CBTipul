@@ -299,7 +299,7 @@ private fun MaintenanceCycleCard(cycle: CBTCycle, atmosphere: Color?) {
             )
             HypothesisBadge()
         }
-        CycleLines(cycle)
+        CycleLines(cycle, elevatedStages = true)
     }
 }
 
