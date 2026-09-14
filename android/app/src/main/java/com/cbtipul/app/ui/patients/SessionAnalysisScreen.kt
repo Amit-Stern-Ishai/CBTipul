@@ -1,16 +1,20 @@
 package com.cbtipul.app.ui.patients
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,12 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.cbtipul.app.R
 import com.cbtipul.app.model.CBTCycle
 import com.cbtipul.app.model.CBTSessionAnalysis
@@ -285,14 +288,56 @@ fun SessionAnalysisScreen(
 internal fun CycleLines(cycle: CBTCycle) {
     val colors = Theme.colors
     val stages = listOfNotNull(
-        cycle.triggerSituation,
-        cycle.automaticThought,
-        cycle.emotion,
-        cycle.behavior,
-        cycle.shortTermConsequence,
-        cycle.longTermConsequence,
-    ).filter { it.isNotBlank() }
-    val arrow = if (LocalLayoutDirection.current == LayoutDirection.Rtl) " ← " else " → "
-    Text(stages.joinToString(arrow), color = colors.textBright)
-    if (cycle.evidence.isNotBlank()) Text(cycle.evidence, color = colors.textBody)
+        cycle.triggerSituation?.takeIf { it.isNotBlank() }?.let {
+            stringResource(R.string.situation_label) to it
+        },
+        cycle.automaticThought?.takeIf { it.isNotBlank() }?.let {
+            stringResource(R.string.automatic_thought_label) to it
+        },
+        cycle.emotion?.takeIf { it.isNotBlank() }?.let {
+            stringResource(R.string.emotion_label) to it
+        },
+        cycle.behavior?.takeIf { it.isNotBlank() }?.let {
+            stringResource(R.string.behavior_label) to it
+        },
+        cycle.shortTermConsequence?.takeIf { it.isNotBlank() }?.let {
+            stringResource(R.string.short_term_consequence_label) to it
+        },
+        cycle.longTermConsequence?.takeIf { it.isNotBlank() }?.let {
+            stringResource(R.string.long_term_consequence_label) to it
+        },
+    )
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        stages.forEachIndexed { index, (title, text) ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.elevated, RoundedCornerShape(8.dp))
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    title,
+                    color = colors.textBody,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                )
+                Text(text, color = colors.textBright, fontSize = 14.sp)
+            }
+            if (index < stages.lastIndex) {
+                Icon(
+                    Icons.Filled.ArrowDownward,
+                    contentDescription = null,
+                    tint = colors.textBody,
+                    modifier = Modifier
+                        .padding(start = 16.dp)
+                        .size(16.dp),
+                )
+            }
+        }
+        EvidenceDisclosure(cycle.evidence)
+    }
 }
