@@ -258,7 +258,7 @@ private fun QuestionnaireScoreChart(
     val yTicks = remember(maxScore) { yAxisTicks(maxScore) }
     val xTickIndexes = remember(points.size) { xAxisIndexes(points.size) }
     val textMeasurer = rememberTextMeasurer()
-    val axisStyle = TextStyle(color = colors.textFaint, fontSize = 10.sp)
+    val axisStyle = TextStyle(color = colors.textBody, fontSize = 10.sp)
     val pointColors = points.map { (_, value) ->
         if (metric < 0) totalColor(value) else answerColors[value.coerceIn(0, answerColors.lastIndex)]
     }
@@ -329,7 +329,7 @@ private fun QuestionnaireScoreChart(
             ) {
                 Text(
                     stringResource(R.string.metric_picker_title),
-                    color = colors.textFaint,
+                    color = colors.textBody,
                     fontSize = 12.sp,
                 )
                 Text(
