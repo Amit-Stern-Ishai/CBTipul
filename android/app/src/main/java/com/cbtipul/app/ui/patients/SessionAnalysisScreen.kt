@@ -27,9 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.cbtipul.app.R
 import com.cbtipul.app.model.CBTCycle
@@ -290,6 +292,7 @@ internal fun CycleLines(cycle: CBTCycle) {
         cycle.shortTermConsequence,
         cycle.longTermConsequence,
     ).filter { it.isNotBlank() }
-    Text(stages.joinToString(" → "), color = colors.textBright)
+    val arrow = if (LocalLayoutDirection.current == LayoutDirection.Rtl) " ← " else " → "
+    Text(stages.joinToString(arrow), color = colors.textBright)
     if (cycle.evidence.isNotBlank()) Text(cycle.evidence, color = colors.textBody)
 }
