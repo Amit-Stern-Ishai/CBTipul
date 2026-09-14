@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,7 +21,6 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -62,7 +60,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -419,24 +416,20 @@ fun PatientDetailScreen(
             ) {
                 val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
                 Box(Modifier.fillMaxWidth()) {
-                    BasicTextField(
+                    NotesField(
                         value = notes,
                         onValueChange = { notes = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 96.dp)
-                            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 48.dp)
-                            .onFocusEvent { focus ->
-                                if (focus.isFocused) {
-                                    scope.launch {
-                                        delay(300)
-                                        notesBringIntoView.bringIntoView()
-                                    }
-                                }
-                            },
+                        placeholder = stringResource(R.string.optional_notes_placeholder),
+                        modifier = Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 48.dp),
                         enabled = !busy,
-                        textStyle = TextStyle(color = colors.textBright, fontSize = 16.sp),
-                        minLines = 3,
+                        onFocusChanged = { focused ->
+                            if (focused) {
+                                scope.launch {
+                                    delay(300)
+                                    notesBringIntoView.bringIntoView()
+                                }
+                            }
+                        },
                     )
                     if (recorder.isRecording) {
                         Row(

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +22,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -69,7 +67,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -386,16 +383,12 @@ fun SessionEditorScreen(
             GroupedListCard(accent = accent) {
                 val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
                 Box(Modifier.fillMaxWidth()) {
-                    BasicTextField(
+                    NotesField(
                         value = notes,
                         onValueChange = { notes = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 160.dp)
-                            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 48.dp),
+                        placeholder = stringResource(R.string.optional_notes_placeholder),
+                        modifier = Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 48.dp),
                         enabled = !busy,
-                        textStyle = TextStyle(color = colors.textBright, fontSize = 16.sp),
-                        minLines = 5,
                     )
                     if (recorder.isRecording) {
                         Row(
@@ -514,10 +507,13 @@ fun SessionEditorScreen(
             structuredNotes?.let { analysis ->
                 Text(stringResource(R.string.structured_summary_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                 GroupedListCard(accent = accent) {
-                    Text(
-                        analysis.sessionSummary,
-                        color = colors.textBody,
+                    NotesField(
+                        value = analysis.sessionSummary,
+                        onValueChange = {},
+                        placeholder = "",
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        enabled = !busy,
+                        readOnly = true,
                     )
                     GroupedListDivider()
                     Row(
