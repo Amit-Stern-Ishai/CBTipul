@@ -154,7 +154,22 @@ struct GettingStartedProgressTests {
         #expect(!progress.hasSessionNotes)
         #expect(progress.completedCount == 2)
         #expect(progress.currentStep == .fillQuestionnaire)
+        #expect(progress.focusPatientID == patient.id)
         #expect(!progress.isUnlocked(.recordSessionSummary))
+    }
+
+    @Test func progressFollowsFurthestTutorialPatientNotNewestEmptyOne() {
+        let withSession = Patient(id: .text("demo-user-old"), firstName: "Old", lastName: "One")
+        withSession.sessions = [Session(notes: "")]
+        let emptyNewer = Patient(id: .text("demo-user-new"), firstName: "New", lastName: "Two")
+
+        let progress = GettingStartedProgress.evaluate(
+            patients: [withSession, emptyNewer],
+            questionnairesForPatient: { _ in [] }
+        )
+        #expect(progress.focusPatientID == withSession.id)
+        #expect(progress.hasSession)
+        #expect(progress.currentStep == .fillQuestionnaire)
     }
 
     @Test func completedChecklistRequiresAllTutorialSignals() throws {

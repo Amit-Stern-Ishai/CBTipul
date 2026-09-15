@@ -264,7 +264,7 @@ struct SessionEditorView: View {
                         }
                         .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                   || isAnonymizingTranscription)
-                        .tutorialPulse(gettingStartedRouter.highlight == .aiSummary)
+                        .tutorialPulse(gettingStartedRouter.shouldPulse(.aiSummary))
                         .listRowBackground(groupBorderedRow(.last))
                     }
 
@@ -397,6 +397,8 @@ struct SessionEditorView: View {
                     initialNotes = session.notes
                     initialType = session.type
                 }
+                gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: patient.id)
+                gettingStartedRouter.refresh(using: store)
             }
             .task { await loadQuestionnaire() }
             .sheet(isPresented: $isEditingDate) {
@@ -490,7 +492,7 @@ struct SessionEditorView: View {
             }
             .buttonStyle(.plain)
             .disabled(isTranscribing || isAnonymizingTranscription)
-            .tutorialPulse(gettingStartedRouter.highlight == .recordNotes)
+            .tutorialPulse(gettingStartedRouter.shouldPulse(.recordNotes))
         }
     }
 
@@ -558,6 +560,7 @@ struct SessionEditorView: View {
                 saveStructuredNotes(analysis)
                 analysisResult = SessionAnalysisResult(analysis: analysis,
                                                        requiresSaveDecision: false)
+                gettingStartedRouter.refresh(using: store)
             } catch {
                 errorMessage = error.userFacingMessage
             }
@@ -710,7 +713,7 @@ struct SessionEditorView: View {
                 } label: {
                     Label(L10n.addQuestionnaireAction, systemImage: "plus")
                 }
-                .tutorialPulse(gettingStartedRouter.highlight == .fillQuestionnaire)
+                .tutorialPulse(gettingStartedRouter.shouldPulse(.fillQuestionnaire))
             }
         }
         // Only one of the section's rows is ever visible at a time.
@@ -761,6 +764,7 @@ struct SessionEditorView: View {
             do {
                 if isNew {
                     try await store.addSession(session, for: patient)
+                    gettingStartedRouter.refresh(using: store)
                     dismiss()
                 } else {
                     try await store.updateSession(session)
@@ -769,6 +773,7 @@ struct SessionEditorView: View {
                     initialDate = session.date
                     initialNotes = session.notes
                     initialType = session.type
+                    gettingStartedRouter.refresh(using: store)
                     if thenDismiss { dismiss() }
                 }
             } catch {

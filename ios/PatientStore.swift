@@ -302,6 +302,11 @@ final class PatientStore {
             persistDemoClinic()
             AppLog.store.notice("Seeded demo clinic with \(self.patients.count) sample patients")
         }
+        // Ensure every demo patient has a cache entry so list rows do not
+        // flash loading score placeholders and reflow after first paint.
+        for patient in patients where questionnairesByPatient[patient.id] == nil {
+            questionnairesByPatient[patient.id] = []
+        }
     }
 
     /// Leaves demo mode, keeping the demo clinic on disk for the next visit,

@@ -13,7 +13,6 @@ struct PatientListView: View {
     @State private var loadError: String?
     @State private var path = NavigationPath()
     @State private var gettingStartedRouter = GettingStartedRouter()
-    @State private var progress = GettingStartedProgress.empty
 
     private var shouldShowWelcome: Bool {
         hasFinishedInitialLoad
@@ -24,10 +23,9 @@ struct PatientListView: View {
             && loadError == nil
     }
 
-    private var shouldShowGettingStartedCard: Bool {
-        hasFinishedInitialLoad
-            && store.isDemoMode
-            && !onboarding.checklistDismissed
+    /// Tutorial patient the walkthrough is following (furthest along).
+    private var tutorialFocusPatientID: DatabaseID? {
+        gettingStartedRouter.progress.focusPatientID
     }
 
     var body: some View {
@@ -59,6 +57,7 @@ struct PatientListView: View {
             .animation(.easeInOut(duration: 0.25), value: isLoading)
             .animation(.easeInOut(duration: 0.25), value: loadError)
             .navigationTitle(L10n.patientsTitle)
+            .navigationBarTitleDisplayMode(.large)
             .task { await load() }
             .refreshable { await load() }
             .navigationDestination(for: Patient.self) { patient in
@@ -67,12 +66,16 @@ struct PatientListView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        gettingStartedRouter.clearHighlightIfMatching(.addPatient)
                         isAddingPatient = true
                     } label: {
                         Label(L10n.addPatientAction, systemImage: "plus")
                     }
-                    .tutorialPulse(gettingStartedRouter.highlight == .addPatient)
+                    .tutorialPulse(
+                        store.isDemoMode
+                            && !onboarding.checklistDismissed
+                            && gettingStartedRouter.shouldPulse(.addPatient),
+                        style: .toolbar
+                    )
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -82,7 +85,10 @@ struct PatientListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $isAddingPatient) {
+            .sheet(isPresented: $isAddingPatient, onDismiss: {
+                gettingStartedRouter.setPlacement(.patientList)
+                refreshProgress()
+            }) {
                 AddPatientView()
             }
             .sheet(isPresented: $isShowingSettings) {
@@ -101,28 +107,53 @@ struct PatientListView: View {
                 .appTextSize()
             }
             .onChange(of: shouldShowWelcome, initial: true) { _, show in
-                isShowingWelcome = show
+                if show {
+                    isShowingWelcome = true
+                }
+            }
+            .onChange(of: onboarding.wantsDemoConsent) { _, wants in
+                guard wants else { return }
+                onboarding.clearDemoConsentRequest()
+                // Present consent from the list root, then drop Settings under
+                // it — never present consent inside the Settings sheet.
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    isShowingWelcome = true
+                    isShowingSettings = false
+                }
             }
             .onChange(of: tutorialProgressSignature) { _, _ in
                 refreshProgress()
             }
-            .onChange(of: progress.currentStep) { oldStep, newStep in
-                handleCurrentStepChange(from: oldStep, to: newStep)
+            .onAppear {
+                gettingStartedRouter.setPlacement(.patientList)
+                refreshProgress()
             }
-            .onAppear { refreshProgress() }
+            .onChange(of: path.count) { _, count in
+                guard count == 0 else { return }
+                gettingStartedRouter.setPlacement(.patientList)
+                refreshProgress()
+            }
             .task(id: store.patients.map(\.id.queryValue).joined(separator: ",")) {
+                guard !store.isDemoMode else {
+                    refreshProgress()
+                    return
+                }
                 await loadQuestionnairesForProgress()
                 refreshProgress()
             }
         }
         .onChange(of: store.isDemoMode) { wasDemo, isDemo in
             if isDemo {
-                onboarding.showChecklistAgain()
+                // Drop Settings if demo was started from its consent cover so
+                // that sheet cannot flash under the cover.
+                isShowingSettings = false
+                isAddingPatient = false
+                gettingStartedRouter.setPlacement(.patientList)
                 refreshProgress()
-                gettingStartedRouter.highlight = progress.currentStep?.highlight
                 return
             }
-            // Leaving demo from any screen should land on the real patient list.
             guard wasDemo else { return }
             path = NavigationPath()
             isAddingPatient = false
@@ -130,63 +161,46 @@ struct PatientListView: View {
             gettingStartedRouter.clearHighlight()
             refreshProgress()
         }
+        .onChange(of: gettingStartedRouter.wantsPatientListReset) { _, wantsReset in
+            guard wantsReset, gettingStartedRouter.consumePatientListReset() else { return }
+            path = NavigationPath()
+            isAddingPatient = false
+        }
         .environment(gettingStartedRouter)
     }
 
-    @ViewBuilder
-    private var gettingStartedSection: some View {
-        if shouldShowGettingStartedCard {
-            GettingStartedCard(
-                progress: progress,
-                onSelectStep: handleGettingStartedStep,
-                onRestart: restartTutorial,
-                onDismiss: { onboarding.dismissChecklist() }
-            )
-            .padding(.horizontal)
-            .padding(.top, 8)
-            .padding(.bottom, 4)
-        }
-    }
-
     private var emptyPatientsContent: some View {
-        VStack(spacing: 0) {
-            gettingStartedSection
-            ContentUnavailableView {
-                Label(L10n.noPatientsTitle, systemImage: "person.crop.circle.badge.plus")
-            } description: {
-                Text(L10n.addFirstPatientMessage)
-            } actions: {
-                Button(L10n.emptyPatientsPrimaryAction) { isAddingPatient = true }
-                    .buttonStyle(.borderedProminent)
-                    .tutorialPulse(gettingStartedRouter.highlight == .addPatient)
-                if !store.isDemoMode {
-                    Button(L10n.enterDemoModeAction) { startDemoTour() }
-                        .buttonStyle(.bordered)
-                }
+        ContentUnavailableView {
+            Label(L10n.noPatientsTitle, systemImage: "person.crop.circle.badge.plus")
+        } description: {
+            Text(L10n.addFirstPatientMessage)
+        } actions: {
+            Button(L10n.emptyPatientsPrimaryAction) { isAddingPatient = true }
+                .buttonStyle(.borderedProminent)
+                .tutorialPulse(
+                    store.isDemoMode
+                        && !onboarding.checklistDismissed
+                        && gettingStartedRouter.shouldPulse(.addPatient)
+                )
+            if !store.isDemoMode {
+                Button(L10n.enterDemoModeAction) { startDemoTour() }
+                    .buttonStyle(.bordered)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
     private var patientsListContent: some View {
         List {
-            if shouldShowGettingStartedCard {
-                Section {
-                    GettingStartedCard(
-                        progress: progress,
-                        onSelectStep: handleGettingStartedStep,
-                        onRestart: restartTutorial,
-                        onDismiss: { onboarding.dismissChecklist() }
-                    )
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
-            }
             Section {
                 ForEach(sortedPatients) { patient in
+                    let isTutorialFocus =
+                        store.isDemoMode
+                        && !onboarding.checklistDismissed
+                        && gettingStartedRouter.shouldPulse(.tutorialPatient)
+                        && patient.id == tutorialFocusPatientID
                     NavigationLink(value: patient) {
                         PatientRow(patient: patient)
+                            .tutorialPulse(isTutorialFocus)
                     }
                     .listRowBackground(groupBorderedRow(
                         .at(sortedPatients.firstIndex(of: patient) ?? 0,
@@ -244,7 +258,7 @@ struct PatientListView: View {
     }
 
     private func refreshProgress() {
-        progress = GettingStartedProgress.evaluate(store: store)
+        gettingStartedRouter.refresh(using: store)
     }
 
     /// Fills questionnaire caches needed for Getting Started progress.
@@ -255,105 +269,26 @@ struct PatientListView: View {
     }
 
     private func startDemoTour() {
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-            store.enterDemoMode()
+        var settle = Transaction()
+        settle.disablesAnimations = true
+        withTransaction(settle) {
             onboarding.markDemoTourCompleted()
             onboarding.dismissWelcome()
             onboarding.showChecklistAgain()
-            isShowingWelcome = false
-            path = NavigationPath()
-        }
-        refreshProgress()
-        gettingStartedRouter.highlight = progress.currentStep?.highlight ?? .addPatient
-    }
-
-    /// Checklist steps stay inside the local demo clinic.
-    private func ensureDemoModeForTutorial() {
-        guard !store.isDemoMode else { return }
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
             store.enterDemoMode()
-            onboarding.markDemoTourCompleted()
-            onboarding.dismissWelcome()
-            onboarding.showChecklistAgain()
-            isShowingWelcome = false
-        }
-        refreshProgress()
-    }
-
-    private func handleGettingStartedStep(_ step: GettingStartedStep) {
-        ensureDemoModeForTutorial()
-        applyTutorialNavigation(for: step)
-    }
-
-    private func restartTutorial() {
-        ensureDemoModeForTutorial()
-        store.restartDemoTutorial()
-        path = NavigationPath()
-        isAddingPatient = false
-        refreshProgress()
-        gettingStartedRouter.highlight = .addPatient
-    }
-
-    private func navigateToTutorialPatient() {
-        let tutorial = sortedPatients.first { DemoData.isTutorialPatientID($0.id) }
-        guard let patient = tutorial else {
-            gettingStartedRouter.highlight = .addPatient
-            return
-        }
-        path = NavigationPath()
-        path.append(patient)
-    }
-
-    /// Updates the coach-mark when the active checklist step changes.
-    /// Does not auto-navigate — pushing screens here on demo enter made a
-    /// patient screen flash then get dismissed with the cover/sheet.
-    private func handleCurrentStepChange(
-        from oldStep: GettingStartedStep?,
-        to newStep: GettingStartedStep?
-    ) {
-        guard store.isDemoMode else { return }
-        guard let newStep else {
-            gettingStartedRouter.clearHighlight()
-            return
-        }
-
-        if newStep == .createSession,
-           gettingStartedRouter.highlight == .addSession {
-            return
-        }
-
-        gettingStartedRouter.highlight = newStep.highlight
-    }
-
-    private func applyTutorialNavigation(for step: GettingStartedStep) {
-        switch step {
-        case .createPatient:
+            gettingStartedRouter.setPlacement(.patientList)
+            gettingStartedRouter.refresh(using: store)
             path = NavigationPath()
-            isAddingPatient = false
-            gettingStartedRouter.highlight = .addPatient
-
-        case .createSession:
-            gettingStartedRouter.highlight = .sessionsEntry
-            navigateToTutorialPatient()
-
-        case .fillQuestionnaire:
-            gettingStartedRouter.highlight = .fillQuestionnaire
-            gettingStartedRouter.pendingSessionsAction = .editLatestForSummary
-            navigateToTutorialPatient()
-
-        case .recordSessionSummary:
-            gettingStartedRouter.highlight = .recordNotes
-            gettingStartedRouter.pendingSessionsAction = .editLatestForSummary
-            navigateToTutorialPatient()
-
-        case .createAISummary:
-            gettingStartedRouter.highlight = .aiSummary
-            gettingStartedRouter.pendingSessionsAction = .editLatestForSummary
-            navigateToTutorialPatient()
+        }
+        DispatchQueue.main.async {
+            DispatchQueue.main.async {
+                var dismissTx = Transaction()
+                dismissTx.disablesAnimations = true
+                withTransaction(dismissTx) {
+                    isShowingWelcome = false
+                    gettingStartedRouter.syncHighlight()
+                }
+            }
         }
     }
 }
@@ -381,11 +316,18 @@ private struct PatientRow: View {
             }
             Spacer(minLength: 8)
             scoresLine
-                .animation(.easeInOut(duration: 0.35), value: isLoadingScores)
-                .animation(.easeInOut(duration: 0.35), value: lastQuestionnaire?.id)
+                .animation(
+                    store.isDemoMode ? nil : .easeInOut(duration: 0.35),
+                    value: isLoadingScores
+                )
+                .animation(
+                    store.isDemoMode ? nil : .easeInOut(duration: 0.35),
+                    value: lastQuestionnaire?.id
+                )
         }
         .padding(.vertical, 2)
         .task {
+            guard !store.isDemoMode, !DemoData.isDemoID(patient.id) else { return }
             // Fill the questionnaire cache lazily, once per patient.
             if store.cachedQuestionnaires(for: patient) == nil {
                 _ = try? await store.loadQuestionnaires(for: patient)
@@ -436,7 +378,12 @@ private struct PatientRow: View {
     }
 
     private var isLoadingScores: Bool {
-        store.cachedQuestionnaires(for: patient) == nil
+        // Demo clinic seeds questionnaires up front — never show placeholders
+        // that later disappear and jump the row layout.
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            return false
+        }
+        return store.cachedQuestionnaires(for: patient) == nil
     }
 
     private var lastQuestionnaire: CompletedQuestionnaire? {

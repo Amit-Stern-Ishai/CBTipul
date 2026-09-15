@@ -227,8 +227,11 @@ struct PatientDetailView: View {
                     PatientSessionsView(patient: patient)
                 } label: {
                     iconChip("calendar", title: L10n.sessionsTitle)
+                        .tutorialPulse(
+                            gettingStartedRouter.shouldPulse(.sessionsEntry)
+                                && patient.id == gettingStartedRouter.progress.focusPatientID
+                        )
                 }
-                .tutorialPulse(gettingStartedRouter.highlight == .sessionsEntry)
                 .listRowBackground(groupBorderedRow(.middle))
 
                 NavigationLink {
@@ -516,7 +519,22 @@ struct PatientDetailView: View {
             if savedPreparation == nil {
                 savedPreparation = SavedPreparation.load(for: patient.id)
             }
+            // Always re-assert: returning from sessions must update the coach
+            // path for this screen again.
+            gettingStartedRouter.setPlacement(.patientDetail, viewingPatientID: patient.id)
+            gettingStartedRouter.refresh(using: store)
             applyGettingStartedFocusIfNeeded()
+        }
+        .onChange(of: isShowingSessions) { _, showing in
+            if showing {
+                gettingStartedRouter.setPlacement(.sessions, viewingPatientID: patient.id)
+            } else {
+                gettingStartedRouter.setPlacement(.patientDetail, viewingPatientID: patient.id)
+            }
+            gettingStartedRouter.refresh(using: store)
+        }
+        .onChange(of: patient.sessions.count) { _, _ in
+            gettingStartedRouter.refresh(using: store)
         }
         .task {
             // The last-questionnaire row needs the questionnaire cache filled.

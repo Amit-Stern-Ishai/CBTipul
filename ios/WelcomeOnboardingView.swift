@@ -4,7 +4,7 @@ import SwiftUI
 struct WelcomeOnboardingView: View {
     var onStartDemoTour: () -> Void
     var onSkip: () -> Void
-    /// When false (Settings re-entry), only Continue / info are shown.
+    /// When false, only Continue / info are shown.
     var allowsSkip: Bool = true
 
     @State private var isShowingInfo = false

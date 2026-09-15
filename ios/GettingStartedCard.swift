@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-/// Checklist steps for the demo-mode tutorial (in order).
+/// Checklist steps for the demo-mode walkthrough (in order).
 enum GettingStartedStep: Int, CaseIterable, Identifiable {
     case createPatient
     case createSession
@@ -20,14 +20,130 @@ enum GettingStartedStep: Int, CaseIterable, Identifiable {
         case .createAISummary: L10n.gettingStartedStepAISummary
         }
     }
+}
 
-    var highlight: TutorialHighlight {
-        switch self {
-        case .createPatient: .addPatient
-        case .createSession: .sessionsEntry
-        case .fillQuestionnaire: .fillQuestionnaire
-        case .recordSessionSummary: .recordNotes
-        case .createAISummary: .aiSummary
+/// Where the walkthrough coach is currently shown — drives which control pulses.
+enum TutorialCoachPlacement: Equatable {
+    case patientList
+    case patientDetail
+    case sessions
+    case sessionEditor
+}
+
+/// Maps the active step + screen to the next control on *this* screen.
+///
+/// After an action, the therapist may be anywhere in the stack. The coach
+/// always points at the next hop from the current screen toward the goal —
+/// never at a control that is not visible here.
+enum TutorialCoach {
+    static func highlight(
+        for step: GettingStartedStep?,
+        on placement: TutorialCoachPlacement,
+        progress: GettingStartedProgress,
+        viewingPatientID: DatabaseID? = nil
+    ) -> TutorialHighlight? {
+        guard let step else { return nil }
+
+        // On a patient-scoped screen that is not the tour patient, do not
+        // pulse local controls — send them back via the patients list.
+        if placement != .patientList,
+           let focus = progress.focusPatientID,
+           let viewing = viewingPatientID,
+           viewing != focus {
+            return nil
+        }
+
+        switch step {
+        case .createPatient:
+            return placement == .patientList ? .addPatient : nil
+
+        case .createSession:
+            switch placement {
+            case .patientList: return .tutorialPatient
+            case .patientDetail: return .sessionsEntry
+            case .sessions: return .addSession
+            case .sessionEditor: return nil
+            }
+
+        case .fillQuestionnaire, .recordSessionSummary, .createAISummary:
+            switch placement {
+            case .patientList: return .tutorialPatient
+            case .patientDetail: return .sessionsEntry
+            case .sessions:
+                return progress.hasSession ? .latestSession : .addSession
+            case .sessionEditor:
+                switch step {
+                case .fillQuestionnaire: return .fillQuestionnaire
+                case .recordSessionSummary: return .recordNotes
+                case .createAISummary: return .aiSummary
+                default: return nil
+                }
+            }
+        }
+    }
+
+    /// Short hint under the step title for the current screen.
+    static func hint(
+        for step: GettingStartedStep?,
+        on placement: TutorialCoachPlacement,
+        progress: GettingStartedProgress,
+        viewingPatientID: DatabaseID? = nil
+    ) -> String {
+        guard let step else { return "" }
+
+        if placement != .patientList,
+           let focus = progress.focusPatientID,
+           let viewing = viewingPatientID,
+           viewing != focus {
+            return L10n.tutorialCoachHintOpenPatient
+        }
+
+        switch step {
+        case .createPatient:
+            return placement == .patientList
+                ? L10n.tutorialCoachHintAddPatient
+                : L10n.tutorialCoachHintReturnPatientsAdd
+
+        case .createSession:
+            switch placement {
+            case .patientList: return L10n.tutorialCoachHintOpenPatient
+            case .patientDetail: return L10n.tutorialCoachHintOpenSessions
+            case .sessions: return L10n.tutorialCoachHintAddSession
+            case .sessionEditor: return L10n.tutorialCoachHintSaveSession
+            }
+
+        case .fillQuestionnaire:
+            switch placement {
+            case .patientList: return L10n.tutorialCoachHintOpenPatient
+            case .patientDetail: return L10n.tutorialCoachHintOpenSessions
+            case .sessions:
+                return progress.hasSession
+                    ? L10n.tutorialCoachHintOpenSession
+                    : L10n.tutorialCoachHintAddSession
+            case .sessionEditor: return L10n.tutorialCoachHintFillQuestionnaire
+            }
+
+        case .recordSessionSummary:
+            switch placement {
+            case .patientList: return L10n.tutorialCoachHintOpenPatient
+            case .patientDetail: return L10n.tutorialCoachHintOpenSessions
+            case .sessions:
+                return progress.hasSession
+                    ? L10n.tutorialCoachHintOpenSession
+                    : L10n.tutorialCoachHintAddSession
+            case .sessionEditor: return L10n.tutorialCoachHintRecordNotes
+            }
+
+        case .createAISummary:
+            switch placement {
+            case .patientList: return L10n.tutorialCoachHintOpenPatient
+            case .patientDetail: return L10n.tutorialCoachHintOpenSessions
+            case .sessions:
+                return progress.hasSession
+                    ? L10n.tutorialCoachHintOpenSession
+                    : L10n.tutorialCoachHintAddSession
+            case .sessionEditor: return L10n.tutorialCoachHintAISummary
+            }
         }
     }
 }
@@ -39,13 +155,16 @@ struct GettingStartedProgress: Equatable {
     var hasQuestionnaire: Bool
     var hasSessionNotes: Bool
     var hasAISummary: Bool
+    /// The single tutorial patient the walkthrough is following.
+    var focusPatientID: DatabaseID? = nil
 
     static let empty = GettingStartedProgress(
         hasPatient: false,
         hasSession: false,
         hasQuestionnaire: false,
         hasSessionNotes: false,
-        hasAISummary: false
+        hasAISummary: false,
+        focusPatientID: nil
     )
 
     var completedCount: Int {
@@ -66,7 +185,15 @@ struct GettingStartedProgress: Equatable {
         }
     }
 
-    /// First incomplete step, or `nil` when the checklist is done.
+    /// 1-based index of the active step, or `total` when the tour is done.
+    var currentStepNumber: Int {
+        guard let current = currentStep else {
+            return GettingStartedStep.allCases.count
+        }
+        return current.rawValue + 1
+    }
+
+    /// First incomplete step, or `nil` when the walkthrough is done.
     var currentStep: GettingStartedStep? {
         GettingStartedStep.allCases.first { !isComplete($0) }
     }
@@ -76,35 +203,69 @@ struct GettingStartedProgress: Equatable {
         return step.rawValue <= current.rawValue
     }
 
+    /// How far a tutorial patient has progressed (higher = further along).
+    private static func tourScore(
+        for patient: Patient,
+        questionnairesForPatient: (Patient) -> [CompletedQuestionnaire]?
+    ) -> Int {
+        var score = 1
+        if !patient.sessions.isEmpty { score = 2 }
+        if let records = questionnairesForPatient(patient), !records.isEmpty { score = 3 }
+        if patient.sessions.contains(where: {
+            !$0.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }) { score = 4 }
+        if patient.sessions.contains(where: { $0.structuredNotes != nil }) { score = 5 }
+        return score
+    }
+
+    /// The tutorial patient the coach should follow: furthest along the tour,
+    /// ties broken by newest in the store list.
+    static func focusTutorialPatient(
+        patients: [Patient],
+        questionnairesForPatient: (Patient) -> [CompletedQuestionnaire]?
+    ) -> Patient? {
+        let tutorial = patients.filter { DemoData.isTutorialPatientID($0.id) }
+        guard !tutorial.isEmpty else { return nil }
+        return tutorial.max { a, b in
+            let scoreA = tourScore(for: a, questionnairesForPatient: questionnairesForPatient)
+            let scoreB = tourScore(for: b, questionnairesForPatient: questionnairesForPatient)
+            if scoreA != scoreB { return scoreA < scoreB }
+            let indexA = patients.firstIndex(where: { $0.id == a.id }) ?? 0
+            let indexB = patients.firstIndex(where: { $0.id == b.id }) ?? 0
+            return indexA < indexB
+        }
+    }
+
     /// Builds progress from the local demo clinic.
     ///
-    /// Only user-created demo patients (`demo-user-…`) count — showcase
-    /// seed patients are for browsing only.
+    /// Only one user-created demo patient (`demo-user-…`) is followed — the
+    /// furthest along — so the coach never points at a patient that does not
+    /// match the recorded step.
     static func evaluate(
         patients: [Patient],
         questionnairesForPatient: (Patient) -> [CompletedQuestionnaire]?
     ) -> GettingStartedProgress {
-        let tutorialPatients = patients.filter { DemoData.isTutorialPatientID($0.id) }
-        let hasPatient = !tutorialPatients.isEmpty
-        let hasSession = tutorialPatients.contains { !$0.sessions.isEmpty }
-        let hasQuestionnaire = tutorialPatients.contains { patient in
-            guard let records = questionnairesForPatient(patient) else { return false }
-            return !records.isEmpty
+        guard let focus = focusTutorialPatient(
+            patients: patients,
+            questionnairesForPatient: questionnairesForPatient
+        ) else {
+            return .empty
         }
-        let hasSessionNotes = tutorialPatients.contains { patient in
-            patient.sessions.contains {
-                !$0.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            }
+
+        let records = questionnairesForPatient(focus)
+        let hasQuestionnaire = !(records ?? []).isEmpty
+        let hasSessionNotes = focus.sessions.contains {
+            !$0.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
-        let hasAISummary = tutorialPatients.contains { patient in
-            patient.sessions.contains { $0.structuredNotes != nil }
-        }
+        let hasAISummary = focus.sessions.contains { $0.structuredNotes != nil }
+
         return GettingStartedProgress(
-            hasPatient: hasPatient,
-            hasSession: hasSession,
+            hasPatient: true,
+            hasSession: !focus.sessions.isEmpty,
             hasQuestionnaire: hasQuestionnaire,
             hasSessionNotes: hasSessionNotes,
-            hasAISummary: hasAISummary
+            hasAISummary: hasAISummary,
+            focusPatientID: focus.id
         )
     }
 
@@ -135,35 +296,40 @@ struct GettingStartedProgress: Equatable {
     }
 }
 
-/// Dismissible Getting Started card for the patient list home screen.
-struct GettingStartedCard: View {
+/// Single-mission walkthrough coach — only the current step.
+struct TutorialCoachCard: View {
     let progress: GettingStartedProgress
-    var onSelectStep: (GettingStartedStep) -> Void
+    let placement: TutorialCoachPlacement
+    var viewingPatientID: DatabaseID? = nil
     var onRestart: () -> Void
     var onDismiss: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     if progress.isComplete {
                         Text(L10n.gettingStartedCompleteMessage)
-                            .font(.headline)
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(Theme.textBright)
-                    } else {
-                        Text(L10n.gettingStartedTitle)
-                            .font(.headline)
-                            .foregroundStyle(Theme.textBright)
-                        Text(L10n.gettingStartedSubtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.textBody)
-                            .fixedSize(horizontal: false, vertical: true)
+                    } else if let step = progress.currentStep {
                         Text(L10n.gettingStartedProgress(
-                            progress.completedCount,
+                            progress.currentStepNumber,
                             total: GettingStartedStep.allCases.count))
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(Theme.gold)
-                            .padding(.top, 2)
+                        Text(step.title)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Theme.textBright)
+                        Text(TutorialCoach.hint(
+                            for: step,
+                            on: placement,
+                            progress: progress,
+                            viewingPatientID: viewingPatientID
+                        ))
+                            .font(.caption)
+                            .foregroundStyle(Theme.textBody)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer(minLength: 8)
@@ -171,7 +337,7 @@ struct GettingStartedCard: View {
                     Image(systemName: "xmark")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Theme.textFaint)
-                        .padding(8)
+                        .padding(6)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -185,78 +351,27 @@ struct GettingStartedCard: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(GettingStartedStep.allCases) { step in
-                        let complete = progress.isComplete(step)
-                        let unlocked = progress.isUnlocked(step)
-                        let current = progress.currentStep == step
-                        Button {
-                            guard unlocked else { return }
-                            onSelectStep(step)
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: complete
-                                      ? "checkmark.circle.fill"
-                                      : (unlocked ? "circle" : "lock.fill"))
-                                    .font(.body)
-                                    .foregroundStyle(
-                                        complete ? Theme.success
-                                        : (unlocked ? Theme.textFaint : Theme.textFaint.opacity(0.55))
-                                    )
-                                Text(step.title)
-                                    .font(.subheadline.weight(current ? .semibold : .regular))
-                                    .foregroundStyle(
-                                        complete ? Theme.textBody
-                                        : (unlocked ? Theme.textBright : Theme.textFaint)
-                                    )
-                                    .strikethrough(complete, color: Theme.textFaint)
-                                    .multilineTextAlignment(.leading)
-                                Spacer(minLength: 0)
-                                if unlocked && !complete {
-                                    Image(systemName: "chevron.left")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(Theme.textFaint)
-                                }
-                            }
-                            .padding(.vertical, 10)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!unlocked)
-                        .accessibilityAddTraits(complete ? [.isSelected] : [])
-
-                        if step != GettingStartedStep.allCases.last {
-                            Divider()
-                                .overlay(Theme.borderFaint)
-                        }
-                    }
-                }
             }
         }
-        .padding(16)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Theme.borderDefault, lineWidth: 1)
-        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.surface)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Theme.borderFaint)
+                .frame(height: 1)
+        }
     }
 }
 
-#Preview("Checklist incomplete") {
-    GettingStartedCard(
-        progress: GettingStartedProgress(
-            hasPatient: true,
-            hasSession: false,
-            hasQuestionnaire: false,
-            hasSessionNotes: false,
-            hasAISummary: false
-        ),
-        onSelectStep: { _ in },
+#Preview("Coach — create patient") {
+    TutorialCoachCard(
+        progress: .empty,
+        placement: .patientList,
         onRestart: {},
         onDismiss: {}
     )
-    .padding()
     .background(Theme.base)
     .appTextSize()
 }

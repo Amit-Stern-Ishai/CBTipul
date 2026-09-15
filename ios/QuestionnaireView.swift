@@ -15,6 +15,7 @@ struct CombinedMoodQuestionnaireView: View {
 
     @Environment(PatientStore.self) private var store
     @Environment(OnboardingStore.self) private var onboarding
+    @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(\.dismiss) private var dismiss
 
     @State private var isSaving = false
@@ -197,6 +198,8 @@ struct CombinedMoodQuestionnaireView: View {
             .appTextSize()
         }
         .task {
+            gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: patient.id)
+            gettingStartedRouter.refresh(using: store)
             if initialQuestionnaire == nil {
                 initialQuestionnaire = session.questionnaire
             }
@@ -223,6 +226,7 @@ struct CombinedMoodQuestionnaireView: View {
         Task {
             do {
                 try await store.saveQuestionnaire(session.questionnaire, for: patient, session: session)
+                gettingStartedRouter.refresh(using: store)
                 dismiss()
             } catch {
                 errorMessage = error.userFacingMessage

@@ -85,27 +85,38 @@ struct DemoModeBanner: View {
     }
 }
 
-/// Pins the demo banner under the nav bar. Does not wrap content in another
-/// container — wrapping was fighting NavigationStack toolbar layout.
+/// Pins the demo banner (and walkthrough coach) under the nav bar.
+/// Does not wrap content in another container — wrapping was fighting
+/// NavigationStack toolbar layout.
 private struct DemoModeBannerInset: ViewModifier {
     @Environment(PatientStore.self) private var store
+    @Environment(OnboardingStore.self) private var onboarding
+    @Environment(GettingStartedRouter.self) private var router
 
     func body(content: Content) -> some View {
         content
             .safeAreaInset(edge: .top, spacing: 0) {
                 if store.isDemoMode {
-                    DemoModeBanner()
-                        // Avoid the default insert transition that slides
-                        // the whole screen downward when demo starts.
-                        .transition(.identity)
+                    VStack(spacing: 0) {
+                        DemoModeBanner()
+                        if !onboarding.checklistDismissed {
+                            TutorialCoachCard(
+                                progress: router.progress,
+                                placement: router.placement,
+                                viewingPatientID: router.viewingPatientID,
+                                onRestart: { router.restart(using: store) },
+                                onDismiss: { router.dismissCoach(using: onboarding) }
+                            )
+                        }
+                    }
+                    .transaction { $0.animation = nil }
                 }
             }
-            .animation(nil, value: store.isDemoMode)
     }
 }
 
 extension View {
-    /// Demo banner under the nav bar only — does not restyle the toolbar.
+    /// Demo banner + single-step walkthrough coach under the nav bar.
     /// (Forcing a solid `Theme.base` bar made the nav look black vs before.)
     func demoModeChrome() -> some View {
         modifier(DemoModeBannerInset())

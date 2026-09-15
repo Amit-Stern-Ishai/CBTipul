@@ -13,6 +13,9 @@ final class OnboardingStore {
     private(set) var hasSeenFirstPreparationTip = false
     private(set) var hasSeenFirstQuestionnaireTip = false
     private(set) var hasCompletedDemoTour = false
+    /// Settings asked to show demo consent on the root patient list (not
+    /// as a cover inside the Settings sheet — that flashed Settings on exit).
+    private(set) var wantsDemoConsent = false
 
     @ObservationIgnored
     private var activeUserId: String?
@@ -47,6 +50,15 @@ final class OnboardingStore {
     func showChecklistAgain() {
         checklistDismissed = false
         persist()
+    }
+
+    /// Settings requests the root list to present demo consent.
+    func requestDemoConsent() {
+        wantsDemoConsent = true
+    }
+
+    func clearDemoConsentRequest() {
+        wantsDemoConsent = false
     }
 
     func markFirstPreparationTipSeen() {
@@ -132,14 +144,26 @@ final class OnboardingStore {
     }
 }
 
-/// One-shot navigation / coach-mark state for the demo tutorial.
+/// One-shot coach-mark state for the demo walkthrough.
 @MainActor
 @Observable
 final class GettingStartedRouter {
     /// Highlighted control the therapist should tap next.
     var highlight: TutorialHighlight?
 
-    /// Optional deep-link into sessions when opening a patient from the card.
+    /// Screen the coach is currently attached to.
+    var placement: TutorialCoachPlacement = .patientList
+
+    /// Patient whose screen is visible (detail / sessions / editor), if any.
+    var viewingPatientID: DatabaseID?
+
+    /// Latest evaluated walkthrough progress.
+    var progress = GettingStartedProgress.empty
+
+    /// When true, the patient list should pop back to root (e.g. restart).
+    var wantsPatientListReset = false
+
+    /// Optional deep-link into sessions (legacy; walkthrough no longer sets this).
     var pendingSessionsAction: SessionsInitialAction?
 
     func clearHighlight() {
@@ -150,10 +174,63 @@ final class GettingStartedRouter {
         if highlight == value { highlight = nil }
     }
 
+    /// Whether `value` should glow right now (ignores stale highlight).
+    func shouldPulse(_ value: TutorialHighlight) -> Bool {
+        let expected = TutorialCoach.highlight(
+            for: progress.currentStep,
+            on: placement,
+            progress: progress,
+            viewingPatientID: viewingPatientID
+        )
+        return expected == value
+    }
+
     func consumeSessionsAction() -> SessionsInitialAction? {
         let action = pendingSessionsAction
         pendingSessionsAction = nil
         return action
+    }
+
+    func refresh(using store: PatientStore) {
+        progress = GettingStartedProgress.evaluate(store: store)
+        syncHighlight()
+    }
+
+    func setPlacement(
+        _ newPlacement: TutorialCoachPlacement,
+        viewingPatientID: DatabaseID? = nil
+    ) {
+        placement = newPlacement
+        self.viewingPatientID = viewingPatientID
+        syncHighlight()
+    }
+
+    func syncHighlight() {
+        highlight = TutorialCoach.highlight(
+            for: progress.currentStep,
+            on: placement,
+            progress: progress,
+            viewingPatientID: viewingPatientID
+        )
+    }
+
+    func restart(using store: PatientStore) {
+        store.restartDemoTutorial()
+        wantsPatientListReset = true
+        placement = .patientList
+        viewingPatientID = nil
+        refresh(using: store)
+    }
+
+    func dismissCoach(using onboarding: OnboardingStore) {
+        onboarding.dismissChecklist()
+        clearHighlight()
+    }
+
+    func consumePatientListReset() -> Bool {
+        guard wantsPatientListReset else { return false }
+        wantsPatientListReset = false
+        return true
     }
 }
 

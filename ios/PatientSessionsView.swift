@@ -8,6 +8,7 @@ struct PatientSessionsView: View {
     var initialAction: SessionsInitialAction? = nil
 
     @Environment(PatientStore.self) private var store
+    @Environment(OnboardingStore.self) private var onboarding
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
 
     /// Which session editor sheet, if any, is presented.
@@ -62,7 +63,9 @@ struct PatientSessionsView: View {
     }
 
     private var shouldPulseAddSession: Bool {
-        gettingStartedRouter.highlight == .addSession
+        store.isDemoMode
+            && !onboarding.checklistDismissed
+            && gettingStartedRouter.shouldPulse(.addSession)
     }
 
     var body: some View {
@@ -101,6 +104,10 @@ struct PatientSessionsView: View {
                                         session: item.session,
                                         scores: scorePreview(for: item.session, at: item.index)
                                     )
+                                    .tutorialPulse(
+                                        gettingStartedRouter.shouldPulse(.latestSession)
+                                            && item.session.id == sortedSessions.first?.id
+                                    )
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -128,10 +135,14 @@ struct PatientSessionsView: View {
                 } label: {
                     Label(L10n.addSessionAction, systemImage: "plus")
                 }
-                .tutorialPulse(shouldPulseAddSession)
+                .tutorialPulse(shouldPulseAddSession, style: .toolbar)
             }
         }
-        .sheet(item: $route) { route in
+        .sheet(item: $route, onDismiss: {
+            // Sheet dismiss does not re-run onAppear — reclaim coach for this screen.
+            gettingStartedRouter.setPlacement(.sessions, viewingPatientID: patient.id)
+            gettingStartedRouter.refresh(using: store)
+        }) { route in
             SessionEditorView(
                 session: route.session,
                 patient: patient,
@@ -139,7 +150,10 @@ struct PatientSessionsView: View {
                 sessionNumber: route.isNew ? nil : sessionNumber(for: route.session)
             )
         }
-        .sheet(item: $questionnaireSession) { session in
+        .sheet(item: $questionnaireSession, onDismiss: {
+            gettingStartedRouter.setPlacement(.sessions, viewingPatientID: patient.id)
+            gettingStartedRouter.refresh(using: store)
+        }) { session in
             NavigationStack {
                 CombinedMoodQuestionnaireView(patient: patient, session: session,
                                               showsCancelButton: true)
@@ -153,10 +167,19 @@ struct PatientSessionsView: View {
             }
         }
         .onAppear {
-            if gettingStartedRouter.highlight == .sessionsEntry {
-                gettingStartedRouter.highlight = .addSession
-            }
+            gettingStartedRouter.setPlacement(.sessions, viewingPatientID: patient.id)
+            gettingStartedRouter.refresh(using: store)
             applyInitialActionIfNeeded()
+        }
+        .onDisappear {
+            // Popped back to patient detail (not covered by a sheet).
+            guard route == nil, questionnaireSession == nil else { return }
+            guard gettingStartedRouter.placement == .sessions else { return }
+            gettingStartedRouter.setPlacement(.patientDetail, viewingPatientID: patient.id)
+            gettingStartedRouter.refresh(using: store)
+        }
+        .onChange(of: patient.sessions.count) { _, _ in
+            gettingStartedRouter.refresh(using: store)
         }
     }
 

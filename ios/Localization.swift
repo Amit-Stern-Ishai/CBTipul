@@ -95,8 +95,8 @@ enum L10n {
     static let gettingStartedTitle = "הצעדים הראשונים"
     static let gettingStartedSubtitle =
         "השלימו את הצעדים לפי הסדר. הכפתור הרלוונטי יהבהב כדי להדריך אתכם."
-    static func gettingStartedProgress(_ completed: Int, total: Int = 5) -> String {
-        "\(completed) מתוך \(total) הושלמו"
+    static func gettingStartedProgress(_ step: Int, total: Int = 5) -> String {
+        "שלב \(step) מתוך \(total)"
     }
     static let gettingStartedStepDemoTour = "סיור במצב הדגמה"
     static let gettingStartedStepAddPatient = "יצירת מטופל/ת"
@@ -106,10 +106,24 @@ enum L10n {
     static let gettingStartedStepSessionSummary = "הקלטת סיכום מפגש"
     static let gettingStartedStepAISummary = "יצירת סיכום AI"
     static let gettingStartedStepPreparation = "הכנה למפגש הבא"
-    static let gettingStartedCompleteMessage = "המדריך הושלם"
+    static let gettingStartedCompleteMessage = "המדריך הושלם — כל הכבוד!"
     static let gettingStartedRestartAction = "התחל מחדש"
     static let gettingStartedDismissAccessibilityLabel = "הסתרת מדריך ההתחלה"
     static let gettingStartedGuideSettingsTitle = "מדריך התחלה"
+
+    static let tutorialCoachHintAddPatient = "לחצו על + כדי להוסיף מטופל/ת"
+    static let tutorialCoachHintReturnPatientsAdd = "חזרו לרשימת המטופלים ולחצו על +"
+    static let tutorialCoachHintOpenPatient = "פתחו את המטופל/ת המסומן/ת ברשימה"
+    static let tutorialCoachHintOpenSessions = "היכנסו למפגשים"
+    static let tutorialCoachHintAddSession = "הוסיפו מפגש חדש"
+    static let tutorialCoachHintSaveSession = "שמרו את המפגש כדי להמשיך"
+    static let tutorialCoachHintOpenSession = "פתחו את המפגש האחרון"
+    static let tutorialCoachHintFillQuestionnaire = "מלאו שאלון למפגש"
+    static let tutorialCoachHintRecordNotes = "הקלידו סיכום למפגש"
+    static let tutorialCoachHintAISummary = "צרו סיכום AI מההערות"
+    static let tutorialCoachHintReturnSessions = "חזרו למסך המפגשים כדי להמשיך"
+    static let tutorialCoachHintFollowGlow = "עקבו אחרי הכפתור המסומן"
+
     static let demoModeBannerTitle = "מצב הדגמה"
     static let demoModeBannerBody = "נתונים לדוגמה במכשיר בלבד — לא נשמרים בשרת."
     static let demoModeExitShort = "יציאה"
