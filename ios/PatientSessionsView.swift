@@ -8,6 +8,7 @@ struct PatientSessionsView: View {
     var initialAction: SessionsInitialAction? = nil
 
     @Environment(PatientStore.self) private var store
+    @Environment(GettingStartedRouter.self) private var gettingStartedRouter
 
     /// Which session editor sheet, if any, is presented.
     private enum SheetRoute: Identifiable {
@@ -60,6 +61,10 @@ struct PatientSessionsView: View {
         CBTipul.groupBorderedRow(position, accent: PatientAvatarColor.background(for: patient.id))
     }
 
+    private var shouldPulseAddSession: Bool {
+        gettingStartedRouter.highlight == .addSession
+    }
+
     var body: some View {
         List {
             if patient.sessions.isEmpty {
@@ -72,9 +77,11 @@ struct PatientSessionsView: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                     Button(L10n.emptySessionsPrimaryAction) {
+                        gettingStartedRouter.clearHighlightIfMatching(.addSession)
                         route = .new(Session())
                     }
                     .buttonStyle(.borderedProminent)
+                    .tutorialPulse(shouldPulseAddSession)
                     .padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity)
@@ -112,16 +119,16 @@ struct PatientSessionsView: View {
         .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()
         .demoModeChrome()
-        .navigationTitle(L10n.sessionsTitle)
-        .navigationSubtitleIfAvailable(patient.displayName)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitleWithSubtitle(L10n.sessionsTitle, subtitle: patient.displayName)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
+                    gettingStartedRouter.clearHighlightIfMatching(.addSession)
                     route = .new(Session())
                 } label: {
                     Label(L10n.addSessionAction, systemImage: "plus")
                 }
+                .tutorialPulse(shouldPulseAddSession)
             }
         }
         .sheet(item: $route) { route in
@@ -146,6 +153,9 @@ struct PatientSessionsView: View {
             }
         }
         .onAppear {
+            if gettingStartedRouter.highlight == .sessionsEntry {
+                gettingStartedRouter.highlight = .addSession
+            }
             applyInitialActionIfNeeded()
         }
     }
@@ -256,4 +266,5 @@ private struct SessionRow: View {
         PatientSessionsView(patient: Patient(id: .integer(1), firstName: "ישראלה", lastName: "ישראלית", sessions: [Session()]))
     }
     .environment(PatientStore(client: auth.client))
+    .environment(GettingStartedRouter())
 }

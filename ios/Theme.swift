@@ -413,13 +413,27 @@ extension UIColor {
 
 extension View {
 
-    /// Applies the navigation-bar subtitle where the OS supports it
-    /// (iOS 26+) and quietly does nothing on earlier SDKs / runtimes.
-    @ViewBuilder
-    func navigationSubtitleIfAvailable(_ subtitle: String) -> some View {
-        // `navigationSubtitle` is only in the iOS 26 SDK. Compiling against
-        // iPhoneOS 18.x must not reference the symbol.
-        self
+    /// Inline navigation title with a secondary subtitle line under it.
+    ///
+    /// Used instead of `navigationSubtitle` (iOS 26-only) so title/subtitle
+    /// pairs keep working on the app's deployment SDK.
+    func navigationTitleWithSubtitle(_ title: String, subtitle: String) -> some View {
+        navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 1) {
+                        Text(title)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text(subtitle)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
     }
 
     /// Lays a scrolling screen (List/Form/ScrollView) on the Theme.base

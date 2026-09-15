@@ -1,53 +1,55 @@
+import Foundation
 import SwiftUI
 
-/// Checklist steps for the Getting Started card.
+/// Checklist steps for the demo-mode tutorial (in order).
 enum GettingStartedStep: Int, CaseIterable, Identifiable {
-    case demoTour
-    case addPatient
-    case treatmentGoal
-    case firstSession
-    case questionnaire
-    case sessionSummary
-    case preparation
+    case createPatient
+    case createSession
+    case fillQuestionnaire
+    case recordSessionSummary
+    case createAISummary
 
     var id: Int { rawValue }
 
     var title: String {
         switch self {
-        case .demoTour: L10n.gettingStartedStepDemoTour
-        case .addPatient: L10n.gettingStartedStepAddPatient
-        case .treatmentGoal: L10n.gettingStartedStepTreatmentGoal
-        case .firstSession: L10n.gettingStartedStepFirstSession
-        case .questionnaire: L10n.gettingStartedStepQuestionnaire
-        case .sessionSummary: L10n.gettingStartedStepSessionSummary
-        case .preparation: L10n.gettingStartedStepPreparation
+        case .createPatient: L10n.gettingStartedStepAddPatient
+        case .createSession: L10n.gettingStartedStepFirstSession
+        case .fillQuestionnaire: L10n.gettingStartedStepQuestionnaire
+        case .recordSessionSummary: L10n.gettingStartedStepSessionSummary
+        case .createAISummary: L10n.gettingStartedStepAISummary
+        }
+    }
+
+    var highlight: TutorialHighlight {
+        switch self {
+        case .createPatient: .addPatient
+        case .createSession: .sessionsEntry
+        case .fillQuestionnaire: .fillQuestionnaire
+        case .recordSessionSummary: .recordNotes
+        case .createAISummary: .aiSummary
         }
     }
 }
 
-/// Completion derived from live patient / session / questionnaire / preparation data.
+/// Completion derived from the therapist's own demo (tutorial) patient.
 struct GettingStartedProgress: Equatable {
-    var hasCompletedDemoTour: Bool
     var hasPatient: Bool
-    var hasTreatmentGoal: Bool
     var hasSession: Bool
     var hasQuestionnaire: Bool
-    var hasSessionSummary: Bool
-    var hasPreparation: Bool
+    var hasSessionNotes: Bool
+    var hasAISummary: Bool
 
     static let empty = GettingStartedProgress(
-        hasCompletedDemoTour: false,
         hasPatient: false,
-        hasTreatmentGoal: false,
         hasSession: false,
         hasQuestionnaire: false,
-        hasSessionSummary: false,
-        hasPreparation: false
+        hasSessionNotes: false,
+        hasAISummary: false
     )
 
     var completedCount: Int {
-        [hasCompletedDemoTour, hasPatient, hasTreatmentGoal, hasSession,
-         hasQuestionnaire, hasSessionSummary, hasPreparation]
+        [hasPatient, hasSession, hasQuestionnaire, hasSessionNotes, hasAISummary]
             .filter(\.self)
             .count
     }
@@ -56,60 +58,61 @@ struct GettingStartedProgress: Equatable {
 
     func isComplete(_ step: GettingStartedStep) -> Bool {
         switch step {
-        case .demoTour: hasCompletedDemoTour
-        case .addPatient: hasPatient
-        case .treatmentGoal: hasTreatmentGoal
-        case .firstSession: hasSession
-        case .questionnaire: hasQuestionnaire
-        case .sessionSummary: hasSessionSummary
-        case .preparation: hasPreparation
+        case .createPatient: hasPatient
+        case .createSession: hasSession
+        case .fillQuestionnaire: hasQuestionnaire
+        case .recordSessionSummary: hasSessionNotes
+        case .createAISummary: hasAISummary
         }
+    }
+
+    /// First incomplete step, or `nil` when the checklist is done.
+    var currentStep: GettingStartedStep? {
+        GettingStartedStep.allCases.first { !isComplete($0) }
+    }
+
+    func isUnlocked(_ step: GettingStartedStep) -> Bool {
+        guard let current = currentStep else { return true }
+        return step.rawValue <= current.rawValue
     }
 
     /// Builds progress from the local demo clinic.
     ///
-    /// Showcase seed patients are for browsing only. Steps after the demo
-    /// tour complete from user-created demo patients (`demo-user-…`).
+    /// Only user-created demo patients (`demo-user-…`) count — showcase
+    /// seed patients are for browsing only.
     static func evaluate(
         patients: [Patient],
-        questionnairesForPatient: (Patient) -> [CompletedQuestionnaire]?,
-        hasPreparation: (DatabaseID) -> Bool,
-        hasCompletedDemoTour: Bool
+        questionnairesForPatient: (Patient) -> [CompletedQuestionnaire]?
     ) -> GettingStartedProgress {
         let tutorialPatients = patients.filter { DemoData.isTutorialPatientID($0.id) }
         let hasPatient = !tutorialPatients.isEmpty
-        let hasTreatmentGoal = tutorialPatients.contains {
-            guard let goal = $0.formulation?.treatmentGoal else { return false }
-            return !goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
         let hasSession = tutorialPatients.contains { !$0.sessions.isEmpty }
         let hasQuestionnaire = tutorialPatients.contains { patient in
             guard let records = questionnairesForPatient(patient) else { return false }
             return !records.isEmpty
         }
-        let hasSessionSummary = tutorialPatients.contains { patient in
-            patient.sessions.contains(where: Self.sessionHasSummary)
+        let hasSessionNotes = tutorialPatients.contains { patient in
+            patient.sessions.contains {
+                !$0.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
         }
-        let hasPreparationFlag = tutorialPatients.contains { hasPreparation($0.id) }
+        let hasAISummary = tutorialPatients.contains { patient in
+            patient.sessions.contains { $0.structuredNotes != nil }
+        }
         return GettingStartedProgress(
-            hasCompletedDemoTour: hasCompletedDemoTour,
             hasPatient: hasPatient,
-            hasTreatmentGoal: hasTreatmentGoal,
             hasSession: hasSession,
             hasQuestionnaire: hasQuestionnaire,
-            hasSessionSummary: hasSessionSummary,
-            hasPreparation: hasPreparationFlag
+            hasSessionNotes: hasSessionNotes,
+            hasAISummary: hasAISummary
         )
     }
 
-    /// Builds progress from the in-memory store and local preparation files.
     @MainActor
-    static func evaluate(store: PatientStore, hasCompletedDemoTour: Bool) -> GettingStartedProgress {
+    static func evaluate(store: PatientStore) -> GettingStartedProgress {
         evaluate(
             patients: store.patients,
-            questionnairesForPatient: { store.cachedQuestionnaires(for: $0) },
-            hasPreparation: { SavedPreparation.load(for: $0) != nil },
-            hasCompletedDemoTour: hasCompletedDemoTour
+            questionnairesForPatient: { store.cachedQuestionnaires(for: $0) }
         )
     }
 
@@ -118,8 +121,6 @@ struct GettingStartedProgress: Equatable {
         return !session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// True when there is at least one session summary/notes result or
-    /// questionnaire — enough signal for a useful preparation.
     static func hasUsefulPreparationInput(
         patient: Patient,
         questionnaires: [CompletedQuestionnaire]
@@ -127,7 +128,6 @@ struct GettingStartedProgress: Equatable {
         patient.sessions.contains(where: sessionHasSummary) || !questionnaires.isEmpty
     }
 
-    /// Picks the most useful next action when preparation input is missing.
     static func missingPreparationAction(for patient: Patient) -> PreparationMissingAction {
         if patient.sessions.isEmpty { return .addSession }
         if !patient.sessions.contains(where: sessionHasSummary) { return .addSessionSummary }
@@ -139,6 +139,7 @@ struct GettingStartedProgress: Equatable {
 struct GettingStartedCard: View {
     let progress: GettingStartedProgress
     var onSelectStep: (GettingStartedStep) -> Void
+    var onRestart: () -> Void
     var onDismiss: () -> Void
 
     var body: some View {
@@ -177,31 +178,52 @@ struct GettingStartedCard: View {
                 .accessibilityLabel(L10n.gettingStartedDismissAccessibilityLabel)
             }
 
-            if !progress.isComplete {
+            if progress.isComplete {
+                Button(action: onRestart) {
+                    Text(L10n.gettingStartedRestartAction)
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            } else {
                 VStack(spacing: 0) {
                     ForEach(GettingStartedStep.allCases) { step in
                         let complete = progress.isComplete(step)
+                        let unlocked = progress.isUnlocked(step)
+                        let current = progress.currentStep == step
                         Button {
+                            guard unlocked else { return }
                             onSelectStep(step)
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: complete ? "checkmark.circle.fill" : "circle")
+                                Image(systemName: complete
+                                      ? "checkmark.circle.fill"
+                                      : (unlocked ? "circle" : "lock.fill"))
                                     .font(.body)
-                                    .foregroundStyle(complete ? Theme.success : Theme.textFaint)
+                                    .foregroundStyle(
+                                        complete ? Theme.success
+                                        : (unlocked ? Theme.textFaint : Theme.textFaint.opacity(0.55))
+                                    )
                                 Text(step.title)
-                                    .font(.subheadline)
-                                    .foregroundStyle(complete ? Theme.textBody : Theme.textBright)
+                                    .font(.subheadline.weight(current ? .semibold : .regular))
+                                    .foregroundStyle(
+                                        complete ? Theme.textBody
+                                        : (unlocked ? Theme.textBright : Theme.textFaint)
+                                    )
                                     .strikethrough(complete, color: Theme.textFaint)
                                     .multilineTextAlignment(.leading)
                                 Spacer(minLength: 0)
-                                Image(systemName: "chevron.left")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(Theme.textFaint)
+                                if unlocked && !complete {
+                                    Image(systemName: "chevron.left")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(Theme.textFaint)
+                                }
                             }
                             .padding(.vertical, 10)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .disabled(!unlocked)
                         .accessibilityAddTraits(complete ? [.isSelected] : [])
 
                         if step != GettingStartedStep.allCases.last {
@@ -224,34 +246,14 @@ struct GettingStartedCard: View {
 #Preview("Checklist incomplete") {
     GettingStartedCard(
         progress: GettingStartedProgress(
-            hasCompletedDemoTour: true,
             hasPatient: true,
-            hasTreatmentGoal: true,
             hasSession: false,
             hasQuestionnaire: false,
-            hasSessionSummary: false,
-            hasPreparation: false
+            hasSessionNotes: false,
+            hasAISummary: false
         ),
         onSelectStep: { _ in },
-        onDismiss: {}
-    )
-    .padding()
-    .background(Theme.base)
-    .appTextSize()
-}
-
-#Preview("Checklist complete") {
-    GettingStartedCard(
-        progress: GettingStartedProgress(
-            hasCompletedDemoTour: true,
-            hasPatient: true,
-            hasTreatmentGoal: true,
-            hasSession: true,
-            hasQuestionnaire: true,
-            hasSessionSummary: true,
-            hasPreparation: true
-        ),
-        onSelectStep: { _ in },
+        onRestart: {},
         onDismiss: {}
     )
     .padding()

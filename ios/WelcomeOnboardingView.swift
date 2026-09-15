@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// First-run welcome for therapists with no patients yet.
+/// Consent screen before entering local demo mode for the tutorial.
 struct WelcomeOnboardingView: View {
     var onStartDemoTour: () -> Void
     var onSkip: () -> Void
+    /// When false (Settings re-entry), only Continue / info are shown.
+    var allowsSkip: Bool = true
 
     @State private var isShowingInfo = false
 
@@ -34,14 +36,16 @@ struct WelcomeOnboardingView: View {
                     }
                     .buttonStyle(.pressableProminent)
 
-                    Button(action: onSkip) {
-                        Text(L10n.welcomeSecondaryAction)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(Theme.textBody)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                    if allowsSkip {
+                        Button(action: onSkip) {
+                            Text(L10n.welcomeSecondaryAction)
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(Theme.textBody)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
 
                     Button {
                         isShowingInfo = true

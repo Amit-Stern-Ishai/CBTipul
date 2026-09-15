@@ -26,8 +26,8 @@ struct PatientListView: View {
 
     private var shouldShowGettingStartedCard: Bool {
         hasFinishedInitialLoad
+            && store.isDemoMode
             && !onboarding.checklistDismissed
-            && (onboarding.welcomeDismissed || !store.patients.filter { !DemoData.isDemoID($0.id) }.isEmpty || store.isDemoMode)
     }
 
     var body: some View {
@@ -53,9 +53,9 @@ struct PatientListView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .demoModeChrome()
             .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
+            .demoModeChrome()
             .animation(.easeInOut(duration: 0.25), value: isLoading)
             .animation(.easeInOut(duration: 0.25), value: loadError)
             .navigationTitle(L10n.patientsTitle)
@@ -67,10 +67,12 @@ struct PatientListView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
+                        gettingStartedRouter.clearHighlightIfMatching(.addPatient)
                         isAddingPatient = true
                     } label: {
                         Label(L10n.addPatientAction, systemImage: "plus")
                     }
+                    .tutorialPulse(gettingStartedRouter.highlight == .addPatient)
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -101,11 +103,11 @@ struct PatientListView: View {
             .onChange(of: shouldShowWelcome, initial: true) { _, show in
                 isShowingWelcome = show
             }
-            .onChange(of: store.patients.count, initial: true) { _, _ in
+            .onChange(of: tutorialProgressSignature) { _, _ in
                 refreshProgress()
             }
-            .onChange(of: path.count) { _, count in
-                if count == 0 { refreshProgress() }
+            .onChange(of: progress.currentStep) { oldStep, newStep in
+                handleCurrentStepChange(from: oldStep, to: newStep)
             }
             .onAppear { refreshProgress() }
             .task(id: store.patients.map(\.id.queryValue).joined(separator: ",")) {
@@ -114,11 +116,18 @@ struct PatientListView: View {
             }
         }
         .onChange(of: store.isDemoMode) { wasDemo, isDemo in
+            if isDemo {
+                onboarding.showChecklistAgain()
+                refreshProgress()
+                gettingStartedRouter.highlight = progress.currentStep?.highlight
+                return
+            }
             // Leaving demo from any screen should land on the real patient list.
-            guard wasDemo, !isDemo else { return }
+            guard wasDemo else { return }
             path = NavigationPath()
             isAddingPatient = false
             isShowingSettings = false
+            gettingStartedRouter.clearHighlight()
             refreshProgress()
         }
         .environment(gettingStartedRouter)
@@ -130,6 +139,7 @@ struct PatientListView: View {
             GettingStartedCard(
                 progress: progress,
                 onSelectStep: handleGettingStartedStep,
+                onRestart: restartTutorial,
                 onDismiss: { onboarding.dismissChecklist() }
             )
             .padding(.horizontal)
@@ -148,6 +158,7 @@ struct PatientListView: View {
             } actions: {
                 Button(L10n.emptyPatientsPrimaryAction) { isAddingPatient = true }
                     .buttonStyle(.borderedProminent)
+                    .tutorialPulse(gettingStartedRouter.highlight == .addPatient)
                 if !store.isDemoMode {
                     Button(L10n.enterDemoModeAction) { startDemoTour() }
                         .buttonStyle(.bordered)
@@ -164,6 +175,7 @@ struct PatientListView: View {
                     GettingStartedCard(
                         progress: progress,
                         onSelectStep: handleGettingStartedStep,
+                        onRestart: restartTutorial,
                         onDismiss: { onboarding.dismissChecklist() }
                     )
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -199,6 +211,20 @@ struct PatientListView: View {
         }
     }
 
+    /// Fingerprint of tutorial patients so nested session/notes changes refresh progress.
+    private var tutorialProgressSignature: String {
+        store.patients
+            .filter { DemoData.isTutorialPatientID($0.id) }
+            .map { patient in
+                let questionnaireCount = store.cachedQuestionnaires(for: patient)?.count ?? -1
+                let sessionPart = patient.sessions
+                    .map { "\($0.notes.count)-\($0.structuredNotes != nil)" }
+                    .joined(separator: ",")
+                return "\(patient.id.queryValue):\(patient.sessions.count):\(sessionPart):\(questionnaireCount)"
+            }
+            .joined(separator: "|")
+    }
+
     private func load() async {
         store.loadCachedPatients()
         refreshProgress()
@@ -218,10 +244,7 @@ struct PatientListView: View {
     }
 
     private func refreshProgress() {
-        progress = GettingStartedProgress.evaluate(
-            store: store,
-            hasCompletedDemoTour: onboarding.hasCompletedDemoTour
-        )
+        progress = GettingStartedProgress.evaluate(store: store)
     }
 
     /// Fills questionnaire caches needed for Getting Started progress.
@@ -232,59 +255,106 @@ struct PatientListView: View {
     }
 
     private func startDemoTour() {
-        store.enterDemoMode()
-        onboarding.markDemoTourCompleted()
-        onboarding.dismissWelcome()
-        isShowingWelcome = false
-        refreshProgress()
-        if let first = sortedPatients.first {
-            path.append(first)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            store.enterDemoMode()
+            onboarding.markDemoTourCompleted()
+            onboarding.dismissWelcome()
+            onboarding.showChecklistAgain()
+            isShowingWelcome = false
+            path = NavigationPath()
         }
+        refreshProgress()
+        gettingStartedRouter.highlight = progress.currentStep?.highlight ?? .addPatient
     }
 
-    /// Checklist steps after the tour stay inside the local demo clinic.
+    /// Checklist steps stay inside the local demo clinic.
     private func ensureDemoModeForTutorial() {
         guard !store.isDemoMode else { return }
-        store.enterDemoMode()
-        onboarding.markDemoTourCompleted()
-        onboarding.dismissWelcome()
-        isShowingWelcome = false
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            store.enterDemoMode()
+            onboarding.markDemoTourCompleted()
+            onboarding.dismissWelcome()
+            onboarding.showChecklistAgain()
+            isShowingWelcome = false
+        }
         refreshProgress()
     }
 
     private func handleGettingStartedStep(_ step: GettingStartedStep) {
-        switch step {
-        case .demoTour:
-            startDemoTour()
-        case .addPatient:
-            ensureDemoModeForTutorial()
-            isAddingPatient = true
-        case .treatmentGoal:
-            ensureDemoModeForTutorial()
-            navigateToTutorialPatient(focus: .editTreatmentGoal)
-        case .firstSession:
-            ensureDemoModeForTutorial()
-            navigateToTutorialPatient(focus: .sessions(.addSession))
-        case .questionnaire:
-            ensureDemoModeForTutorial()
-            navigateToTutorialPatient(focus: .sessions(.addQuestionnaire))
-        case .sessionSummary:
-            ensureDemoModeForTutorial()
-            navigateToTutorialPatient(focus: .sessions(.editLatestForSummary))
-        case .preparation:
-            ensureDemoModeForTutorial()
-            navigateToTutorialPatient(focus: .prepareNextSession)
-        }
+        ensureDemoModeForTutorial()
+        applyTutorialNavigation(for: step)
     }
 
-    private func navigateToTutorialPatient(focus: GettingStartedFocus) {
+    private func restartTutorial() {
+        ensureDemoModeForTutorial()
+        store.restartDemoTutorial()
+        path = NavigationPath()
+        isAddingPatient = false
+        refreshProgress()
+        gettingStartedRouter.highlight = .addPatient
+    }
+
+    private func navigateToTutorialPatient() {
         let tutorial = sortedPatients.first { DemoData.isTutorialPatientID($0.id) }
         guard let patient = tutorial else {
-            isAddingPatient = true
+            gettingStartedRouter.highlight = .addPatient
             return
         }
-        gettingStartedRouter.pendingFocus = focus
+        path = NavigationPath()
         path.append(patient)
+    }
+
+    /// Updates the coach-mark when the active checklist step changes.
+    /// Does not auto-navigate — pushing screens here on demo enter made a
+    /// patient screen flash then get dismissed with the cover/sheet.
+    private func handleCurrentStepChange(
+        from oldStep: GettingStartedStep?,
+        to newStep: GettingStartedStep?
+    ) {
+        guard store.isDemoMode else { return }
+        guard let newStep else {
+            gettingStartedRouter.clearHighlight()
+            return
+        }
+
+        if newStep == .createSession,
+           gettingStartedRouter.highlight == .addSession {
+            return
+        }
+
+        gettingStartedRouter.highlight = newStep.highlight
+    }
+
+    private func applyTutorialNavigation(for step: GettingStartedStep) {
+        switch step {
+        case .createPatient:
+            path = NavigationPath()
+            isAddingPatient = false
+            gettingStartedRouter.highlight = .addPatient
+
+        case .createSession:
+            gettingStartedRouter.highlight = .sessionsEntry
+            navigateToTutorialPatient()
+
+        case .fillQuestionnaire:
+            gettingStartedRouter.highlight = .fillQuestionnaire
+            gettingStartedRouter.pendingSessionsAction = .editLatestForSummary
+            navigateToTutorialPatient()
+
+        case .recordSessionSummary:
+            gettingStartedRouter.highlight = .recordNotes
+            gettingStartedRouter.pendingSessionsAction = .editLatestForSummary
+            navigateToTutorialPatient()
+
+        case .createAISummary:
+            gettingStartedRouter.highlight = .aiSummary
+            gettingStartedRouter.pendingSessionsAction = .editLatestForSummary
+            navigateToTutorialPatient()
+        }
     }
 }
 

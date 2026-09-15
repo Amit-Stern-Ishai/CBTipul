@@ -107,6 +107,7 @@ struct SettingsView: View {
     @State private var isShowingDeleteAccountCodeChallenge = false
     @State private var isDeletingAccount = false
     @State private var deleteAccountError: String?
+    @State private var isShowingTutorialConsent = false
 
     /// The app's marketing version and build number, e.g. "גרסה 1.0 (4)".
     private var appVersionLine: String {
@@ -192,8 +193,7 @@ struct SettingsView: View {
                     }
                     .listRowBackground(groupBorderedRow(.first, accent: Theme.gold))
                     Button {
-                        onboarding.showChecklistAgain()
-                        dismiss()
+                        isShowingTutorialConsent = true
                     } label: {
                         Label {
                             Text(L10n.gettingStartedGuideSettingsTitle)
@@ -337,6 +337,25 @@ struct SettingsView: View {
                 Text(deleteAccountError ?? "")
             }
             .busyOverlay(isDeletingAccount)
+            .fullScreenCover(isPresented: $isShowingTutorialConsent) {
+                WelcomeOnboardingView(
+                    onStartDemoTour: {
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            onboarding.showChecklistAgain()
+                            onboarding.dismissWelcome()
+                            store.enterDemoMode()
+                            isShowingTutorialConsent = false
+                        }
+                        dismiss()
+                    },
+                    onSkip: {
+                        isShowingTutorialConsent = false
+                    }
+                )
+                .appTextSize()
+            }
         }
         .appTextSize()
     }

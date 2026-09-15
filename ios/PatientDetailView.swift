@@ -228,6 +228,7 @@ struct PatientDetailView: View {
                 } label: {
                     iconChip("calendar", title: L10n.sessionsTitle)
                 }
+                .tutorialPulse(gettingStartedRouter.highlight == .sessionsEntry)
                 .listRowBackground(groupBorderedRow(.middle))
 
                 NavigationLink {
@@ -525,19 +526,11 @@ struct PatientDetailView: View {
         }
     }
 
-    /// Consumes a one-shot Getting Started focus into the matching existing UI.
+    /// Consumes a one-shot Getting Started request into sessions.
     private func applyGettingStartedFocusIfNeeded() {
-        guard let focus = gettingStartedRouter.consumeFocus() else { return }
-        switch focus {
-        case .editTreatmentGoal:
-            goalDraft = treatmentGoal.wrappedValue
-            isEditingGoal = true
-        case .sessions(let action):
-            sessionsInitialAction = action
-            isShowingSessions = true
-        case .prepareNextSession:
-            requestPrepareNextSession()
-        }
+        guard let action = gettingStartedRouter.consumeSessionsAction() else { return }
+        sessionsInitialAction = action
+        isShowingSessions = true
     }
 
     /// Gates preparation behind useful clinical input and a one-time tip.

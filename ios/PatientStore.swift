@@ -321,6 +321,23 @@ final class PatientStore {
         AppLog.store.notice("Exited demo mode")
     }
 
+    /// Removes therapist-created tutorial patients so the checklist can run again.
+    /// Showcase sample patients are kept.
+    func restartDemoTutorial() {
+        guard isDemoMode else { return }
+        let tutorialIDs = patients
+            .filter { DemoData.isTutorialPatientID($0.id) }
+            .map(\.id)
+        patients.removeAll { DemoData.isTutorialPatientID($0.id) }
+        for id in tutorialIDs {
+            questionnairesByPatient[id] = nil
+            DemoClinicStore.deleteName(for: id)
+            DemoClinicStore.deletePreparation(for: id)
+        }
+        persistDemoClinic()
+        AppLog.store.notice("Restarted demo tutorial; removed \(tutorialIDs.count) tutorial patients")
+    }
+
     /// Writes the in-memory demo clinic to the demo-only stores.
     private func persistDemoClinic() {
         guard isDemoMode else { return }
@@ -358,6 +375,9 @@ final class PatientStore {
             }
         }
         DemoClinicStore.saveNames(names)
+        // Nested patient/session edits don't change array identity; reassign
+        // so checklist observers refresh after demo mutations.
+        patients = patients
     }
 
     private func applyDemoSnapshot(_ snapshot: DemoClinicStore.Snapshot) {

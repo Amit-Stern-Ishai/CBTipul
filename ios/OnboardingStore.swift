@@ -132,21 +132,35 @@ final class OnboardingStore {
     }
 }
 
-/// One-shot navigation requests from the Getting Started checklist into
-/// existing patient / session screens.
-enum GettingStartedFocus: Equatable {
-    case editTreatmentGoal
-    case sessions(SessionsInitialAction?)
-    case prepareNextSession
+/// One-shot navigation / coach-mark state for the demo tutorial.
+@MainActor
+@Observable
+final class GettingStartedRouter {
+    /// Highlighted control the therapist should tap next.
+    var highlight: TutorialHighlight?
+
+    /// Optional deep-link into sessions when opening a patient from the card.
+    var pendingSessionsAction: SessionsInitialAction?
+
+    func clearHighlight() {
+        highlight = nil
+    }
+
+    func clearHighlightIfMatching(_ value: TutorialHighlight) {
+        if highlight == value { highlight = nil }
+    }
+
+    func consumeSessionsAction() -> SessionsInitialAction? {
+        let action = pendingSessionsAction
+        pendingSessionsAction = nil
+        return action
+    }
 }
 
 /// Optional action applied once when `PatientSessionsView` appears.
 enum SessionsInitialAction: Equatable {
-    /// Opens the new-session editor.
     case addSession
-    /// Opens the latest session for notes / summary, or a new session if none.
     case editLatestForSummary
-    /// Opens the questionnaire flow for the latest session, or a new session first.
     case addQuestionnaire
 }
 
@@ -165,14 +179,10 @@ enum PreparationMissingAction: Equatable {
     }
 }
 
-@MainActor
-@Observable
-final class GettingStartedRouter {
-    var pendingFocus: GettingStartedFocus?
-
-    func consumeFocus() -> GettingStartedFocus? {
-        let focus = pendingFocus
-        pendingFocus = nil
-        return focus
-    }
+/// Legacy focus cases still referenced while patient detail applies
+/// checklist navigation. Prefer `GettingStartedRouter.highlight`.
+enum GettingStartedFocus: Equatable {
+    case editTreatmentGoal
+    case sessions(SessionsInitialAction?)
+    case prepareNextSession
 }

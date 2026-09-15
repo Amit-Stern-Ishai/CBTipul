@@ -59,12 +59,19 @@ struct CombinedMoodQuestionnaireView: View {
         return session.questionnaire != initialQuestionnaire
     }
 
-    /// The patient's most recent questionnaire from before this session,
-    /// used to indicate the previous answers alongside each question.
+    /// The patient's most recent questionnaire from another session on or
+    /// before this session's date — used to show previous answers.
     private var previousQuestionnaire: CompletedQuestionnaire? {
         guard let cached = store.cachedQuestionnaires(for: patient) else { return nil }
-        let sessionDay = Calendar.current.startOfDay(for: session.date)
-        return cached.first { $0.sessionID != session.databaseID && $0.answeredDate < sessionDay }
+        return cached
+            .filter { record in
+                if let currentID = session.databaseID {
+                    return record.sessionID != currentID
+                }
+                return true
+            }
+            .filter { $0.answeredDate <= session.date }
+            .max { $0.answeredDate < $1.answeredDate }
     }
 
     var body: some View {
@@ -89,9 +96,7 @@ struct CombinedMoodQuestionnaireView: View {
         .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()
         .demoModeChrome()
-        .navigationTitle(patient.displayName)
-        // The session's date, which is saved as the answered date.
-        .navigationSubtitleIfAvailable(L10n.hebrewDate(session.date))
+        .navigationTitleWithSubtitle(patient.displayName, subtitle: L10n.hebrewDate(session.date))
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -267,8 +272,7 @@ struct CompletedQuestionnaireView: View {
         }
         .patientAtmosphere(accent)
         .themedScreen()
-        .navigationTitle(patientName ?? "")
-        .navigationSubtitleIfAvailable(L10n.hebrewDate(record.answeredDate))
+        .navigationTitleWithSubtitle(patientName ?? "", subtitle: L10n.hebrewDate(record.answeredDate))
     }
 }
 

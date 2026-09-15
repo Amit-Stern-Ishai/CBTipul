@@ -104,37 +104,26 @@ struct GettingStartedProgressTests {
     @Test func newUserWithNoDataHasEmptyProgress() {
         let progress = GettingStartedProgress.evaluate(
             patients: [],
-            questionnairesForPatient: { _ in nil },
-            hasPreparation: { _ in false },
-            hasCompletedDemoTour: false
+            questionnairesForPatient: { _ in nil }
         )
         #expect(progress.completedCount == 0)
         #expect(!progress.isComplete)
         #expect(!progress.hasPatient)
+        #expect(progress.currentStep == .createPatient)
     }
 
     @Test func realPatientsDoNotCountTowardTutorialSteps() {
         let patient = Patient(id: .integer(1), firstName: "A", lastName: "B")
         let progress = GettingStartedProgress.evaluate(
             patients: [patient],
-            questionnairesForPatient: { _ in [] },
-            hasPreparation: { _ in false },
-            hasCompletedDemoTour: false
+            questionnairesForPatient: { _ in [] }
         )
         #expect(!progress.hasPatient)
         #expect(progress.completedCount == 0)
     }
 
-    @Test func showcaseDemoPatientsDoNotCompleteAddPatientStep() {
+    @Test func showcaseDemoPatientsDoNotCompleteCreatePatientStep() {
         let demo = Patient(id: .text("demo-1"), firstName: "Demo", lastName: "One")
-        demo.formulation = PatientFormulation(
-            treatmentGoal: "goal",
-            coreBelief: nil,
-            keyAutomaticThoughts: [],
-            maintainingBehaviors: [],
-            keyCBTCycle: nil,
-            therapistHypothesis: nil
-        )
         demo.sessions = [Session(notes: "notes")]
         let progress = GettingStartedProgress.evaluate(
             patients: [demo],
@@ -145,54 +134,48 @@ struct GettingStartedProgressTests {
                     answeredDate: .now,
                     questionnaire: CombinedMoodQuestionnaire()
                 )]
-            },
-            hasPreparation: { _ in true },
-            hasCompletedDemoTour: true
+            }
         )
-        #expect(progress.hasCompletedDemoTour)
         #expect(!progress.hasPatient)
-        #expect(progress.completedCount == 1)
+        #expect(progress.completedCount == 0)
     }
 
     @Test func userAddedDemoPatientCountsForTutorial() {
         let patient = Patient(id: .text("demo-user-1"), firstName: "A", lastName: "B")
-        patient.formulation = PatientFormulation(
-            treatmentGoal: "הפחתת חרדה",
-            coreBelief: nil,
-            keyAutomaticThoughts: [],
-            maintainingBehaviors: [],
-            keyCBTCycle: nil,
-            therapistHypothesis: nil
-        )
         let session = Session(notes: "")
         patient.sessions = [session]
 
         let progress = GettingStartedProgress.evaluate(
             patients: [patient],
-            questionnairesForPatient: { _ in [] },
-            hasPreparation: { _ in false },
-            hasCompletedDemoTour: true
+            questionnairesForPatient: { _ in [] }
         )
-        #expect(progress.hasCompletedDemoTour)
         #expect(progress.hasPatient)
-        #expect(progress.hasTreatmentGoal)
         #expect(progress.hasSession)
-        #expect(!progress.hasSessionSummary)
-        #expect(progress.completedCount == 4)
+        #expect(!progress.hasSessionNotes)
+        #expect(progress.completedCount == 2)
+        #expect(progress.currentStep == .fillQuestionnaire)
+        #expect(!progress.isUnlocked(.recordSessionSummary))
     }
 
-    @Test func completedChecklistRequiresAllTutorialSignals() {
+    @Test func completedChecklistRequiresAllTutorialSignals() throws {
         let patient = Patient(id: .text("demo-user-99"), firstName: "A", lastName: "B")
-        patient.formulation = PatientFormulation(
-            treatmentGoal: "מטרה",
-            coreBelief: nil,
-            keyAutomaticThoughts: [],
-            maintainingBehaviors: [],
-            keyCBTCycle: nil,
-            therapistHypothesis: nil
-        )
         let session = Session(notes: "סיכום מפגש")
         session.databaseID = .text("demo-user-99-s1")
+        let analysisJSON = Data("""
+        {
+          "session_summary": "סיכום",
+          "key_situations": [],
+          "possible_nats": [],
+          "cbt_cycles": [],
+          "therapist_hypotheses": [],
+          "follow_up_questions": [],
+          "assignments_for_next_week": []
+        }
+        """.utf8)
+        session.structuredNotes = try JSONDecoder().decode(
+            WhisperService.CBTSessionAnalysis.self,
+            from: analysisJSON
+        )
         patient.sessions = [session]
 
         let questionnaire = CompletedQuestionnaire(
@@ -204,18 +187,19 @@ struct GettingStartedProgressTests {
 
         let progress = GettingStartedProgress.evaluate(
             patients: [patient],
-            questionnairesForPatient: { _ in [questionnaire] },
-            hasPreparation: { $0 == patient.id },
-            hasCompletedDemoTour: true
+            questionnairesForPatient: { _ in [questionnaire] }
         )
+        #expect(progress.hasPatient)
+        #expect(progress.hasSession)
+        #expect(progress.hasQuestionnaire)
+        #expect(progress.hasSessionNotes)
+        #expect(progress.hasAISummary)
         #expect(progress.isComplete)
-        #expect(progress.completedCount == 7)
+        #expect(progress.completedCount == 5)
     }
 
     @Test func summaryAcceptsStructuredNotesWithoutFreeText() {
-        let patient = Patient(id: .integer(1))
         let session = Session(notes: "   ")
-        // structuredNotes nil → no summary; nonempty notes → summary
         #expect(!GettingStartedProgress.sessionHasSummary(session))
 
         session.notes = "הערות"

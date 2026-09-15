@@ -82,10 +82,10 @@ enum L10n {
 
     // MARK: - Getting Started / first-run
 
-    static let welcomeTitle = "פחות תיעוד. יותר מקום לטיפול."
+    static let welcomeTitle = "בואו נכיר את האפליקציה"
     static let welcomeBody =
-        "סיביטיפול מסייעת לארגן את המידע הטיפולי, לעקוב אחר התקדמות ולהגיע מוכנים יותר למפגש הבא."
-    static let welcomePrimaryAction = "סיור באפליקציה"
+        "המדריך נכנס למצב הדגמה עם נתונים לדוגמה. כל מה שתיצרו במהלך המדריך יישמר במכשיר במצב ההדגמה בלבד — לא יועלה לשרת ולא ייכנס לקליניקה האמיתית."
+    static let welcomePrimaryAction = "המשך למצב הדגמה"
     static let welcomeSecondaryAction = "אפשר לעבור על זה אחר כך"
     static let welcomeInfoLink = "איך נשמר המידע?"
     static let welcomeInfoBody =
@@ -94,18 +94,20 @@ enum L10n {
 
     static let gettingStartedTitle = "הצעדים הראשונים"
     static let gettingStartedSubtitle =
-        "המדריך מתקיים במצב הדגמה — רואים נתונים לדוגמה ומוסיפים נתונים לדוגמה."
-    static func gettingStartedProgress(_ completed: Int, total: Int = 7) -> String {
+        "השלימו את הצעדים לפי הסדר. הכפתור הרלוונטי יהבהב כדי להדריך אתכם."
+    static func gettingStartedProgress(_ completed: Int, total: Int = 5) -> String {
         "\(completed) מתוך \(total) הושלמו"
     }
     static let gettingStartedStepDemoTour = "סיור במצב הדגמה"
-    static let gettingStartedStepAddPatient = "הוספת מטופל/ת לדוגמה"
+    static let gettingStartedStepAddPatient = "יצירת מטופל/ת"
     static let gettingStartedStepTreatmentGoal = "הגדרת מטרת טיפול"
     static let gettingStartedStepFirstSession = "יצירת מפגש"
-    static let gettingStartedStepQuestionnaire = "הוספת שאלון"
-    static let gettingStartedStepSessionSummary = "תיעוד סיכום מפגש"
+    static let gettingStartedStepQuestionnaire = "מילוי שאלון"
+    static let gettingStartedStepSessionSummary = "הקלטת סיכום מפגש"
+    static let gettingStartedStepAISummary = "יצירת סיכום AI"
     static let gettingStartedStepPreparation = "הכנה למפגש הבא"
-    static let gettingStartedCompleteMessage = "ההגדרה הראשונית הושלמה"
+    static let gettingStartedCompleteMessage = "המדריך הושלם"
+    static let gettingStartedRestartAction = "התחל מחדש"
     static let gettingStartedDismissAccessibilityLabel = "הסתרת מדריך ההתחלה"
     static let gettingStartedGuideSettingsTitle = "מדריך התחלה"
     static let demoModeBannerTitle = "מצב הדגמה"

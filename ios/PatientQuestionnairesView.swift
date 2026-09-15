@@ -48,8 +48,7 @@ struct PatientQuestionnairesView: View {
         .patientAtmosphere(patientColor)
         .background(Theme.base.ignoresSafeArea())
         .demoModeChrome()
-        .navigationTitle(L10n.questionnairesTitle)
-        .navigationSubtitleIfAvailable(patient.displayName)
+        .navigationTitleWithSubtitle(L10n.questionnairesTitle, subtitle: patient.displayName)
         .task(id: mode) {
             guard mode == .graphs else { return }
             isPreparingGraphs = true

@@ -16,6 +16,7 @@ struct SessionEditorView: View {
     
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
+    @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(\.dismiss) private var dismiss
 
     @State private var isSaving = false
@@ -263,6 +264,7 @@ struct SessionEditorView: View {
                         }
                         .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                   || isAnonymizingTranscription)
+                        .tutorialPulse(gettingStartedRouter.highlight == .aiSummary)
                         .listRowBackground(groupBorderedRow(.last))
                     }
 
@@ -488,6 +490,7 @@ struct SessionEditorView: View {
             }
             .buttonStyle(.plain)
             .disabled(isTranscribing || isAnonymizingTranscription)
+            .tutorialPulse(gettingStartedRouter.highlight == .recordNotes)
         }
     }
 
@@ -707,6 +710,7 @@ struct SessionEditorView: View {
                 } label: {
                     Label(L10n.addQuestionnaireAction, systemImage: "plus")
                 }
+                .tutorialPulse(gettingStartedRouter.highlight == .fillQuestionnaire)
             }
         }
         // Only one of the section's rows is ever visible at a time.
@@ -782,5 +786,6 @@ struct SessionEditorView: View {
                       isNew: true)
         .environment(auth)
         .environment(PatientStore(client: auth.client))
+        .environment(GettingStartedRouter())
         .appTextSize()
 }
