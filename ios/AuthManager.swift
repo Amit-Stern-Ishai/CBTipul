@@ -50,6 +50,10 @@ final class AuthManager {
 
     private(set) var currentUserEmail: String?
 
+    /// Supabase Auth user id for the signed-in session. Used to namespace
+    /// device-local preferences that must not key off email.
+    private(set) var currentUserId: String?
+
     /// Error from the last email-verification deep link, shown by the
     /// sign-in screen; cleared when a callback succeeds.
     private(set) var callbackError: String?
@@ -73,6 +77,7 @@ final class AuthManager {
             for await (event, session) in stream {
                 AppLog.auth.info("Auth state changed: \(event.rawValue, privacy: .public), signed in: \(session != nil)")
                 self?.currentUserEmail = session?.user.email
+                self?.currentUserId = session?.user.id.uuidString
             }
         }
     }
@@ -195,6 +200,7 @@ final class AuthManager {
         Task {
             try? await client.auth.signOut()
             currentUserEmail = nil
+            currentUserId = nil
         }
     }
 
@@ -213,6 +219,7 @@ final class AuthManager {
         }
         try? await client.auth.signOut()
         currentUserEmail = nil
+        currentUserId = nil
     }
 
     private func ensureConfigured() throws {

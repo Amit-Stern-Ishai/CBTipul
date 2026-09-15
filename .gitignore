@@ -1,5 +1,6 @@
 .DS_Store
 ios/OpenAIConfig.swift
+.derivedData/
 
 # Android
 android/.gradle/

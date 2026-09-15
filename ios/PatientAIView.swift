@@ -83,6 +83,7 @@ struct PatientAIView: View {
         .safeAreaInset(edge: .bottom) {
             inputBar
         }
+        .demoModeChrome()
         .navigationTitle(L10n.aiChatNavigationTitle)
         .navigationSubtitleIfAvailable(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)

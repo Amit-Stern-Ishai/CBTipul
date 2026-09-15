@@ -3,14 +3,35 @@ import SwiftUI
 /// Lists the therapist's patients and allows adding new ones.
 struct PatientListView: View {
     @Environment(PatientStore.self) private var store
+    @Environment(OnboardingStore.self) private var onboarding
 
     @State private var isAddingPatient = false
     @State private var isShowingSettings = false
+    @State private var isShowingWelcome = false
     @State private var isLoading = false
+    @State private var hasFinishedInitialLoad = false
     @State private var loadError: String?
+    @State private var path = NavigationPath()
+    @State private var gettingStartedRouter = GettingStartedRouter()
+    @State private var progress = GettingStartedProgress.empty
+
+    private var shouldShowWelcome: Bool {
+        hasFinishedInitialLoad
+            && !isLoading
+            && !store.isDemoMode
+            && store.patients.filter { !DemoData.isDemoID($0.id) }.isEmpty
+            && !onboarding.welcomeDismissed
+            && loadError == nil
+    }
+
+    private var shouldShowGettingStartedCard: Bool {
+        hasFinishedInitialLoad
+            && !onboarding.checklistDismissed
+            && (onboarding.welcomeDismissed || !store.patients.filter { !DemoData.isDemoID($0.id) }.isEmpty || store.isDemoMode)
+    }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if isLoading && store.patients.isEmpty {
                     ProgressView(L10n.loadingPatientsLabel)
@@ -26,32 +47,13 @@ struct PatientListView: View {
                         .buttonStyle(.borderedProminent)
                     }
                 } else if store.patients.isEmpty {
-                    ContentUnavailableView {
-                        Label(L10n.noPatientsTitle, systemImage: "person.crop.circle.badge.plus")
-                    } description: {
-                        Text(L10n.addFirstPatientMessage)
-                    } actions: {
-                        Button(L10n.addPatientAction) { isAddingPatient = true }
-                            .buttonStyle(.borderedProminent)
-                    }
+                    emptyPatientsContent
                 } else {
-                    List(sortedPatients) { patient in
-                        NavigationLink(value: patient) {
-                            PatientRow(patient: patient)
-                        }
-                        // Gold — the app color — outlines the groups on
-                        // screens that belong to no single patient.
-                        .listRowBackground(groupBorderedRow(
-                            .at(sortedPatients.firstIndex(of: patient) ?? 0,
-                                of: sortedPatients.count),
-                            accent: Theme.gold))
-                        .listRowSeparatorTint(Theme.borderFaint)
-                    }
-                    .patientAtmosphere(Theme.gold)
-                    .themedScreen()
+                    patientsListContent
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .demoModeChrome()
             .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
             .animation(.easeInOut(duration: 0.25), value: isLoading)
@@ -84,7 +86,106 @@ struct PatientListView: View {
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView()
             }
+            .fullScreenCover(isPresented: $isShowingWelcome) {
+                WelcomeOnboardingView(
+                    onStartDemoTour: {
+                        startDemoTour()
+                    },
+                    onSkip: {
+                        onboarding.dismissWelcome()
+                        isShowingWelcome = false
+                    }
+                )
+                .appTextSize()
+            }
+            .onChange(of: shouldShowWelcome, initial: true) { _, show in
+                isShowingWelcome = show
+            }
+            .onChange(of: store.patients.count, initial: true) { _, _ in
+                refreshProgress()
+            }
+            .onChange(of: path.count) { _, count in
+                if count == 0 { refreshProgress() }
+            }
+            .onAppear { refreshProgress() }
+            .task(id: store.patients.map(\.id.queryValue).joined(separator: ",")) {
+                await loadQuestionnairesForProgress()
+                refreshProgress()
+            }
         }
+        .onChange(of: store.isDemoMode) { wasDemo, isDemo in
+            // Leaving demo from any screen should land on the real patient list.
+            guard wasDemo, !isDemo else { return }
+            path = NavigationPath()
+            isAddingPatient = false
+            isShowingSettings = false
+            refreshProgress()
+        }
+        .environment(gettingStartedRouter)
+    }
+
+    @ViewBuilder
+    private var gettingStartedSection: some View {
+        if shouldShowGettingStartedCard {
+            GettingStartedCard(
+                progress: progress,
+                onSelectStep: handleGettingStartedStep,
+                onDismiss: { onboarding.dismissChecklist() }
+            )
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+        }
+    }
+
+    private var emptyPatientsContent: some View {
+        VStack(spacing: 0) {
+            gettingStartedSection
+            ContentUnavailableView {
+                Label(L10n.noPatientsTitle, systemImage: "person.crop.circle.badge.plus")
+            } description: {
+                Text(L10n.addFirstPatientMessage)
+            } actions: {
+                Button(L10n.emptyPatientsPrimaryAction) { isAddingPatient = true }
+                    .buttonStyle(.borderedProminent)
+                if !store.isDemoMode {
+                    Button(L10n.enterDemoModeAction) { startDemoTour() }
+                        .buttonStyle(.bordered)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var patientsListContent: some View {
+        List {
+            if shouldShowGettingStartedCard {
+                Section {
+                    GettingStartedCard(
+                        progress: progress,
+                        onSelectStep: handleGettingStartedStep,
+                        onDismiss: { onboarding.dismissChecklist() }
+                    )
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                }
+            }
+            Section {
+                ForEach(sortedPatients) { patient in
+                    NavigationLink(value: patient) {
+                        PatientRow(patient: patient)
+                    }
+                    .listRowBackground(groupBorderedRow(
+                        .at(sortedPatients.firstIndex(of: patient) ?? 0,
+                            of: sortedPatients.count),
+                        accent: Theme.gold))
+                    .listRowSeparatorTint(Theme.borderFaint)
+                }
+            }
+        }
+        .patientAtmosphere(Theme.gold)
+        .themedScreen()
     }
 
     /// Patients with the active ones on top, alphabetical within each group,
@@ -100,6 +201,7 @@ struct PatientListView: View {
 
     private func load() async {
         store.loadCachedPatients()
+        refreshProgress()
         isLoading = true
         loadError = nil
         do {
@@ -110,6 +212,79 @@ struct PatientListView: View {
             loadError = error.localizedDescription
         }
         isLoading = false
+        hasFinishedInitialLoad = true
+        await loadQuestionnairesForProgress()
+        refreshProgress()
+    }
+
+    private func refreshProgress() {
+        progress = GettingStartedProgress.evaluate(
+            store: store,
+            hasCompletedDemoTour: onboarding.hasCompletedDemoTour
+        )
+    }
+
+    /// Fills questionnaire caches needed for Getting Started progress.
+    private func loadQuestionnairesForProgress() async {
+        for patient in store.patients where store.cachedQuestionnaires(for: patient) == nil {
+            _ = try? await store.loadQuestionnaires(for: patient)
+        }
+    }
+
+    private func startDemoTour() {
+        store.enterDemoMode()
+        onboarding.markDemoTourCompleted()
+        onboarding.dismissWelcome()
+        isShowingWelcome = false
+        refreshProgress()
+        if let first = sortedPatients.first {
+            path.append(first)
+        }
+    }
+
+    /// Checklist steps after the tour stay inside the local demo clinic.
+    private func ensureDemoModeForTutorial() {
+        guard !store.isDemoMode else { return }
+        store.enterDemoMode()
+        onboarding.markDemoTourCompleted()
+        onboarding.dismissWelcome()
+        isShowingWelcome = false
+        refreshProgress()
+    }
+
+    private func handleGettingStartedStep(_ step: GettingStartedStep) {
+        switch step {
+        case .demoTour:
+            startDemoTour()
+        case .addPatient:
+            ensureDemoModeForTutorial()
+            isAddingPatient = true
+        case .treatmentGoal:
+            ensureDemoModeForTutorial()
+            navigateToTutorialPatient(focus: .editTreatmentGoal)
+        case .firstSession:
+            ensureDemoModeForTutorial()
+            navigateToTutorialPatient(focus: .sessions(.addSession))
+        case .questionnaire:
+            ensureDemoModeForTutorial()
+            navigateToTutorialPatient(focus: .sessions(.addQuestionnaire))
+        case .sessionSummary:
+            ensureDemoModeForTutorial()
+            navigateToTutorialPatient(focus: .sessions(.editLatestForSummary))
+        case .preparation:
+            ensureDemoModeForTutorial()
+            navigateToTutorialPatient(focus: .prepareNextSession)
+        }
+    }
+
+    private func navigateToTutorialPatient(focus: GettingStartedFocus) {
+        let tutorial = sortedPatients.first { DemoData.isTutorialPatientID($0.id) }
+        guard let patient = tutorial else {
+            isAddingPatient = true
+            return
+        }
+        gettingStartedRouter.pendingFocus = focus
+        path.append(patient)
     }
 }
 
@@ -265,5 +440,6 @@ struct StatusBadge: View {
     return PatientListView()
         .environment(auth)
         .environment(store)
+        .environment(OnboardingStore.shared)
         .appTextSize()
 }

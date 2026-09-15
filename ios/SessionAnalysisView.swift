@@ -145,6 +145,7 @@ struct SessionAnalysisView: View {
             }
             .patientAtmosphere(accent)
             .background(Theme.base)
+            .demoModeChrome()
             .navigationTitle(L10n.sessionSummaryTitle)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

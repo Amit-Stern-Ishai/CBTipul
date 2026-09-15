@@ -60,6 +60,7 @@ struct AddPatientView: View {
             .themedScreen()
             .dismissesKeyboardOnTap()
             .animation(.easeInOut(duration: 0.2), value: errorMessage)
+            .demoModeChrome()
             .navigationTitle(L10n.newPatientTitle)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

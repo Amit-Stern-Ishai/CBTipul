@@ -14,6 +14,7 @@ struct CombinedMoodQuestionnaireView: View {
     var showsCancelButton = false
 
     @Environment(PatientStore.self) private var store
+    @Environment(OnboardingStore.self) private var onboarding
     @Environment(\.dismiss) private var dismiss
 
     @State private var isSaving = false
@@ -28,6 +29,7 @@ struct CombinedMoodQuestionnaireView: View {
     @State private var isShowingDeleteCodeChallenge = false
     @State private var isShowingBackWarning = false
     @State private var isShowingIncompleteAlert = false
+    @State private var isShowingFirstQuestionnaireTip = false
     /// Snapshot of the answers when the screen opened, used to detect
     /// unsaved changes and to restore them on discard (the session object
     /// is shared, so edits must not linger in memory unsaved).
@@ -86,6 +88,7 @@ struct CombinedMoodQuestionnaireView: View {
         }
         .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()
+        .demoModeChrome()
         .navigationTitle(patient.displayName)
         // The session's date, which is saved as the answered date.
         .navigationSubtitleIfAvailable(L10n.hebrewDate(session.date))
@@ -180,6 +183,14 @@ struct CombinedMoodQuestionnaireView: View {
         .interactiveDismissDisabled(hasUnsavedChanges)
         .busyOverlay(isSaving, label: busyLabel)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
+        .sheet(isPresented: $isShowingFirstQuestionnaireTip) {
+            ContextualTipSheet(message: L10n.firstQuestionnaireTipBody) {
+                onboarding.markFirstQuestionnaireTipSeen()
+                isShowingFirstQuestionnaireTip = false
+            }
+            .presentationDetents([.medium])
+            .appTextSize()
+        }
         .task {
             if initialQuestionnaire == nil {
                 initialQuestionnaire = session.questionnaire
@@ -188,6 +199,9 @@ struct CombinedMoodQuestionnaireView: View {
             // screen is opened before the cache was ever filled.
             if store.cachedQuestionnaires(for: patient) == nil {
                 _ = try? await store.loadQuestionnaires(for: patient)
+            }
+            if !isExisting, !onboarding.hasSeenFirstQuestionnaireTip {
+                isShowingFirstQuestionnaireTip = true
             }
         }
     }
@@ -641,6 +655,7 @@ struct AnswerScaleView: View {
         CombinedMoodQuestionnaireView(patient: Patient(id: .integer(1), firstName: "Alex"), session: Session())
     }
     .environment(PatientStore(client: AuthManager().client))
+    .environment(OnboardingStore.shared)
 }
 
 #Preview("Read-only") {

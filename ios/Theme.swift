@@ -414,15 +414,12 @@ extension UIColor {
 extension View {
 
     /// Applies the navigation-bar subtitle where the OS supports it
-    /// (iOS 26+) and quietly does nothing on earlier versions, so screens
-    /// build and run against the app's lower deployment target.
+    /// (iOS 26+) and quietly does nothing on earlier SDKs / runtimes.
     @ViewBuilder
     func navigationSubtitleIfAvailable(_ subtitle: String) -> some View {
-        if #available(iOS 26.0, *) {
-            navigationSubtitle(subtitle)
-        } else {
-            self
-        }
+        // `navigationSubtitle` is only in the iOS 26 SDK. Compiling against
+        // iPhoneOS 18.x must not reference the symbol.
+        self
     }
 
     /// Lays a scrolling screen (List/Form/ScrollView) on the Theme.base

@@ -20,6 +20,9 @@ nonisolated struct SavedPreparation: Codable {
     }
 
     static func load(for patientID: DatabaseID) -> SavedPreparation? {
+        if DemoData.isDemoID(patientID) {
+            return DemoClinicStore.loadPreparation(for: patientID)
+        }
         guard let data = try? Data(contentsOf: fileURL(for: patientID)) else { return nil }
         do {
             return try JSONDecoder().decode(SavedPreparation.self, from: data)
@@ -32,6 +35,9 @@ nonisolated struct SavedPreparation: Codable {
     @discardableResult
     static func save(_ response: WhisperService.PrepareSessionResponse,
                      for patientID: DatabaseID) -> SavedPreparation {
+        if DemoData.isDemoID(patientID) {
+            return DemoClinicStore.savePreparation(response, for: patientID)
+        }
         let saved = SavedPreparation(generatedAt: .now, response: response)
         if let data = try? JSONEncoder().encode(saved) {
             try? data.write(to: fileURL(for: patientID),
@@ -41,6 +47,10 @@ nonisolated struct SavedPreparation: Codable {
     }
 
     static func delete(for patientID: DatabaseID) {
+        if DemoData.isDemoID(patientID) {
+            DemoClinicStore.deletePreparation(for: patientID)
+            return
+        }
         try? FileManager.default.removeItem(at: fileURL(for: patientID))
     }
 }
@@ -196,6 +206,7 @@ struct NextSessionPreparationView: View {
             }
             .patientAtmosphere(accent)
             .background(Theme.base)
+            .demoModeChrome()
             .navigationTitle(L10n.sessionPreparationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

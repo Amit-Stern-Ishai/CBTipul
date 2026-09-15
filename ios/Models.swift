@@ -240,7 +240,7 @@ enum PHQ9Severity {
 ///
 /// Answers are stored as optional integers so an unanswered question can be
 /// distinguished from an answer of `0`. Each answer is in the range 0...3.
-struct CombinedMoodQuestionnaire: Equatable {
+struct CombinedMoodQuestionnaire: Equatable, Codable {
     /// The Supabase table combined questionnaires are saved to.
     static let tableName = "CombinedMood"
 
@@ -287,7 +287,7 @@ nonisolated struct QuestionnaireNotes: Codable {
 }
 
 /// A filled-in questionnaire loaded back from the database.
-struct CompletedQuestionnaire: Identifiable {
+struct CompletedQuestionnaire: Identifiable, Codable {
     let databaseID: DatabaseID
     let sessionID: DatabaseID?
     let answeredDate: Date

@@ -100,6 +100,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
+    @Environment(OnboardingStore.self) private var onboarding
 
     @State private var presentedLink: OfficialLink?
     @State private var isShowingDeleteAccountConfirmation = false
@@ -190,6 +191,21 @@ struct SettingsView: View {
                         }
                     }
                     .listRowBackground(groupBorderedRow(.first, accent: Theme.gold))
+                    Button {
+                        onboarding.showChecklistAgain()
+                        dismiss()
+                    } label: {
+                        Label {
+                            Text(L10n.gettingStartedGuideSettingsTitle)
+                        } icon: {
+                            Image(systemName: "list.bullet.clipboard")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Theme.gold)
+                                .frame(width: 28, height: 28)
+                                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
+                        }
+                    }
+                    .listRowBackground(groupBorderedRow(.middle, accent: Theme.gold))
                     externalLink(L10n.privacyPolicyTitle, icon: "hand.raised",
                                  url: URL(string: "https://cbtipul.com/privacy")!)
                         .listRowBackground(groupBorderedRow(.middle, accent: Theme.gold))
@@ -271,6 +287,7 @@ struct SettingsView: View {
             }
             .patientAtmosphere(Theme.gold)
             .themedScreen()
+            .demoModeChrome()
             .navigationTitle(L10n.settingsTitle)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -363,7 +380,12 @@ struct SettingsView: View {
         isDeletingAccount = true
         Task {
             do {
+                // Capture before Auth sign-out clears the active user id.
+                let userId = auth.currentUserId
                 try await auth.deleteAccount()
+                if let userId {
+                    onboarding.clearPersistedState(for: userId)
+                }
                 store.wipeLocalData()
                 dismiss()
             } catch {
@@ -382,43 +404,9 @@ private struct OfficialLinkWebView: View {
     let url: URL
 
     var body: some View {
-        if #available(iOS 26.0, *) {
-            ModernOfficialLinkWebView(url: url)
-        } else {
-            LegacyOfficialLinkWebView(url: url)
-        }
-    }
-}
-
-@available(iOS 26.0, *)
-private struct ModernOfficialLinkWebView: View {
-    @State private var page: WebPage
-
-    init(url: URL) {
-        let page = WebPage()
-        page.load(URLRequest(url: url))
-        _page = State(initialValue: page)
-    }
-
-    var body: some View {
-        WebView(page)
-            // Hidden until loaded: the web view's blank first frame would
-            // otherwise flash before the page renders. The pages are light,
-            // so a white backdrop matches the loaded content, and the
-            // loader stays light gray in both appearances instead of the
-            // themed busy card (navy in dark mode).
-            .opacity(page.isLoading ? 0 : 1)
-            .background(Color.white.ignoresSafeArea())
-            .overlay {
-                if page.isLoading {
-                    ProgressView()
-                        .controlSize(.large)
-                        .tint(.gray)
-                        .transition(.opacity)
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: page.isLoading)
-            .ignoresSafeArea(edges: .bottom)
+        // SwiftUI `WebPage` / `WebView` require the iOS 26 SDK. Use the
+        // WKWebView path on the current toolchain.
+        LegacyOfficialLinkWebView(url: url)
     }
 }
 
@@ -527,4 +515,5 @@ private struct TextSizePickerView: View {
     SettingsView()
         .environment(auth)
         .environment(PatientStore(client: auth.client))
+        .environment(OnboardingStore.shared)
 }

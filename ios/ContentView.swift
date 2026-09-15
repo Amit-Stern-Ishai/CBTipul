@@ -90,6 +90,10 @@ struct ContentView: View {
             // swaps in that account's own stored decision.
             AIDataSharingConsentStore.shared.setActiveUser(email: email)
         }
+        .onChange(of: auth.currentUserId, initial: true) { _, userId in
+            OnboardingStore.shared.setActiveUser(id: userId)
+        }
+        .environment(OnboardingStore.shared)
         .task {
             // Keep the splash up briefly so the session can be restored
             // without flashing the sign-in screen.

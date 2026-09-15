@@ -8,6 +8,8 @@ struct PatientDetailView: View {
 
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
+    @Environment(GettingStartedRouter.self) private var gettingStartedRouter
+    @Environment(OnboardingStore.self) private var onboarding
     @Environment(\.dismiss) private var dismiss
 
     @State private var isSaving = false
@@ -32,6 +34,13 @@ struct PatientDetailView: View {
     @State private var isPreparing = false
     @State private var preparationResult: NextSessionPreparationResult?
     @State private var savedPreparation: SavedPreparation?
+    /// Programmatic push into sessions from Getting Started.
+    @State private var isShowingSessions = false
+    @State private var sessionsInitialAction: SessionsInitialAction?
+    @State private var isShowingPreparationInsufficient = false
+    @State private var preparationMissingAction: PreparationMissingAction = .addSession
+    @State private var isShowingFirstPreparationTip = false
+    @State private var pendingPreparationAfterTip = false
 
     /// A saved preparation goes stale once a session dated after its
     /// generation has already taken place — i.e. the session it prepared
@@ -236,7 +245,7 @@ struct PatientDetailView: View {
                 .listRowBackground(groupBorderedRow(.middle))
 
                 Button {
-                    prepareNextSession()
+                    requestPrepareNextSession()
                 } label: {
                     HStack {
                         iconChip("wand.and.stars", title: L10n.prepareNextSessionAction)
@@ -348,6 +357,7 @@ struct PatientDetailView: View {
         }
         .patientAtmosphere(patientColor)
         .themedScreen()
+        .demoModeChrome()
 //        .navigationTitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -407,6 +417,7 @@ struct PatientDetailView: View {
                     .listRowBackground(Theme.surface)
                 }
                 .themedScreen()
+                .demoModeChrome()
                 .navigationTitle(L10n.editPatientNameTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -452,6 +463,7 @@ struct PatientDetailView: View {
                 // the form shows the system grey grouped background, which
                 // then flips appearance when the keyboard focuses the field.
                 .themedScreen()
+                .demoModeChrome()
                 .navigationTitle(L10n.treatmentGoalSection)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -470,6 +482,32 @@ struct PatientDetailView: View {
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .animation(.easeInOut(duration: 0.2), value: isTranscribing)
         .animation(.easeInOut(duration: 0.2), value: isAnonymizingTranscription)
+        .navigationDestination(isPresented: $isShowingSessions) {
+            PatientSessionsView(patient: patient, initialAction: sessionsInitialAction)
+        }
+        .sheet(isPresented: $isShowingPreparationInsufficient) {
+            PreparationInsufficientSheet(action: preparationMissingAction) {
+                isShowingPreparationInsufficient = false
+                handlePreparationMissingAction(preparationMissingAction)
+            }
+            .presentationDetents([.medium])
+            .appTextSize()
+        }
+        .sheet(isPresented: $isShowingFirstPreparationTip) {
+            ContextualTipSheet(
+                message: L10n.firstPreparationTipBody,
+                onContinue: {
+                    onboarding.markFirstPreparationTipSeen()
+                    isShowingFirstPreparationTip = false
+                    if pendingPreparationAfterTip {
+                        pendingPreparationAfterTip = false
+                        prepareNextSession()
+                    }
+                }
+            )
+            .presentationDetents([.medium])
+            .appTextSize()
+        }
         .onAppear {
             if initialNotes == nil {
                 initialNotes = patient.notes
@@ -477,12 +515,69 @@ struct PatientDetailView: View {
             if savedPreparation == nil {
                 savedPreparation = SavedPreparation.load(for: patient.id)
             }
+            applyGettingStartedFocusIfNeeded()
         }
         .task {
             // The last-questionnaire row needs the questionnaire cache filled.
             if store.cachedQuestionnaires(for: patient) == nil {
                 _ = try? await store.loadQuestionnaires(for: patient)
             }
+        }
+    }
+
+    /// Consumes a one-shot Getting Started focus into the matching existing UI.
+    private func applyGettingStartedFocusIfNeeded() {
+        guard let focus = gettingStartedRouter.consumeFocus() else { return }
+        switch focus {
+        case .editTreatmentGoal:
+            goalDraft = treatmentGoal.wrappedValue
+            isEditingGoal = true
+        case .sessions(let action):
+            sessionsInitialAction = action
+            isShowingSessions = true
+        case .prepareNextSession:
+            requestPrepareNextSession()
+        }
+    }
+
+    /// Gates preparation behind useful clinical input and a one-time tip.
+    private func requestPrepareNextSession() {
+        errorMessage = nil
+        Task {
+            let questionnaires: [CompletedQuestionnaire]
+            if let cached = store.cachedQuestionnaires(for: patient) {
+                questionnaires = cached
+            } else {
+                questionnaires = (try? await store.loadQuestionnaires(for: patient)) ?? []
+            }
+            if !GettingStartedProgress.hasUsefulPreparationInput(
+                patient: patient,
+                questionnaires: questionnaires
+            ) {
+                preparationMissingAction = GettingStartedProgress.missingPreparationAction(for: patient)
+                isShowingPreparationInsufficient = true
+                return
+            }
+            if !onboarding.hasSeenFirstPreparationTip {
+                pendingPreparationAfterTip = true
+                isShowingFirstPreparationTip = true
+                return
+            }
+            prepareNextSession()
+        }
+    }
+
+    private func handlePreparationMissingAction(_ action: PreparationMissingAction) {
+        switch action {
+        case .addSession:
+            sessionsInitialAction = .addSession
+            isShowingSessions = true
+        case .addSessionSummary:
+            sessionsInitialAction = .editLatestForSummary
+            isShowingSessions = true
+        case .addQuestionnaire:
+            sessionsInitialAction = .addQuestionnaire
+            isShowingSessions = true
         }
     }
 
@@ -706,4 +801,6 @@ struct PatientDetailView: View {
     }
     .environment(auth)
     .environment(PatientStore(client: auth.client))
+    .environment(GettingStartedRouter())
+    .environment(OnboardingStore.shared)
 }

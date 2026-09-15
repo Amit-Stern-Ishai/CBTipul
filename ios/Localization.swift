@@ -56,8 +56,9 @@ enum L10n {
     static let patientsTitle = "מטופלים/ות"
     static let loadingPatientsLabel = "טעינת מטופלים..."
     static let couldntLoadPatientsTitle = "טעינת מטופלים נכשלה"
-    static let noPatientsTitle = "אין מטופלים עדיין"
-    static let addFirstPatientMessage = "אנא ליצור מטופל/ת כדי להתחיל"
+    static let noPatientsTitle = "עדיין אין מטופלים"
+    static let addFirstPatientMessage =
+        "הוספת מטופל/ת מאפשרת להתחיל לתעד מפגשים, שאלונים והתקדמות טיפולית."
     static let addPatientAction = "הוספת מטופל/ת"
     static let noSessionsYetLabel = "אין פגישות עדיין"
     static let newPatientTitle = "מטופל/ת חדש/ה"
@@ -78,6 +79,58 @@ enum L10n {
     static let lastPreparationAction = "ההכנה האחרונה"
     
     static let outdatedBadge = "לא מעודכן"
+
+    // MARK: - Getting Started / first-run
+
+    static let welcomeTitle = "פחות תיעוד. יותר מקום לטיפול."
+    static let welcomeBody =
+        "סיביטיפול מסייעת לארגן את המידע הטיפולי, לעקוב אחר התקדמות ולהגיע מוכנים יותר למפגש הבא."
+    static let welcomePrimaryAction = "סיור באפליקציה"
+    static let welcomeSecondaryAction = "אפשר לעבור על זה אחר כך"
+    static let welcomeInfoLink = "איך נשמר המידע?"
+    static let welcomeInfoBody =
+        "שמות המטופלים נשמרים באופן מוצפן במכשיר בלבד ואינם מועלים לשרת. מידע אחר נשמר ומעובד בהתאם למדיניות הפרטיות ולהסכמות שניתנו באפליקציה."
+    static let welcomeInfoDoneAction = "סגור"
+
+    static let gettingStartedTitle = "הצעדים הראשונים"
+    static let gettingStartedSubtitle =
+        "המדריך מתקיים במצב הדגמה — רואים נתונים לדוגמה ומוסיפים נתונים לדוגמה."
+    static func gettingStartedProgress(_ completed: Int, total: Int = 7) -> String {
+        "\(completed) מתוך \(total) הושלמו"
+    }
+    static let gettingStartedStepDemoTour = "סיור במצב הדגמה"
+    static let gettingStartedStepAddPatient = "הוספת מטופל/ת לדוגמה"
+    static let gettingStartedStepTreatmentGoal = "הגדרת מטרת טיפול"
+    static let gettingStartedStepFirstSession = "יצירת מפגש"
+    static let gettingStartedStepQuestionnaire = "הוספת שאלון"
+    static let gettingStartedStepSessionSummary = "תיעוד סיכום מפגש"
+    static let gettingStartedStepPreparation = "הכנה למפגש הבא"
+    static let gettingStartedCompleteMessage = "ההגדרה הראשונית הושלמה"
+    static let gettingStartedDismissAccessibilityLabel = "הסתרת מדריך ההתחלה"
+    static let gettingStartedGuideSettingsTitle = "מדריך התחלה"
+    static let demoModeBannerTitle = "מצב הדגמה"
+    static let demoModeBannerBody = "נתונים לדוגמה במכשיר בלבד — לא נשמרים בשרת."
+    static let demoModeExitShort = "יציאה"
+    static let exitDemoModeAction = "יציאה ממצב הדגמה"
+    static let enterDemoModeAction = "כניסה למצב הדגמה"
+
+    static let emptyPatientsPrimaryAction = "הוספת מטופל/ת ראשון/ה"
+    static let emptySessionsTitle = "עדיין אין מפגשים"
+    static let emptySessionsBody =
+        "הוספת מפגש מאפשרת לתעד סיכומים, לצרף שאלונים ולעקוב אחר התקדמות הטיפול."
+    static let emptySessionsPrimaryAction = "הוספת מפגש ראשון"
+    static let emptyQuestionnairesTitle = "עדיין לא נוספו שאלונים"
+    static let emptyQuestionnairesBody =
+        "שאלונים מאפשרים לעקוב אחר שינויים בתסמינים לאורך זמן ולהציג תשובות קודמות במילוי הבא."
+    static let emptyQuestionnairesPrimaryAction = "הוספת שאלון"
+    static let preparationInsufficientTitle = "עדיין אין מספיק מידע להכנה"
+    static let preparationInsufficientBody =
+        "מומלץ להוסיף לפחות סיכום מפגש אחד או שאלון כדי ליצור הכנה שימושית יותר."
+    static let firstPreparationTipBody =
+        "איכות ההכנה משתפרת ככל שנוספים מפגשים ושאלונים."
+    static let firstQuestionnaireTipBody =
+        "תשובות קודמות יופיעו במילוי שאלונים בהמשך."
+    static let contextualTipContinueAction = "המשך"
     
     // MARK: - Sessions
     

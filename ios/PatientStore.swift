@@ -257,6 +257,10 @@ final class PatientStore {
     /// sync by `saveQuestionnaire`.
     private(set) var questionnairesByPatient: [DatabaseID: [CompletedQuestionnaire]] = [:]
 
+    /// When true, the in-memory clinic is the local demo sample — no
+    /// Supabase writes, and network reloads are skipped.
+    private(set) var isDemoMode = false
+
     /// `anonymizeText` overrides the anonymization call, for tests only;
     /// the app always uses `ClinicalTextAnonymizer` on the shared client.
     init(client: SupabaseClient,
@@ -265,6 +269,130 @@ final class PatientStore {
         let anonymizer = ClinicalTextAnonymizer(client: client)
         textGate = ClinicalTextGate(
             anonymize: anonymizeText ?? { try await anonymizer.anonymize($0) }
+        )
+    }
+
+    /// Installs the local demo clinic: restores the last saved demo snapshot
+    /// when one exists, otherwise seeds from `DemoData` and persists it.
+    func enterDemoMode() {
+        isDemoMode = true
+        if let snapshot = DemoClinicStore.loadClinic() {
+            applyDemoSnapshot(snapshot)
+            AppLog.store.notice("Restored demo clinic with \(self.patients.count) patients")
+        } else {
+            let bundle = DemoData.makeBundle()
+            patients = bundle.patients
+            questionnairesByPatient = bundle.questionnairesByPatient
+            for (patientID, response) in bundle.preparationsByPatient {
+                _ = SavedPreparation.save(response, for: patientID)
+            }
+            for patient in patients {
+                if let name = patient.localName, !name.isEmpty {
+                    DemoClinicStore.saveName(name, for: patient.id)
+                } else if !patient.backendName.isEmpty {
+                    DemoClinicStore.saveName(patient.backendName, for: patient.id)
+                    patient.localName = patient.backendName
+                }
+                markFormulationSafe(patient.formulation)
+                for session in patient.sessions {
+                    textGate.markSafe(session.notes)
+                    markAnalysisSafe(session.structuredNotes)
+                }
+            }
+            persistDemoClinic()
+            AppLog.store.notice("Seeded demo clinic with \(self.patients.count) sample patients")
+        }
+    }
+
+    /// Leaves demo mode, keeping the demo clinic on disk for the next visit,
+    /// then reloads the real clinic from cache/network.
+    func exitDemoMode() async {
+        guard isDemoMode else { return }
+        persistDemoClinic()
+        isDemoMode = false
+        patients = []
+        questionnairesByPatient = [:]
+        loadCachedPatients()
+        do {
+            try await loadPatients()
+        } catch {
+            AppLog.store.error("Reload after demo exit failed: \(error.localizedDescription, privacy: .public)")
+        }
+        AppLog.store.notice("Exited demo mode")
+    }
+
+    /// Writes the in-memory demo clinic to the demo-only stores.
+    private func persistDemoClinic() {
+        guard isDemoMode else { return }
+        let snapshot = DemoClinicStore.Snapshot(
+            patients: patients.map { patient in
+                DemoClinicStore.PatientRecord(
+                    id: patient.id,
+                    firstName: patient.firstName,
+                    lastName: patient.lastName,
+                    active: patient.status == .active,
+                    notes: patient.notes,
+                    sessions: patient.sessions.map {
+                        DemoClinicStore.SessionRecord(
+                            databaseID: $0.databaseID,
+                            date: $0.date,
+                            notes: $0.notes,
+                            type: $0.type,
+                            structuredNotes: $0.structuredNotes
+                        )
+                    },
+                    formulation: patient.formulation
+                )
+            },
+            questionnairesByPatient: Dictionary(
+                uniqueKeysWithValues: questionnairesByPatient.map {
+                    ($0.key.queryValue, $0.value)
+                }
+            )
+        )
+        DemoClinicStore.saveClinic(snapshot)
+        var names = DemoClinicStore.loadNames()
+        for patient in patients {
+            if let name = patient.localName, !name.isEmpty {
+                names[patient.id.queryValue] = name
+            }
+        }
+        DemoClinicStore.saveNames(names)
+    }
+
+    private func applyDemoSnapshot(_ snapshot: DemoClinicStore.Snapshot) {
+        let names = DemoClinicStore.loadNames()
+        patients = snapshot.patients.map { record in
+            let patient = Patient(
+                id: record.id,
+                firstName: record.firstName,
+                lastName: record.lastName,
+                status: record.active ? .active : .inactive,
+                notes: record.notes,
+                sessions: record.sessions.map {
+                    Session(
+                        databaseID: $0.databaseID,
+                        date: $0.date,
+                        notes: $0.notes,
+                        type: $0.type,
+                        structuredNotes: $0.structuredNotes
+                    )
+                }
+            )
+            patient.formulation = record.formulation
+            patient.localName = names[record.id.queryValue]
+            markFormulationSafe(patient.formulation)
+            textGate.markSafe(patient.notes)
+            for session in patient.sessions {
+                textGate.markSafe(session.notes)
+                markAnalysisSafe(session.structuredNotes)
+            }
+            return patient
+        }
+        questionnairesByPatient = Dictionary(
+            uniqueKeysWithValues: snapshot.questionnairesByPatient.compactMap { key, value in
+                (DatabaseID.text(key), value)
+            }
         )
     }
 
@@ -397,6 +525,7 @@ final class PatientStore {
     /// Replaces the in-memory patient list with the contents of the
     /// `Patients` and `Sessions` tables.
     func loadPatients() async throws {
+        if isDemoMode { return }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
         let patientRows: [PatientRow] = try await client.from("Patients")
@@ -471,6 +600,7 @@ final class PatientStore {
     /// Fills the patient list from the last saved snapshot. Does nothing once
     /// patients are already loaded.
     func loadCachedPatients() {
+        if isDemoMode { return }
         guard patients.isEmpty,
               let data = try? Data(contentsOf: Self.patientsCacheURL),
               let cached = try? JSONDecoder().decode([CachedPatient].self, from: data)
@@ -503,6 +633,7 @@ final class PatientStore {
     /// Writes the current patient list to the cache file. Patient data is
     /// sensitive, so the file is written with complete file protection.
     private func saveCachedPatients() {
+        if isDemoMode { return }
         let snapshot = patients.map { patient in
             CachedPatient(
                 databaseID: patient.id,
@@ -529,6 +660,10 @@ final class PatientStore {
     /// Clears everything cached for the signed-in user (disk snapshot and all
     /// in-memory data), so nothing leaks into the next session on sign-out.
     func clearAllCaches() {
+        if isDemoMode {
+            persistDemoClinic()
+            isDemoMode = false
+        }
         clearCachedPatients()
         patients = []
         questionnairesByPatient = [:]
@@ -538,11 +673,18 @@ final class PatientStore {
     /// saved preparations, and the locally kept patient names — used after
     /// the account itself is deleted.
     func wipeLocalData() {
-        for patient in patients {
+        for patient in patients where !DemoData.isDemoID(patient.id) {
             try? identityStore.delete(patientID: patient.id)
             SavedPreparation.delete(for: patient.id)
         }
-        clearAllCaches()
+        DemoClinicStore.clearAll()
+        isDemoMode = false
+        clearCachedPatients()
+        patients = []
+        questionnairesByPatient = [:]
+        // Prefer Settings' pre-sign-out clear; this covers any wipe while
+        // still signed in.
+        OnboardingStore.shared.clearPersistedStateForActiveUser()
         AppLog.store.notice("Local data wiped after account deletion")
     }
 
@@ -562,6 +704,25 @@ final class PatientStore {
     }
 
     func addPatient(firstName: String, lastName: String, status: PatientStatus = .active) async throws {
+        if isDemoMode {
+            let name = [firstName, lastName]
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            guard !name.isEmpty else { return }
+            let patient = Patient(
+                id: DemoData.makeTutorialPatientID(),
+                firstName: firstName,
+                lastName: lastName,
+                status: status
+            )
+            DemoClinicStore.saveName(name, for: patient.id)
+            patient.localName = name
+            patients.append(patient)
+            persistDemoClinic()
+            AppLog.store.info("Demo patient added: \(patient.id.queryValue, privacy: .public)")
+            return
+        }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
         let record = NewPatientRecord(active: status == .active)
@@ -583,14 +744,22 @@ final class PatientStore {
         saveCachedPatients()
     }
 
-    /// Renames a patient. The name lives only in the local Keychain identity
-    /// store — it is never sent to the backend.
+    /// Renames a patient. Demo names live in `DemoClinicStore`; real names
+    /// live in the Keychain identity store — never sent to the backend.
     func renamePatient(_ patient: Patient, firstName: String, lastName: String) throws {
         let name = [firstName, lastName]
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
         guard !name.isEmpty else { return }
+        if DemoData.isDemoID(patient.id) {
+            DemoClinicStore.saveName(name, for: patient.id)
+            patient.localName = name
+            patient.firstName = firstName
+            patient.lastName = lastName
+            persistDemoClinic()
+            return
+        }
         try identityStore.save(patientID: patient.id, name: name)
         patient.localName = name
     }
@@ -606,6 +775,18 @@ final class PatientStore {
     /// Inserts the session into the `Sessions` table and, on success, attaches
     /// it to the patient with the database ID returned by Supabase.
     func addSession(_ session: Session, for patient: Patient) async throws {
+        if DemoData.isDemoID(patient.id) {
+            let anonymizedNotes = try await textGate.prepare(session.notes)
+            let anonymizedAnalysis = try await anonymized(session.structuredNotes)
+            session.notes = anonymizedNotes ?? ""
+            session.structuredNotes = anonymizedAnalysis
+            if session.databaseID == nil {
+                session.databaseID = .text("demo-session-\(session.id.uuidString)")
+            }
+            patient.sessions.append(session)
+            persistDemoClinic()
+            return
+        }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let patientID = patient.id
 
@@ -641,6 +822,11 @@ final class PatientStore {
     func saveFormulation(_ formulation: PatientFormulation, for patient: Patient) async throws {
         patient.formulation = formulation
         saveCachedPatients()
+        if DemoData.isDemoID(patient.id) {
+            markFormulationSafe(formulation)
+            persistDemoClinic()
+            return
+        }
 
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let patientID = patient.id
@@ -665,6 +851,11 @@ final class PatientStore {
 
     /// Persists notes changes of an already-saved patient.
     func updatePatientNotes(_ patient: Patient) async throws {
+        if DemoData.isDemoID(patient.id) {
+            textGate.markSafe(patient.notes)
+            persistDemoClinic()
+            return
+        }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let patientID = patient.id
 
@@ -687,6 +878,19 @@ final class PatientStore {
 
     /// Persists date and notes changes of an already-saved session.
     func updateSession(_ session: Session) async throws {
+        if let id = session.databaseID, DemoData.isDemoID(id) {
+            textGate.markSafe(session.notes)
+            markAnalysisSafe(session.structuredNotes)
+            persistDemoClinic()
+            return
+        }
+        // Demo sessions may only have a local UUID until first local save.
+        if isDemoMode {
+            textGate.markSafe(session.notes)
+            markAnalysisSafe(session.structuredNotes)
+            persistDemoClinic()
+            return
+        }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
@@ -721,6 +925,14 @@ final class PatientStore {
 
     /// Deletes a saved session's row and removes it from its patient.
     func deleteSession(_ session: Session, for patient: Patient) async throws {
+        if DemoData.isDemoID(patient.id) || isDemoMode {
+            patient.sessions.removeAll { $0.id == session.id }
+            if let sessionID = session.databaseID {
+                questionnairesByPatient[patient.id]?.removeAll { $0.sessionID == sessionID }
+            }
+            persistDemoClinic()
+            return
+        }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
@@ -745,6 +957,14 @@ final class PatientStore {
     /// Deletes a patient's row and removes the patient locally, including
     /// the locally stored name and any cached questionnaires and images.
     func deletePatient(_ patient: Patient) async throws {
+        if DemoData.isDemoID(patient.id) || isDemoMode {
+            patients.removeAll { $0.id == patient.id }
+            questionnairesByPatient[patient.id] = nil
+            SavedPreparation.delete(for: patient.id)
+            DemoClinicStore.deleteName(for: patient.id)
+            persistDemoClinic()
+            return
+        }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
         // Select the deleted rows back: with row-level security a blocked
@@ -775,6 +995,22 @@ final class PatientStore {
     func saveQuestionnaire(_ questionnaire: CombinedMoodQuestionnaire,
                            for patient: Patient,
                            session: Session) async throws {
+        if DemoData.isDemoID(patient.id) || isDemoMode {
+            guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+            let record = CompletedQuestionnaire(
+                databaseID: .text("demo-q-\(UUID().uuidString)"),
+                sessionID: sessionID,
+                answeredDate: session.date,
+                questionnaire: questionnaire
+            )
+            var cached = questionnairesByPatient[patient.id] ?? []
+            cached.removeAll { $0.sessionID == sessionID }
+            cached.insert(record, at: 0)
+            questionnairesByPatient[patient.id] = cached
+            session.questionnaire = questionnaire
+            persistDemoClinic()
+            return
+        }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let patientID = patient.id
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
@@ -828,6 +1064,13 @@ final class PatientStore {
     /// Deletes a session's saved questionnaire row and removes it from the
     /// cache.
     func deleteQuestionnaire(for patient: Patient, session: Session) async throws {
+        if DemoData.isDemoID(patient.id) || isDemoMode {
+            guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+            questionnairesByPatient[patient.id]?.removeAll { $0.sessionID == sessionID }
+            session.questionnaire = CombinedMoodQuestionnaire()
+            persistDemoClinic()
+            return
+        }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
 
@@ -851,6 +1094,9 @@ final class PatientStore {
     /// Loads all saved questionnaires of a patient, newest first, and
     /// refreshes the cache.
     func loadQuestionnaires(for patient: Patient) async throws -> [CompletedQuestionnaire] {
+        if isDemoMode || DemoData.isDemoID(patient.id) {
+            return questionnairesByPatient[patient.id] ?? []
+        }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let patientID = patient.id
 

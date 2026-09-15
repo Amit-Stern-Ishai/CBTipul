@@ -4,6 +4,8 @@ import SwiftUI
 /// editing sessions, and attaching a questionnaire to a session.
 struct PatientSessionsView: View {
     let patient: Patient
+    /// Applied once on appear when opened from Getting Started.
+    var initialAction: SessionsInitialAction? = nil
 
     @Environment(PatientStore.self) private var store
 
@@ -30,6 +32,8 @@ struct PatientSessionsView: View {
 
     /// The session the questionnaire sheet is presented for.
     @State private var questionnaireSession: Session?
+
+    @State private var didApplyInitialAction = false
 
     /// Sessions sorted by date, most recent first.
     private var sortedSessions: [Session] {
@@ -59,12 +63,27 @@ struct PatientSessionsView: View {
     var body: some View {
         List {
             if patient.sessions.isEmpty {
-                Text(L10n.noSessionsYetLabel)
-                    .foregroundStyle(.secondary)
-                    .listRowBackground(groupBorderedRow(.only))
+                VStack(spacing: 12) {
+                    Text(L10n.emptySessionsTitle)
+                        .font(.title3.weight(.semibold))
+                        .multilineTextAlignment(.center)
+                    Text(L10n.emptySessionsBody)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button(L10n.emptySessionsPrimaryAction) {
+                        route = .new(Session())
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 4)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } else {
                 ForEach(sessionsByMonth, id: \.month) { group in
-                    Section(L10n.hebrewMonth(group.month)) {
+                    Section(header: Text(L10n.hebrewMonth(group.month))) {
                         ForEach(group.items, id: \.session.id) { item in
                             HStack {
                                 Button {
@@ -92,6 +111,7 @@ struct PatientSessionsView: View {
         }
         .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()
+        .demoModeChrome()
         .navigationTitle(L10n.sessionsTitle)
         .navigationSubtitleIfAvailable(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -123,6 +143,30 @@ struct PatientSessionsView: View {
             // The score previews need the questionnaire cache filled.
             if store.cachedQuestionnaires(for: patient) == nil {
                 _ = try? await store.loadQuestionnaires(for: patient)
+            }
+        }
+        .onAppear {
+            applyInitialActionIfNeeded()
+        }
+    }
+
+    private func applyInitialActionIfNeeded() {
+        guard !didApplyInitialAction, let initialAction else { return }
+        didApplyInitialAction = true
+        switch initialAction {
+        case .addSession:
+            route = .new(Session())
+        case .editLatestForSummary:
+            if let latest = sortedSessions.first {
+                route = .edit(latest)
+            } else {
+                route = .new(Session())
+            }
+        case .addQuestionnaire:
+            if let latest = sortedSessions.first {
+                questionnaireSession = latest
+            } else {
+                route = .new(Session())
             }
         }
     }
