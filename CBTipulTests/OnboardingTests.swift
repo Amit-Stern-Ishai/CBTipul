@@ -174,7 +174,7 @@ struct GettingStartedProgressTests {
 
     @Test func completedChecklistRequiresAllTutorialSignals() throws {
         let patient = Patient(id: .text("demo-user-99"), firstName: "A", lastName: "B")
-        let session = Session(notes: "סיכום מפגש")
+        let session = Session(notes: "סיכום פגישה")
         session.databaseID = .text("demo-user-99-s1")
         let analysisJSON = Data("""
         {

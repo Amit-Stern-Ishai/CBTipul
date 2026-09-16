@@ -58,7 +58,7 @@ enum L10n {
     static let couldntLoadPatientsTitle = "טעינת מטופלים נכשלה"
     static let noPatientsTitle = "עדיין אין מטופלים"
     static let addFirstPatientMessage =
-        "הוספת מטופל/ת מאפשרת להתחיל לתעד מפגשים, שאלונים והתקדמות טיפולית."
+        "הוספת מטופל/ת מאפשרת להתחיל לתעד פגישות, שאלונים והתקדמות טיפולית."
     static let addPatientAction = "הוספת מטופל/ת"
     static let noSessionsYetLabel = "אין פגישות עדיין"
     static let newPatientTitle = "מטופל/ת חדש/ה"
@@ -84,7 +84,7 @@ enum L10n {
 
     static let welcomeTitle = "בואו נכיר את האפליקציה"
     static let welcomeBody =
-        "המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, מפגש ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלג לנתונים לדוגמה») יופיעו נתונים לדוגמה לחקירה. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת."
+        "המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, פגישה ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלג לנתונים לדוגמה») יופיעו נתונים לדוגמה לחקירה. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת."
     static let welcomePrimaryAction = "המשך למצב הדגמה"
     static let welcomeSecondaryAction = "אפשר לעבור על זה אחר כך"
     static let welcomeInfoLink = "איך נשמר המידע?"
@@ -101,11 +101,11 @@ enum L10n {
     static let gettingStartedStepDemoTour = "סיור במצב הדגמה"
     static let gettingStartedStepAddPatient = "יצירת מטופל/ת"
     static let gettingStartedStepTreatmentGoal = "הגדרת מטרת טיפול"
-    static let gettingStartedStepFirstSession = "יצירת מפגש"
+    static let gettingStartedStepFirstSession = "יצירת פגישה"
     static let gettingStartedStepQuestionnaire = "מילוי שאלון"
-    static let gettingStartedStepSessionSummary = "הקלטת סיכום מפגש"
+    static let gettingStartedStepSessionSummary = "הוספת סיכום פגישה"
     static let gettingStartedStepAISummary = "יצירת סיכום AI"
-    static let gettingStartedStepPreparation = "הכנה למפגש הבא"
+    static let gettingStartedStepPreparation = "הכנה לפגישה הבאה"
     static let gettingStartedCompleteMessage = "המדריך הושלם — כל הכבוד!"
     static let gettingStartedRestartAction = "התחל מחדש"
     static let gettingStartedDismissAccessibilityLabel = "הסתרת מדריך ההתחלה"
@@ -114,24 +114,24 @@ enum L10n {
     static let tutorialCoachHintAddPatient =
         "לחצו על ״הוספת מטופל/ת ראשון/ה״ כדי להוסיף מטופל/ת"
     static let tutorialCoachHintFillNewPatient =
-        "מילאו שם המטופל/ת וליחצו ״הוספת מטופל/ת״"
+        "מילאו את שם המטופל/ת וליחצו על ״הוספת מטופל/ת״"
     static let tutorialCoachHintReturnPatientsAdd =
         "חזרו לרשימת המטופלים ולחצו על ״הוספת מטופל/ת ראשון/ה״"
     static let tutorialCoachHintOpenPatient =
-        "לחצו על המטופל/ת שיצרתם/ן זה עתה"
+        "לחצו על המטופל/ת שיצרתם/ן"
     static let tutorialCoachHintOpenSessions = "לחצו על ״פגישות״"
-    static let tutorialCoachHintAddSession = "לחצו על ״הוספת מפגש ראשון״"
+    static let tutorialCoachHintAddSession = "לחצו על ״הוספת פגישה ראשונה״"
     static let tutorialCoachHintSaveSession =
         "קבעו סוג פגישה ותאריך, ולחצו על ״הוספת פגישה״"
     static let tutorialCoachHintOpenSession =
-        "לחצו על הפגישה שיצרתם/ן זה עתה"
+        "לחצו על הפגישה שיצרתם/ן"
     static let tutorialCoachHintFillQuestionnaire = "לחצו על ״מילוי שאלון״"
     static let tutorialCoachHintCompleteQuestionnaire =
         "סמנו בחירה לכל שאלה, ולחצו על ״שמירה״ למעלה מצד שמאל."
     static let tutorialCoachHintRecordNotes =
-        "הקלידו או הקליטו סיכום פגישה לדוגמא. הקלטה מתבצעת על ידי לחיצה על המיקרופון."
+        "הקלידו או הקליטו סיכום פגישה לדוגמא. האפליקציה תתמלל את ההקלטה באופן אוטומטי. הקלטה מתבצעת על ידי לחיצה על כפתור המיקרופון הצהוב."
     static let tutorialCoachHintAISummary = "לחצו על ״יצירת סיכום AI מובנה״"
-    static let tutorialCoachHintReturnSessions = "חזרו למסך המפגשים כדי להמשיך"
+    static let tutorialCoachHintReturnSessions = "חזרו למסך הפגישות כדי להמשיך"
     static let tutorialCoachHintFollowGlow = "עקבו אחרי הכפתור המסומן"
 
     static let demoModeBannerTitle = "מצב הדגמה"
@@ -147,24 +147,24 @@ enum L10n {
     }
     static let showcaseRevealTitle = "עכשיו — נתונים לדוגמה!"
     static let showcaseRevealBody =
-        "הוספנו מטופלים, מפגשים ושאלונים לדוגמה כדי שתוכלו לחקור את האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «יציאה» בפס מצב ההדגמה למעלה."
+        "הוספנו מטופלים, פגישות ושאלונים לדוגמה כדי שתוכלו לחקור את האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «יציאה» בפס מצב ההדגמה למעלה."
     static let showcaseRevealExitHint = "אפשר לצאת ממצב ההדגמה בכל רגע מהפס הצהוב למעלה."
     static let showcaseRevealAction = "בואו נחקור"
 
     static let emptyPatientsPrimaryAction = "הוספת מטופל/ת ראשון/ה"
-    static let emptySessionsTitle = "עדיין אין מפגשים"
+    static let emptySessionsTitle = "עדיין אין פגישות"
     static let emptySessionsBody =
-        "הוספת מפגש מאפשרת לתעד סיכומים, לצרף שאלונים ולעקוב אחר התקדמות הטיפול."
-    static let emptySessionsPrimaryAction = "הוספת מפגש ראשון"
+        "הוספת פגישה מאפשרת לתעד סיכומים, לצרף שאלונים ולעקוב אחר התקדמות הטיפול."
+    static let emptySessionsPrimaryAction = "הוספת פגישה ראשונה"
     static let emptyQuestionnairesTitle = "עדיין לא נוספו שאלונים"
     static let emptyQuestionnairesBody =
         "שאלונים מאפשרים לעקוב אחר שינויים בתסמינים לאורך זמן ולהציג תשובות קודמות במילוי הבא."
     static let emptyQuestionnairesPrimaryAction = "הוספת שאלון"
     static let preparationInsufficientTitle = "עדיין אין מספיק מידע להכנה"
     static let preparationInsufficientBody =
-        "מומלץ להוסיף לפחות סיכום מפגש אחד או שאלון כדי ליצור הכנה שימושית יותר."
+        "מומלץ להוסיף לפחות סיכום פגישה אחד או שאלון כדי ליצור הכנה שימושית יותר."
     static let firstPreparationTipBody =
-        "איכות ההכנה משתפרת ככל שנוספים מפגשים ושאלונים."
+        "איכות ההכנה משתפרת ככל שנוספים פגישות ושאלונים."
     static let firstQuestionnaireTipBody =
         "תשובות קודמות יופיעו במילוי שאלונים בהמשך."
     static let contextualTipContinueAction = "המשך"

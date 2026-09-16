@@ -87,7 +87,7 @@ enum DemoData {
                   "behavior": "בדיקות חוזרות של המייל",
                   "short_term_consequence": "הקלה רגעית",
                   "long_term_consequence": "עלייה בדאגנות",
-                  "evidence": "תואר במפגש",
+                  "evidence": "תואר בפגישה",
                   "confidence": "medium"
                 }
               ],
