@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -79,7 +80,9 @@ fun DemoModeBanner(
                     start = Offset(travel * 800f - 200f, 0f),
                     end = Offset(travel * 800f + 200f, 0f),
                 ),
-            ),
+            )
+            // Below status bar so title/exit stay clear and tappable with edge-to-edge.
+            .statusBarsPadding(),
     ) {
         Row(
             modifier = Modifier

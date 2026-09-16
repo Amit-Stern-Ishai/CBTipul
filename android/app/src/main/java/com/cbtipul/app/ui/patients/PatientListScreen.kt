@@ -91,12 +91,7 @@ fun PatientListScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = onAddPatient,
-                        modifier = Modifier.tutorialPulse(
-                            isDemoMode && viewModel.gettingStarted.shouldPulse(TutorialHighlight.AddPatient),
-                        ),
-                    ) {
+                    IconButton(onClick = onAddPatient) {
                         Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_patient_action), tint = colors.gold)
                     }
                 },
