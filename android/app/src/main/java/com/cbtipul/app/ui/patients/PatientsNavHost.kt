@@ -1,9 +1,12 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -70,17 +73,18 @@ fun PatientsNavHost(
         }
     }
 
-    DemoModeChrome(
-        isDemoMode = isDemoMode,
-        checklistDismissed = checklistDismissed,
-        routerState = routerState,
-        showcaseLoaded = showcaseLoaded,
-        onExitDemo = { viewModel.exitDemoMode() },
-        onRestart = { viewModel.restartDemoTutorial() },
-        onDismissCoach = { viewModel.dismissCoach() },
-        onSkipToShowcase = { viewModel.skipToShowcaseData() },
-    ) {
-        NavHost(navController = navController, startDestination = "list") {
+    Box(modifier = Modifier.fillMaxSize()) {
+        DemoModeChrome(
+            isDemoMode = isDemoMode,
+            checklistDismissed = checklistDismissed,
+            routerState = routerState,
+            showcaseLoaded = showcaseLoaded,
+            onExitDemo = { viewModel.exitDemoMode() },
+            onRestart = { viewModel.restartDemoTutorial() },
+            onDismissCoach = { viewModel.dismissCoach() },
+            onSkipToShowcase = { viewModel.skipToShowcaseData() },
+        ) {
+            NavHost(navController = navController, startDestination = "list") {
         composable("list") {
             PatientListScreen(
                 viewModel = viewModel,
@@ -630,6 +634,7 @@ fun PatientsNavHost(
                 viewingPatientId = patient?.id,
             )
         }
+            }
         }
         if (atList && routerState.showcaseRevealPhase == ShowcaseRevealPhase.Intro) {
             DemoShowcaseIntroScreen(onExplore = { viewModel.finishShowcaseIntro() })
