@@ -31,7 +31,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +51,7 @@ import com.cbtipul.app.R
 import com.cbtipul.app.ui.theme.Theme
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlinx.coroutines.delay
 
 @Composable
 fun DemoModeBanner(
@@ -270,18 +275,17 @@ private fun ShowcaseAdvanceButton(
     onClick: () -> Unit,
 ) {
     val colors = Theme.colors
-    val now = System.currentTimeMillis()
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(endsAtMillis) {
+        while (true) {
+            now = System.currentTimeMillis()
+            if (now >= endsAtMillis) break
+            delay(50)
+        }
+    }
     val remaining = max(0L, endsAtMillis - now)
     val fill = if (durationMs > 0) remaining.toFloat() / durationMs.toFloat() else 0f
     val seconds = ceil(remaining / 1000.0).toInt()
-    // Recompose while counting down
-    val tick = rememberInfiniteTransition(label = "countdown")
-    tick.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(250), RepeatMode.Restart),
-        label = "tick",
-    )
 
     Box(
         modifier = Modifier

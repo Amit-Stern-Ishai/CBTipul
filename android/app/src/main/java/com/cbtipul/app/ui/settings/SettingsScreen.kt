@@ -118,6 +118,13 @@ fun SettingsScreen(
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
+                    GroupedListCard(accent = colors.gold) {
+                        SettingsRow(
+                            title = stringResource(R.string.getting_started_guide_settings_title),
+                            onClick = onGettingStartedGuide,
+                        )
+                    }
+
                     Text(stringResource(R.string.settings_accessibility_section_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                     GroupedListCard(accent = colors.gold) {
                         SettingsRow(
@@ -134,11 +141,6 @@ fun SettingsScreen(
                         SettingsRow(
                             title = stringResource(R.string.terms_title),
                             onClick = { page = SettingsPage.Terms },
-                        )
-                        GroupedListDivider()
-                        SettingsRow(
-                            title = stringResource(R.string.getting_started_guide_settings_title),
-                            onClick = onGettingStartedGuide,
                         )
                         GroupedListDivider()
                         SettingsRow(title = privacy, onClick = { page = SettingsPage.Web(privacy, "https://cbtipul.com/privacy") })
