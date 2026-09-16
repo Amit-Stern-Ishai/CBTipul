@@ -106,27 +106,14 @@ private struct DemoModeBannerInset: ViewModifier {
                         placement: router.placement,
                         viewingPatientID: router.viewingPatientID,
                         showcaseLoaded: store.showcaseDataLoaded,
+                        countdownEndsAt: router.showcaseCountdownEndsAt,
+                        countdownDuration: GettingStartedRouter.showcaseCountdownDuration,
                         onRestart: { router.restart(using: store) },
                         onDismiss: { router.dismissCoach(using: onboarding) },
                         onSkipToShowcase: { router.skipToShowcaseData(using: store) }
                     )
                     .transaction { $0.animation = nil }
                 }
-            }
-            .overlay {
-                if case .countingDown(let seconds) = router.showcaseRevealPhase {
-                    ShowcaseCountdownOverlay(secondsLeft: seconds)
-                        .padding(.bottom, onboarding.checklistDismissed ? 12 : 120)
-                }
-            }
-            .onAppear {
-                if router.progress.isComplete {
-                    router.beginShowcaseCountdownIfNeeded(using: store)
-                }
-            }
-            .onChange(of: router.progress.isComplete) { _, complete in
-                guard complete else { return }
-                router.beginShowcaseCountdownIfNeeded(using: store)
             }
     }
 }

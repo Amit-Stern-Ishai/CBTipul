@@ -302,6 +302,9 @@ struct TutorialCoachCard: View {
     let placement: TutorialCoachPlacement
     var viewingPatientID: DatabaseID? = nil
     var showcaseLoaded: Bool
+    /// When set, the skip button shows a draining countdown fill.
+    var countdownEndsAt: Date? = nil
+    var countdownDuration: TimeInterval = GettingStartedRouter.showcaseCountdownDuration
     var onRestart: () -> Void
     var onDismiss: () -> Void
     var onSkipToShowcase: () -> Void
@@ -358,15 +361,33 @@ struct TutorialCoachCard: View {
                 .accessibilityLabel(L10n.gettingStartedDismissAccessibilityLabel)
             }
 
-            if progress.isComplete {
-                Button(action: onRestart) {
-                    Text(L10n.gettingStartedRestartAction)
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
+            if let endsAt = countdownEndsAt {
+                ShowcaseAdvanceButton(
+                    endsAt: endsAt,
+                    duration: countdownDuration,
+                    action: onSkipToShowcase
+                )
+            } else if progress.isComplete {
+                VStack(spacing: 8) {
+                    if !showcaseLoaded {
+                        Button(action: onSkipToShowcase) {
+                            Label(L10n.tutorialCoachSkipToShowcase, systemImage: "sparkles")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Theme.surface)
+                        .foregroundStyle(Theme.gold)
+                    }
+
+                    Button(action: onRestart) {
+                        Text(L10n.gettingStartedRestartAction)
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(Theme.textOnAccent)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme.surface)
-                .foregroundStyle(Theme.gold)
             } else if !showcaseLoaded {
                 Button(action: onSkipToShowcase) {
                     Label(L10n.tutorialCoachSkipToShowcase, systemImage: "sparkles")
@@ -401,6 +422,58 @@ struct TutorialCoachCard: View {
             .ignoresSafeArea(edges: .bottom)
         }
         .shadow(color: Theme.warning.opacity(0.35), radius: 16, y: -4)
+    }
+}
+
+/// Skip-to-sample-data control with a fill that drains over the countdown.
+struct ShowcaseAdvanceButton: View {
+    let endsAt: Date
+    let duration: TimeInterval
+    var action: () -> Void
+
+    private let buttonHeight: CGFloat = 44
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+            let remaining = max(0, endsAt.timeIntervalSince(context.date))
+            let fill = duration > 0 ? remaining / duration : 0
+            let seconds = Int(ceil(remaining))
+
+            Button(action: action) {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                    Text(L10n.tutorialCoachSkipToShowcase)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text("\(seconds)")
+                        .font(.subheadline.weight(.bold).monospacedDigit())
+                        .contentTransition(.numericText())
+                }
+                .font(.subheadline)
+                .foregroundStyle(Theme.gold)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, minHeight: buttonHeight, maxHeight: buttonHeight)
+                .background {
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.22))
+                        GeometryReader { geo in
+                            Capsule()
+                                .fill(Theme.surface)
+                                .frame(width: max(0, geo.size.width * fill), height: geo.size.height)
+                        }
+                        .clipShape(Capsule())
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+            .frame(height: buttonHeight)
+            .accessibilityLabel(L10n.tutorialCoachSkipToShowcase)
+            .accessibilityValue(L10n.showcaseCountdownSeconds(seconds))
+        }
+        .frame(height: buttonHeight)
     }
 }
 

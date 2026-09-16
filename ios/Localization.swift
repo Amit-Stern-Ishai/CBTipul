@@ -132,6 +132,9 @@ enum L10n {
 
     static let tutorialCoachSkipToShowcase = "דלג לנתונים לדוגמה"
     static let showcaseCountdownTitle = "עוד רגע — נתונים לדוגמה"
+    static func showcaseCountdownSeconds(_ seconds: Int) -> String {
+        "\(seconds) שניות"
+    }
     static let showcaseRevealTitle = "עכשיו — נתונים לדוגמה!"
     static let showcaseRevealBody =
         "הוספנו מטופלים, מפגשים ושאלונים לדוגמה כדי שתוכלו לחקור את האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «יציאה» בפס מצב ההדגמה למעלה."

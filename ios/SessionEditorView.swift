@@ -563,6 +563,7 @@ struct SessionEditorView: View {
                 analysisResult = SessionAnalysisResult(analysis: analysis,
                                                        requiresSaveDecision: false)
                 gettingStartedRouter.refresh(using: store)
+                gettingStartedRouter.beginShowcaseCountdownIfNeeded(using: store)
             } catch {
                 errorMessage = error.userFacingMessage
             }

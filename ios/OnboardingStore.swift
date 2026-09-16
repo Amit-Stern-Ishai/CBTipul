@@ -147,7 +147,7 @@ final class OnboardingStore {
 /// Phase of the post-tour showcase reveal (countdown → intro sheet).
 enum ShowcaseRevealPhase: Equatable {
     case idle
-    case countingDown(secondsLeft: Int)
+    case countingDown
     case intro
 }
 
@@ -172,6 +172,12 @@ final class GettingStartedRouter {
 
     /// Countdown / intro after the tour completes or “skip to sample data”.
     var showcaseRevealPhase: ShowcaseRevealPhase = .idle
+
+    /// When counting down, the moment the auto-advance fires.
+    private(set) var showcaseCountdownEndsAt: Date?
+
+    /// Length of the post-tour auto-advance countdown.
+    static let showcaseCountdownDuration: TimeInterval = 30
 
     /// Optional deep-link into sessions (legacy; walkthrough no longer sets this).
     var pendingSessionsAction: SessionsInitialAction?
@@ -256,15 +262,15 @@ final class GettingStartedRouter {
         clearHighlight()
     }
 
-    /// Starts the 30-second countdown after the tour ends — stays on the
-    /// current screen (e.g. AI summary) until the timer finishes.
+    /// Starts the banner countdown after the AI-summary mission finishes —
+    /// never on demo re-entry (that path shows Restart + Skip only).
     func beginShowcaseCountdownIfNeeded(using store: PatientStore) {
         guard progress.isComplete, !store.showcaseDataLoaded else { return }
         guard case .idle = showcaseRevealPhase else { return }
-        startShowcaseCountdown(using: store)
+        startShowcaseCountdown()
     }
 
-    /// Mission banner → clear stack, then show intro (sample data on dismiss).
+    /// Mission banner (or drained timer) → clear stack, then show intro.
     func skipToShowcaseData(using store: PatientStore) {
         cancelShowcaseCountdown()
         clearHighlight()
@@ -300,6 +306,10 @@ final class GettingStartedRouter {
     func cancelShowcaseCountdown() {
         showcaseCountdownTask?.cancel()
         showcaseCountdownTask = nil
+        showcaseCountdownEndsAt = nil
+        if case .countingDown = showcaseRevealPhase {
+            showcaseRevealPhase = .idle
+        }
     }
 
     /// Pop navigation back to the patients list without animating the stack.
@@ -309,17 +319,15 @@ final class GettingStartedRouter {
         viewingPatientID = nil
     }
 
-    private func startShowcaseCountdown(using store: PatientStore) {
+    private func startShowcaseCountdown() {
         cancelShowcaseCountdown()
+        let duration = Self.showcaseCountdownDuration
+        showcaseCountdownEndsAt = Date().addingTimeInterval(duration)
+        showcaseRevealPhase = .countingDown
         showcaseCountdownTask = Task { @MainActor in
-            for seconds in stride(from: 30, through: 1, by: -1) {
-                guard !Task.isCancelled else { return }
-                showcaseRevealPhase = .countingDown(secondsLeft: seconds)
-                try? await Task.sleep(for: .seconds(1))
-            }
+            try? await Task.sleep(for: .seconds(duration))
             guard !Task.isCancelled else { return }
-            // Leave the AI summary before the intro so “continue” never
-            // reveals it again — clear the stack, then present the intro.
+            showcaseCountdownEndsAt = nil
             showcaseRevealPhase = .idle
             pendingShowcaseIntro = true
             returnToPatientList()

@@ -289,6 +289,9 @@ struct PatientListView: View {
             store.enterDemoMode()
             gettingStartedRouter.setPlacement(.patientList)
             gettingStartedRouter.refresh(using: store)
+            // Clear any leftover countdown from a previous demo visit —
+            // re-entry with a finished tour shows Restart + Skip, no timer.
+            gettingStartedRouter.resetShowcaseReveal()
             path = NavigationPath()
         }
         DispatchQueue.main.async {
