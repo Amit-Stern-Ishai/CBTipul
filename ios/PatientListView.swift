@@ -14,15 +14,6 @@ struct PatientListView: View {
     @State private var path = NavigationPath()
     @State private var gettingStartedRouter = GettingStartedRouter()
 
-    private var shouldShowWelcome: Bool {
-        hasFinishedInitialLoad
-            && !isLoading
-            && !store.isDemoMode
-            && store.patients.filter { !DemoData.isDemoID($0.id) }.isEmpty
-            && !onboarding.welcomeDismissed
-            && loadError == nil
-    }
-
     /// Tutorial patient the walkthrough is following (furthest along).
     private var tutorialFocusPatientID: DatabaseID? {
         gettingStartedRouter.progress.focusPatientID
@@ -105,11 +96,6 @@ struct PatientListView: View {
                     }
                 )
                 .appTextSize()
-            }
-            .onChange(of: shouldShowWelcome, initial: true) { _, show in
-                if show {
-                    isShowingWelcome = true
-                }
             }
             .onChange(of: onboarding.wantsDemoConsent) { _, wants in
                 guard wants else { return }

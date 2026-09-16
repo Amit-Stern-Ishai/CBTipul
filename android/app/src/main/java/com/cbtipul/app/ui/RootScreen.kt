@@ -121,21 +121,6 @@ fun RootScreen() {
                     CircularProgressIndicator(color = Theme.colors.gold)
                 }
             }
-            email != null && termsAccepted.value == true -> {
-                LaunchedEffect(email) {
-                    app.onboardingStore.setActiveUser(email)
-                }
-                val listVm: PatientListViewModel = viewModel(
-                    key = "$email-$listSession",
-                    factory = PatientListViewModel.Factory(app.patientRepository, app.onboardingStore),
-                )
-                SideEffect { patientsViewModel = listVm }
-                PatientsNavHost(
-                    viewModel = listVm,
-                    onOpenSettings = { showSettings = true },
-                    onCloseSettings = { showSettings = false },
-                )
-            }
             email != null && termsAccepted.value == false -> {
                 TermsScreen(
                     onAgree = {
@@ -143,6 +128,47 @@ fun RootScreen() {
                         scope.launch { authViewModel.acceptTerms(signedIn) }
                     },
                 )
+            }
+            email != null && termsAccepted.value == true -> {
+                LaunchedEffect(email) {
+                    app.onboardingStore.setActiveUser(email)
+                }
+                val welcomeDismissed by app.onboardingStore.welcomeDismissed.collectAsStateWithLifecycle()
+                val onboardingHydrated by app.onboardingStore.isHydrated.collectAsStateWithLifecycle()
+                val listVm: PatientListViewModel = viewModel(
+                    key = "$email-$listSession",
+                    factory = PatientListViewModel.Factory(app.patientRepository, app.onboardingStore),
+                )
+                SideEffect { patientsViewModel = listVm }
+
+                when {
+                    !onboardingHydrated -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(color = Theme.colors.gold)
+                        }
+                    }
+                    // After terms: blocking welcome until Start or Skip (same as terms gate).
+                    !welcomeDismissed -> {
+                        WelcomeOnboardingScreen(
+                            onStartDemoTour = {
+                                listVm.startDemoTour()
+                            },
+                            onSkip = {
+                                listVm.skipWelcome()
+                            },
+                        )
+                    }
+                    else -> {
+                        PatientsNavHost(
+                            viewModel = listVm,
+                            onOpenSettings = { showSettings = true },
+                            onCloseSettings = { showSettings = false },
+                        )
+                    }
+                }
             }
             else -> {
                 AuthScreen(

@@ -47,17 +47,18 @@ struct MyApp: App {
 /// authentication state.
 struct ContentView: View {
     @Environment(AuthManager.self) private var auth
+    @Environment(PatientStore.self) private var store
 
     @State private var isShowingSplash = true
     @State private var hasAcceptedTerms = false
+    @State private var onboarding = OnboardingStore.shared
 
     var body: some View {
         @Bindable var auth = auth
+        @Bindable var onboarding = onboarding
         return ZStack {
             if auth.isAuthenticated {
-                if hasAcceptedTerms {
-                    PatientListView()
-                } else {
+                if !hasAcceptedTerms {
                     // Signed in but not yet agreed: the app stays blocked
                     // behind the terms until the user accepts.
                     NavigationStack {
@@ -68,6 +69,21 @@ struct ContentView: View {
                             hasAcceptedTerms = true
                         }
                     }
+                } else if !onboarding.welcomeDismissed {
+                    // After terms: blocking welcome until Start or Skip.
+                    WelcomeOnboardingView(
+                        onStartDemoTour: {
+                            onboarding.markDemoTourCompleted()
+                            onboarding.dismissWelcome()
+                            onboarding.showChecklistAgain()
+                            store.enterDemoMode()
+                        },
+                        onSkip: {
+                            onboarding.dismissWelcome()
+                        }
+                    )
+                } else {
+                    PatientListView()
                 }
             } else {
                 AuthView()
@@ -91,9 +107,9 @@ struct ContentView: View {
             AIDataSharingConsentStore.shared.setActiveUser(email: email)
         }
         .onChange(of: auth.currentUserId, initial: true) { _, userId in
-            OnboardingStore.shared.setActiveUser(id: userId)
+            onboarding.setActiveUser(id: userId)
         }
-        .environment(OnboardingStore.shared)
+        .environment(onboarding)
         .task {
             // Keep the splash up briefly so the session can be restored
             // without flashing the sign-in screen.

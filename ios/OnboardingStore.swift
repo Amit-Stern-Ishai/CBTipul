@@ -34,7 +34,8 @@ final class OnboardingStore {
         reloadFromDefaults()
     }
 
-    /// Called when the welcome primary or secondary button is used.
+    /// Called when the welcome primary (Start) or secondary (Skip) button is used.
+    /// Either path marks this account as having completed the tutorial gate.
     func dismissWelcome() {
         welcomeDismissed = true
         persist()

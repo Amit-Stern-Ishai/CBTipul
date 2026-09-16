@@ -71,26 +71,12 @@ fun PatientListScreen(
     val questionnaires by viewModel.questionnaires.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
-    val welcomeDismissed by viewModel.onboarding.welcomeDismissed.collectAsStateWithLifecycle()
-    val onboardingHydrated by viewModel.onboarding.isHydrated.collectAsStateWithLifecycle()
     val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
     val colors = Theme.colors
-    // Match iOS: only auto-prompt on an empty real clinic after load + hydration.
-    val shouldShowWelcome =
-        onboardingHydrated &&
-            ui.hasLoaded &&
-            !ui.isLoading &&
-            !isDemoMode &&
-            patients.isEmpty() &&
-            !welcomeDismissed &&
-            ui.loadError == null
 
     LaunchedEffect(Unit) {
         viewModel.gettingStarted.setPlacement(TutorialCoachPlacement.PatientList)
         viewModel.refreshGettingStartedProgress()
-    }
-    LaunchedEffect(shouldShowWelcome) {
-        if (shouldShowWelcome) viewModel.requestDemoConsent()
     }
 
     Scaffold(

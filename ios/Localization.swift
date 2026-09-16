@@ -84,7 +84,7 @@ enum L10n {
 
     static let welcomeTitle = "בואו נכיר את האפליקציה"
     static let welcomeBody =
-        "המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, פגישה ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלג לנתונים לדוגמה») יופיעו נתונים לדוגמה לחקירה. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת."
+        "המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, פגישה ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלג לנתונים לדוגמה») יופיעו נתונים לדוגמה לצורכי התנסות. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת."
     static let welcomePrimaryAction = "המשך למצב הדגמה"
     static let welcomeSecondaryAction = "אפשר לעבור על זה אחר כך"
     static let welcomeInfoLink = "איך נשמר המידע?"
@@ -135,7 +135,7 @@ enum L10n {
     static let tutorialCoachHintFollowGlow = "עקבו אחרי הכפתור המסומן"
 
     static let demoModeBannerTitle = "מצב הדגמה"
-    static let demoModeBannerBody = "קליניקה לדוגמה במכשיר — לא נשמרת בשרת."
+    static let demoModeBannerBody = "קליניקה לדוגמה — לצורך המחשה בלבד."
     static let demoModeExitShort = "יציאה"
     static let exitDemoModeAction = "יציאה ממצב הדגמה"
     static let enterDemoModeAction = "כניסה למצב הדגמה"
@@ -147,9 +147,9 @@ enum L10n {
     }
     static let showcaseRevealTitle = "עכשיו — נתונים לדוגמה!"
     static let showcaseRevealBody =
-        "הוספנו מטופלים, פגישות ושאלונים לדוגמה כדי שתוכלו לחקור את האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «יציאה» בפס מצב ההדגמה למעלה."
+        "הוספנו מטופלים, פגישות ושאלונים לדוגמה כדי שתוכלו להתנסות בכל האפשרויות של האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «יציאה» בפס מצב ההדגמה למעלה."
     static let showcaseRevealExitHint = "אפשר לצאת ממצב ההדגמה בכל רגע מהפס הצהוב למעלה."
-    static let showcaseRevealAction = "בואו נחקור"
+    static let showcaseRevealAction = "בואו נתנסה"
 
     static let emptyPatientsPrimaryAction = "הוספת מטופל/ת ראשון/ה"
     static let emptySessionsTitle = "עדיין אין פגישות"

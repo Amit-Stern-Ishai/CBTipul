@@ -96,7 +96,6 @@ extension View {
 struct SettingsView: View {
     @AppStorage("aiResponseStyle") private var responseStyle: AIResponseStyle = .typing
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
-    @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
@@ -138,15 +137,15 @@ struct SettingsView: View {
 //                }
 
                 Section {
-                    Picker(selection: $appearance) {
-                        ForEach(AppAppearance.allCases, id: \.self) { option in
-                            Text(option.label).tag(option)
-                        }
+                    Button {
+                        // PatientListView presents consent and closes this sheet
+                        // under that cover — do not dismiss here or the list flashes.
+                        onboarding.requestDemoConsent()
                     } label: {
                         Label {
-                            Text(L10n.settingsAppearanceTitle)
+                            Text(L10n.gettingStartedGuideSettingsTitle)
                         } icon: {
-                            Image(systemName: "circle.lefthalf.filled")
+                            Image(systemName: "list.bullet.clipboard")
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(Theme.gold)
                                 .frame(width: 28, height: 28)
@@ -193,22 +192,6 @@ struct SettingsView: View {
                         }
                     }
                     .listRowBackground(groupBorderedRow(.first, accent: Theme.gold))
-                    Button {
-                        // PatientListView presents consent and closes this sheet
-                        // under that cover — do not dismiss here or the list flashes.
-                        onboarding.requestDemoConsent()
-                    } label: {
-                        Label {
-                            Text(L10n.gettingStartedGuideSettingsTitle)
-                        } icon: {
-                            Image(systemName: "list.bullet.clipboard")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(Theme.gold)
-                                .frame(width: 28, height: 28)
-                                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
-                        }
-                    }
-                    .listRowBackground(groupBorderedRow(.middle, accent: Theme.gold))
                     externalLink(L10n.privacyPolicyTitle, icon: "hand.raised",
                                  url: URL(string: "https://cbtipul.com/privacy")!)
                         .listRowBackground(groupBorderedRow(.middle, accent: Theme.gold))
