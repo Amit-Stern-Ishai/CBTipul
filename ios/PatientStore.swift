@@ -333,12 +333,13 @@ final class PatientStore {
         AppLog.store.notice("Loaded showcase demo patients")
     }
 
-    /// Leaves demo mode, keeping the demo clinic on disk for the next visit,
-    /// then reloads the real clinic from cache/network.
+    /// Leaves demo mode, wiping everything created during the demo, then
+    /// reloads the real clinic from cache/network.
     func exitDemoMode() async {
         guard isDemoMode else { return }
-        persistDemoClinic()
+        DemoClinicStore.clearAll()
         isDemoMode = false
+        showcaseDataLoaded = false
         patients = []
         questionnairesByPatient = [:]
         loadCachedPatients()
@@ -347,7 +348,7 @@ final class PatientStore {
         } catch {
             AppLog.store.error("Reload after demo exit failed: \(error.localizedDescription, privacy: .public)")
         }
-        AppLog.store.notice("Exited demo mode")
+        AppLog.store.notice("Exited demo mode; wiped demo clinic")
     }
 
     /// Removes therapist-created tutorial patients so the checklist can run again.
