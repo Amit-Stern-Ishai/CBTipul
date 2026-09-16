@@ -483,5 +483,7 @@
     <string name="showcase_reveal_exit_hint">אפשר לצאת ממצב ההדגמה בכל רגע מהפס הצהוב למעלה.</string>
     <string name="showcase_reveal_action">בואו נתנסה</string>
     <string name="empty_patients_primary_action">הוספת מטופל/ת ראשון/ה</string>
+    <string name="empty_sessions_title">עדיין אין פגישות</string>
+    <string name="empty_sessions_body">הוספת פגישה מאפשרת לתעד סיכומים, לצרף שאלונים ולעקוב אחר התקדמות הטיפול.</string>
     <string name="empty_sessions_primary_action">הוספת פגישה ראשונה</string>
 </resources>
