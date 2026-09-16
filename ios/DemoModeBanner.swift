@@ -113,6 +113,18 @@ private struct DemoModeBannerInset: ViewModifier {
                     .transaction { $0.animation = nil }
                 }
             }
+            .overlay {
+                if case .countingDown(let seconds) = router.showcaseRevealPhase {
+                    ShowcaseCountdownOverlay(secondsLeft: seconds)
+                        .padding(.bottom, onboarding.checklistDismissed ? 12 : 120)
+                }
+            }
+            .fullScreenCover(isPresented: showcaseIntroPresented) {
+                DemoShowcaseIntroView {
+                    router.finishShowcaseIntro(using: onboarding)
+                }
+                .appTextSize()
+            }
             .onAppear {
                 if router.progress.isComplete {
                     router.beginShowcaseCountdownIfNeeded(using: store)
@@ -122,6 +134,20 @@ private struct DemoModeBannerInset: ViewModifier {
                 guard complete else { return }
                 router.beginShowcaseCountdownIfNeeded(using: store)
             }
+    }
+
+    private var showcaseIntroPresented: Binding<Bool> {
+        Binding(
+            get: {
+                if case .intro = router.showcaseRevealPhase { return true }
+                return false
+            },
+            set: { isPresented in
+                if !isPresented {
+                    router.finishShowcaseIntro(using: onboarding)
+                }
+            }
+        )
     }
 }
 

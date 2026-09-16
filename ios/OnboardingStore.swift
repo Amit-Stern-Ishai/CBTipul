@@ -246,12 +246,11 @@ final class GettingStartedRouter {
         clearHighlight()
     }
 
-    /// Starts the 5-second countdown after the tour ends — returns to the
-    /// patients list first so the reveal is never mid-stack.
+    /// Starts the 30-second countdown after the tour ends — stays on the
+    /// current screen (e.g. AI summary) until the intro is dismissed.
     func beginShowcaseCountdownIfNeeded(using store: PatientStore) {
         guard progress.isComplete, !store.showcaseDataLoaded else { return }
         guard case .idle = showcaseRevealPhase else { return }
-        returnToPatientList()
         startShowcaseCountdown(using: store)
     }
 
@@ -267,6 +266,7 @@ final class GettingStartedRouter {
 
     func finishShowcaseIntro(using onboarding: OnboardingStore) {
         showcaseRevealPhase = .idle
+        returnToPatientList()
         dismissCoach(using: onboarding)
     }
 
@@ -285,7 +285,7 @@ final class GettingStartedRouter {
     private func startShowcaseCountdown(using store: PatientStore) {
         cancelShowcaseCountdown()
         showcaseCountdownTask = Task { @MainActor in
-            for seconds in stride(from: 5, through: 1, by: -1) {
+            for seconds in stride(from: 30, through: 1, by: -1) {
                 guard !Task.isCancelled else { return }
                 showcaseRevealPhase = .countingDown(secondsLeft: seconds)
                 try? await Task.sleep(for: .seconds(1))
@@ -293,7 +293,6 @@ final class GettingStartedRouter {
             guard !Task.isCancelled else { return }
             store.loadShowcaseDemoData()
             refresh(using: store)
-            returnToPatientList()
             showcaseRevealPhase = .intro
         }
     }

@@ -175,34 +175,7 @@ struct PatientListView: View {
                 isShowingSettings = false
             }
         }
-        .overlay {
-            if case .countingDown(let seconds) = gettingStartedRouter.showcaseRevealPhase {
-                ShowcaseCountdownOverlay(secondsLeft: seconds)
-                    // Sit above the mission dock without covering the list.
-                    .padding(.bottom, onboarding.checklistDismissed ? 12 : 120)
-            }
-        }
-        .fullScreenCover(isPresented: showcaseIntroPresented) {
-            DemoShowcaseIntroView {
-                gettingStartedRouter.finishShowcaseIntro(using: onboarding)
-            }
-            .appTextSize()
-        }
         .environment(gettingStartedRouter)
-    }
-
-    private var showcaseIntroPresented: Binding<Bool> {
-        Binding(
-            get: {
-                if case .intro = gettingStartedRouter.showcaseRevealPhase { return true }
-                return false
-            },
-            set: { isPresented in
-                if !isPresented {
-                    gettingStartedRouter.finishShowcaseIntro(using: onboarding)
-                }
-            }
-        )
     }
 
     private var emptyPatientsContent: some View {
