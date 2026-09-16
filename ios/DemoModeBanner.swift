@@ -119,12 +119,6 @@ private struct DemoModeBannerInset: ViewModifier {
                         .padding(.bottom, onboarding.checklistDismissed ? 12 : 120)
                 }
             }
-            .fullScreenCover(isPresented: showcaseIntroPresented) {
-                DemoShowcaseIntroView {
-                    router.finishShowcaseIntro(using: onboarding)
-                }
-                .appTextSize()
-            }
             .onAppear {
                 if router.progress.isComplete {
                     router.beginShowcaseCountdownIfNeeded(using: store)
@@ -135,16 +129,38 @@ private struct DemoModeBannerInset: ViewModifier {
                 router.beginShowcaseCountdownIfNeeded(using: store)
             }
     }
+}
 
-    private var showcaseIntroPresented: Binding<Bool> {
+/// Presents the post-tour showcase intro from a single host screen only.
+/// (`demoModeChrome` is applied on every pushed screen — stacking covers
+/// there caused the intro to flash off and on.)
+private struct ShowcaseIntroHostModifier: ViewModifier {
+    var isActive: Bool
+
+    @Environment(PatientStore.self) private var store
+    @Environment(OnboardingStore.self) private var onboarding
+    @Environment(GettingStartedRouter.self) private var router
+
+    func body(content: Content) -> some View {
+        content
+            .fullScreenCover(isPresented: introPresented) {
+                DemoShowcaseIntroView {
+                    router.finishShowcaseIntro(using: onboarding, store: store)
+                }
+                .appTextSize()
+            }
+    }
+
+    private var introPresented: Binding<Bool> {
         Binding(
             get: {
+                guard isActive else { return false }
                 if case .intro = router.showcaseRevealPhase { return true }
                 return false
             },
             set: { isPresented in
                 if !isPresented {
-                    router.finishShowcaseIntro(using: onboarding)
+                    router.finishShowcaseIntro(using: onboarding, store: store)
                 }
             }
         )
@@ -155,5 +171,10 @@ extension View {
     /// Demo strip (top) + walkthrough mission dock (bottom).
     func demoModeChrome() -> some View {
         modifier(DemoModeBannerInset())
+    }
+
+    /// Host the fake-data intro cover. Use once on the frontmost screen only.
+    func showcaseIntroHost(isActive: Bool = true) -> some View {
+        modifier(ShowcaseIntroHostModifier(isActive: isActive))
     }
 }

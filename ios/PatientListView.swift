@@ -174,7 +174,9 @@ struct PatientListView: View {
                 isAddingPatient = false
                 isShowingSettings = false
             }
+            gettingStartedRouter.patientListDidReset(using: onboarding)
         }
+        .showcaseIntroHost()
         .environment(gettingStartedRouter)
     }
 

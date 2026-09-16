@@ -179,6 +179,14 @@ final class GettingStartedRouter {
     @ObservationIgnored
     private var showcaseCountdownTask: Task<Void, Never>?
 
+    /// After the stack is cleared, present the fake-data intro.
+    @ObservationIgnored
+    private var pendingShowcaseIntro = false
+
+    /// After the stack is cleared, dismiss the intro cover (land on the list).
+    @ObservationIgnored
+    private var pendingShowcaseIntroExit = false
+
     func clearHighlight() {
         highlight = nil
     }
@@ -229,6 +237,8 @@ final class GettingStartedRouter {
 
     func resetShowcaseReveal() {
         cancelShowcaseCountdown()
+        pendingShowcaseIntro = false
+        pendingShowcaseIntroExit = false
         showcaseRevealPhase = .idle
     }
 
@@ -247,27 +257,44 @@ final class GettingStartedRouter {
     }
 
     /// Starts the 30-second countdown after the tour ends — stays on the
-    /// current screen (e.g. AI summary) until the intro is dismissed.
+    /// current screen (e.g. AI summary) until the timer finishes.
     func beginShowcaseCountdownIfNeeded(using store: PatientStore) {
         guard progress.isComplete, !store.showcaseDataLoaded else { return }
         guard case .idle = showcaseRevealPhase else { return }
         startShowcaseCountdown(using: store)
     }
 
-    /// Mission banner → patients list + sample clinic + intro.
+    /// Mission banner → clear stack, then show intro (sample data on dismiss).
     func skipToShowcaseData(using store: PatientStore) {
         cancelShowcaseCountdown()
         clearHighlight()
+        pendingShowcaseIntroExit = false
+        pendingShowcaseIntro = true
         returnToPatientList()
-        store.loadShowcaseDemoData()
-        refresh(using: store)
-        showcaseRevealPhase = .intro
     }
 
-    func finishShowcaseIntro(using onboarding: OnboardingStore) {
-        showcaseRevealPhase = .idle
+    /// Keep the intro cover up, clear back to the patients list underneath,
+    /// then dismiss the cover so the list is revealed — never the AI summary.
+    func finishShowcaseIntro(using onboarding: OnboardingStore, store: PatientStore) {
+        guard case .intro = showcaseRevealPhase else { return }
+        store.loadShowcaseDemoData()
+        refresh(using: store)
+        pendingShowcaseIntro = false
+        pendingShowcaseIntroExit = true
         returnToPatientList()
-        dismissCoach(using: onboarding)
+    }
+
+    /// Called by `PatientListView` after it has emptied the navigation stack.
+    func patientListDidReset(using onboarding: OnboardingStore) {
+        if pendingShowcaseIntro {
+            pendingShowcaseIntro = false
+            showcaseRevealPhase = .intro
+        }
+        if pendingShowcaseIntroExit {
+            pendingShowcaseIntroExit = false
+            showcaseRevealPhase = .idle
+            dismissCoach(using: onboarding)
+        }
     }
 
     func cancelShowcaseCountdown() {
@@ -291,9 +318,11 @@ final class GettingStartedRouter {
                 try? await Task.sleep(for: .seconds(1))
             }
             guard !Task.isCancelled else { return }
-            store.loadShowcaseDemoData()
-            refresh(using: store)
-            showcaseRevealPhase = .intro
+            // Leave the AI summary before the intro so “continue” never
+            // reveals it again — clear the stack, then present the intro.
+            showcaseRevealPhase = .idle
+            pendingShowcaseIntro = true
+            returnToPatientList()
         }
     }
 
