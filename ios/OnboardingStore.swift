@@ -144,6 +144,13 @@ final class OnboardingStore {
     }
 }
 
+/// Phase of the post-tour showcase reveal (countdown → intro sheet).
+enum ShowcaseRevealPhase: Equatable {
+    case idle
+    case countingDown(secondsLeft: Int)
+    case intro
+}
+
 /// One-shot coach-mark state for the demo walkthrough.
 @MainActor
 @Observable
@@ -163,8 +170,14 @@ final class GettingStartedRouter {
     /// When true, the patient list should pop back to root (e.g. restart).
     var wantsPatientListReset = false
 
+    /// Countdown / intro after the tour completes or “skip to sample data”.
+    var showcaseRevealPhase: ShowcaseRevealPhase = .idle
+
     /// Optional deep-link into sessions (legacy; walkthrough no longer sets this).
     var pendingSessionsAction: SessionsInitialAction?
+
+    @ObservationIgnored
+    private var showcaseCountdownTask: Task<Void, Never>?
 
     func clearHighlight() {
         highlight = nil
@@ -174,7 +187,7 @@ final class GettingStartedRouter {
         if highlight == value { highlight = nil }
     }
 
-    /// Whether `value` should glow right now (ignores stale highlight).
+    /// Whether `value` should flash right now (ignores stale highlight).
     func shouldPulse(_ value: TutorialHighlight) -> Bool {
         let expected = TutorialCoach.highlight(
             for: progress.currentStep,
@@ -214,7 +227,13 @@ final class GettingStartedRouter {
         )
     }
 
+    func resetShowcaseReveal() {
+        cancelShowcaseCountdown()
+        showcaseRevealPhase = .idle
+    }
+
     func restart(using store: PatientStore) {
+        resetShowcaseReveal()
         store.restartDemoTutorial()
         wantsPatientListReset = true
         placement = .patientList
@@ -225,6 +244,58 @@ final class GettingStartedRouter {
     func dismissCoach(using onboarding: OnboardingStore) {
         onboarding.dismissChecklist()
         clearHighlight()
+    }
+
+    /// Starts the 5-second countdown after the tour ends — returns to the
+    /// patients list first so the reveal is never mid-stack.
+    func beginShowcaseCountdownIfNeeded(using store: PatientStore) {
+        guard progress.isComplete, !store.showcaseDataLoaded else { return }
+        guard case .idle = showcaseRevealPhase else { return }
+        returnToPatientList()
+        startShowcaseCountdown(using: store)
+    }
+
+    /// Mission banner → patients list + sample clinic + intro.
+    func skipToShowcaseData(using store: PatientStore) {
+        cancelShowcaseCountdown()
+        clearHighlight()
+        returnToPatientList()
+        store.loadShowcaseDemoData()
+        refresh(using: store)
+        showcaseRevealPhase = .intro
+    }
+
+    func finishShowcaseIntro(using onboarding: OnboardingStore) {
+        showcaseRevealPhase = .idle
+        dismissCoach(using: onboarding)
+    }
+
+    func cancelShowcaseCountdown() {
+        showcaseCountdownTask?.cancel()
+        showcaseCountdownTask = nil
+    }
+
+    /// Pop navigation back to the patients list without animating the stack.
+    private func returnToPatientList() {
+        wantsPatientListReset = true
+        placement = .patientList
+        viewingPatientID = nil
+    }
+
+    private func startShowcaseCountdown(using store: PatientStore) {
+        cancelShowcaseCountdown()
+        showcaseCountdownTask = Task { @MainActor in
+            for seconds in stride(from: 5, through: 1, by: -1) {
+                guard !Task.isCancelled else { return }
+                showcaseRevealPhase = .countingDown(secondsLeft: seconds)
+                try? await Task.sleep(for: .seconds(1))
+            }
+            guard !Task.isCancelled else { return }
+            store.loadShowcaseDemoData()
+            refresh(using: store)
+            returnToPatientList()
+            showcaseRevealPhase = .intro
+        }
     }
 
     func consumePatientListReset() -> Bool {

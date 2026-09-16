@@ -303,7 +303,6 @@ struct SessionEditorView: View {
             .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
             .themedScreen()
             .dismissesKeyboardOnTap()
-            .demoModeChrome()
 //            .navigationTitle(isNew
 //                             ? L10n.newSessionTitle
 //                             : L10n.sessionEditorTitle(sessionNumber))
@@ -361,6 +360,9 @@ struct SessionEditorView: View {
                     .padding(24)
                 }
             }
+            // Mission dock must be the outermost bottom inset so it sits at
+            // the physical bottom of the screen.
+            .demoModeChrome()
             .alert(L10n.deleteSessionConfirmTitle,
                    isPresented: $isShowingDeleteConfirmation) {
                 Button(L10n.deleteSessionAction, role: .destructive) {

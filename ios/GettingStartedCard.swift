@@ -296,48 +296,62 @@ struct GettingStartedProgress: Equatable {
     }
 }
 
-/// Single-mission walkthrough coach — only the current step.
+/// Single-mission walkthrough coach — docked at the bottom of the screen.
 struct TutorialCoachCard: View {
     let progress: GettingStartedProgress
     let placement: TutorialCoachPlacement
     var viewingPatientID: DatabaseID? = nil
+    var showcaseLoaded: Bool
     var onRestart: () -> Void
     var onDismiss: () -> Void
+    var onSkipToShowcase: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "figure.walk")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(Theme.textOnAccent)
+                    .symbolEffect(.bounce, options: .repeating.speed(0.5))
+
+                VStack(alignment: .leading, spacing: 6) {
                     if progress.isComplete {
                         Text(L10n.gettingStartedCompleteMessage)
                             .font(.subheadline.weight(.bold))
-                            .foregroundStyle(Theme.textBright)
+                            .foregroundStyle(Theme.textOnAccent)
                     } else if let step = progress.currentStep {
                         Text(L10n.gettingStartedProgress(
                             progress.currentStepNumber,
                             total: GettingStartedStep.allCases.count))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Theme.gold)
+                            .font(.caption.weight(.heavy))
+                            .foregroundStyle(Theme.textOnAccent.opacity(0.85))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.22), in: Capsule())
+
                         Text(step.title)
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(Theme.textBright)
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(Theme.textOnAccent)
+
                         Text(TutorialCoach.hint(
                             for: step,
                             on: placement,
                             progress: progress,
                             viewingPatientID: viewingPatientID
                         ))
-                            .font(.caption)
-                            .foregroundStyle(Theme.textBody)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.textOnAccent.opacity(0.92))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                Spacer(minLength: 8)
+
+                Spacer(minLength: 4)
+
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Theme.textFaint)
-                        .padding(6)
+                        .font(.footnote.weight(.bold))
+                        .foregroundStyle(Theme.textOnAccent.opacity(0.85))
+                        .padding(8)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -351,17 +365,42 @@ struct TutorialCoachCard: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Theme.surface)
+                .foregroundStyle(Theme.gold)
+            } else if !showcaseLoaded {
+                Button(action: onSkipToShowcase) {
+                    Label(L10n.tutorialCoachSkipToShowcase, systemImage: "sparkles")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(Theme.textOnAccent)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.surface)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Theme.borderFaint)
-                .frame(height: 1)
+        .background {
+            LinearGradient(
+                colors: [Theme.gold, Theme.warning],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .overlay {
+                TimelineView(.animation(minimumInterval: 1 / 20)) { context in
+                    let t = context.date.timeIntervalSinceReferenceDate
+                        .truncatingRemainder(dividingBy: 3) / 3
+                    LinearGradient(
+                        colors: [.clear, Color.white.opacity(0.18), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .offset(x: CGFloat(t) * 400 - 200)
+                }
+            }
+            .ignoresSafeArea(edges: .bottom)
         }
+        .shadow(color: Theme.warning.opacity(0.35), radius: 16, y: -4)
     }
 }
 
@@ -369,8 +408,10 @@ struct TutorialCoachCard: View {
     TutorialCoachCard(
         progress: .empty,
         placement: .patientList,
+        showcaseLoaded: false,
         onRestart: {},
-        onDismiss: {}
+        onDismiss: {},
+        onSkipToShowcase: {}
     )
     .background(Theme.base)
     .appTextSize()

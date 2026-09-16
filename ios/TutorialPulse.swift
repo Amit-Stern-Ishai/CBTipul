@@ -14,77 +14,42 @@ enum TutorialHighlight: Equatable {
     case aiSummary
 }
 
-/// Visual style for the walkthrough glow.
+/// Kept for call-site compatibility; attention is color-only either way.
 enum TutorialPulseStyle {
-    /// List rows / wide controls — rounded rectangle fill + stroke.
     case card
-    /// Nav-bar icon buttons — circular halo (toolbar clips rect overlays).
     case toolbar
 }
 
-/// Soft repeating glow used to coach the therapist toward the next control.
+/// Walkthrough attention: flash tint / text color only — no shapes or padding.
 struct TutorialPulseModifier: ViewModifier {
     let isActive: Bool
     var style: TutorialPulseStyle = .card
-    @State private var pulsing = false
+    @State private var flashOn = false
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        switch style {
-        case .card:
+        if isActive {
             content
-                .background {
-                    if isActive {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Theme.warning.opacity(pulsing ? 0.32 : 0.1))
-                    }
-                }
-                .overlay {
-                    if isActive {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Theme.warning, lineWidth: 3)
-                            .opacity(pulsing ? 1 : 0.35)
-                    }
-                }
-                .onAppear { restartPulse(isActive) }
+                .foregroundStyle(flashOn ? Theme.warning : Color.primary)
+                .tint(flashOn ? Theme.warning : Color.accentColor)
+                .symbolEffect(
+                    .pulse,
+                    options: .repeating.speed(0.8),
+                    isActive: style == .toolbar
+                )
+                .onAppear { startFlashing() }
                 .onChange(of: isActive) { _, active in
-                    restartPulse(active)
+                    if active { startFlashing() } else { flashOn = false }
                 }
-        case .toolbar:
-            // Overlay only — do not pad/resize the system bar button.
+        } else {
             content
-                .overlay {
-                    if isActive {
-                        Circle()
-                            .fill(Theme.warning.opacity(pulsing ? 0.45 : 0.15))
-                            .frame(width: 36, height: 36)
-                            .opacity(pulsing ? 1 : 0.85)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .overlay {
-                    if isActive {
-                        Circle()
-                            .strokeBorder(Theme.warning, lineWidth: 2.5)
-                            .frame(width: 36, height: 36)
-                            .opacity(pulsing ? 1 : 0.4)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .onAppear { restartPulse(isActive) }
-                .onChange(of: isActive) { _, active in
-                    restartPulse(active)
-                }
         }
     }
 
-    private func restartPulse(_ active: Bool) {
-        if active {
-            pulsing = false
-            withAnimation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true)) {
-                pulsing = true
-            }
-        } else {
-            pulsing = false
+    private func startFlashing() {
+        flashOn = false
+        withAnimation(.easeInOut(duration: 0.65).repeatForever(autoreverses: true)) {
+            flashOn = true
         }
     }
 }

@@ -260,6 +260,9 @@ final class PatientStore {
     /// When true, the in-memory clinic is the local demo sample — no
     /// Supabase writes, and network reloads are skipped.
     private(set) var isDemoMode = false
+    /// Bundled sample patients (`demo-1` …) are hidden until the tour ends
+    /// or the therapist taps “skip to sample data”.
+    private(set) var showcaseDataLoaded = false
 
     /// `anonymizeText` overrides the anonymization call, for tests only;
     /// the app always uses `ClinicalTextAnonymizer` on the shared client.
@@ -272,41 +275,62 @@ final class PatientStore {
         )
     }
 
-    /// Installs the local demo clinic: restores the last saved demo snapshot
-    /// when one exists, otherwise seeds from `DemoData` and persists it.
+    /// Installs local demo mode with an empty clinic — like a new signup.
+    /// Only therapist-created tutorial patients are restored from disk.
     func enterDemoMode() {
         isDemoMode = true
+        showcaseDataLoaded = false
+        patients = []
+        questionnairesByPatient = [:]
+
         if let snapshot = DemoClinicStore.loadClinic() {
-            applyDemoSnapshot(snapshot)
-            AppLog.store.notice("Restored demo clinic with \(self.patients.count) patients")
+            applyTutorialOnlySnapshot(snapshot)
+            AppLog.store.notice(
+                "Restored demo tutorial with \(self.patients.count) patient(s)"
+            )
         } else {
-            let bundle = DemoData.makeBundle()
-            patients = bundle.patients
-            questionnairesByPatient = bundle.questionnairesByPatient
-            for (patientID, response) in bundle.preparationsByPatient {
-                _ = SavedPreparation.save(response, for: patientID)
-            }
-            for patient in patients {
-                if let name = patient.localName, !name.isEmpty {
-                    DemoClinicStore.saveName(name, for: patient.id)
-                } else if !patient.backendName.isEmpty {
-                    DemoClinicStore.saveName(patient.backendName, for: patient.id)
-                    patient.localName = patient.backendName
-                }
-                markFormulationSafe(patient.formulation)
-                for session in patient.sessions {
-                    textGate.markSafe(session.notes)
-                    markAnalysisSafe(session.structuredNotes)
-                }
-            }
-            persistDemoClinic()
-            AppLog.store.notice("Seeded demo clinic with \(self.patients.count) sample patients")
+            AppLog.store.notice("Entered empty demo clinic")
         }
-        // Ensure every demo patient has a cache entry so list rows do not
-        // flash loading score placeholders and reflow after first paint.
+    }
+
+    /// Adds bundled showcase patients for free exploration after the tour.
+    func loadShowcaseDemoData() {
+        guard isDemoMode, !showcaseDataLoaded else { return }
+        let bundle = DemoData.makeBundle()
+        let existingIDs = Set(patients.map(\.id))
+
+        for patient in bundle.patients where DemoData.isShowcaseID(patient.id) {
+            guard !existingIDs.contains(patient.id) else { continue }
+            if let name = patient.localName, !name.isEmpty {
+                DemoClinicStore.saveName(name, for: patient.id)
+            } else if !patient.backendName.isEmpty {
+                DemoClinicStore.saveName(patient.backendName, for: patient.id)
+                patient.localName = patient.backendName
+            }
+            markFormulationSafe(patient.formulation)
+            for session in patient.sessions {
+                textGate.markSafe(session.notes)
+                markAnalysisSafe(session.structuredNotes)
+            }
+            patients.append(patient)
+        }
+
+        for (patientID, records) in bundle.questionnairesByPatient
+            where DemoData.isShowcaseID(patientID) {
+            questionnairesByPatient[patientID] = records
+        }
+        for (patientID, response) in bundle.preparationsByPatient
+            where DemoData.isShowcaseID(patientID) {
+            _ = SavedPreparation.save(response, for: patientID)
+        }
+
         for patient in patients where questionnairesByPatient[patient.id] == nil {
             questionnairesByPatient[patient.id] = []
         }
+
+        showcaseDataLoaded = true
+        persistDemoClinic()
+        AppLog.store.notice("Loaded showcase demo patients")
     }
 
     /// Leaves demo mode, keeping the demo clinic on disk for the next visit,
@@ -327,20 +351,18 @@ final class PatientStore {
     }
 
     /// Removes therapist-created tutorial patients so the checklist can run again.
-    /// Showcase sample patients are kept.
     func restartDemoTutorial() {
         guard isDemoMode else { return }
-        let tutorialIDs = patients
-            .filter { DemoData.isTutorialPatientID($0.id) }
-            .map(\.id)
-        patients.removeAll { DemoData.isTutorialPatientID($0.id) }
-        for id in tutorialIDs {
+        let demoIDs = patients.filter { DemoData.isDemoID($0.id) }.map(\.id)
+        patients.removeAll { DemoData.isDemoID($0.id) }
+        for id in demoIDs {
             questionnairesByPatient[id] = nil
             DemoClinicStore.deleteName(for: id)
             DemoClinicStore.deletePreparation(for: id)
         }
+        showcaseDataLoaded = false
         persistDemoClinic()
-        AppLog.store.notice("Restarted demo tutorial; removed \(tutorialIDs.count) tutorial patients")
+        AppLog.store.notice("Restarted demo tutorial; removed \(demoIDs.count) demo patients")
     }
 
     /// Writes the in-memory demo clinic to the demo-only stores.
@@ -386,8 +408,16 @@ final class PatientStore {
     }
 
     private func applyDemoSnapshot(_ snapshot: DemoClinicStore.Snapshot) {
+        applyTutorialOnlySnapshot(snapshot)
+    }
+
+    /// Restores only `demo-user-…` work — never pre-seeded showcase rows.
+    private func applyTutorialOnlySnapshot(_ snapshot: DemoClinicStore.Snapshot) {
         let names = DemoClinicStore.loadNames()
-        patients = snapshot.patients.map { record in
+        let tutorialRecords = snapshot.patients.filter {
+            DemoData.isTutorialPatientID($0.id)
+        }
+        patients = tutorialRecords.map { record in
             let patient = Patient(
                 id: record.id,
                 firstName: record.firstName,
@@ -416,9 +446,14 @@ final class PatientStore {
         }
         questionnairesByPatient = Dictionary(
             uniqueKeysWithValues: snapshot.questionnairesByPatient.compactMap { key, value in
-                (DatabaseID.text(key), value)
+                let id = DatabaseID.text(key)
+                guard DemoData.isTutorialPatientID(id) else { return nil }
+                return (id, value)
             }
         )
+        for patient in patients where questionnairesByPatient[patient.id] == nil {
+            questionnairesByPatient[patient.id] = []
+        }
     }
 
     // MARK: - Anonymization gate helpers

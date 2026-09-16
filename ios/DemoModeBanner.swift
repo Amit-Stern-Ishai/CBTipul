@@ -1,10 +1,9 @@
 import SwiftUI
 
-/// Persistent chrome shown while local demo mode is active.
-///
-/// Full-width yellow strip directly under the navigation bar.
+/// Slim strip: “demo mode” + exit (stays under the nav bar).
 struct DemoModeBanner: View {
     @Environment(PatientStore.self) private var store
+    @Environment(GettingStartedRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
 
     @State private var borderPulse = false
@@ -30,6 +29,7 @@ struct DemoModeBanner: View {
 
             Button(L10n.demoModeExitShort) {
                 Task {
+                    router.resetShowcaseReveal()
                     await store.exitDemoMode()
                     dismiss()
                 }
@@ -85,9 +85,7 @@ struct DemoModeBanner: View {
     }
 }
 
-/// Pins the demo banner (and walkthrough coach) under the nav bar.
-/// Does not wrap content in another container — wrapping was fighting
-/// NavigationStack toolbar layout.
+/// Demo strip under the nav bar + walkthrough mission dock at the bottom.
 private struct DemoModeBannerInset: ViewModifier {
     @Environment(PatientStore.self) private var store
     @Environment(OnboardingStore.self) private var onboarding
@@ -97,27 +95,38 @@ private struct DemoModeBannerInset: ViewModifier {
         content
             .safeAreaInset(edge: .top, spacing: 0) {
                 if store.isDemoMode {
-                    VStack(spacing: 0) {
-                        DemoModeBanner()
-                        if !onboarding.checklistDismissed {
-                            TutorialCoachCard(
-                                progress: router.progress,
-                                placement: router.placement,
-                                viewingPatientID: router.viewingPatientID,
-                                onRestart: { router.restart(using: store) },
-                                onDismiss: { router.dismissCoach(using: onboarding) }
-                            )
-                        }
-                    }
+                    DemoModeBanner()
+                        .transaction { $0.animation = nil }
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if store.isDemoMode, !onboarding.checklistDismissed {
+                    TutorialCoachCard(
+                        progress: router.progress,
+                        placement: router.placement,
+                        viewingPatientID: router.viewingPatientID,
+                        showcaseLoaded: store.showcaseDataLoaded,
+                        onRestart: { router.restart(using: store) },
+                        onDismiss: { router.dismissCoach(using: onboarding) },
+                        onSkipToShowcase: { router.skipToShowcaseData(using: store) }
+                    )
                     .transaction { $0.animation = nil }
                 }
+            }
+            .onAppear {
+                if router.progress.isComplete {
+                    router.beginShowcaseCountdownIfNeeded(using: store)
+                }
+            }
+            .onChange(of: router.progress.isComplete) { _, complete in
+                guard complete else { return }
+                router.beginShowcaseCountdownIfNeeded(using: store)
             }
     }
 }
 
 extension View {
-    /// Demo banner + single-step walkthrough coach under the nav bar.
-    /// (Forcing a solid `Theme.base` bar made the nav look black vs before.)
+    /// Demo strip (top) + walkthrough mission dock (bottom).
     func demoModeChrome() -> some View {
         modifier(DemoModeBannerInset())
     }

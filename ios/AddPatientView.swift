@@ -60,7 +60,6 @@ struct AddPatientView: View {
             .themedScreen()
             .dismissesKeyboardOnTap()
             .animation(.easeInOut(duration: 0.2), value: errorMessage)
-            .demoModeChrome()
             .navigationTitle(L10n.newPatientTitle)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -85,6 +84,7 @@ struct AddPatientView: View {
                 .disabled(!canSave)
                 .padding(24)
             }
+            .demoModeChrome()
             .busyOverlay(isSaving)
         }
         .appTextSize()
