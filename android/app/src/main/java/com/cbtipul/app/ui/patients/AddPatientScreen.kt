@@ -28,6 +28,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +54,7 @@ fun AddPatientScreen(
     errorMessage: String?,
     onCancel: () -> Unit,
     onSave: (String, String, PatientStatus) -> Unit,
+    gettingStarted: com.cbtipul.app.ui.onboarding.GettingStartedRouter? = null,
 ) {
     val colors = Theme.colors
     var first by remember { mutableStateOf("") }
@@ -60,6 +62,10 @@ fun AddPatientScreen(
     var status by remember { mutableStateOf(PatientStatus.Active) }
     var statusExpanded by remember { mutableStateOf(false) }
     val canSave = (first.trim().isNotEmpty() || last.trim().isNotEmpty()) && !isSaving
+
+    LaunchedEffect(Unit) {
+        gettingStarted?.setPlacement(com.cbtipul.app.ui.onboarding.TutorialCoachPlacement.AddPatient)
+    }
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(

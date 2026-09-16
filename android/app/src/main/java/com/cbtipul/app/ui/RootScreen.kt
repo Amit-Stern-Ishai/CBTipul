@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +25,7 @@ import com.cbtipul.app.ui.auth.AuthScreen
 import com.cbtipul.app.ui.auth.NewPasswordSheet
 import com.cbtipul.app.ui.legal.AiConsentDialog
 import com.cbtipul.app.ui.legal.TermsScreen
+import com.cbtipul.app.ui.onboarding.WelcomeOnboardingScreen
 import com.cbtipul.app.ui.patients.PatientListViewModel
 import com.cbtipul.app.ui.patients.PatientsNavHost
 import com.cbtipul.app.ui.settings.SettingsScreen
@@ -65,8 +67,25 @@ fun RootScreen() {
         app.aiConsentStore.setActiveUser(email)
     }
     var showSettings by remember { mutableStateOf(false) }
+    var showWelcome by remember { mutableStateOf(false) }
+    var patientsViewModel by remember { mutableStateOf<PatientListViewModel?>(null) }
     var isDeletingAccount by remember { mutableStateOf(false) }
     var deleteAccountError by remember { mutableStateOf<String?>(null) }
+
+    val wantsDemoConsent by app.onboardingStore.wantsDemoConsent.collectAsStateWithLifecycle()
+    LaunchedEffect(wantsDemoConsent) {
+        if (!wantsDemoConsent) return@LaunchedEffect
+        app.onboardingStore.clearDemoConsentRequest()
+        // Present above Settings (same as iOS fullScreenCover), then drop Settings under it.
+        showWelcome = true
+        showSettings = false
+    }
+    LaunchedEffect(email) {
+        if (email == null) {
+            showWelcome = false
+            patientsViewModel = null
+        }
+    }
 
     val notConfigured = stringResource(R.string.supabase_not_configured_error)
     val emailNotConfirmed = stringResource(R.string.email_not_confirmed_error)
@@ -103,13 +122,18 @@ fun RootScreen() {
                 }
             }
             email != null && termsAccepted.value == true -> {
-                val patientsViewModel: PatientListViewModel = viewModel(
+                LaunchedEffect(email) {
+                    app.onboardingStore.setActiveUser(email)
+                }
+                val listVm: PatientListViewModel = viewModel(
                     key = "$email-$listSession",
-                    factory = PatientListViewModel.Factory(app.patientRepository),
+                    factory = PatientListViewModel.Factory(app.patientRepository, app.onboardingStore),
                 )
+                SideEffect { patientsViewModel = listVm }
                 PatientsNavHost(
-                    viewModel = patientsViewModel,
+                    viewModel = listVm,
                     onOpenSettings = { showSettings = true },
+                    onCloseSettings = { showSettings = false },
                 )
             }
             email != null && termsAccepted.value == false -> {
@@ -190,7 +214,25 @@ fun RootScreen() {
                     )
                 },
                 onClearDeleteError = { deleteAccountError = null },
+                onGettingStartedGuide = {
+                    // RootScreen presents welcome and closes Settings under it.
+                    app.onboardingStore.requestDemoConsent()
+                },
                 onDone = { showSettings = false },
+            )
+        }
+
+        if (showWelcome) {
+            val vm = patientsViewModel
+            WelcomeOnboardingScreen(
+                onStartDemoTour = {
+                    vm?.startDemoTour()
+                    showWelcome = false
+                },
+                onSkip = {
+                    vm?.skipWelcome()
+                    showWelcome = false
+                },
             )
         }
     }

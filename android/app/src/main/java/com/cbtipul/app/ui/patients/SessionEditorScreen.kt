@@ -84,6 +84,8 @@ import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.theme.hebrewDate
+import com.cbtipul.app.ui.onboarding.TutorialHighlight
+import com.cbtipul.app.ui.onboarding.tutorialPulse
 import com.cbtipul.app.ui.theme.themedScreen
 import java.io.File
 import java.util.Date
@@ -111,8 +113,18 @@ fun SessionEditorScreen(
     atmosphere: Color?,
     onOpenQuestionnaire: () -> Unit,
     onMarkFollowUpDiscussed: (Session, Int) -> Unit,
+    gettingStarted: com.cbtipul.app.ui.onboarding.GettingStartedRouter? = null,
+    viewingPatientId: com.cbtipul.app.model.DatabaseId? = null,
 ) {
     val colors = Theme.colors
+
+    LaunchedEffect(patient?.id?.queryValue, viewingPatientId?.queryValue) {
+        gettingStarted?.setPlacement(
+            com.cbtipul.app.ui.onboarding.TutorialCoachPlacement.SessionEditor,
+            viewingPatientId = viewingPatientId ?: patient?.id,
+        )
+    }
+
     if (session == null && !isNew) {
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
             Text(stringResource(R.string.session_not_saved_error), color = colors.textBright)
@@ -392,7 +404,9 @@ fun SessionEditorScreen(
                         value = notes,
                         onValueChange = { notes = it },
                         placeholder = stringResource(R.string.optional_notes_placeholder),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .tutorialPulse(gettingStarted?.shouldPulse(TutorialHighlight.RecordNotes) == true),
                         enabled = !busy,
                     )
                     if (recorder.isRecording) {
@@ -473,6 +487,7 @@ fun SessionEditorScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .tutorialPulse(gettingStarted?.shouldPulse(TutorialHighlight.AiSummary) == true)
                             .clickable(
                                 enabled = !busy && hasText,
                                 onClick = {
@@ -562,6 +577,7 @@ fun SessionEditorScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .tutorialPulse(gettingStarted?.shouldPulse(TutorialHighlight.FillQuestionnaire) == true)
                                 .clickable(enabled = !busy, onClick = onOpenQuestionnaire)
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,

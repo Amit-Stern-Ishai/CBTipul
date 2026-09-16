@@ -50,14 +50,20 @@ class PatientRepository(
     private val textGate: ClinicalTextGate,
     private val whisper: WhisperService,
     private val ai: AiService,
+    private val demoClinicStore: DemoClinicStore,
 ) {
     private val _patients = MutableStateFlow<List<Patient>>(emptyList())
     val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
     private val _questionnaires = MutableStateFlow<Map<String, List<CompletedQuestionnaire>>>(emptyMap())
     val questionnaires: StateFlow<Map<String, List<CompletedQuestionnaire>>> = _questionnaires.asStateFlow()
+    private val _isDemoMode = MutableStateFlow(false)
+    val isDemoMode: StateFlow<Boolean> = _isDemoMode.asStateFlow()
+    private val _showcaseDataLoaded = MutableStateFlow(false)
+    val showcaseDataLoaded: StateFlow<Boolean> = _showcaseDataLoaded.asStateFlow()
     private val cacheLock = Mutex()
 
     fun loadCachedPatients() {
+        if (_isDemoMode.value) return
         if (_patients.value.isNotEmpty()) return
         val cached = cache.load() ?: return
         _patients.value = cached.patients.map { patient ->
@@ -79,10 +85,123 @@ class PatientRepository(
     }
 
     private fun persistCache() {
+        if (_isDemoMode.value) {
+            persistDemoClinic()
+            return
+        }
         cache.save(_patients.value, _questionnaires.value)
     }
 
+    /** Empty local demo clinic (like a new signup); restores tutorial-only work if present. */
+    fun enterDemoMode() {
+        _isDemoMode.value = true
+        _showcaseDataLoaded.value = false
+        _patients.value = emptyList()
+        _questionnaires.value = emptyMap()
+        val snapshot = demoClinicStore.loadClinic()
+        if (snapshot != null) {
+            applyTutorialOnlySnapshot(snapshot)
+        }
+    }
+
+    fun loadShowcaseDemoData() {
+        if (!_isDemoMode.value || _showcaseDataLoaded.value) return
+        val bundle = DemoData.makeBundle()
+        val existingIds = _patients.value.map { it.id.queryValue }.toSet()
+        val added = mutableListOf<Patient>()
+        for (patient in bundle.patients) {
+            if (!DemoData.isShowcaseId(patient.id)) continue
+            if (patient.id.queryValue in existingIds) continue
+            val name = patient.localName?.takeIf { it.isNotEmpty() } ?: patient.backendName
+            if (name.isNotEmpty()) {
+                demoClinicStore.saveName(name, patient.id)
+            }
+            markFormulationSafe(patient.formulation)
+            patient.sessions.forEach {
+                textGate.markSafe(it.notes)
+                markAnalysisSafe(it.structuredNotes)
+            }
+            added += patient.copy(localName = name.ifEmpty { null })
+        }
+        _patients.update { it + added }
+        _questionnaires.update { current ->
+            val next = current.toMutableMap()
+            for ((patientId, records) in bundle.questionnairesByPatient) {
+                if (!DemoData.isShowcaseId(patientId)) continue
+                next[patientId.queryValue] = records
+            }
+            for (patient in _patients.value) {
+                if (patient.id.queryValue !in next) next[patient.id.queryValue] = emptyList()
+            }
+            next
+        }
+        _showcaseDataLoaded.value = true
+        persistDemoClinic()
+    }
+
+    suspend fun exitDemoMode() {
+        if (!_isDemoMode.value) return
+        demoClinicStore.clearAll()
+        _isDemoMode.value = false
+        _showcaseDataLoaded.value = false
+        _patients.value = emptyList()
+        _questionnaires.value = emptyMap()
+        loadCachedPatients()
+        runCatching { loadPatients() }
+    }
+
+    fun restartDemoTutorial() {
+        if (!_isDemoMode.value) return
+        val demoIds = _patients.value.filter { DemoData.isDemoId(it.id) }.map { it.id }
+        _patients.update { list -> list.filterNot { DemoData.isDemoId(it.id) } }
+        _questionnaires.update { cache ->
+            cache.filterKeys { key -> demoIds.none { it.queryValue == key } }
+        }
+        demoIds.forEach { id ->
+            demoClinicStore.deleteName(id)
+            demoClinicStore.deletePreparation(id.queryValue)
+        }
+        _showcaseDataLoaded.value = false
+        persistDemoClinic()
+    }
+
+    private fun persistDemoClinic() {
+        if (!_isDemoMode.value) return
+        val snapshot = demoClinicStore.snapshotFrom(_patients.value, _questionnaires.value)
+        demoClinicStore.saveClinic(snapshot)
+        val names = demoClinicStore.loadNames().toMutableMap()
+        for (patient in _patients.value) {
+            val name = patient.localName
+            if (!name.isNullOrEmpty()) names[patient.id.queryValue] = name
+        }
+        demoClinicStore.saveNames(names)
+    }
+
+    private fun applyTutorialOnlySnapshot(snapshot: DemoClinicStore.Snapshot) {
+        val names = demoClinicStore.loadNames()
+        val tutorialSnapshot = snapshot.copy(
+            patients = snapshot.patients.filter { DemoData.isTutorialPatientId(it.id) },
+            questionnairesByPatient = snapshot.questionnairesByPatient.filterKeys { key ->
+                DemoData.isTutorialPatientId(DatabaseId.Text(key))
+            },
+        )
+        val patients = demoClinicStore.patientsFrom(tutorialSnapshot, names)
+        patients.forEach { patient ->
+            markFormulationSafe(patient.formulation)
+            textGate.markSafe(patient.notes)
+            patient.sessions.forEach {
+                textGate.markSafe(it.notes)
+                markAnalysisSafe(it.structuredNotes)
+            }
+        }
+        _patients.value = patients
+        val questionnaires = demoClinicStore.questionnairesFrom(tutorialSnapshot)
+        _questionnaires.value = questionnaires
+        _showcaseDataLoaded.value = false
+    }
+
     suspend fun loadPatients() {
+        if (_isDemoMode.value) return
         ensureConfigured()
         cacheLock.withLock {
             loadPatientsLocked()
@@ -139,6 +258,21 @@ class PatientRepository(
     }
 
     suspend fun addPatient(firstName: String, lastName: String, status: PatientStatus) {
+        if (_isDemoMode.value) {
+            val name = listOf(firstName, lastName).map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
+            if (name.isEmpty()) return
+            val patient = Patient(
+                id = DemoData.makeTutorialPatientId(),
+                firstName = firstName,
+                lastName = lastName,
+                status = status,
+                localName = name,
+            )
+            demoClinicStore.saveName(name, patient.id)
+            _patients.update { it + patient }
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         val inserted = client.from("Patients")
             .insert(NewPatientRecord(active = status == PatientStatus.Active)) {
@@ -160,6 +294,20 @@ class PatientRepository(
     fun renamePatient(patientId: DatabaseId, firstName: String, lastName: String) {
         val name = listOf(firstName, lastName).map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
         if (name.isEmpty()) return
+        if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+            demoClinicStore.saveName(name, patientId)
+            _patients.update { list ->
+                list.map { patient ->
+                    if (patient.id.queryValue == patientId.queryValue) {
+                        patient.copy(firstName = firstName, lastName = lastName, localName = name)
+                    } else {
+                        patient
+                    }
+                }
+            }
+            persistDemoClinic()
+            return
+        }
         identityStore.save(patientId, name)
         _patients.update { list ->
             list.map { patient ->
@@ -173,6 +321,14 @@ class PatientRepository(
     }
 
     suspend fun deletePatient(patientId: DatabaseId) {
+        if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+            _patients.update { it.filterNot { patient -> patient.id.queryValue == patientId.queryValue } }
+            _questionnaires.update { it - patientId.queryValue }
+            demoClinicStore.deletePreparation(patientId.queryValue)
+            demoClinicStore.deleteName(patientId)
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         cacheLock.withLock {
             val deleted = client.from("Patients").delete {
@@ -189,6 +345,26 @@ class PatientRepository(
     }
 
     suspend fun addSession(patientId: DatabaseId, session: Session) {
+        if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+            val notes = textGate.prepare(session.notes)
+            val analysis = anonymizedAnalysis(session.structuredNotes)
+            val saved = session.copy(
+                databaseId = session.databaseId ?: DatabaseId.Text("demo-session-${session.id}"),
+                notes = notes.orEmpty(),
+                structuredNotes = analysis,
+            )
+            _patients.update { list ->
+                list.map { patient ->
+                    if (patient.id.queryValue == patientId.queryValue) {
+                        patient.copy(sessions = (patient.sessions + saved).sortedBy { it.date })
+                    } else {
+                        patient
+                    }
+                }
+            }
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         val notes = textGate.prepare(session.notes)
         val analysis = anonymizedAnalysis(session.structuredNotes)
@@ -211,6 +387,30 @@ class PatientRepository(
     }
 
     suspend fun updateSession(session: Session) {
+        if (_isDemoMode.value || session.databaseId?.let { DemoData.isDemoId(it) } == true) {
+            textGate.markSafe(session.notes)
+            markAnalysisSafe(session.structuredNotes)
+            val sessionId = session.databaseId
+            _patients.update { list ->
+                list.map { patient ->
+                    patient.copy(
+                        sessions = patient.sessions
+                            .map {
+                                if (it.id == session.id ||
+                                    (sessionId != null && it.databaseId?.queryValue == sessionId.queryValue)
+                                ) {
+                                    session
+                                } else {
+                                    it
+                                }
+                            }
+                            .sortedBy { it.date },
+                    )
+                }
+            }
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         val sessionId = session.databaseId
             ?: throw PatientStoreException(PatientStoreException.Kind.SessionNotSaved)
@@ -237,6 +437,31 @@ class PatientRepository(
     }
 
     suspend fun deleteSession(session: Session) {
+        val patient = _patients.value.find { p ->
+            p.sessions.any { it.id == session.id || it.databaseId?.queryValue == session.databaseId?.queryValue }
+        }
+        if (patient != null && (DemoData.isDemoId(patient.id) || _isDemoMode.value)) {
+            val sessionId = session.databaseId
+            _patients.update { list ->
+                list.map { p ->
+                    p.copy(
+                        sessions = p.sessions.filterNot { existing ->
+                            existing.id == session.id ||
+                                existing.databaseId?.queryValue == sessionId?.queryValue
+                        },
+                    )
+                }
+            }
+            if (sessionId != null) {
+                _questionnaires.update { cached ->
+                    cached.mapValues { (_, records) ->
+                        records.filterNot { it.sessionId?.queryValue == sessionId.queryValue }
+                    }
+                }
+            }
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         val sessionId = session.databaseId
             ?: throw PatientStoreException(PatientStoreException.Kind.SessionNotSaved)
@@ -280,14 +505,33 @@ class PatientRepository(
         val context = PatientContext.make(patient, questionnaires)
         val assignments = PatientContext.lastSessionAssignments(patient)
         val preparation = ai.prepareNextSession(context, assignments)
-        return cache.savePreparation(patientId.queryValue, preparation)
+        return if (_isDemoMode.value || DemoData.isDemoId(patientId)) {
+            demoClinicStore.savePreparation(patientId.queryValue, preparation)
+        } else {
+            cache.savePreparation(patientId.queryValue, preparation)
+        }
     }
 
-    fun loadPreparation(patientId: String): SavedPreparation? = cache.loadPreparation(patientId)
+    fun loadPreparation(patientId: String): SavedPreparation? =
+        if (_isDemoMode.value || DemoData.isDemoId(DatabaseId.Text(patientId))) {
+            demoClinicStore.loadPreparation(patientId)
+        } else {
+            cache.loadPreparation(patientId)
+        }
 
     suspend fun chat(systemPrompt: String, turns: List<ChatTurn>): String = ai.chat(systemPrompt, turns)
 
     suspend fun updatePatientNotes(patientId: DatabaseId, notes: String) {
+        if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+            val prepared = textGate.prepare(notes)
+            _patients.update { list ->
+                list.map {
+                    if (it.id.queryValue == patientId.queryValue) it.copy(notes = prepared.orEmpty()) else it
+                }
+            }
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         val prepared = textGate.prepare(notes)
         val updated = client.from("Patients")
@@ -308,6 +552,15 @@ class PatientRepository(
     }
 
     suspend fun updatePatientStatus(patientId: DatabaseId, status: PatientStatus) {
+        if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+            _patients.update { list ->
+                list.map {
+                    if (it.id.queryValue == patientId.queryValue) it.copy(status = status) else it
+                }
+            }
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         val updated = client.from("Patients")
             .update(buildJsonObject {
@@ -327,6 +580,17 @@ class PatientRepository(
     }
 
     suspend fun saveFormulation(patientId: DatabaseId, formulation: PatientFormulation) {
+        if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+            val anonymized = anonymizedFormulation(formulation)
+            markFormulationSafe(anonymized)
+            _patients.update { list ->
+                list.map {
+                    if (it.id.queryValue == patientId.queryValue) it.copy(formulation = anonymized) else it
+                }
+            }
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         val anonymized = anonymizedFormulation(formulation)
         val updated = client.from("Patients")
@@ -372,6 +636,9 @@ class PatientRepository(
     fun cachedQuestionnaires(patientId: String): List<CompletedQuestionnaire>? = _questionnaires.value[patientId]
 
     suspend fun loadQuestionnaires(patientId: DatabaseId): List<CompletedQuestionnaire> {
+        if (_isDemoMode.value || DemoData.isDemoId(patientId)) {
+            return _questionnaires.value[patientId.queryValue].orEmpty()
+        }
         ensureConfigured()
         val rows = client.from(CombinedMoodQuestionnaire.TABLE)
             .select(Columns.raw("id, session_id, answered_date, gad7_answers, phq9_answers, interference_level, combined_notes")) {
@@ -408,6 +675,23 @@ class PatientRepository(
         patientId: DatabaseId,
         session: Session,
     ) {
+        if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+            val sessionId = session.databaseId
+                ?: throw PatientStoreException(PatientStoreException.Kind.SessionNotSaved)
+            val completed = CompletedQuestionnaire(
+                databaseId = DatabaseId.Text("demo-q-${UUID.randomUUID()}"),
+                sessionId = sessionId,
+                answeredDate = session.date,
+                questionnaire = questionnaire,
+            )
+            _questionnaires.update { cache ->
+                val current = cache[patientId.queryValue].orEmpty()
+                    .filterNot { it.sessionId?.queryValue == sessionId.queryValue } + completed
+                cache + (patientId.queryValue to current.sortedByDescending { it.answeredDate.time })
+            }
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         val sessionId = session.databaseId
             ?: throw PatientStoreException(PatientStoreException.Kind.SessionNotSaved)
@@ -454,6 +738,17 @@ class PatientRepository(
     }
 
     suspend fun deleteQuestionnaire(patientId: DatabaseId, session: Session) {
+        if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+            val sessionId = session.databaseId
+                ?: throw PatientStoreException(PatientStoreException.Kind.SessionNotSaved)
+            _questionnaires.update { cache ->
+                val current = cache[patientId.queryValue].orEmpty()
+                    .filterNot { it.sessionId?.queryValue == sessionId.queryValue }
+                cache + (patientId.queryValue to current)
+            }
+            persistDemoClinic()
+            return
+        }
         ensureConfigured()
         val sessionId = session.databaseId
             ?: throw PatientStoreException(PatientStoreException.Kind.SessionNotSaved)
@@ -482,12 +777,18 @@ class PatientRepository(
     }
 
     fun wipeLocalData() {
+        if (_isDemoMode.value) {
+            demoClinicStore.clearAll()
+            _isDemoMode.value = false
+            _showcaseDataLoaded.value = false
+        }
         _patients.value.forEach { patient ->
             runCatching { identityStore.delete(patient.id) }
             cache.deletePreparation(patient.id.queryValue)
         }
         identityStore.clearAll()
         clearAllCaches()
+        demoClinicStore.clearAll()
     }
 
     private fun ensureConfigured() {

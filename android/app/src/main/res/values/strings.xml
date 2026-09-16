@@ -441,4 +441,47 @@
         <item>אילו דפוסים חוזרים בפגישות?</item>
     </string-array>
     <string name="executive_summary_section">תקציר</string>
+
+    <!-- Getting Started / demo mode -->
+    <string name="welcome_title">בואו נכיר את האפליקציה</string>
+    <string name="welcome_body">המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, פגישה ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלג לנתונים לדוגמה») יופיעו נתונים לדוגמה לחקירה. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת.</string>
+    <string name="welcome_primary_action">המשך למצב הדגמה</string>
+    <string name="welcome_secondary_action">אפשר לעבור על זה אחר כך</string>
+    <string name="welcome_info_link">איך נשמר המידע?</string>
+    <string name="welcome_info_body">שמות המטופלים נשמרים באופן מוצפן במכשיר בלבד ואינם מועלים לשרת. מידע אחר נשמר ומעובד בהתאם למדיניות הפרטיות ולהסכמות שניתנו באפליקציה.</string>
+    <string name="welcome_info_done_action">סגור</string>
+    <string name="getting_started_progress">שלב %1$d מתוך %2$d</string>
+    <string name="getting_started_step_add_patient">יצירת מטופל/ת</string>
+    <string name="getting_started_step_first_session">יצירת פגישה</string>
+    <string name="getting_started_step_questionnaire">מילוי שאלון</string>
+    <string name="getting_started_step_session_summary">הוספת סיכום פגישה</string>
+    <string name="getting_started_step_ai_summary">יצירת סיכום AI</string>
+    <string name="getting_started_complete_message">המדריך הושלם — כל הכבוד!</string>
+    <string name="getting_started_restart_action">התחל מחדש</string>
+    <string name="getting_started_dismiss_a11y">הסתרת מדריך ההתחלה</string>
+    <string name="getting_started_guide_settings_title">מדריך התחלה</string>
+    <string name="tutorial_coach_hint_add_patient">לחצו על ״הוספת מטופל/ת ראשון/ה״ כדי להוסיף מטופל/ת</string>
+    <string name="tutorial_coach_hint_fill_new_patient">מילאו את שם המטופל/ת וליחצו על ״הוספת מטופל/ת״</string>
+    <string name="tutorial_coach_hint_return_patients_add">חזרו לרשימת המטופלים ולחצו על ״הוספת מטופל/ת ראשון/ה״</string>
+    <string name="tutorial_coach_hint_open_patient">לחצו על המטופל/ת שיצרתם/ן</string>
+    <string name="tutorial_coach_hint_open_sessions">לחצו על ״פגישות״</string>
+    <string name="tutorial_coach_hint_add_session">לחצו על ״הוספת פגישה ראשונה״</string>
+    <string name="tutorial_coach_hint_save_session">קבעו סוג פגישה ותאריך, ולחצו על ״הוספת פגישה״</string>
+    <string name="tutorial_coach_hint_open_session">לחצו על הפגישה שיצרתם/ן</string>
+    <string name="tutorial_coach_hint_fill_questionnaire">לחצו על ״מילוי שאלון״</string>
+    <string name="tutorial_coach_hint_complete_questionnaire">סמנו בחירה לכל שאלה, ולחצו על ״שמירה״ למעלה מצד שמאל.</string>
+    <string name="tutorial_coach_hint_record_notes">הקלידו או הקליטו סיכום פגישה לדוגמא. האפליקציה תתמלל את ההקלטה באופן אוטומטי. הקלטה מתבצעת על ידי לחיצה על כפתור המיקרופון הצהוב.</string>
+    <string name="tutorial_coach_hint_ai_summary">לחצו על ״יצירת סיכום AI מובנה״</string>
+    <string name="demo_mode_banner_title">מצב הדגמה</string>
+    <string name="demo_mode_banner_body">קליניקה לדוגמה במכשיר — לא נשמרת בשרת.</string>
+    <string name="demo_mode_exit_short">יציאה</string>
+    <string name="exit_demo_mode_action">יציאה ממצב הדגמה</string>
+    <string name="enter_demo_mode_action">כניסה למצב הדגמה</string>
+    <string name="tutorial_coach_skip_to_showcase">דלג לנתונים לדוגמה</string>
+    <string name="showcase_reveal_title">עכשיו — נתונים לדוגמה!</string>
+    <string name="showcase_reveal_body">הוספנו מטופלים, פגישות ושאלונים לדוגמה כדי שתוכלו לחקור את האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «יציאה» בפס מצב ההדגמה למעלה.</string>
+    <string name="showcase_reveal_exit_hint">אפשר לצאת ממצב ההדגמה בכל רגע מהפס הצהוב למעלה.</string>
+    <string name="showcase_reveal_action">בואו נחקור</string>
+    <string name="empty_patients_primary_action">הוספת מטופל/ת ראשון/ה</string>
+    <string name="empty_sessions_primary_action">הוספת פגישה ראשונה</string>
 </resources>

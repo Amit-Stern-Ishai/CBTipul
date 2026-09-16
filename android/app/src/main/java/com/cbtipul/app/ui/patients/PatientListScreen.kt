@@ -25,6 +25,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -43,10 +44,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cbtipul.app.R
+import com.cbtipul.app.data.DemoData
 import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.PatientStatus
 import com.cbtipul.app.model.SessionType
+import com.cbtipul.app.ui.onboarding.TutorialCoachPlacement
+import com.cbtipul.app.ui.onboarding.TutorialHighlight
+import com.cbtipul.app.ui.onboarding.tutorialPulse
 import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.groupedListCard
@@ -65,7 +70,28 @@ fun PatientListScreen(
     val patients by viewModel.patients.collectAsStateWithLifecycle()
     val questionnaires by viewModel.questionnaires.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
+    val welcomeDismissed by viewModel.onboarding.welcomeDismissed.collectAsStateWithLifecycle()
+    val onboardingHydrated by viewModel.onboarding.isHydrated.collectAsStateWithLifecycle()
+    val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
     val colors = Theme.colors
+    // Match iOS: only auto-prompt on an empty real clinic after load + hydration.
+    val shouldShowWelcome =
+        onboardingHydrated &&
+            ui.hasLoaded &&
+            !ui.isLoading &&
+            !isDemoMode &&
+            patients.isEmpty() &&
+            !welcomeDismissed &&
+            ui.loadError == null
+
+    LaunchedEffect(Unit) {
+        viewModel.gettingStarted.setPlacement(TutorialCoachPlacement.PatientList)
+        viewModel.refreshGettingStartedProgress()
+    }
+    LaunchedEffect(shouldShowWelcome) {
+        if (shouldShowWelcome) viewModel.requestDemoConsent()
+    }
 
     Scaffold(
         modifier = Modifier.themedScreen(colors.gold),
@@ -79,7 +105,12 @@ fun PatientListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onAddPatient) {
+                    IconButton(
+                        onClick = onAddPatient,
+                        modifier = Modifier.tutorialPulse(
+                            isDemoMode && viewModel.gettingStarted.shouldPulse(TutorialHighlight.AddPatient),
+                        ),
+                    ) {
                         Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_patient_action), tint = colors.gold)
                     }
                 },
@@ -88,12 +119,12 @@ fun PatientListScreen(
         },
     ) { padding ->
         PullToRefreshBox(
-            isRefreshing = ui.isLoading && patients.isNotEmpty(),
+            isRefreshing = ui.isLoading && patients.isNotEmpty() && !isDemoMode,
             onRefresh = { viewModel.refresh(fromUser = true) },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             when {
-                patients.isEmpty() && ui.loadError == null && (ui.isLoading || !ui.hasLoaded) -> {
+                patients.isEmpty() && ui.loadError == null && (ui.isLoading || !ui.hasLoaded) && !isDemoMode -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(color = colors.gold)
@@ -102,7 +133,7 @@ fun PatientListScreen(
                         }
                     }
                 }
-                ui.loadError != null && patients.isEmpty() -> {
+                ui.loadError != null && patients.isEmpty() && !isDemoMode -> {
                     EmptyState(
                         title = stringResource(R.string.couldnt_load_patients_title),
                         message = ui.loadError.orEmpty(),
@@ -114,23 +145,36 @@ fun PatientListScreen(
                     EmptyState(
                         title = stringResource(R.string.no_patients_title),
                         message = stringResource(R.string.add_first_patient_message),
-                        action = stringResource(R.string.add_patient_action),
+                        action = stringResource(R.string.empty_patients_primary_action),
                         onAction = onAddPatient,
+                        pulseAction = isDemoMode && viewModel.gettingStarted.shouldPulse(TutorialHighlight.AddPatient),
+                        secondaryAction = if (!isDemoMode) stringResource(R.string.enter_demo_mode_action) else null,
+                        onSecondary = if (!isDemoMode) {
+                            { viewModel.requestDemoConsent() }
+                        } else {
+                            null
+                        },
                     )
                 }
                 else -> {
+                    val focusId = routerState.progress.focusPatientId?.queryValue
                     LazyColumn(
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                             .groupedListCard(colors.gold),
                     ) {
                         itemsIndexed(patients, key = { _, it -> it.id.queryValue }) { index, patient ->
+                            val pulse = isDemoMode &&
+                                DemoData.isTutorialPatientId(patient.id) &&
+                                patient.id.queryValue == focusId &&
+                                viewModel.gettingStarted.shouldPulse(TutorialHighlight.TutorialPatient)
                             PatientRow(
                                 patient = patient,
                                 unnamed = unnamed,
                                 records = questionnaires[patient.id.queryValue],
                                 onClick = { onOpenPatient(patient.id.queryValue) },
                                 onLoadScores = { viewModel.ensureQuestionnaires(patient.id) },
+                                pulse = pulse,
                             )
                             if (index < patients.lastIndex) {
                                 GroupedListDivider(startInset = 72.dp)
@@ -150,6 +194,7 @@ private fun PatientRow(
     records: List<CompletedQuestionnaire>?,
     onClick: () -> Unit,
     onLoadScores: () -> Unit,
+    pulse: Boolean = false,
 ) {
     val colors = Theme.colors
     LaunchedEffect(patient.id.queryValue) { onLoadScores() }
@@ -162,6 +207,7 @@ private fun PatientRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .tutorialPulse(pulse)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -238,7 +284,15 @@ fun SessionType.labelRes(): Int = when (this) {
 }
 
 @Composable
-private fun EmptyState(title: String, message: String, action: String, onAction: () -> Unit) {
+private fun EmptyState(
+    title: String,
+    message: String,
+    action: String,
+    onAction: () -> Unit,
+    pulseAction: Boolean = false,
+    secondaryAction: String? = null,
+    onSecondary: (() -> Unit)? = null,
+) {
     val colors = Theme.colors
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -251,7 +305,14 @@ private fun EmptyState(title: String, message: String, action: String, onAction:
         Spacer(Modifier.height(16.dp))
         Button(
             onClick = onAction,
+            modifier = Modifier.tutorialPulse(pulseAction),
             colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
         ) { Text(action) }
+        if (secondaryAction != null && onSecondary != null) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onSecondary) {
+                Text(secondaryAction, color = colors.gold)
+            }
+        }
     }
 }

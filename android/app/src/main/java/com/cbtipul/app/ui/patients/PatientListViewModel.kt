@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbtipul.app.data.ClinicalTextAnonymizerError
+import com.cbtipul.app.data.OnboardingStore
 import com.cbtipul.app.data.PatientRepository
 import com.cbtipul.app.data.WhisperException
 import com.cbtipul.app.model.AiException
@@ -23,6 +24,8 @@ import com.cbtipul.app.model.PatientStoreException
 import com.cbtipul.app.model.SavedPreparation
 import com.cbtipul.app.model.Session
 import com.cbtipul.app.model.WhatAmIMissingResponse
+import com.cbtipul.app.ui.onboarding.GettingStartedRouter
+import com.cbtipul.app.ui.onboarding.GettingStartedRouterState
 import java.util.Calendar
 import java.util.Date
 import java.io.File
@@ -63,7 +66,16 @@ data class PatientListUiState(
 
 class PatientListViewModel(
     private val repository: PatientRepository,
+    private val onboardingStore: OnboardingStore,
 ) : ViewModel() {
+
+    val isDemoMode: StateFlow<Boolean> = repository.isDemoMode
+    val showcaseDataLoaded: StateFlow<Boolean> = repository.showcaseDataLoaded
+    val onboarding: OnboardingStore get() = onboardingStore
+
+    private val gettingStartedRouter = GettingStartedRouter(viewModelScope)
+    val gettingStarted: GettingStartedRouter get() = gettingStartedRouter
+    val gettingStartedState: StateFlow<GettingStartedRouterState> = gettingStartedRouter.state
 
     init {
         repository.loadCachedPatients()
@@ -89,15 +101,77 @@ class PatientListViewModel(
 
     fun refresh(fromUser: Boolean = false) {
         viewModelScope.launch {
+            if (repository.isDemoMode.value) {
+                refreshGettingStartedProgress()
+                _ui.update { it.copy(isLoading = false, hasLoaded = true, loadError = null) }
+                return@launch
+            }
             val blocking = fromUser || repository.patients.value.isEmpty()
             _ui.update { it.copy(isLoading = blocking, loadError = null) }
             try {
                 repository.loadPatients()
                 _ui.update { it.copy(isLoading = false, hasLoaded = true) }
+                refreshGettingStartedProgress()
             } catch (error: Exception) {
                 _ui.update { it.copy(isLoading = false, hasLoaded = true, loadError = error.message ?: error.toString()) }
             }
         }
+    }
+
+    fun refreshGettingStartedProgress() {
+        gettingStartedRouter.refresh(repository)
+    }
+
+    fun startDemoTour() {
+        viewModelScope.launch {
+            onboardingStore.markDemoTourCompleted()
+            onboardingStore.dismissWelcome()
+            onboardingStore.showChecklistAgain()
+            repository.enterDemoMode()
+            gettingStartedRouter.setPlacement(
+                com.cbtipul.app.ui.onboarding.TutorialCoachPlacement.PatientList,
+            )
+            gettingStartedRouter.refresh(repository)
+            gettingStartedRouter.resetShowcaseReveal()
+            _ui.update { it.copy(isLoading = false, hasLoaded = true, loadError = null) }
+        }
+    }
+
+    fun exitDemoMode() {
+        viewModelScope.launch {
+            gettingStartedRouter.resetShowcaseReveal()
+            repository.exitDemoMode()
+            refreshGettingStartedProgress()
+            refresh()
+        }
+    }
+
+    fun skipWelcome() {
+        viewModelScope.launch { onboardingStore.dismissWelcome() }
+    }
+
+    fun requestDemoConsent() = onboardingStore.requestDemoConsent()
+
+    fun clearDemoConsentRequest() = onboardingStore.clearDemoConsentRequest()
+
+    fun restartDemoTutorial() {
+        gettingStartedRouter.restart(repository)
+    }
+
+    fun skipToShowcaseData() {
+        gettingStartedRouter.skipToShowcaseData(repository)
+    }
+
+    fun finishShowcaseIntro() {
+        gettingStartedRouter.finishShowcaseIntro(onboardingStore, repository)
+    }
+
+    fun dismissCoach() {
+        viewModelScope.launch { gettingStartedRouter.dismissCoach(onboardingStore) }
+    }
+
+    fun beginShowcaseCountdownIfNeeded() {
+        gettingStartedRouter.beginShowcaseCountdownIfNeeded(repository)
     }
 
     fun setAdding(value: Boolean) = _ui.update { it.copy(isAdding = value, addError = null) }
@@ -114,6 +188,7 @@ class PatientListViewModel(
             _ui.update { it.copy(isSavingAdd = true, addError = null) }
             try {
                 repository.addPatient(firstName, lastName, status)
+                refreshGettingStartedProgress()
                 _ui.update { it.copy(isSavingAdd = false, isAdding = false) }
                 onDone()
             } catch (error: Exception) {
@@ -161,6 +236,7 @@ class PatientListViewModel(
             try {
                 if (isNew) repository.addSession(patientId, session)
                 else repository.updateSession(session)
+                refreshGettingStartedProgress()
                 _ui.update { it.copy(isSavingSession = false) }
                 if (leaveAfterSave) onDone()
             } catch (error: Exception) {
@@ -327,6 +403,7 @@ class PatientListViewModel(
             _ui.update { it.copy(isSavingQuestionnaire = true, sessionError = null) }
             try {
                 repository.saveQuestionnaire(questionnaire, patientId, session)
+                refreshGettingStartedProgress()
                 _ui.update { it.copy(isSavingQuestionnaire = false) }
                 onDone()
             } catch (error: Exception) {
@@ -406,6 +483,8 @@ class PatientListViewModel(
                 if (updated.databaseId != null) repository.updateSession(updated)
                 _ui.update { it.copy(isAnalyzing = false, pendingAnalysis = analysis) }
                 onAnalysis(analysis)
+                refreshGettingStartedProgress()
+                beginShowcaseCountdownIfNeeded()
             } catch (error: Exception) {
                 _ui.update {
                     it.copy(
@@ -769,9 +848,12 @@ class PatientListViewModel(
         return mapSessionError(error, notConfigured, rejected, sessionNotSaved, anonymizationFailed)
     }
 
-    class Factory(private val repository: PatientRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val repository: PatientRepository,
+        private val onboardingStore: OnboardingStore,
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PatientListViewModel(repository) as T
+            PatientListViewModel(repository, onboardingStore) as T
     }
 }

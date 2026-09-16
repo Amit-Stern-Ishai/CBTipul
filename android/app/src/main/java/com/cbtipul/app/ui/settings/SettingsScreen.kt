@@ -75,6 +75,7 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     onDeleteAccount: () -> Unit,
     onClearDeleteError: () -> Unit,
+    onGettingStartedGuide: () -> Unit = {},
     onDone: () -> Unit,
 ) {
     val colors = Theme.colors
@@ -133,6 +134,11 @@ fun SettingsScreen(
                         SettingsRow(
                             title = stringResource(R.string.terms_title),
                             onClick = { page = SettingsPage.Terms },
+                        )
+                        GroupedListDivider()
+                        SettingsRow(
+                            title = stringResource(R.string.getting_started_guide_settings_title),
+                            onClick = onGettingStartedGuide,
                         )
                         GroupedListDivider()
                         SettingsRow(title = privacy, onClick = { page = SettingsPage.Web(privacy, "https://cbtipul.com/privacy") })

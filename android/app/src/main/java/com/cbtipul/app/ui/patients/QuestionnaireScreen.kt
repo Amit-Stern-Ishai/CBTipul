@@ -35,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,8 +75,18 @@ fun QuestionnaireScreen(
     onBack: () -> Unit,
     onSave: (CombinedMoodQuestionnaire) -> Unit,
     onDelete: () -> Unit,
+    gettingStarted: com.cbtipul.app.ui.onboarding.GettingStartedRouter? = null,
+    viewingPatientId: com.cbtipul.app.model.DatabaseId? = null,
 ) {
     val colors = Theme.colors
+
+    LaunchedEffect(viewingPatientId?.queryValue) {
+        gettingStarted?.setPlacement(
+            com.cbtipul.app.ui.onboarding.TutorialCoachPlacement.Questionnaire,
+            viewingPatientId = viewingPatientId,
+        )
+    }
+
     if (session?.databaseId == null) {
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
             Text(stringResource(R.string.session_not_saved_error), color = colors.textBright)

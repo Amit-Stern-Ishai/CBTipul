@@ -51,6 +51,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -80,6 +81,8 @@ import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
+import com.cbtipul.app.ui.onboarding.TutorialHighlight
+import com.cbtipul.app.ui.onboarding.tutorialPulse
 import com.cbtipul.app.ui.theme.themedScreen
 import java.io.File
 import kotlinx.coroutines.delay
@@ -114,8 +117,17 @@ fun PatientDetailScreen(
     onSaveNotes: (String, Boolean) -> Unit,
     onTranscribe: (File, String, (String) -> Unit, () -> Unit) -> Unit,
     onDelete: () -> Unit,
+    gettingStarted: com.cbtipul.app.ui.onboarding.GettingStartedRouter? = null,
 ) {
     val colors = Theme.colors
+
+    LaunchedEffect(patient?.id?.queryValue) {
+        gettingStarted?.setPlacement(
+            com.cbtipul.app.ui.onboarding.TutorialCoachPlacement.PatientDetail,
+            viewingPatientId = patient?.id,
+        )
+    }
+
     if (patient == null) {
         BoxMissing(onBack)
         return
@@ -368,6 +380,9 @@ fun PatientDetailScreen(
                 icon = Icons.Outlined.DateRange,
                 title = stringResource(R.string.sessions_title),
                 onClick = onOpenSessions,
+                modifier = Modifier.tutorialPulse(
+                    gettingStarted?.shouldPulse(TutorialHighlight.SessionsEntry) == true,
+                ),
             )
             GroupedListDivider(startInset = 56.dp)
             IconChipRow(
@@ -588,10 +603,11 @@ private fun IconChipRow(
     enabled: Boolean = true,
     trailing: @Composable () -> Unit = {},
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = Theme.colors
     Row(
-        modifier = Modifier
+        modifier = modifier.then(Modifier)
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),

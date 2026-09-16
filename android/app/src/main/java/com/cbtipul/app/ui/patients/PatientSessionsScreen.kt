@@ -44,6 +44,8 @@ import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.hebrewDate
+import com.cbtipul.app.ui.onboarding.TutorialHighlight
+import com.cbtipul.app.ui.onboarding.tutorialPulse
 import com.cbtipul.app.ui.theme.themedScreen
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -60,8 +62,17 @@ fun PatientSessionsScreen(
     onAdd: () -> Unit,
     onOpenSession: (Session) -> Unit,
     onLoadQuestionnaires: () -> Unit,
+    gettingStarted: com.cbtipul.app.ui.onboarding.GettingStartedRouter? = null,
 ) {
     val colors = Theme.colors
+
+    LaunchedEffect(patient?.id?.queryValue) {
+        gettingStarted?.setPlacement(
+            com.cbtipul.app.ui.onboarding.TutorialCoachPlacement.Sessions,
+            viewingPatientId = patient?.id,
+        )
+    }
+
     if (patient == null) {
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
             Text(stringResource(R.string.unnamed_patient), color = colors.textBright)
@@ -93,6 +104,9 @@ fun PatientSessionsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAdd,
+                modifier = Modifier.tutorialPulse(
+                    gettingStarted?.shouldPulse(TutorialHighlight.AddSession) == true,
+                ),
                 containerColor = colors.gold,
                 contentColor = colors.textOnAccent,
             ) {
@@ -124,9 +138,14 @@ fun PatientSessionsScreen(
                         GroupedListCard(accent = accent) {
                             group.items.forEachIndexed { row, item ->
                                 val number = sorted.size - item.index
+                                val isLatest = item.session.id == sorted.firstOrNull()?.id
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .tutorialPulse(
+                                            isLatest &&
+                                                gettingStarted?.shouldPulse(TutorialHighlight.LatestSession) == true,
+                                        )
                                         .clickable { onOpenSession(item.session) }
                                         .padding(horizontal = 16.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically,

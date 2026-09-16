@@ -10,6 +10,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cbtipul.app.R
@@ -17,6 +18,9 @@ import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.DatabaseId
 import com.cbtipul.app.model.PatientFormulation
 import com.cbtipul.app.model.Session
+import com.cbtipul.app.ui.onboarding.DemoModeChrome
+import com.cbtipul.app.ui.onboarding.DemoShowcaseIntroScreen
+import com.cbtipul.app.ui.onboarding.ShowcaseRevealPhase
 import com.cbtipul.app.ui.theme.hebrewDate
 import java.util.Calendar
 import java.util.Date
@@ -25,6 +29,7 @@ import java.util.Date
 fun PatientsNavHost(
     viewModel: PatientListViewModel,
     onOpenSettings: () -> Unit,
+    onCloseSettings: (() -> Unit)? = null,
     navController: NavHostController = rememberNavController(),
 ) {
     val unnamed = stringResource(R.string.unnamed_patient)
@@ -40,7 +45,42 @@ fun PatientsNavHost(
     val patients by viewModel.patients.collectAsStateWithLifecycle()
     val questionnaires by viewModel.questionnaires.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
-    NavHost(navController = navController, startDestination = "list") {
+    val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
+    val showcaseLoaded by viewModel.showcaseDataLoaded.collectAsStateWithLifecycle()
+    val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
+    val checklistDismissed by viewModel.onboarding.checklistDismissed.collectAsStateWithLifecycle()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val atList = backStackEntry?.destination?.route == "list"
+
+    LaunchedEffect(routerState.wantsPatientListReset) {
+        if (!routerState.wantsPatientListReset) return@LaunchedEffect
+        if (!viewModel.gettingStarted.consumePatientListReset()) return@LaunchedEffect
+        navController.popBackStack(route = "list", inclusive = false)
+        viewModel.gettingStarted.patientListDidReset(viewModel.onboarding)
+    }
+
+    LaunchedEffect(isDemoMode) {
+        if (isDemoMode) {
+            onCloseSettings?.invoke()
+            viewModel.refreshGettingStartedProgress()
+        } else {
+            navController.popBackStack(route = "list", inclusive = false)
+            viewModel.gettingStarted.clearHighlight()
+            viewModel.refreshGettingStartedProgress()
+        }
+    }
+
+    DemoModeChrome(
+        isDemoMode = isDemoMode,
+        checklistDismissed = checklistDismissed,
+        routerState = routerState,
+        showcaseLoaded = showcaseLoaded,
+        onExitDemo = { viewModel.exitDemoMode() },
+        onRestart = { viewModel.restartDemoTutorial() },
+        onDismissCoach = { viewModel.dismissCoach() },
+        onSkipToShowcase = { viewModel.skipToShowcaseData() },
+    ) {
+        NavHost(navController = navController, startDestination = "list") {
         composable("list") {
             PatientListScreen(
                 viewModel = viewModel,
@@ -60,6 +100,7 @@ fun PatientsNavHost(
                         navController.popBackStack()
                     }
                 },
+                gettingStarted = viewModel.gettingStarted,
             )
         }
         composable(
@@ -179,6 +220,7 @@ fun PatientsNavHost(
                         }
                     }
                 },
+                gettingStarted = viewModel.gettingStarted,
             )
         }
         composable(
@@ -284,6 +326,7 @@ fun PatientsNavHost(
                     navController.navigate("patient/$id/session/$sessionKey")
                 },
                 onLoadQuestionnaires = { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } },
+                gettingStarted = viewModel.gettingStarted,
             )
         }
         composable(
@@ -424,6 +467,8 @@ fun PatientsNavHost(
                         anonymizationFailed,
                     )
                 },
+                gettingStarted = viewModel.gettingStarted,
+                viewingPatientId = patient?.id,
             )
         }
         composable(
@@ -581,7 +626,13 @@ fun PatientsNavHost(
                         navController.popBackStack()
                     }
                 },
+                gettingStarted = viewModel.gettingStarted,
+                viewingPatientId = patient?.id,
             )
+        }
+        }
+        if (atList && routerState.showcaseRevealPhase == ShowcaseRevealPhase.Intro) {
+            DemoShowcaseIntroScreen(onExplore = { viewModel.finishShowcaseIntro() })
         }
     }
 }
