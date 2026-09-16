@@ -25,9 +25,11 @@ enum GettingStartedStep: Int, CaseIterable, Identifiable {
 /// Where the walkthrough coach is currently shown — drives which control pulses.
 enum TutorialCoachPlacement: Equatable {
     case patientList
+    case addPatient
     case patientDetail
     case sessions
     case sessionEditor
+    case questionnaire
 }
 
 /// Maps the active step + screen to the next control on *this* screen.
@@ -47,6 +49,7 @@ enum TutorialCoach {
         // On a patient-scoped screen that is not the tour patient, do not
         // pulse local controls — send them back via the patients list.
         if placement != .patientList,
+           placement != .addPatient,
            let focus = progress.focusPatientID,
            let viewing = viewingPatientID,
            viewing != focus {
@@ -55,7 +58,11 @@ enum TutorialCoach {
 
         switch step {
         case .createPatient:
-            return placement == .patientList ? .addPatient : nil
+            switch placement {
+            case .patientList: return .addPatient
+            case .addPatient: return nil
+            default: return nil
+            }
 
         case .createSession:
             switch placement {
@@ -63,6 +70,7 @@ enum TutorialCoach {
             case .patientDetail: return .sessionsEntry
             case .sessions: return .addSession
             case .sessionEditor: return nil
+            case .addPatient, .questionnaire: return nil
             }
 
         case .fillQuestionnaire, .recordSessionSummary, .createAISummary:
@@ -78,6 +86,7 @@ enum TutorialCoach {
                 case .createAISummary: return .aiSummary
                 default: return nil
                 }
+            case .questionnaire, .addPatient: return nil
             }
         }
     }
@@ -92,6 +101,7 @@ enum TutorialCoach {
         guard let step else { return "" }
 
         if placement != .patientList,
+           placement != .addPatient,
            let focus = progress.focusPatientID,
            let viewing = viewingPatientID,
            viewing != focus {
@@ -100,9 +110,11 @@ enum TutorialCoach {
 
         switch step {
         case .createPatient:
-            return placement == .patientList
-                ? L10n.tutorialCoachHintAddPatient
-                : L10n.tutorialCoachHintReturnPatientsAdd
+            switch placement {
+            case .patientList: return L10n.tutorialCoachHintAddPatient
+            case .addPatient: return L10n.tutorialCoachHintFillNewPatient
+            default: return L10n.tutorialCoachHintReturnPatientsAdd
+            }
 
         case .createSession:
             switch placement {
@@ -110,6 +122,7 @@ enum TutorialCoach {
             case .patientDetail: return L10n.tutorialCoachHintOpenSessions
             case .sessions: return L10n.tutorialCoachHintAddSession
             case .sessionEditor: return L10n.tutorialCoachHintSaveSession
+            case .addPatient, .questionnaire: return L10n.tutorialCoachHintOpenPatient
             }
 
         case .fillQuestionnaire:
@@ -121,6 +134,8 @@ enum TutorialCoach {
                     ? L10n.tutorialCoachHintOpenSession
                     : L10n.tutorialCoachHintAddSession
             case .sessionEditor: return L10n.tutorialCoachHintFillQuestionnaire
+            case .questionnaire: return L10n.tutorialCoachHintCompleteQuestionnaire
+            case .addPatient: return L10n.tutorialCoachHintOpenPatient
             }
 
         case .recordSessionSummary:
@@ -132,6 +147,7 @@ enum TutorialCoach {
                     ? L10n.tutorialCoachHintOpenSession
                     : L10n.tutorialCoachHintAddSession
             case .sessionEditor: return L10n.tutorialCoachHintRecordNotes
+            case .questionnaire, .addPatient: return L10n.tutorialCoachHintOpenSession
             }
 
         case .createAISummary:
@@ -143,6 +159,7 @@ enum TutorialCoach {
                     ? L10n.tutorialCoachHintOpenSession
                     : L10n.tutorialCoachHintAddSession
             case .sessionEditor: return L10n.tutorialCoachHintAISummary
+            case .questionnaire, .addPatient: return L10n.tutorialCoachHintOpenSession
             }
         }
     }

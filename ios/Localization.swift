@@ -111,16 +111,26 @@ enum L10n {
     static let gettingStartedDismissAccessibilityLabel = "הסתרת מדריך ההתחלה"
     static let gettingStartedGuideSettingsTitle = "מדריך התחלה"
 
-    static let tutorialCoachHintAddPatient = "לחצו על + כדי להוסיף מטופל/ת"
-    static let tutorialCoachHintReturnPatientsAdd = "חזרו לרשימת המטופלים ולחצו על +"
-    static let tutorialCoachHintOpenPatient = "פתחו את המטופל/ת המסומן/ת ברשימה"
-    static let tutorialCoachHintOpenSessions = "היכנסו למפגשים"
-    static let tutorialCoachHintAddSession = "הוסיפו מפגש חדש"
-    static let tutorialCoachHintSaveSession = "שמרו את המפגש כדי להמשיך"
-    static let tutorialCoachHintOpenSession = "פתחו את המפגש האחרון"
-    static let tutorialCoachHintFillQuestionnaire = "מלאו שאלון למפגש"
-    static let tutorialCoachHintRecordNotes = "הקלידו סיכום למפגש"
-    static let tutorialCoachHintAISummary = "צרו סיכום AI מההערות"
+    static let tutorialCoachHintAddPatient =
+        "לחצו על ״הוספת מטופל/ת ראשון/ה״ כדי להוסיף מטופל/ת"
+    static let tutorialCoachHintFillNewPatient =
+        "מילאו שם המטופל/ת וליחצו ״הוספת מטופל/ת״"
+    static let tutorialCoachHintReturnPatientsAdd =
+        "חזרו לרשימת המטופלים ולחצו על ״הוספת מטופל/ת ראשון/ה״"
+    static let tutorialCoachHintOpenPatient =
+        "לחצו על המטופל/ת שיצרתם/ן זה עתה"
+    static let tutorialCoachHintOpenSessions = "לחצו על ״פגישות״"
+    static let tutorialCoachHintAddSession = "לחצו על ״הוספת מפגש ראשון״"
+    static let tutorialCoachHintSaveSession =
+        "קבעו סוג פגישה ותאריך, ולחצו על ״הוספת פגישה״"
+    static let tutorialCoachHintOpenSession =
+        "לחצו על הפגישה שיצרתם/ן זה עתה"
+    static let tutorialCoachHintFillQuestionnaire = "לחצו על ״מילוי שאלון״"
+    static let tutorialCoachHintCompleteQuestionnaire =
+        "סמנו בחירה לכל שאלה, ולחצו על ״שמירה״ למעלה מצד שמאל."
+    static let tutorialCoachHintRecordNotes =
+        "הקלידו או הקליטו סיכום פגישה לדוגמא. הקלטה מתבצעת על ידי לחיצה על המיקרופון."
+    static let tutorialCoachHintAISummary = "לחצו על ״יצירת סיכום AI מובנה״"
     static let tutorialCoachHintReturnSessions = "חזרו למסך המפגשים כדי להמשיך"
     static let tutorialCoachHintFollowGlow = "עקבו אחרי הכפתור המסומן"
 

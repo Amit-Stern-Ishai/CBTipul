@@ -4,6 +4,7 @@ import SwiftUI
 /// `Patients` table.
 struct AddPatientView: View {
     @Environment(PatientStore.self) private var store
+    @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(\.dismiss) private var dismiss
 
     @State private var firstName = ""
@@ -86,6 +87,9 @@ struct AddPatientView: View {
             }
             .demoModeChrome()
             .busyOverlay(isSaving)
+            .onAppear {
+                gettingStartedRouter.setPlacement(.addPatient)
+            }
         }
         .appTextSize()
     }

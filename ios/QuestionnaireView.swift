@@ -198,7 +198,7 @@ struct CombinedMoodQuestionnaireView: View {
             .appTextSize()
         }
         .task {
-            gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: patient.id)
+            gettingStartedRouter.setPlacement(.questionnaire, viewingPatientID: patient.id)
             gettingStartedRouter.refresh(using: store)
             if initialQuestionnaire == nil {
                 initialQuestionnaire = session.questionnaire
