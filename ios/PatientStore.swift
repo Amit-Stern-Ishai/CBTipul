@@ -279,6 +279,7 @@ final class PatientStore {
     /// Only therapist-created tutorial patients are restored from disk.
     func enterDemoMode() {
         isDemoMode = true
+        AIDataSharingConsentStore.shared.setDemoBypass(true)
         showcaseDataLoaded = false
         patients = []
         questionnairesByPatient = [:]
@@ -339,6 +340,7 @@ final class PatientStore {
         guard isDemoMode else { return }
         DemoClinicStore.clearAll()
         isDemoMode = false
+        AIDataSharingConsentStore.shared.setDemoBypass(false)
         showcaseDataLoaded = false
         patients = []
         questionnairesByPatient = [:]

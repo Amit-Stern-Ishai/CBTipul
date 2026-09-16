@@ -439,7 +439,7 @@ fun PatientDetailScreen(
                     NotesField(
                         value = notes,
                         onValueChange = { notes = it },
-                        placeholder = stringResource(R.string.optional_notes_placeholder),
+                        placeholder = stringResource(R.string.patient_notes_field_placeholder),
                         modifier = Modifier.weight(1f),
                         enabled = !busy,
                         onFocusChanged = { focused ->

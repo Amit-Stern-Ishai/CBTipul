@@ -403,7 +403,7 @@ fun SessionEditorScreen(
                     NotesField(
                         value = notes,
                         onValueChange = { notes = it },
-                        placeholder = stringResource(R.string.optional_notes_placeholder),
+                        placeholder = stringResource(R.string.session_summary_field_placeholder),
                         modifier = Modifier
                             .weight(1f)
                             .tutorialPulse(gettingStarted?.shouldPulse(TutorialHighlight.RecordNotes) == true),

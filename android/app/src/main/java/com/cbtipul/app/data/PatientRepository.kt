@@ -51,6 +51,7 @@ class PatientRepository(
     private val whisper: WhisperService,
     private val ai: AiService,
     private val demoClinicStore: DemoClinicStore,
+    private val aiConsentStore: AiConsentStore,
 ) {
     private val _patients = MutableStateFlow<List<Patient>>(emptyList())
     val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
@@ -95,6 +96,7 @@ class PatientRepository(
     /** Empty local demo clinic (like a new signup); restores tutorial-only work if present. */
     fun enterDemoMode() {
         _isDemoMode.value = true
+        aiConsentStore.setDemoBypass(true)
         _showcaseDataLoaded.value = false
         _patients.value = emptyList()
         _questionnaires.value = emptyMap()
@@ -143,6 +145,7 @@ class PatientRepository(
         if (!_isDemoMode.value) return
         demoClinicStore.clearAll()
         _isDemoMode.value = false
+        aiConsentStore.setDemoBypass(false)
         _showcaseDataLoaded.value = false
         _patients.value = emptyList()
         _questionnaires.value = emptyMap()
@@ -780,6 +783,7 @@ class PatientRepository(
         if (_isDemoMode.value) {
             demoClinicStore.clearAll()
             _isDemoMode.value = false
+            aiConsentStore.setDemoBypass(false)
             _showcaseDataLoaded.value = false
         }
         _patients.value.forEach { patient ->

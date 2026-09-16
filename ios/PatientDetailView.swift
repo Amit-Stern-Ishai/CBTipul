@@ -293,7 +293,7 @@ struct PatientDetailView: View {
 
             Section(L10n.notesSection) {
                 HStack(alignment: .bottom) {
-                    NotesField(text: $patient.notes, placeholder: L10n.optionalNotesPlaceholder,
+                    NotesField(text: $patient.notes, placeholder: L10n.patientNotesFieldPlaceholder,
                                minLines: 3, maxLines: 8)
                     recordControl
                 }

@@ -55,6 +55,8 @@
     <string name="notes_section">הערות</string>
     <string name="session_summary_section">סיכום פגישה</string>
     <string name="optional_notes_placeholder">הערות (לא חובה)</string>
+    <string name="session_summary_field_placeholder">כתבו או הקליטו את סיכום הפגישה</string>
+    <string name="patient_notes_field_placeholder">כתבו או הקליטו הערות על המטופל/ת</string>
     <string name="my_formulation_title">הניסוח שלי</string>
     <string name="prepare_next_session_action">הכנה לפגישה הבאה</string>
     <string name="last_preparation_action">ההכנה האחרונה</string>

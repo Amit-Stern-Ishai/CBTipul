@@ -13,6 +13,8 @@ class AiConsentStore(private val preferences: AppPreferences) {
     private val mutex = Mutex()
     private var activeEmail: String? = null
     private var waiter: CompletableDeferred<Boolean>? = null
+    @Volatile
+    private var bypassForDemo: Boolean = false
 
     private val _promptVisible = MutableStateFlow(false)
     val promptVisible: StateFlow<Boolean> = _promptVisible.asStateFlow()
@@ -27,6 +29,7 @@ class AiConsentStore(private val preferences: AppPreferences) {
     }
 
     suspend fun ensureGranted() {
+        if (bypassForDemo) return
         val email = activeEmail ?: throw ConsentDeclinedException()
         if (preferences.isAiConsentAccepted(email)) return
         val deferred = mutex.withLock {
@@ -38,6 +41,16 @@ class AiConsentStore(private val preferences: AppPreferences) {
         } ?: return
         val granted = deferred.await()
         if (!granted) throw ConsentDeclinedException()
+    }
+
+    /** Local demo clinic never prompts for AI data-sharing consent. */
+    fun setDemoBypass(enabled: Boolean) {
+        bypassForDemo = enabled
+        if (enabled) {
+            waiter?.complete(true)
+            waiter = null
+            _promptVisible.value = false
+        }
     }
 
     suspend fun accept() {

@@ -46,6 +46,7 @@ class CbTipulApp : Application() {
             whisper = WhisperService(client, aiConsentStore),
             ai = AiService(client, aiConsentStore),
             demoClinicStore = demoClinicStore,
+            aiConsentStore = aiConsentStore,
         )
     }
 }

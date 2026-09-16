@@ -195,7 +195,7 @@ struct SessionEditorView: View {
 
                 Section(L10n.sessionSummarySection) {
                     HStack(alignment: .bottom) {
-                        NotesField(text: $session.notes, placeholder: L10n.optionalNotesPlaceholder,
+                        NotesField(text: $session.notes, placeholder: L10n.sessionSummaryFieldPlaceholder,
                                    minLines: 3, maxLines: 8)
                         recordControl
                     }

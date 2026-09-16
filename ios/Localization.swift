@@ -71,6 +71,8 @@ enum L10n {
     static let sessionSummarySection = "סיכום פגישה"
     
     static let optionalNotesPlaceholder = "הערות (לא חובה)"
+    static let sessionSummaryFieldPlaceholder = "כתבו או הקליטו את סיכום הפגישה"
+    static let patientNotesFieldPlaceholder = "כתבו או הקליטו הערות על המטופל/ת"
     
     static let myFormulationTitle = "הניסוח שלי"
     

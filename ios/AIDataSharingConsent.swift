@@ -55,6 +55,10 @@ final class AIDataSharingConsentStore {
     @ObservationIgnored
     private weak var consentController: UIViewController?
 
+    /// Local demo clinic never prompts for AI data-sharing consent.
+    @ObservationIgnored
+    private var bypassForDemo = false
+
     private init() {
         // No decision until the signed-in account is known; the app root
         // calls `setActiveUser(email:)` as soon as (and whenever) the
@@ -73,6 +77,19 @@ final class AIDataSharingConsentStore {
         } else {
             hasAccepted = false
             hasDeclined = false
+        }
+    }
+
+    func setDemoBypass(_ enabled: Bool) {
+        bypassForDemo = enabled
+        if enabled {
+            let waiting = pendingContinuations
+            pendingContinuations = []
+            for continuation in waiting {
+                continuation.resume(returning: true)
+            }
+            consentController?.dismiss(animated: false)
+            consentController = nil
         }
     }
 
@@ -114,6 +131,7 @@ final class AIDataSharingConsentStore {
     /// sheet and waiting for the decision. Concurrent callers share one
     /// presentation and all receive the same answer.
     func requireConsent() async -> Bool {
+        if bypassForDemo { return true }
         if hasAccepted { return true }
         guard let presenter = Self.topmostViewController() else { return false }
         return await withCheckedContinuation { continuation in
