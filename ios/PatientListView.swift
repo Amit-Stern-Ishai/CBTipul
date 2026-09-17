@@ -42,6 +42,7 @@ struct PatientListView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("patients.root")
             .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
             .demoModeChrome()

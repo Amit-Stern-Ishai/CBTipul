@@ -47,6 +47,7 @@ struct DemoModeBanner: View {
                 .overlay { gentleShimmer }
         }
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("demo.banner")
         .accessibilityLabel(L10n.demoModeBannerTitle)
         .onAppear {
             withAnimation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true)) {

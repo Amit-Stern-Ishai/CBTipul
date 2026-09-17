@@ -64,6 +64,15 @@ final class AuthManager {
 
     var isAuthenticated: Bool { currentUserEmail != nil }
 
+    /// Launch argument used by XCUITests for an offline signed-in demo path.
+    static var isUITesting: Bool {
+        ProcessInfo.processInfo.arguments.contains("-UITesting")
+    }
+
+    /// Fixed local identity for UI tests — never sent to Supabase.
+    static let uiTestingEmail = "uitesting@cbtipul.local"
+    static let uiTestingUserId = "ui-testing-user"
+
     init() {
         client = SupabaseClient(
             supabaseURL: SupabaseConfig.url,
@@ -75,11 +84,21 @@ final class AuthManager {
         Task { [weak self] in
             guard let stream = self?.client.auth.authStateChanges else { return }
             for await (event, session) in stream {
+                // UI tests inject a fake session; ignore live Auth updates.
+                if Self.isUITesting { continue }
                 AppLog.auth.info("Auth state changed: \(event.rawValue, privacy: .public), signed in: \(session != nil)")
                 self?.currentUserEmail = session?.user.email
                 self?.currentUserId = session?.user.id.uuidString
             }
         }
+    }
+
+    /// Offline signed-in state for `-UITesting` launches (no network).
+    func enterUITestingSession() {
+        TermsAcceptance.setAccepted(email: Self.uiTestingEmail)
+        currentUserEmail = Self.uiTestingEmail
+        currentUserId = Self.uiTestingUserId
+        AppLog.auth.notice("Entered UITesting session")
     }
 
     /// Trims whitespace/newlines and lowercases, so the address matches the

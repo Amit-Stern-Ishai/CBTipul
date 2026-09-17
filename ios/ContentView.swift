@@ -108,9 +108,23 @@ struct ContentView: View {
         }
         .onChange(of: auth.currentUserId, initial: true) { _, userId in
             onboarding.setActiveUser(id: userId)
+            // After AuthView's UITesting inject: skip welcome and enter demo.
+            if AuthManager.isUITesting, userId != nil {
+                hasAcceptedTerms = true
+                onboarding.dismissWelcome()
+                onboarding.markDemoTourCompleted()
+                if !store.isDemoMode {
+                    store.enterDemoMode()
+                }
+            }
         }
         .environment(onboarding)
         .task {
+            if AuthManager.isUITesting {
+                // Skip splash so AuthView (and its IDs) appear immediately.
+                isShowingSplash = false
+                return
+            }
             // Keep the splash up briefly so the session can be restored
             // without flashing the sign-in screen.
             try? await Task.sleep(for: .seconds(1.5))

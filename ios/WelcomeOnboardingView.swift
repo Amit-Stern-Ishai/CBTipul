@@ -35,6 +35,7 @@ struct WelcomeOnboardingView: View {
                             .fontWeight(.semibold)
                     }
                     .buttonStyle(.pressableProminent)
+                    .accessibilityIdentifier("welcome.continueDemo")
 
                     if allowsSkip {
                         Button(action: onSkip) {

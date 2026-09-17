@@ -52,6 +52,12 @@ struct AuthView: View {
             .contentShape(Rectangle())
             .dismissesKeyboardOnTap()
             .animation(.easeInOut(duration: 0.2), value: verificationEmail)
+            .task {
+                // Hold Auth long enough for smoke to assert IDs, then inject demo.
+                guard AuthManager.isUITesting else { return }
+                try? await Task.sleep(for: .seconds(3))
+                auth.enterUITestingSession()
+            }
         }
     }
 
@@ -198,6 +204,7 @@ struct AuthView: View {
                 .frame(maxWidth: .infinity, minHeight: 30)
             }
             .buttonStyle(.pressableProminent)
+            .accessibilityIdentifier("auth.submit")
             .disabled(email.isEmpty || password.isEmpty || !isPasswordValidForSubmit || isWorking)
 
             if mode == .signIn {
@@ -248,8 +255,10 @@ struct AuthView: View {
             .textContentType(.emailAddress)
             .keyboardType(.emailAddress)
             .textInputAutocapitalization(.never)
+            .accessibilityIdentifier("auth.email")
         #else
         return field
+            .accessibilityIdentifier("auth.email")
         #endif
     }
 

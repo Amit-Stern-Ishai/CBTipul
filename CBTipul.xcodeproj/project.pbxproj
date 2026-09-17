@@ -24,12 +24,20 @@
 			remoteGlobalIDString = 000000000000000100000000;
 			remoteInfo = CBTipul;
 		};
+		A1B2C3D43042E20000UI0002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000100000000;
+			remoteInfo = CBTipul;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* CBTipul.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CBTipul.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		45203610303360E0006FC5A3 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		45BE139C3042E1F5005EB38C /* CBTipulTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CBTipulTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D43042E20000UI0003 /* CBTipulUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CBTipulUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -41,6 +49,11 @@
 		45BE139D3042E1F5005EB38C /* CBTipulTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = CBTipulTests;
+			sourceTree = "<group>";
+		};
+		A1B2C3D43042E20000UI0004 /* CBTipulUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CBTipulUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -62,6 +75,11 @@
 			files = (
 			);
 		};
+		A1B2C3D43042E20000UI0005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -71,6 +89,7 @@
 				45203610303360E0006FC5A3 /* CLAUDE.md */,
 				000000000000000000000010 /* ios */,
 				45BE139D3042E1F5005EB38C /* CBTipulTests */,
+				A1B2C3D43042E20000UI0004 /* CBTipulUITests */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -80,6 +99,7 @@
 			children = (
 				000000000000000000000120 /* CBTipul.app */,
 				45BE139C3042E1F5005EB38C /* CBTipulTests.xctest */,
+				A1B2C3D43042E20000UI0003 /* CBTipulUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -134,6 +154,27 @@
 			productReference = 45BE139C3042E1F5005EB38C /* CBTipulTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A1B2C3D43042E20000UI0001 /* CBTipulUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3D43042E20000UI000A /* Build configuration list for PBXNativeTarget "CBTipulUITests" */;
+			buildPhases = (
+				A1B2C3D43042E20000UI0006 /* Sources */,
+				A1B2C3D43042E20000UI0005 /* Frameworks */,
+				A1B2C3D43042E20000UI0007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1B2C3D43042E20000UI0008 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A1B2C3D43042E20000UI0004 /* CBTipulUITests */,
+			);
+			name = CBTipulUITests;
+			productName = CBTipulUITests;
+			productReference = A1B2C3D43042E20000UI0003 /* CBTipulUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -148,6 +189,10 @@
 						CreatedOnToolsVersion = 26.3;
 					};
 					45BE139B3042E1F5005EB38C = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 000000000000000100000000;
+					};
+					A1B2C3D43042E20000UI0001 = {
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = 000000000000000100000000;
 					};
@@ -172,6 +217,7 @@
 			targets = (
 				000000000000000100000000 /* CBTipul */,
 				45BE139B3042E1F5005EB38C /* CBTipulTests */,
+				A1B2C3D43042E20000UI0001 /* CBTipulUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -184,6 +230,11 @@
 			);
 		};
 		45BE139A3042E1F5005EB38C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		A1B2C3D43042E20000UI0007 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -201,6 +252,11 @@
 			files = (
 			);
 		};
+		A1B2C3D43042E20000UI0006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -208,6 +264,11 @@
 			isa = PBXTargetDependency;
 			target = 000000000000000100000000 /* CBTipul */;
 			targetProxy = 45BE13A03042E1F5005EB38C /* PBXContainerItemProxy */;
+		};
+		A1B2C3D43042E20000UI0008 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000100000000 /* CBTipul */;
+			targetProxy = A1B2C3D43042E20000UI0002 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -501,6 +562,49 @@
 			};
 			name = Release;
 		};
+		A1B2C3D43042E20000UI000B /* Debug configuration for PBXNativeTarget "CBTipulUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 843384T247;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = amit.CBTipulUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = CBTipul;
+			};
+			name = Debug;
+		};
+		A1B2C3D43042E20000UI000C /* Release configuration for PBXNativeTarget "CBTipulUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 843384T247;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = amit.CBTipulUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = CBTipul;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -525,6 +629,14 @@
 			buildConfigurations = (
 				45BE13A33042E1F5005EB38C /* Debug configuration for PBXNativeTarget "CBTipulTests" */,
 				45BE13A43042E1F5005EB38C /* Release configuration for PBXNativeTarget "CBTipulTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		A1B2C3D43042E20000UI000A /* Build configuration list for PBXNativeTarget "CBTipulUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D43042E20000UI000B /* Debug configuration for PBXNativeTarget "CBTipulUITests" */,
+				A1B2C3D43042E20000UI000C /* Release configuration for PBXNativeTarget "CBTipulUITests" */,
 			);
 			defaultConfigurationName = Release;
 		};
