@@ -156,7 +156,7 @@
 		};
 		A1B2C3D43042E20000UI0001 /* CBTipulUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A1B2C3D43042E20000UI000A /* Build configuration list for PBXNativeTarget "CBTipulUITests" */;
+			buildConfigurationList = 4554FAFE305BE3FB00C689C9 /* Build configuration list */;
 			buildPhases = (
 				A1B2C3D43042E20000UI0006 /* Sources */,
 				A1B2C3D43042E20000UI0005 /* Frameworks */,
@@ -410,7 +410,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = CBTipulIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 843384T247;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
@@ -444,7 +444,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.CBTipul.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -466,7 +466,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = CBTipulIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 843384T247;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
@@ -500,7 +500,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.CBTipul.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -514,6 +514,25 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		4554FAFC305BC02A00C689C9 /* Debug configuration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				PRODUCT_NAME = CBTipulUITests;
+			};
+			name = Debug;
+		};
+		4554FAFD305BC02A00C689C9 /* Release configuration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				PRODUCT_NAME = CBTipulUITests;
 			};
 			name = Release;
 		};
@@ -562,49 +581,6 @@
 			};
 			name = Release;
 		};
-		A1B2C3D43042E20000UI000B /* Debug configuration for PBXNativeTarget "CBTipulUITests" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 843384T247;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = amit.CBTipulUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = CBTipul;
-			};
-			name = Debug;
-		};
-		A1B2C3D43042E20000UI000C /* Release configuration for PBXNativeTarget "CBTipulUITests" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 843384T247;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = amit.CBTipulUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = CBTipul;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -624,19 +600,19 @@
 			);
 			defaultConfigurationName = Release;
 		};
+		4554FAFE305BE3FB00C689C9 /* Build configuration list */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4554FAFC305BC02A00C689C9 /* Debug configuration */,
+				4554FAFD305BC02A00C689C9 /* Release configuration */,
+			);
+			defaultConfigurationName = Release;
+		};
 		45BE13A23042E1F5005EB38C /* Build configuration list for PBXNativeTarget "CBTipulTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				45BE13A33042E1F5005EB38C /* Debug configuration for PBXNativeTarget "CBTipulTests" */,
 				45BE13A43042E1F5005EB38C /* Release configuration for PBXNativeTarget "CBTipulTests" */,
-			);
-			defaultConfigurationName = Release;
-		};
-		A1B2C3D43042E20000UI000A /* Build configuration list for PBXNativeTarget "CBTipulUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A1B2C3D43042E20000UI000B /* Debug configuration for PBXNativeTarget "CBTipulUITests" */,
-				A1B2C3D43042E20000UI000C /* Release configuration for PBXNativeTarget "CBTipulUITests" */,
 			);
 			defaultConfigurationName = Release;
 		};
