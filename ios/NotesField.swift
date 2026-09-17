@@ -45,23 +45,32 @@ struct NotesField: UIViewRepresentable {
         let label = context.coordinator.placeholderLabel
         label.text = placeholder
         label.semanticContentAttribute = .forceRightToLeft
+        label.textAlignment = .natural
+        label.numberOfLines = 0
+        label.lineBreakMode = .byWordWrapping
         label.font = font
         label.textColor = Theme.uiTextFaint
         label.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(label)
+        // Pin both edges so long hints (write-or-record copy) wrap like Android.
         NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: view.topAnchor),
-            label.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            label.topAnchor.constraint(equalTo: view.frameLayoutGuide.topAnchor),
+            label.leadingAnchor.constraint(equalTo: view.frameLayoutGuide.leadingAnchor),
+            label.trailingAnchor.constraint(equalTo: view.frameLayoutGuide.trailingAnchor),
         ])
         return view
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
+        let label = context.coordinator.placeholderLabel
         if uiView.font != font {
             uiView.font = font
-            context.coordinator.placeholderLabel.font = font
+            label.font = font
         }
-        context.coordinator.placeholderLabel.isHidden = !text.isEmpty
+        if label.text != placeholder {
+            label.text = placeholder
+        }
+        label.isHidden = !text.isEmpty
         guard uiView.text != text else { return }
         uiView.text = text
         // Idle fields show the latest notes, i.e. the end of the text.
