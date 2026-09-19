@@ -1033,6 +1033,41 @@ amitishai@gmail.com
     static let patientModeConnectedBody =
         "כעת ניתן לקבל מהמטפל/ת שאלונים וכלים טיפוליים."
 
+    static let patientTasksTitle = "המשימות שלי"
+
+    static let patientTasksEmptyTitle = "אין משימות חדשות כרגע"
+
+    static let patientTasksEmptyBody =
+        "משימות חדשות מהמטפל/ת שלך יופיעו כאן."
+
+    static let patientQuestionnaireCardTitle = "שאלון GAD-7 ו-PHQ-9"
+
+    static let patientQuestionnaireCardBody =
+        "המטפל/ת ביקש/ה ממך למלא שאלון."
+
+    static let patientQuestionnaireStartAction = "התחלת שאלון"
+
+    static let patientUpcomingTaskTitle = "משימה מהמטפל/ת"
+
+    static let patientUpcomingTaskBody = "משימה זו תהיה זמינה בקרוב."
+
+    static let patientTasksLoadError = "לא ניתן היה לטעון את המשימות. נסו שוב."
+
+    static let patientQuestionnaireSubmitAction = "שליחה"
+
+    static let patientQuestionnaireSubmittedTitle = "השאלון נשלח בהצלחה"
+
+    static let patientQuestionnaireSubmitting = "שולחים…"
+
+    static let patientQuestionnaireSubmitError =
+        "לא ניתן היה לשלוח את השאלון. נסו שוב."
+
+    static let patientQuestionnaireCancelledError =
+        "המשימה בוטלה, ולכן לא ניתן לשלוח את השאלון."
+
+    static let patientQuestionnaireAccessDeniedError =
+        "לא ניתן לשלוח את השאלון כרגע."
+
     static let patientActivationIncompleteTitle = "החיבור עדיין לא הושלם"
 
     static let patientActivationIncompleteBody =
@@ -1156,6 +1191,25 @@ amitishai@gmail.com
     static let phq9ShortName = "PHQ-9"
     
     static let questionnaireSectionTitle = "שאלון"
+
+    static let sendQuestionnaireToPatientAction = "שליחת שאלון למטופל/ת"
+
+    static let patientNotConnectedTitle = "המטופל/ת עדיין לא מחובר/ת ל-CBTipul"
+
+    static let patientNotConnectedBody =
+        "יש להזמין את המטופל/ת ולחבר/ה ל-CBTipul לפני שניתן לשלוח שאלון."
+
+    static let questionnaireSentToPatient = "השאלון נשלח למטופל/ת"
+
+    static let questionnaireAwaitingPatient = "ממתין למילוי על ידי המטופל/ת"
+
+    static let patientConnectionCheckError =
+        "לא ניתן היה לבדוק את חיבור המטופל/ת. נסו שוב."
+
+    static let questionnaireAssignmentSendError =
+        "לא ניתן היה לשלוח את השאלון. נסו שוב."
+
+    static let questionnaireAssignmentRetryAction = "ניסיון חוזר"
     /// One-line GAD-7/PHQ-9 score summary shown next to a questionnaire.
     static func gadPhqScores(gad7: Int, phq9: Int) -> String {
         "\(gad7ShortName): \(gad7) · \(phq9ShortName): \(phq9)"

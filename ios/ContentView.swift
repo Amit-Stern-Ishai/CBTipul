@@ -199,7 +199,7 @@ struct ContentView: View {
     private var patientSessionRoot: some View {
         if let context = appContext.current {
             if context.isActivePatient {
-                PatientModePlaceholderView()
+                PatientModeView()
             } else if context.role == .patient {
                 PatientActivationIncompleteView {
                     Task { await resolveAnonymousAppContext() }

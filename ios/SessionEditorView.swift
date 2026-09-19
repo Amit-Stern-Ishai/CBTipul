@@ -31,6 +31,9 @@ struct SessionEditorView: View {
     @State private var initialNotes: String?
     @State private var initialType: SessionType?
     @State private var isLoadingQuestionnaire = false
+    @State private var assignmentStatus: QuestionnaireAssignmentStatus = .loading
+    @State private var isSendingQuestionnaire = false
+    @State private var didSendQuestionnaire = false
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
     /// True while a fresh transcript is being anonymized, before it may
@@ -403,6 +406,10 @@ struct SessionEditorView: View {
                 gettingStartedRouter.refresh(using: store)
             }
             .task { await loadQuestionnaire() }
+            .task { await loadQuestionnaireAssignment() }
+            .alert(L10n.questionnaireSentToPatient, isPresented: $didSendQuestionnaire) {
+                Button(L10n.ok, role: .cancel) {}
+            }
             .sheet(isPresented: $isEditingDate) {
                 NavigationStack {
                     DatePicker(L10n.dateLabel, selection: $session.date, displayedComponents: [.date])
@@ -688,6 +695,14 @@ struct SessionEditorView: View {
             .max { $0.answeredDate < $1.answeredDate }
     }
 
+    private enum QuestionnaireAssignmentStatus: Equatable {
+        case loading
+        case notConnected
+        case available
+        case pending
+        case failed(String)
+    }
+
     private var questionnaireSection: some View {
         Section(L10n.questionnaireSectionTitle) {
             if let questionnaire {
@@ -708,19 +723,126 @@ struct SessionEditorView: View {
                         }
                     }
                 }
-            } else if isLoadingQuestionnaire {
-                ProgressView()
+                .listRowBackground(groupBorderedRow(.only))
             } else {
-                NavigationLink {
-                    CombinedMoodQuestionnaireView(patient: patient, session: session)
-                } label: {
-                    Label(L10n.addQuestionnaireAction, systemImage: "plus")
-                }
-                .tutorialPulse(gettingStartedRouter.shouldPulse(.fillQuestionnaire))
+                therapistQuestionnaireEntryRow
+                    .listRowBackground(groupBorderedRow(.first))
+                questionnaireAssignmentRow
+                    .listRowBackground(groupBorderedRow(.last))
             }
         }
-        // Only one of the section's rows is ever visible at a time.
-        .listRowBackground(groupBorderedRow(.only))
+    }
+
+    @ViewBuilder
+    private var therapistQuestionnaireEntryRow: some View {
+        if isLoadingQuestionnaire {
+            ProgressView()
+        } else {
+            NavigationLink {
+                CombinedMoodQuestionnaireView(patient: patient, session: session)
+            } label: {
+                Label(L10n.addQuestionnaireAction, systemImage: "plus")
+            }
+            .tutorialPulse(gettingStartedRouter.shouldPulse(.fillQuestionnaire))
+        }
+    }
+
+    @ViewBuilder
+    private var questionnaireAssignmentRow: some View {
+        switch assignmentStatus {
+        case .loading:
+            ProgressView()
+        case .notConnected:
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.patientNotConnectedTitle)
+                    .font(.subheadline.weight(.semibold))
+                Text(L10n.patientNotConnectedBody)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        case .available:
+            Button {
+                Task { await sendQuestionnaireToPatient() }
+            } label: {
+                Text(L10n.sendQuestionnaireToPatientAction)
+            }
+            .disabled(isSendingQuestionnaire)
+        case .pending:
+            Text(L10n.questionnaireAwaitingPatient)
+                .foregroundStyle(.secondary)
+        case .failed(let message):
+            VStack(alignment: .leading, spacing: 8) {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.error)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(L10n.questionnaireAssignmentRetryAction) {
+                    Task { await loadQuestionnaireAssignment() }
+                }
+            }
+        }
+    }
+
+    private func assignmentService() -> PatientAssignmentService {
+        PatientAssignmentService(client: auth.client)
+    }
+
+    /// Connection and open-assignment state for sending a questionnaire.
+    /// Starts in loading so "not connected" is never shown speculatively.
+    private func loadQuestionnaireAssignment() async {
+        guard !isNew else { return }
+        assignmentStatus = .loading
+        guard questionnaire == nil else { return }
+        guard let sessionId = session.databaseID?.uuidValue,
+              let patientId = patient.id.uuidValue
+        else {
+            assignmentStatus = .failed(L10n.patientConnectionCheckError)
+            return
+        }
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            assignmentStatus = .notConnected
+            return
+        }
+        do {
+            let connected = try await assignmentService().isPatientConnected(patientId: patientId)
+            guard connected else {
+                assignmentStatus = .notConnected
+                return
+            }
+            if try await assignmentService().openQuestionnaireAssignment(sessionId: sessionId) != nil {
+                assignmentStatus = .pending
+            } else {
+                assignmentStatus = .available
+            }
+        } catch {
+            assignmentStatus = .failed(L10n.patientConnectionCheckError)
+        }
+    }
+
+    private func sendQuestionnaireToPatient() async {
+        guard questionnaire == nil, !isSendingQuestionnaire else { return }
+        guard case .available = assignmentStatus else { return }
+        guard let sessionId = session.databaseID?.uuidValue,
+              let patientId = patient.id.uuidValue
+        else {
+            assignmentStatus = .failed(L10n.questionnaireAssignmentSendError)
+            return
+        }
+        isSendingQuestionnaire = true
+        defer { isSendingQuestionnaire = false }
+        do {
+            _ = try await assignmentService().sendQuestionnaireAssignment(
+                patientId: patientId,
+                sessionId: sessionId
+            )
+            assignmentStatus = .pending
+            didSendQuestionnaire = true
+        } catch PatientAssignmentError.patientNotConnected {
+            assignmentStatus = .notConnected
+        } catch {
+            assignmentStatus = .failed(L10n.questionnaireAssignmentSendError)
+        }
     }
 
     /// Refreshes the patient's questionnaire cache from the server; the

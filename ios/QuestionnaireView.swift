@@ -282,12 +282,14 @@ struct CompletedQuestionnaireView: View {
 
 /// The GAD-7 and PHQ-9 form sections shared by the editing and read-only
 /// screens.
-private struct QuestionnaireSections: View {
+struct QuestionnaireSections: View {
     @Binding var questionnaire: CombinedMoodQuestionnaire
     let isEditable: Bool
     var previous: CompletedQuestionnaire? = nil
     /// The patient's identity color for the group outlines, when known.
     var accent: Color? = nil
+    /// Therapist-only per-question notes. Patient Mode never shows these.
+    var showsTherapistNotes: Bool = true
 
     private func previousAnswer(_ answers: [Int?]?, at index: Int) -> Int? {
         guard let answers, answers.indices.contains(index) else { return nil }
@@ -321,7 +323,8 @@ private struct QuestionnaireSections: View {
                     note: $questionnaire.gad7Notes[index],
                     isEditable: isEditable,
                     previousAnswer: previousAnswer(previous?.questionnaire.gad7Answers, at: index),
-                    accent: accent
+                    accent: accent,
+                    showsTherapistNotes: showsTherapistNotes
                 )
                 .listRowBackground(rowBackground(.middle))
             }
@@ -348,7 +351,8 @@ private struct QuestionnaireSections: View {
                     note: $questionnaire.phq9Notes[index],
                     isEditable: isEditable,
                     previousAnswer: previousAnswer(previous?.questionnaire.phq9Answers, at: index),
-                    accent: accent
+                    accent: accent,
+                    showsTherapistNotes: showsTherapistNotes
                 )
                 .listRowBackground(rowBackground(.middle))
             }
@@ -357,7 +361,8 @@ private struct QuestionnaireSections: View {
                 selection: $questionnaire.interferenceLevel,
                 note: $questionnaire.interferenceNote,
                 isEditable: isEditable,
-                previousSelection: previous?.questionnaire.interferenceLevel
+                previousSelection: previous?.questionnaire.interferenceLevel,
+                showsTherapistNotes: showsTherapistNotes
             )
             .listRowBackground(rowBackground(.middle))
 
@@ -408,6 +413,7 @@ private struct InterferencePicker: View {
     @Binding var note: String
     let isEditable: Bool
     var previousSelection: Int? = nil
+    var showsTherapistNotes: Bool = true
 
     @State private var isEditingNote = false
 
@@ -419,7 +425,7 @@ private struct InterferencePicker: View {
                 Text(markdown: L10n.phq9InterferenceQuestion)
                     .font(.body)
                 Spacer()
-                if isEditable {
+                if isEditable, showsTherapistNotes {
                     Button {
                         isEditingNote = true
                     } label: {
@@ -430,7 +436,7 @@ private struct InterferencePicker: View {
                 }
             }
 
-            if !note.isEmpty {
+            if showsTherapistNotes, !note.isEmpty {
                 NoteBox(note: note, onTap: isEditable ? { isEditingNote = true } : nil)
             }
 
@@ -503,6 +509,7 @@ private struct QuestionRow: View {
     var previousAnswer: Int? = nil
     /// The patient's identity color outlining each answer, when known.
     var accent: Color? = nil
+    var showsTherapistNotes: Bool = true
 
     @State private var isEditingNote = false
 
@@ -511,7 +518,7 @@ private struct QuestionRow: View {
             HStack(alignment: .top) {
                 Text(markdown: text)
                 Spacer()
-                if isEditable {
+                if isEditable, showsTherapistNotes {
                     Button {
                         isEditingNote = true
                     } label: {
@@ -522,7 +529,7 @@ private struct QuestionRow: View {
                 }
             }
 
-            if !note.isEmpty {
+            if showsTherapistNotes, !note.isEmpty {
                 NoteBox(note: note, onTap: isEditable ? { isEditingNote = true } : nil)
             }
 
