@@ -1,9 +1,11 @@
 import SwiftUI
+import OSLog
 
 @main
 struct MyApp: App {
     @State private var auth: AuthManager
     @State private var store: PatientStore
+    @State private var therapistProfiles: TherapistProfileService
 
     init() {
         // The SwiftUI right-to-left override (see AppTextSizeModifier) doesn't
@@ -23,6 +25,7 @@ struct MyApp: App {
         let auth = AuthManager()
         _auth = State(initialValue: auth)
         _store = State(initialValue: PatientStore(client: auth.client))
+        _therapistProfiles = State(initialValue: TherapistProfileService(client: auth.client))
     }
 
     var body: some Scene {
@@ -30,6 +33,7 @@ struct MyApp: App {
             ContentView()
                 .environment(auth)
                 .environment(store)
+                .environment(therapistProfiles)
                 // Supabase email-confirmation and password-recovery links
                 // (works both when the app is already running and when the
                 // link launches it).
@@ -48,17 +52,32 @@ struct MyApp: App {
 struct ContentView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
+    @Environment(TherapistProfileService.self) private var therapistProfiles
 
     @State private var isShowingSplash = true
     @State private var hasAcceptedTerms = false
     @State private var onboarding = OnboardingStore.shared
+    @State private var isResolvingDisplayNameGate = false
+    @State private var showOptionalDisplayNamePrompt = false
 
     var body: some View {
         @Bindable var auth = auth
         @Bindable var onboarding = onboarding
         return ZStack {
             if auth.isAuthenticated {
-                if !hasAcceptedTerms {
+                if showOptionalDisplayNamePrompt {
+                    // Full-screen gate (not a second root sheet) so this
+                    // never races Terms/Welcome or the password-recovery sheet.
+                    TherapistDisplayNameEditorView(
+                        requirement: .optional,
+                        onOptionalFinished: {
+                            onboarding.markDisplayNamePromptShown()
+                            showOptionalDisplayNamePrompt = false
+                        }
+                    )
+                } else if isResolvingDisplayNameGate {
+                    Theme.base.ignoresSafeArea()
+                } else if !hasAcceptedTerms {
                     // Signed in but not yet agreed: the app stays blocked
                     // behind the terms until the user accepts.
                     NavigationStack {
@@ -108,15 +127,24 @@ struct ContentView: View {
         }
         .onChange(of: auth.currentUserId, initial: true) { _, userId in
             onboarding.setActiveUser(id: userId)
+            if userId == nil {
+                therapistProfiles.clearCache()
+                showOptionalDisplayNamePrompt = false
+                isResolvingDisplayNameGate = false
+            }
             // After AuthView's UITesting inject: skip welcome and enter demo.
             if AuthManager.isUITesting, userId != nil {
                 hasAcceptedTerms = true
                 onboarding.dismissWelcome()
                 onboarding.markDemoTourCompleted()
+                onboarding.markDisplayNamePromptShown()
                 if !store.isDemoMode {
                     store.enterDemoMode()
                 }
             }
+        }
+        .task(id: displayNameGateTaskID) {
+            await resolveDisplayNameGate()
         }
         .environment(onboarding)
         .task {
@@ -133,6 +161,43 @@ struct ContentView: View {
             }
         }
     }
+
+    /// Re-runs the optional prompt check when the signed-in user changes
+    /// or password recovery ends (recovery uses the root sheet).
+    private var displayNameGateTaskID: String {
+        "\(auth.currentUserId ?? "")-\(auth.isRecoveringPassword)"
+    }
+
+    private func resolveDisplayNameGate() async {
+        showOptionalDisplayNamePrompt = false
+        guard auth.isAuthenticated,
+              auth.currentUserId != nil,
+              !AuthManager.isUITesting,
+              !auth.isRecoveringPassword
+        else {
+            isResolvingDisplayNameGate = false
+            return
+        }
+        if onboarding.displayNamePromptShown {
+            isResolvingDisplayNameGate = false
+            return
+        }
+        isResolvingDisplayNameGate = true
+        defer { isResolvingDisplayNameGate = false }
+        do {
+            let profile = try await therapistProfiles.getCurrentProfile()
+            guard !Task.isCancelled else { return }
+            if profile?.hasValidDisplayName == true {
+                onboarding.markDisplayNamePromptShown()
+            } else {
+                showOptionalDisplayNamePrompt = true
+            }
+        } catch {
+            AppLog.store.error(
+                "Optional display-name check failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
 }
 
 #Preview {
@@ -140,4 +205,5 @@ struct ContentView: View {
     ContentView()
         .environment(auth)
         .environment(PatientStore(client: auth.client))
+        .environment(TherapistProfileService(client: auth.client))
 }

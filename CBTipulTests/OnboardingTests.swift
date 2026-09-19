@@ -96,6 +96,21 @@ struct OnboardingStoreTests {
         store.setActiveUser(id: "user-a")
         #expect(store.welcomeDismissed)
     }
+
+    @Test func displayNamePromptFlagIsPerUser() {
+        let (store, defaults) = makeStore()
+        store.setActiveUser(id: "user-a")
+        store.markDisplayNamePromptShown()
+
+        #expect(store.displayNamePromptShown)
+        #expect(defaults.bool(forKey: OnboardingStore.displayNamePromptKey(for: "user-a")))
+
+        store.setActiveUser(id: "user-b")
+        #expect(!store.displayNamePromptShown)
+
+        store.setActiveUser(id: "user-a")
+        #expect(store.displayNamePromptShown)
+    }
 }
 
 @MainActor

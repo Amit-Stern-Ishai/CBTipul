@@ -933,6 +933,27 @@ amitishai@gmail.com
     
     static let settingsAccountSectionTitle = "חשבון"
 
+    static let settingsTherapistDisplayNameTitle = "שם לתצוגה למטופלים"
+
+    static let settingsTherapistDisplayNameUnset = "לא הוגדר"
+
+    static let therapistDisplayNamePromptTitle = "מה השם שיוצג למטופלים?"
+
+    static let therapistDisplayNamePromptExplanation =
+        "השם יוצג למטופלים שתזמין/י להשתמש ב-CBTipul."
+
+    static let therapistDisplayNamePlaceholder = "שם לתצוגה"
+
+    static let therapistDisplayNameSkipAction = "לא עכשיו"
+
+    static let therapistDisplayNameEmptyError = "יש להזין שם לתצוגה."
+
+    static let therapistDisplayNameSaveError = "לא ניתן היה לשמור את השם. יש לנסות שוב."
+
+    static let therapistDisplayNameLoadError = "לא ניתן היה לטעון את השם. יש לנסות שוב."
+
+    static let therapistDisplayNameNotSignedInError = "יש להתחבר כדי לשמור שם לתצוגה."
+
     static let deleteAccountAction = "מחיקת חשבון"
 
     static let deleteAccountConfirmTitle = "למחוק את החשבון?"

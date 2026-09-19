@@ -13,6 +13,9 @@ final class OnboardingStore {
     private(set) var hasSeenFirstPreparationTip = false
     private(set) var hasSeenFirstQuestionnaireTip = false
     private(set) var hasCompletedDemoTour = false
+    /// Optional therapist display-name prompt has been shown (or skipped /
+    /// already had a name) for this account on this device.
+    private(set) var displayNamePromptShown = false
     /// Settings asked to show demo consent on the root patient list (not
     /// as a cover inside the Settings sheet — that flashed Settings on exit).
     private(set) var wantsDemoConsent = false
@@ -77,6 +80,12 @@ final class OnboardingStore {
         persist()
     }
 
+    /// Marks the optional display-name prompt as handled for this account.
+    func markDisplayNamePromptShown() {
+        displayNamePromptShown = true
+        persist()
+    }
+
     /// Clears this account's onboarding keys after account deletion wipe.
     func clearPersistedState(for userId: String) {
         defaults.removeObject(forKey: Self.welcomeKey(for: userId))
@@ -84,12 +93,14 @@ final class OnboardingStore {
         defaults.removeObject(forKey: Self.firstPrepTipKey(for: userId))
         defaults.removeObject(forKey: Self.firstQuestionnaireTipKey(for: userId))
         defaults.removeObject(forKey: Self.demoTourKey(for: userId))
+        defaults.removeObject(forKey: Self.displayNamePromptKey(for: userId))
         if activeUserId == userId {
             welcomeDismissed = false
             checklistDismissed = false
             hasSeenFirstPreparationTip = false
             hasSeenFirstQuestionnaireTip = false
             hasCompletedDemoTour = false
+            displayNamePromptShown = false
         }
     }
 
@@ -106,6 +117,7 @@ final class OnboardingStore {
             hasSeenFirstPreparationTip = false
             hasSeenFirstQuestionnaireTip = false
             hasCompletedDemoTour = false
+            displayNamePromptShown = false
             return
         }
         welcomeDismissed = defaults.bool(forKey: Self.welcomeKey(for: id))
@@ -113,6 +125,7 @@ final class OnboardingStore {
         hasSeenFirstPreparationTip = defaults.bool(forKey: Self.firstPrepTipKey(for: id))
         hasSeenFirstQuestionnaireTip = defaults.bool(forKey: Self.firstQuestionnaireTipKey(for: id))
         hasCompletedDemoTour = defaults.bool(forKey: Self.demoTourKey(for: id))
+        displayNamePromptShown = defaults.bool(forKey: Self.displayNamePromptKey(for: id))
     }
 
     private func persist() {
@@ -122,6 +135,7 @@ final class OnboardingStore {
         defaults.set(hasSeenFirstPreparationTip, forKey: Self.firstPrepTipKey(for: id))
         defaults.set(hasSeenFirstQuestionnaireTip, forKey: Self.firstQuestionnaireTipKey(for: id))
         defaults.set(hasCompletedDemoTour, forKey: Self.demoTourKey(for: id))
+        defaults.set(displayNamePromptShown, forKey: Self.displayNamePromptKey(for: id))
     }
 
     static func welcomeKey(for userId: String) -> String {
@@ -142,6 +156,10 @@ final class OnboardingStore {
 
     static func demoTourKey(for userId: String) -> String {
         "onboarding.demoTourCompleted-\(userId)"
+    }
+
+    static func displayNamePromptKey(for userId: String) -> String {
+        "therapistDisplayNamePromptShown.\(userId)"
     }
 }
 

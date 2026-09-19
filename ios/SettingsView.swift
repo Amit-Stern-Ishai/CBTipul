@@ -100,14 +100,27 @@ struct SettingsView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(OnboardingStore.self) private var onboarding
+    @Environment(TherapistProfileService.self) private var therapistProfiles
 
     @State private var presentedLink: OfficialLink?
     @State private var isShowingDeleteAccountConfirmation = false
     @State private var isShowingDeleteAccountCodeChallenge = false
     @State private var isDeletingAccount = false
     @State private var deleteAccountError: String?
+    @State private var displayNameLoadFailed = false
     // Tutorial consent is presented by PatientListView — not here — so
     // dismissing Settings cannot flash under a cover.
+
+    private var displayNameRowValue: String {
+        if displayNameLoadFailed, therapistProfiles.cachedProfile == nil {
+            return L10n.therapistDisplayNameLoadError
+        }
+        let name = therapistProfiles.cachedProfile?.displayName ?? ""
+        if TherapistProfile.isValid(name) {
+            return TherapistProfile.normalized(name)
+        }
+        return L10n.settingsTherapistDisplayNameUnset
+    }
 
     /// The app's marketing version and build number, e.g. "גרסה 1.0 (4)".
     private var appVersionLine: String {
@@ -239,15 +252,39 @@ struct SettingsView: View {
                         }
                         .listRowBackground(groupBorderedRow(.first, accent: Theme.gold))
                     }
+                    NavigationLink {
+                        TherapistDisplayNameEditorView(
+                            requirement: .required,
+                            embedsInNavigationStack: false
+                        )
+                    } label: {
+                        HStack {
+                            Label {
+                                Text(L10n.settingsTherapistDisplayNameTitle)
+                            } icon: {
+                                Image(systemName: "person.text.rectangle")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(Theme.gold)
+                                    .frame(width: 28, height: 28)
+                                    .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
+                            }
+                            Spacer()
+                            Text(displayNameRowValue)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .listRowBackground(groupBorderedRow(
+                        auth.currentUserEmail == nil ? .first : .middle, accent: Theme.gold))
                     Button(role: .destructive) {
                         store.clearAllCaches()
+                        therapistProfiles.clearCache()
                         auth.signOut()
                     } label: {
                         Text(L10n.signOutAction)
                             .frame(maxWidth: .infinity)
                     }
-                    .listRowBackground(groupBorderedRow(
-                        auth.currentUserEmail == nil ? .only : .last, accent: Theme.gold))
+                    .listRowBackground(groupBorderedRow(.last, accent: Theme.gold))
                 }
 
                 // Account deletion sits alone at the bottom, clearly apart
@@ -275,6 +312,7 @@ struct SettingsView: View {
             .themedScreen()
             .demoModeChrome()
             .navigationTitle(L10n.settingsTitle)
+            .task { await refreshDisplayNameRow() }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.settingsDoneAction) { dismiss() }
@@ -359,6 +397,15 @@ struct SettingsView: View {
         }
     }
 
+    private func refreshDisplayNameRow() async {
+        displayNameLoadFailed = false
+        do {
+            _ = try await therapistProfiles.getCurrentProfile()
+        } catch {
+            displayNameLoadFailed = true
+        }
+    }
+
     /// Deletes the account server-side, then wipes everything local. The
     /// sign-out happens inside `deleteAccount`, which drops the app back to
     /// the sign-in screen.
@@ -373,6 +420,7 @@ struct SettingsView: View {
                     onboarding.clearPersistedState(for: userId)
                 }
                 store.wipeLocalData()
+                therapistProfiles.clearCache()
                 dismiss()
             } catch {
                 deleteAccountError = error.localizedDescription
@@ -502,4 +550,5 @@ private struct TextSizePickerView: View {
         .environment(auth)
         .environment(PatientStore(client: auth.client))
         .environment(OnboardingStore.shared)
+        .environment(TherapistProfileService(client: auth.client))
 }
