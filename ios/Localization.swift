@@ -249,30 +249,6 @@ enum L10n {
     
     static let ok = "אישור"
 
-    // MARK: - DEBUG app context probe (DEBUG builds only)
-
-    static let debugAppContextTitle = "DEBUG — App Context"
-
-    static let debugAppContextErrorTitle = "DEBUG — App Context Error"
-
-    static let debugAppContextOKAction = "OK"
-
-    static func debugAppContextVersionLine(_ version: Int) -> String {
-        "Version: \(version)"
-    }
-
-    static func debugAppContextRoleLine(_ role: String) -> String {
-        "Role: \(role)"
-    }
-
-    static func debugAppContextActivationLine(_ activation: String) -> String {
-        "Activation: \(activation)"
-    }
-
-    static func debugAppContextPatientIDLine(_ patientId: String) -> String {
-        "Patient ID: \(patientId)"
-    }
-
     /// A date in Hebrew wording (e.g. "24 באוג׳ 2026"), for strings whose
     /// surrounding text is Hebrew regardless of the device locale.
     static func hebrewDate(_ date: Date) -> String {

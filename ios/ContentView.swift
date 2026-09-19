@@ -141,9 +141,6 @@ struct ContentView: View {
             }
         }
         .appTextSize()
-        #if DEBUG
-        .modifier(DebugAppContextProbe())
-        #endif
         // A password-recovery link signs the user in without a new password;
         // this prompt completes the reset.
         .sheet(isPresented: $auth.isRecoveringPassword) {
