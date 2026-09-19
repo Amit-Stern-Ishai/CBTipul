@@ -446,7 +446,7 @@
 
     <!-- Getting Started / demo mode -->
     <string name="welcome_title">בואו נכיר את האפליקציה</string>
-    <string name="welcome_body">המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, פגישה ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלג לנתונים לדוגמה») יופיעו נתונים לדוגמה לצורכי התנסות. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת.</string>
+    <string name="welcome_body">מצב ההדגמה פועל בסביבה נפרדת. המטופלים האמיתיים שלך יוסתרו זמנית ולא יימחקו. המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, פגישה ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלג לנתונים לדוגמה») יופיעו נתונים לדוגמה לצורכי התנסות. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת.</string>
     <string name="welcome_primary_action">המשך למצב הדגמה</string>
     <string name="welcome_secondary_action">אפשר לעבור על זה אחר כך</string>
     <string name="welcome_info_link">איך נשמר המידע?</string>
@@ -476,13 +476,13 @@
     <string name="tutorial_coach_hint_ai_summary">לחצו על ״יצירת סיכום AI מובנה״</string>
     <string name="demo_mode_banner_title">מצב הדגמה</string>
     <string name="demo_mode_banner_body">קליניקה לדוגמה — לצורך המחשה בלבד.</string>
-    <string name="demo_mode_exit_short">יציאה</string>
-    <string name="exit_demo_mode_action">יציאה ממצב הדגמה</string>
+    <string name="demo_mode_exit_short">חזרה למטופלים שלי</string>
+    <string name="exit_demo_mode_action">חזרה למטופלים שלי</string>
     <string name="enter_demo_mode_action">כניסה למצב הדגמה</string>
     <string name="tutorial_coach_skip_to_showcase">דלג לנתונים לדוגמה</string>
     <string name="showcase_reveal_title">עכשיו — נתונים לדוגמה!</string>
-    <string name="showcase_reveal_body">הוספנו מטופלים, פגישות ושאלונים לדוגמה כדי שתוכלו להתנסות בכל האפשרויות של האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «יציאה» בפס מצב ההדגמה למעלה.</string>
-    <string name="showcase_reveal_exit_hint">אפשר לצאת ממצב ההדגמה בכל רגע מהפס הצהוב למעלה.</string>
+    <string name="showcase_reveal_body">הוספנו מטופלים, פגישות ושאלונים לדוגמה כדי שתוכלו להתנסות בכל האפשרויות של האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «חזרה למטופלים שלי» בפס מצב ההדגמה למעלה.</string>
+    <string name="showcase_reveal_exit_hint">אפשר לחזור למטופלים האמיתיים בכל רגע מהפס הצהוב למעלה.</string>
     <string name="showcase_reveal_action">בואו נתנסה</string>
     <string name="empty_patients_primary_action">הוספת מטופל/ת ראשון/ה</string>
     <string name="empty_sessions_title">עדיין אין פגישות</string>
