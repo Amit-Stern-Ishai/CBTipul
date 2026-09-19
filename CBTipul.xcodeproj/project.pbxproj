@@ -36,6 +36,7 @@
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* CBTipul.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CBTipul.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		45203610303360E0006FC5A3 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
+		4554FB07305F1B7400C689C9 /* CBTipul.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CBTipul.entitlements; sourceTree = "<group>"; };
 		45BE139C3042E1F5005EB38C /* CBTipulTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CBTipulTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D43042E20000UI0003 /* CBTipulUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CBTipulUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -86,6 +87,7 @@
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				4554FB07305F1B7400C689C9 /* CBTipul.entitlements */,
 				45203610303360E0006FC5A3 /* CLAUDE.md */,
 				000000000000000000000010 /* ios */,
 				45BE139D3042E1F5005EB38C /* CBTipulTests */,
@@ -409,6 +411,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = CBTipulIcon;
+				CODE_SIGN_ENTITLEMENTS = CBTipul.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 843384T247;
@@ -465,6 +468,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = CBTipulIcon;
+				CODE_SIGN_ENTITLEMENTS = CBTipul.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 843384T247;

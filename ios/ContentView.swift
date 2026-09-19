@@ -7,6 +7,10 @@ struct MyApp: App {
     @State private var store: PatientStore
     @State private var therapistProfiles: TherapistProfileService
     @State private var appContext: AppContextService
+#if DEBUG
+    /// TEMPORARY DEBUG: remove after Universal Link verification.
+    @State private var debugInvitationToken: String?
+#endif
 
     init() {
         // The SwiftUI right-to-left override (see AppTextSizeModifier) doesn't
@@ -37,16 +41,40 @@ struct MyApp: App {
                 .environment(store)
                 .environment(therapistProfiles)
                 .environment(appContext)
-                // Supabase email-confirmation and password-recovery links
-                // (works both when the app is already running and when the
-                // link launches it).
-                .onOpenURL { url in
-                    guard url.scheme == "cbtipul",
-                          url.host() == "auth-callback" || url.host() == "password-reset"
-                    else { return }
-                    Task { await auth.handleAuthCallback(url) }
+                .onOpenURL(perform: handleIncomingURL)
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    if let url = activity.webpageURL {
+                        handleIncomingURL(url)
+                    }
                 }
+                #if DEBUG
+                .alert(
+                    "DEBUG — Invitation",
+                    isPresented: Binding(
+                        get: { debugInvitationToken != nil },
+                        set: { if !$0 { debugInvitationToken = nil } }
+                    )
+                ) {
+                    Button("OK", role: .cancel) { debugInvitationToken = nil }
+                } message: {
+                    Text(debugInvitationToken ?? "")
+                }
+                #endif
         }
+    }
+
+    /// Auth custom-scheme callbacks stay on `cbtipul://`. Invitation
+    /// Universal Links are `https://cbtipul.com/invite/<TOKEN>` only.
+    private func handleIncomingURL(_ url: URL) {
+        if url.scheme == "cbtipul",
+           url.host() == "auth-callback" || url.host() == "password-reset" {
+            Task { await auth.handleAuthCallback(url) }
+            return
+        }
+        guard let token = InvitationLink.token(from: url) else { return }
+        #if DEBUG
+        debugInvitationToken = token
+        #endif
     }
 }
 

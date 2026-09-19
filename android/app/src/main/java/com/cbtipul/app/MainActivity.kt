@@ -1,5 +1,6 @@
 package com.cbtipul.app
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.cbtipul.app.invite.InvitationLink
 import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.RootScreen
@@ -18,7 +20,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleAuthIntent(intent)
+        handleIncomingIntent(intent)
         val preferences = (application as CbTipulApp).preferences
         setContent {
             val textSize by preferences.textSize.collectAsStateWithLifecycle(
@@ -33,7 +35,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
         handleAuthIntent(intent)
+        handleInvitationIntent(intent)
     }
 
     private fun handleAuthIntent(intent: Intent?) {
@@ -41,6 +48,18 @@ class MainActivity : ComponentActivity() {
         val message = getString(R.string.verification_failed_error)
         lifecycleScope.launch {
             app.authRepository.handleAuthIntent(intent, message)
+        }
+    }
+
+    private fun handleInvitationIntent(intent: Intent?) {
+        val token = InvitationLink.tokenFrom(intent?.data) ?: return
+        // TEMPORARY DEBUG: remove after App Link verification.
+        if (BuildConfig.DEBUG) {
+            AlertDialog.Builder(this)
+                .setTitle("DEBUG — Invitation")
+                .setMessage(token)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
         }
     }
 }

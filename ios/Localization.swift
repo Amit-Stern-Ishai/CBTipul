@@ -978,6 +978,22 @@ amitishai@gmail.com
 
     static let therapistDisplayNameNotSignedInError = "יש להתחבר כדי לשמור שם לתצוגה."
 
+    static let invitePatientAction = "הזמנת מטופל/ת"
+
+    static let patientInvitationFailedTitle = "לא ניתן היה ליצור הזמנה"
+
+    static let patientInvitationInvalidPatientError = "לא ניתן להזמין מטופל/ת זה/ו."
+
+    static func patientInvitationShareMessage(therapistName: String, invitationUrl: String) -> String {
+        """
+        היי,
+        הוזמנת להתחבר ל-CBTipul על ידי \(therapistName).
+
+        להתחברות:
+        \(invitationUrl)
+        """
+    }
+
     static let deleteAccountAction = "מחיקת חשבון"
 
     static let deleteAccountConfirmTitle = "למחוק את החשבון?"

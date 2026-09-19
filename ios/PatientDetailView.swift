@@ -10,6 +10,7 @@ struct PatientDetailView: View {
     @Environment(PatientStore.self) private var store
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(OnboardingStore.self) private var onboarding
+    @Environment(TherapistProfileService.self) private var therapistProfiles
     @Environment(\.dismiss) private var dismiss
 
     @State private var isSaving = false
@@ -41,6 +42,11 @@ struct PatientDetailView: View {
     @State private var preparationMissingAction: PreparationMissingAction = .addSession
     @State private var isShowingFirstPreparationTip = false
     @State private var pendingPreparationAfterTip = false
+    @State private var isCreatingInvitation = false
+    @State private var isShowingDisplayNameForInvite = false
+    @State private var pendingInvitationAfterDisplayName = false
+    @State private var invitationError: String?
+    @State private var invitationShare: InvitationSharePayload?
 
     /// A saved preparation goes stale once a session dated after its
     /// generation has already taken place — i.e. the session it prepared
@@ -246,6 +252,20 @@ struct PatientDetailView: View {
                 } label: {
                     iconChip("sparkles", title: L10n.aiAction)
                 }
+                .listRowBackground(groupBorderedRow(.middle))
+
+                Button {
+                    startPatientInvitation()
+                } label: {
+                    HStack {
+                        iconChip("square.and.arrow.up", title: L10n.invitePatientAction)
+                        if isCreatingInvitation {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isCreatingInvitation || isSaving)
                 .listRowBackground(groupBorderedRow(.middle))
 
                 Button {
@@ -482,7 +502,25 @@ struct PatientDetailView: View {
             .presentationDetents([.medium])
             .appTextSize()
         }
-        .busyOverlay(isSaving, label: busyLabel)
+        .busyOverlay(isSaving || isCreatingInvitation, label: busyLabel)
+        .alert(L10n.patientInvitationFailedTitle,
+               isPresented: .init(
+                get: { invitationError != nil },
+                set: { if !$0 { invitationError = nil } }
+               )) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            Text(invitationError ?? "")
+        }
+        .sheet(isPresented: $isShowingDisplayNameForInvite, onDismiss: {
+            resumeInvitationAfterDisplayNameIfNeeded()
+        }) {
+            TherapistDisplayNameEditorView(requirement: .required)
+        }
+        .sheet(item: $invitationShare) { payload in
+            ActivityShareSheet(items: [payload.text])
+                .presentationDetents([.medium])
+        }
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .animation(.easeInOut(duration: 0.2), value: isTranscribing)
         .animation(.easeInOut(duration: 0.2), value: isAnonymizingTranscription)
@@ -789,6 +827,60 @@ struct PatientDetailView: View {
         }
     }
 
+    private struct InvitationSharePayload: Identifiable {
+        let id = UUID()
+        let text: String
+    }
+
+    private func startPatientInvitation() {
+        guard !isCreatingInvitation else { return }
+        Task { await createPatientInvitationIfAllowed() }
+    }
+
+    private func resumeInvitationAfterDisplayNameIfNeeded() {
+        guard pendingInvitationAfterDisplayName else { return }
+        pendingInvitationAfterDisplayName = false
+        Task {
+            if (try? await therapistProfiles.hasValidDisplayName()) == true {
+                await createPatientInvitationIfAllowed()
+            }
+        }
+    }
+
+    private func createPatientInvitationIfAllowed() async {
+        guard !isCreatingInvitation else { return }
+        invitationError = nil
+        guard let patientId = UUID(uuidString: patient.id.queryValue) else {
+            invitationError = L10n.patientInvitationInvalidPatientError
+            return
+        }
+
+        isCreatingInvitation = true
+        do {
+            let profile = try await therapistProfiles.getCurrentProfile()
+            let therapistName = profile.flatMap { TherapistProfile.isValid($0.displayName) ? TherapistProfile.normalized($0.displayName) : nil }
+            guard let therapistName else {
+                isCreatingInvitation = false
+                pendingInvitationAfterDisplayName = true
+                isShowingDisplayNameForInvite = true
+                return
+            }
+
+            let invitation = try await PatientInvitationService(client: auth.client)
+                .createPatientInvitation(patientId: patientId)
+            isCreatingInvitation = false
+            invitationShare = InvitationSharePayload(
+                text: L10n.patientInvitationShareMessage(
+                    therapistName: therapistName,
+                    invitationUrl: invitation.invitationUrl
+                )
+            )
+        } catch {
+            isCreatingInvitation = false
+            invitationError = error.userFacingMessage
+        }
+    }
+
     /// A Settings-style row label: a small gold-tinted icon square next to
     /// the title. The color parameter is kept for call-site stability but the
     /// design system allows gold as the only accent.
@@ -814,4 +906,5 @@ struct PatientDetailView: View {
     .environment(PatientStore(client: auth.client))
     .environment(GettingStartedRouter())
     .environment(OnboardingStore.shared)
+    .environment(TherapistProfileService(client: auth.client))
 }
