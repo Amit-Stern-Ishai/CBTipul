@@ -6,6 +6,7 @@ struct MyApp: App {
     @State private var auth: AuthManager
     @State private var store: PatientStore
     @State private var therapistProfiles: TherapistProfileService
+    @State private var appContext: AppContextService
 
     init() {
         // The SwiftUI right-to-left override (see AppTextSizeModifier) doesn't
@@ -26,6 +27,7 @@ struct MyApp: App {
         _auth = State(initialValue: auth)
         _store = State(initialValue: PatientStore(client: auth.client))
         _therapistProfiles = State(initialValue: TherapistProfileService(client: auth.client))
+        _appContext = State(initialValue: AppContextService(client: auth.client))
     }
 
     var body: some Scene {
@@ -34,6 +36,7 @@ struct MyApp: App {
                 .environment(auth)
                 .environment(store)
                 .environment(therapistProfiles)
+                .environment(appContext)
                 // Supabase email-confirmation and password-recovery links
                 // (works both when the app is already running and when the
                 // link launches it).
@@ -114,6 +117,9 @@ struct ContentView: View {
             }
         }
         .appTextSize()
+        #if DEBUG
+        .modifier(DebugAppContextProbe())
+        #endif
         // A password-recovery link signs the user in without a new password;
         // this prompt completes the reset.
         .sheet(isPresented: $auth.isRecoveringPassword) {
@@ -206,4 +212,5 @@ struct ContentView: View {
         .environment(auth)
         .environment(PatientStore(client: auth.client))
         .environment(TherapistProfileService(client: auth.client))
+        .environment(AppContextService(client: auth.client))
 }
