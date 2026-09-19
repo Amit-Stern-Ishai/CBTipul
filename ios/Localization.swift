@@ -994,6 +994,96 @@ amitishai@gmail.com
         """
     }
 
+    static let invitePreviewTitle = "הוזמנת ל-CBTipul"
+
+    static func invitePreviewTherapistLine(_ therapistDisplayName: String) -> String {
+        "\(therapistDisplayName) הזמין/ה אותך להתחבר ל-CBTipul."
+    }
+
+    static let invitePreviewExplanation =
+        "CBTipul מאפשר לך למלא שאלונים וכלים טיפוליים שהמטפל/ת שלך שולח/ת אליך."
+
+    static let invitePreviewContinueAction = "המשך"
+
+    static let invitePreviewCloseAction = "סגירה"
+
+    static let inviteConsentTitle = "הסכמה לשימוש ב-CBTipul"
+
+    static let inviteConsentIntro =
+        "לפני שמתחילים, חשוב לדעת איך CBTipul משמש כחלק מהתהליך הטיפולי שלך."
+
+    static let inviteConsentTherapistHeading = "חיבור למטפל/ת"
+
+    static let inviteConsentTherapistBody =
+        "השימוש ב-CBTipul מתבצע במסגרת הקשר שלך עם המטפל/ת שהזמין/ה אותך. מידע שתמלא/י באפליקציה עשוי להיות זמין למטפל/ת שלך ולשמש כחלק מהתהליך הטיפולי."
+
+    static let inviteConsentDataHeading = "המידע שלך"
+
+    static let inviteConsentDataBody =
+        "באפליקציה ניתן למלא שאלונים וכלים טיפוליים שהמטפל/ת שולח/ת אליך. המידע שתזין/י נשמר לצורך השימוש בשירות והצגתו למטפל/ת שלך."
+
+    static let inviteConsentEmergencyHeading = "לא מיועד למצבי חירום"
+
+    static let inviteConsentEmergencyBody =
+        "CBTipul אינו שירות חירום ואינו תחליף לקבלת עזרה מיידית. במקרה של מצוקה חריפה או סכנה מיידית יש לפנות לגורם חירום או לקבלת עזרה מקצועית מתאימה."
+
+    static let inviteConsentAcceptance =
+        "קראתי ואני מסכים/ה לתנאי השימוש ולמדיניות הפרטיות, ומסכים/ה לחיבור החשבון למטפל/ת שהזמין/ה אותי."
+
+    static let inviteConsentAcceptAction = "מסכים/ה וממשיך/ה"
+
+    static let inviteConsentBackAction = "חזרה"
+
+    static let inviteConsentAcceptedValue = "מסומן"
+
+    static let inviteConsentNotAcceptedValue = "לא מסומן"
+
+    static let patientActivationConnecting = "מתחברים ל-CBTipul…"
+
+    static let patientActivationFailedTitle = "לא ניתן היה להשלים את החיבור"
+
+    static let patientActivationSignInFailedBody = "לא ניתן היה להתחבר. נסו שוב."
+
+    static let patientActivationClaimFailed =
+        "לא ניתן היה לשייך את ההזמנה. נסו שוב או בקשו הזמנה חדשה מהמטפל/ת."
+
+    static let patientActivationContextFailedBody =
+        "ההזמנה שויכה, אך לא ניתן היה לאמת את החיבור. נסו שוב."
+
+    static let patientActivationRetryAction = "ניסיון חוזר"
+
+    static let patientModeConnectedTitle = "החיבור הושלם בהצלחה"
+
+    static let patientModeConnectedBody =
+        "כעת ניתן לקבל מהמטפל/ת שאלונים וכלים טיפוליים."
+
+    static let patientActivationIncompleteTitle = "החיבור עדיין לא הושלם"
+
+    static let patientActivationIncompleteBody =
+        "לא ניתן להיכנס למסך ההתחברות של מטפלים. פתחו מחדש את קישור ההזמנה או נסו לאמת את החיבור שוב."
+
+    static let patientContextRetryTitle = "לא ניתן היה לאמת את החיבור"
+
+    static let patientContextRetryBody =
+        "נסו שוב לאמת את החיבור. אין צורך לפתוח מחדש את קישור ההזמנה."
+
+    static let inviteExpiredTitle = "ההזמנה פגה"
+
+    static let inviteExpiredBody = "יש לבקש מהמטפל/ת הזמנה חדשה."
+
+    static let inviteClaimedTitle = "ההזמנה כבר נוצלה"
+
+    static let inviteClaimedBody =
+        "יש לבקש מהמטפל/ת הזמנה חדשה אם יש צורך בחיבור מחדש."
+
+    static let inviteCancelledTitle = "ההזמנה אינה פעילה"
+
+    static let inviteCancelledBody = "יש לבקש מהמטפל/ת הזמנה חדשה."
+
+    static let inviteInvalidTitle = "הקישור אינו תקין"
+
+    static let invitePreviewLoadFailedTitle = "לא ניתן היה לטעון את ההזמנה"
+
     static let deleteAccountAction = "מחיקת חשבון"
 
     static let deleteAccountConfirmTitle = "למחוק את החשבון?"

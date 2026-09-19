@@ -62,7 +62,15 @@ final class AuthManager {
     /// presents the new-password prompt until one is saved or it's skipped.
     var isRecoveringPassword = false
 
+    /// Email/password (or OAuth) therapist session. Anonymous patient
+    /// sessions have no email and are not treated as therapist sign-in.
     var isAuthenticated: Bool { currentUserEmail != nil }
+
+    /// Any restored or live Supabase session, including anonymous patients.
+    var hasSession: Bool { currentUserId != nil }
+
+    /// True when the current Auth user is anonymous (patient installation).
+    private(set) var isAnonymousUser = false
 
     /// Launch argument used by XCUITests for an offline signed-in demo path.
     static var isUITesting: Bool {
@@ -89,6 +97,7 @@ final class AuthManager {
                 AppLog.auth.info("Auth state changed: \(event.rawValue, privacy: .public), signed in: \(session != nil)")
                 self?.currentUserEmail = session?.user.email
                 self?.currentUserId = session?.user.id.uuidString
+                self?.isAnonymousUser = session?.user.isAnonymous ?? false
             }
         }
     }
@@ -98,6 +107,7 @@ final class AuthManager {
         TermsAcceptance.setAccepted(email: Self.uiTestingEmail)
         currentUserEmail = Self.uiTestingEmail
         currentUserId = Self.uiTestingUserId
+        isAnonymousUser = false
         AppLog.auth.notice("Entered UITesting session")
     }
 
@@ -216,11 +226,21 @@ final class AuthManager {
     func signOut() {
         AppLog.auth.info("Sign-out requested")
         isRecoveringPassword = false
-        Task {
-            try? await client.auth.signOut()
-            currentUserEmail = nil
-            currentUserId = nil
-        }
+        Task { await clearLocalSession() }
+    }
+
+    /// Awaits sign-out so a following anonymous sign-in cannot race.
+    func signOutAndWait() async {
+        AppLog.auth.info("Sign-out requested")
+        isRecoveringPassword = false
+        await clearLocalSession()
+    }
+
+    private func clearLocalSession() async {
+        try? await client.auth.signOut()
+        currentUserEmail = nil
+        currentUserId = nil
+        isAnonymousUser = false
     }
 
     /// Permanently deletes the signed-in account. The client has no admin
@@ -239,6 +259,20 @@ final class AuthManager {
         try? await client.auth.signOut()
         currentUserEmail = nil
         currentUserId = nil
+        isAnonymousUser = false
+    }
+
+    /// Patient installation identity. No email, password, or registration.
+    func signInAnonymously() async throws {
+        try ensureConfigured()
+        let session = try await client.auth.signInAnonymously()
+        currentUserEmail = session.user.email
+        currentUserId = session.user.id.uuidString
+        isAnonymousUser = session.user.isAnonymous
+        guard currentUserId != nil, session.user.isAnonymous else {
+            throw AuthError.verificationFailed
+        }
+        AppLog.auth.info("Anonymous sign-in succeeded")
     }
 
     private func ensureConfigured() throws {

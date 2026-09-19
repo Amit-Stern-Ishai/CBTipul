@@ -21,6 +21,14 @@ nonisolated struct AppContext: Codable, Equatable, Sendable {
     let role: AppRole
     let activation: PatientActivation?
     let patientId: UUID?
+
+    var isActivePatient: Bool {
+        role == .patient && activation == .active && patientId != nil
+    }
+
+    var isIncompletePatient: Bool {
+        role == .patient && activation == .incomplete
+    }
 }
 
 /// Fetches `AppContext` through the shared authenticated Supabase client.
@@ -29,15 +37,34 @@ nonisolated struct AppContext: Codable, Equatable, Sendable {
 final class AppContextService {
     private let client: SupabaseClient
 
+    private(set) var current: AppContext?
+    private(set) var isLoading = false
+    private(set) var loadError: String?
+
     init(client: SupabaseClient) {
         self.client = client
     }
 
     func getCurrentAppContext() async throws -> AppContext {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        let context: AppContext = try await client.functions.invoke("get-app-context")
-        AppLog.auth.info("App context received, role: \(context.role.rawValue, privacy: .public)")
-        return context
+        isLoading = true
+        loadError = nil
+        defer { isLoading = false }
+        do {
+            let context: AppContext = try await client.functions.invoke("get-app-context")
+            current = context
+            AppLog.auth.info("App context received, role: \(context.role.rawValue, privacy: .public)")
+            return context
+        } catch {
+            loadError = error.localizedDescription
+            throw error
+        }
+    }
+
+    func clear() {
+        current = nil
+        loadError = nil
+        isLoading = false
     }
 }
 

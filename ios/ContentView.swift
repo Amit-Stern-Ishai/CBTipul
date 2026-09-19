@@ -7,10 +7,7 @@ struct MyApp: App {
     @State private var store: PatientStore
     @State private var therapistProfiles: TherapistProfileService
     @State private var appContext: AppContextService
-#if DEBUG
-    /// TEMPORARY DEBUG: remove after Universal Link verification.
-    @State private var debugInvitationToken: String?
-#endif
+    @State private var invitationFlow: PatientInvitationFlow
 
     init() {
         // The SwiftUI right-to-left override (see AppTextSizeModifier) doesn't
@@ -32,6 +29,7 @@ struct MyApp: App {
         _store = State(initialValue: PatientStore(client: auth.client))
         _therapistProfiles = State(initialValue: TherapistProfileService(client: auth.client))
         _appContext = State(initialValue: AppContextService(client: auth.client))
+        _invitationFlow = State(initialValue: PatientInvitationFlow())
     }
 
     var body: some Scene {
@@ -41,25 +39,13 @@ struct MyApp: App {
                 .environment(store)
                 .environment(therapistProfiles)
                 .environment(appContext)
+                .environment(invitationFlow)
                 .onOpenURL(perform: handleIncomingURL)
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     if let url = activity.webpageURL {
                         handleIncomingURL(url)
                     }
                 }
-                #if DEBUG
-                .alert(
-                    "DEBUG — Invitation",
-                    isPresented: Binding(
-                        get: { debugInvitationToken != nil },
-                        set: { if !$0 { debugInvitationToken = nil } }
-                    )
-                ) {
-                    Button("OK", role: .cancel) { debugInvitationToken = nil }
-                } message: {
-                    Text(debugInvitationToken ?? "")
-                }
-                #endif
         }
     }
 
@@ -72,9 +58,12 @@ struct MyApp: App {
             return
         }
         guard let token = InvitationLink.token(from: url) else { return }
-        #if DEBUG
-        debugInvitationToken = token
-        #endif
+        Task {
+            await invitationFlow.start(
+                token: token,
+                service: PatientInvitationService(client: auth.client)
+            )
+        }
     }
 }
 
@@ -84,6 +73,8 @@ struct ContentView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(TherapistProfileService.self) private var therapistProfiles
+    @Environment(AppContextService.self) private var appContext
+    @Environment(PatientInvitationFlow.self) private var invitationFlow
 
     @State private var isShowingSplash = true
     @State private var hasAcceptedTerms = false
@@ -95,7 +86,10 @@ struct ContentView: View {
         @Bindable var auth = auth
         @Bindable var onboarding = onboarding
         return ZStack {
-            if auth.isAuthenticated {
+            if invitationFlow.isActive {
+                PatientInvitationFlowView()
+            } else if auth.isAuthenticated {
+                // Existing therapist email/password session. Unchanged.
                 if showOptionalDisplayNamePrompt {
                     // Full-screen gate (not a second root sheet) so this
                     // never races Terms/Welcome or the password-recovery sheet.
@@ -135,6 +129,8 @@ struct ContentView: View {
                 } else {
                     PatientListView()
                 }
+            } else if auth.hasSession {
+                patientSessionRoot
             } else {
                 AuthView()
             }
@@ -163,6 +159,7 @@ struct ContentView: View {
             onboarding.setActiveUser(id: userId)
             if userId == nil {
                 therapistProfiles.clearCache()
+                appContext.clear()
                 showOptionalDisplayNamePrompt = false
                 isResolvingDisplayNameGate = false
             }
@@ -180,6 +177,9 @@ struct ContentView: View {
         .task(id: displayNameGateTaskID) {
             await resolveDisplayNameGate()
         }
+        .task(id: auth.currentUserId) {
+            await resolveAnonymousAppContext()
+        }
         .environment(onboarding)
         .task {
             if AuthManager.isUITesting {
@@ -196,10 +196,60 @@ struct ContentView: View {
         }
     }
 
+    /// Anonymous sessions never use therapist AuthView. Context decides
+    /// Patient Mode vs a recoverable incomplete/retry state.
+    @ViewBuilder
+    private var patientSessionRoot: some View {
+        if let context = appContext.current {
+            if context.isActivePatient {
+                PatientModePlaceholderView()
+            } else if context.role == .patient {
+                PatientActivationIncompleteView {
+                    Task { await resolveAnonymousAppContext() }
+                }
+            } else {
+                PatientContextRetryView {
+                    Task { await resolveAnonymousAppContext() }
+                }
+            }
+        } else if appContext.isLoading {
+            ZStack {
+                Theme.base.ignoresSafeArea()
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .tint(Theme.gold)
+                        .controlSize(.large)
+                    Text(L10n.patientActivationConnecting)
+                        .font(.body)
+                        .foregroundStyle(Theme.textBody)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(24)
+            }
+        } else {
+            PatientContextRetryView {
+                Task { await resolveAnonymousAppContext() }
+            }
+        }
+    }
+
     /// Re-runs the optional prompt check when the signed-in user changes
     /// or password recovery ends (recovery uses the root sheet).
     private var displayNameGateTaskID: String {
         "\(auth.currentUserId ?? "")-\(auth.isRecoveringPassword)"
+    }
+
+    private func resolveAnonymousAppContext() async {
+        guard auth.hasSession, !auth.isAuthenticated, !AuthManager.isUITesting else {
+            return
+        }
+        do {
+            _ = try await appContext.getCurrentAppContext()
+        } catch {
+            AppLog.auth.error(
+                "Patient app context failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
     }
 
     private func resolveDisplayNameGate() async {
@@ -241,4 +291,5 @@ struct ContentView: View {
         .environment(PatientStore(client: auth.client))
         .environment(TherapistProfileService(client: auth.client))
         .environment(AppContextService(client: auth.client))
+        .environment(PatientInvitationFlow())
 }
