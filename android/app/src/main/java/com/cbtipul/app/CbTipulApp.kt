@@ -85,6 +85,7 @@ class CbTipulApp : Application() {
             auth = authRepository,
             appContext = appContext,
             patients = patientRepository,
+            scope = applicationScope,
         )
     }
 }

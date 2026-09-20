@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -126,6 +127,18 @@ fun PatientModeScreen(
                             Icon(
                                 Icons.Outlined.Settings,
                                 contentDescription = stringResource(R.string.settings_title),
+                                tint = colors.gold,
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = { scope.launch { reload() } },
+                            enabled = loadState != TasksLoadState.Loading,
+                        ) {
+                            Icon(
+                                Icons.Outlined.Refresh,
+                                contentDescription = stringResource(R.string.patient_tasks_refresh),
                                 tint = colors.gold,
                             )
                         }

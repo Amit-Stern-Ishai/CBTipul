@@ -24,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,10 +39,10 @@ import com.cbtipul.app.data.ActivationFailure
 import com.cbtipul.app.data.InvitationPhase
 import com.cbtipul.app.data.PatientInvitationFlow
 import com.cbtipul.app.data.PatientInvitationPreviewStatus
+import com.cbtipul.app.debug.InviteDebugLog
 import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.themedScreen
-import kotlinx.coroutines.launch
 
 @Composable
 fun InvitationFlowScreen(flow: PatientInvitationFlow) {
@@ -67,13 +66,16 @@ fun InvitationFlowScreen(flow: PatientInvitationFlow) {
             onClose = { flow.dismiss() },
         )
         InvitationPhase.Consent -> InvitationConsent(
-            onAccept = { flow.activate() },
+            onAccept = { flow.accept() },
             onBack = { flow.returnToPreview() },
         )
         InvitationPhase.Activating -> InvitationActivating()
         is InvitationPhase.ActivationFailed -> InvitationActivationFailed(
             failure = current.failure,
-            onRetry = { flow.activate() },
+            onRetry = {
+                InviteDebugLog.d("Retry tapped")
+                flow.accept()
+            },
             onClose = { flow.dismiss() },
         )
     }
@@ -160,11 +162,10 @@ private fun InvitationMessage(
 @Composable
 private fun InvitationActivationFailed(
     failure: ActivationFailure,
-    onRetry: suspend () -> Unit,
+    onRetry: () -> Unit,
     onClose: () -> Unit,
 ) {
     val colors = Theme.colors
-    val scope = rememberCoroutineScope()
     val (title, body) = activationCopy(failure)
     InvitationChrome(
         onBack = onClose,
@@ -173,7 +174,7 @@ private fun InvitationActivationFailed(
             Text(body, color = colors.textBody)
         },
         footer = {
-            GoldButton(stringResource(R.string.patient_activation_retry), onClick = { scope.launch { onRetry() } })
+            GoldButton(stringResource(R.string.patient_activation_retry), onClick = onRetry)
             TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.invite_preview_close), color = colors.textBody, fontWeight = FontWeight.Medium)
             }
@@ -183,11 +184,10 @@ private fun InvitationActivationFailed(
 
 @Composable
 private fun InvitationConsent(
-    onAccept: suspend () -> Unit,
+    onAccept: () -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = Theme.colors
-    val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
     var hasAccepted by remember { mutableStateOf(false) }
     var isStarting by remember { mutableStateOf(false) }
@@ -266,7 +266,7 @@ private fun InvitationConsent(
                 enabled = hasAccepted && !isStarting,
                 onClick = {
                     isStarting = true
-                    scope.launch { onAccept() }
+                    onAccept()
                 },
             )
             TextButton(

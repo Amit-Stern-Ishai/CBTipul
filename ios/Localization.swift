@@ -1035,6 +1035,8 @@ amitishai@gmail.com
 
     static let patientTasksTitle = "המשימות שלי"
 
+    static let patientTasksRefreshAction = "רענון"
+
     static let patientTasksEmptyTitle = "אין משימות חדשות כרגע"
 
     static let patientTasksEmptyBody =

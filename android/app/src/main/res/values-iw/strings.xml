@@ -528,6 +528,7 @@
     <string name="invite_preview_load_failed">לא ניתן היה לטעון את ההזמנה</string>
     <string name="invite_preview_load_failed_body">יש לנסות שוב או לפתוח מחדש את קישור ההזמנה.</string>
     <string name="patient_tasks_title">המשימות שלי</string>
+    <string name="patient_tasks_refresh">רענון</string>
     <string name="patient_tasks_empty_title">אין משימות חדשות כרגע</string>
     <string name="patient_tasks_empty_body">משימות חדשות מהמטפל/ת שלך יופיעו כאן.</string>
     <string name="patient_questionnaire_card_title">שאלון GAD-7 ו-PHQ-9</string>

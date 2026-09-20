@@ -1,5 +1,6 @@
 package com.cbtipul.app.data
 
+import com.cbtipul.app.debug.InviteDebugLog
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
 import io.ktor.client.statement.bodyAsText
@@ -90,11 +91,19 @@ class PatientInvitationService(private val client: SupabaseClient) {
                 body = GetPatientInvitationRequest(token = token),
                 headers = jsonHeaders(),
             )
-            return EdgePayload.json.decodeFromString(
+            val claimed = EdgePayload.json.decodeFromString(
                 ClaimedPatientInvitation.serializer(),
                 http.bodyAsText(),
             )
+            InviteDebugLog.d(
+                "Claim response: patientId present = ${InviteDebugLog.present(claimed.patientId)}, " +
+                    "therapistId present = ${InviteDebugLog.present(claimed.therapistId)}",
+            )
+            return claimed
+        } catch (error: PatientInvitationClaimError) {
+            throw error
         } catch (error: Exception) {
+            InviteDebugLog.e("claim-patient-invitation", error)
             val body = EdgePayload.responseBody(error)
             val preview = runCatching {
                 EdgePayload.json.decodeFromString(PatientInvitationPreview.serializer(), body)

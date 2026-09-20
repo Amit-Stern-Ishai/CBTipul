@@ -1,5 +1,6 @@
 package com.cbtipul.app.data
 
+import com.cbtipul.app.debug.InviteDebugLog
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
 import io.ktor.client.statement.bodyAsText
@@ -57,6 +58,9 @@ class AppContextRepository(private val client: SupabaseClient) {
             val context = EdgePayload.json.decodeFromString(AppContext.serializer(), http.bodyAsText())
             _current.value = context
             context
+        } catch (error: Exception) {
+            InviteDebugLog.e("get-app-context", error)
+            throw error
         } finally {
             _isLoading.value = false
         }

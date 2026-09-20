@@ -31,11 +31,32 @@ object EdgePayload {
     }
 
     fun httpStatus(error: Throwable): Int? {
-        return (error as? ResponseException)?.response?.status?.value
+        generateSequence(error) { it.cause }.forEach { current ->
+            (current as? ResponseException)?.response?.status?.value?.let { return it }
+        }
+        return null
     }
 
     suspend fun responseBody(error: Throwable): String {
-        val response = (error as? ResponseException)?.response ?: return error.message.orEmpty()
-        return runCatching { response.bodyAsText() }.getOrNull().orEmpty()
+        generateSequence(error) { it.cause }.forEach { current ->
+            val response = (current as? ResponseException)?.response ?: return@forEach
+            val body = runCatching { response.bodyAsText() }.getOrNull().orEmpty()
+            if (body.isNotBlank()) return body
+        }
+        return error.message.orEmpty()
+    }
+
+    /** Best-effort, non-suspending body for DEBUG logs when the coroutine already left the catch. */
+    fun responseBodyBlocking(error: Throwable): String {
+        generateSequence(error) { it.cause }.forEach { current ->
+            val fromRest = current.javaClass.methods
+                .firstOrNull { it.name == "getErrorDescription" && it.parameterCount == 0 }
+                ?.let { runCatching { it.invoke(current) as? String }.getOrNull() }
+                .orEmpty()
+            if (fromRest.isNotBlank()) return fromRest
+            val message = current.message.orEmpty()
+            if (message.isNotBlank()) return message
+        }
+        return ""
     }
 }

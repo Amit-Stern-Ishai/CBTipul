@@ -44,6 +44,14 @@ struct PatientModeView: View {
                         Label(L10n.settingsTitle, systemImage: "gearshape")
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await loadAssignments() }
+                    } label: {
+                        Label(L10n.patientTasksRefreshAction, systemImage: "arrow.clockwise")
+                    }
+                    .disabled(loadState == .loading)
+                }
             }
             .sheet(isPresented: $isShowingSettings) {
                 PatientSettingsView()
