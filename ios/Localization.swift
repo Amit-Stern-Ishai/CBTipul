@@ -1329,6 +1329,30 @@ amitishai@gmail.com
     static let patientConnectionCheckError =
         "לא ניתן היה לבדוק את חיבור המטופל/ת. נסו שוב."
 
+    static let diaryPatientModeTitle = "יומן למטופל/ת"
+
+    static let diaryPatientModeNotConnected = "מצב מטופל/ת אינו מחובר"
+
+    static let diaryPatientModeInactiveBody =
+        "אפשר לאפשר למטופל/ת למלא את היומן באופן שוטף."
+
+    static let diaryPatientModeActivateAction = "הפעלת יומן למטופל/ת"
+
+    static let diaryPatientModeActive = "היומן פעיל אצל המטופל/ת"
+
+    static let diaryPatientModeStopAction = "הפסקת היומן למטופל/ת"
+
+    static let diaryPatientModeStopConfirmTitle = "להפסיק את היומן למטופל/ת?"
+
+    static let diaryPatientModeStopConfirmMessage =
+        "המטופל/ת לא יוכל/תוכל להוסיף רשומות חדשות ליומן עד להפעלה מחדש. הרשומות הקיימות יישמרו."
+
+    static let diaryPatientModeStopConfirmAction = "הפסקת היומן"
+
+    static let diaryPatientModeActivateFailed = "לא ניתן היה להפעיל את היומן. נסו שוב."
+
+    static let diaryPatientModeStopFailed = "לא ניתן היה להפסיק את היומן. נסו שוב."
+
     static let questionnaireAssignmentSendError =
         "לא ניתן היה לשלוח את השאלון. נסו שוב."
 

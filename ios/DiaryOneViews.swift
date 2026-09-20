@@ -5,6 +5,8 @@ struct PatientDiaryOneView: View {
     let patient: Patient
 
     @Environment(DiaryOneStore.self) private var diary
+    @Environment(AuthManager.self) private var auth
+    @Environment(PatientStore.self) private var store
 
     private enum LoadState {
         case loading
@@ -12,7 +14,20 @@ struct PatientDiaryOneView: View {
         case failed
     }
 
+    private enum PatientModeStatus {
+        case loading
+        case notConnected
+        case inactive
+        case active
+        case failed
+    }
+
     @State private var loadState: LoadState = .loading
+    @State private var patientModeStatus: PatientModeStatus = .loading
+    @State private var activeAssignmentId: UUID?
+    @State private var isUpdatingAssignment = false
+    @State private var assignmentError: String?
+    @State private var isShowingStopConfirmation = false
 
     private var entries: [DiaryOneEntry] {
         diary.entries(for: patient.id)
@@ -23,19 +38,7 @@ struct PatientDiaryOneView: View {
     }
 
     var body: some View {
-        Group {
-            switch loadState {
-            case .loading where entries.isEmpty:
-                ProgressView()
-                    .tint(Theme.gold)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .failed where entries.isEmpty:
-                fetchError
-            case .loading, .loaded, .failed:
-                entryList
-            }
-        }
+        entryList
         .patientAtmosphere(patientColor)
         .themedScreen()
         .demoModeChrome()
@@ -52,12 +55,32 @@ struct PatientDiaryOneView: View {
         }
         .onAppear {
             Task { await loadEntries() }
+            Task { await loadPatientModeState() }
+        }
+        .alert(L10n.diaryPatientModeStopConfirmTitle, isPresented: $isShowingStopConfirmation) {
+            Button(L10n.diaryPatientModeStopConfirmAction, role: .destructive) {
+                Task { await stopDiaryOne() }
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.diaryPatientModeStopConfirmMessage)
         }
     }
 
     private var entryList: some View {
         List {
-            if case .failed = loadState {
+            Section {
+                patientModeControl
+                    .listRowBackground(groupBorderedRow(.only))
+            }
+
+            if loadState == .loading && entries.isEmpty {
+                ProgressView()
+                    .tint(Theme.gold)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .listRowBackground(groupBorderedRow(.only))
+            } else if case .failed = loadState {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(L10n.diaryOneLoadFailed)
                         .font(.footnote)
@@ -69,7 +92,19 @@ struct PatientDiaryOneView: View {
                 .listRowBackground(groupBorderedRow(.only))
             }
 
-            if entries.isEmpty {
+            if !entries.isEmpty {
+                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    NavigationLink {
+                        DiaryOneEntryFormView(patient: patient, mode: .edit(entry))
+                            .id(entry.id)
+                    } label: {
+                        diarySummary(entry)
+                    }
+                    .listRowBackground(groupBorderedRow(
+                        .at(index, of: entries.count)
+                    ))
+                }
+            } else if loadState == .loaded {
                 VStack(spacing: 12) {
                     Text(L10n.diaryOneEmptyTitle)
                         .font(.title3.weight(.semibold))
@@ -82,41 +117,73 @@ struct PatientDiaryOneView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
                 .listRowBackground(groupBorderedRow(.only))
-            } else {
-                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                    NavigationLink {
-                        DiaryOneEntryFormView(patient: patient, mode: .edit(entry))
-                            .id(entry.id)
-                    } label: {
-                        diarySummary(entry)
-                    }
-                    .listRowBackground(groupBorderedRow(
-                        .at(index, of: entries.count)
-                    ))
-                }
             }
         }
         .refreshable {
             await loadEntries()
+            await loadPatientModeState()
         }
     }
 
-    private var fetchError: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(L10n.diaryOneLoadFailed)
-                .font(.body)
-                .foregroundStyle(Theme.textBody)
-                .fixedSize(horizontal: false, vertical: true)
-            Button {
-                Task { await loadEntries() }
-            } label: {
-                Text(L10n.retryAction)
-                    .fontWeight(.semibold)
+    @ViewBuilder
+    private var patientModeControl: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.diaryPatientModeTitle)
+                .font(.subheadline.weight(.semibold))
+            switch patientModeStatus {
+            case .loading:
+                ProgressView()
+                    .tint(Theme.gold)
+                    .controlSize(.small)
+            case .notConnected:
+                Text(L10n.diaryPatientModeNotConnected)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            case .inactive:
+                Text(L10n.diaryPatientModeInactiveBody)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    Task { await activateDiaryOne() }
+                } label: {
+                    Text(L10n.diaryPatientModeActivateAction)
+                        .fontWeight(.semibold)
+                }
+                .disabled(isUpdatingAssignment)
+            case .active:
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Theme.success)
+                        .frame(width: 8, height: 8)
+                    Text(L10n.diaryPatientModeActive)
+                        .font(.footnote.weight(.semibold))
+                }
+                Button(role: .destructive) {
+                    isShowingStopConfirmation = true
+                } label: {
+                    Text(L10n.diaryPatientModeStopAction)
+                        .font(.footnote)
+                }
+                .disabled(isUpdatingAssignment)
+            case .failed:
+                Text(assignmentError ?? L10n.patientConnectionCheckError)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.error)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(L10n.retryAction) {
+                    Task { await loadPatientModeState() }
+                }
+                .disabled(isUpdatingAssignment)
             }
-            .buttonStyle(.pressableProminent)
+            if let assignmentError, patientModeStatus == .inactive || patientModeStatus == .active {
+                Text(assignmentError)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.error)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .padding(.horizontal, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 
     private func diarySummary(_ entry: DiaryOneEntry) -> some View {
@@ -157,6 +224,84 @@ struct PatientDiaryOneView: View {
             loadState = .loaded
         } catch {
             loadState = .failed
+        }
+    }
+
+    private func assignmentService() -> PatientAssignmentService {
+        PatientAssignmentService(client: auth.client)
+    }
+
+    private func loadPatientModeState(showLoading: Bool = true) async {
+        if showLoading {
+            patientModeStatus = .loading
+            assignmentError = nil
+            activeAssignmentId = nil
+        }
+        guard let patientId = patient.id.uuidValue else {
+            patientModeStatus = .failed
+            assignmentError = L10n.patientConnectionCheckError
+            return
+        }
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            patientModeStatus = .notConnected
+            return
+        }
+        do {
+            let connected = try await assignmentService().isPatientConnected(patientId: patientId)
+            guard connected else {
+                patientModeStatus = .notConnected
+                return
+            }
+            if let active = try await assignmentService().activeOngoingAssignment(
+                patientId: patientId,
+                type: .diaryOne
+            ) {
+                activeAssignmentId = active.id
+                patientModeStatus = .active
+            } else {
+                patientModeStatus = .inactive
+            }
+        } catch {
+            patientModeStatus = .failed
+            assignmentError = L10n.patientConnectionCheckError
+        }
+    }
+
+    private func activateDiaryOne() async {
+        guard !isUpdatingAssignment, patientModeStatus == .inactive else { return }
+        guard let patientId = patient.id.uuidValue else {
+            assignmentError = L10n.diaryPatientModeActivateFailed
+            return
+        }
+        isUpdatingAssignment = true
+        assignmentError = nil
+        defer { isUpdatingAssignment = false }
+        do {
+            let active = try await assignmentService().activateOngoingAssignment(
+                patientId: patientId,
+                type: .diaryOne
+            )
+            activeAssignmentId = active.id
+            await loadPatientModeState(showLoading: false)
+        } catch PatientAssignmentError.patientNotConnected {
+            patientModeStatus = .notConnected
+        } catch {
+            assignmentError = L10n.diaryPatientModeActivateFailed
+            await loadPatientModeState(showLoading: false)
+        }
+    }
+
+    private func stopDiaryOne() async {
+        guard !isUpdatingAssignment, let assignmentId = activeAssignmentId else { return }
+        isUpdatingAssignment = true
+        assignmentError = nil
+        defer { isUpdatingAssignment = false }
+        do {
+            try await assignmentService().cancelOngoingAssignment(id: assignmentId)
+            await loadPatientModeState(showLoading: false)
+        } catch {
+            assignmentError = L10n.diaryPatientModeStopFailed
+            await loadPatientModeState(showLoading: false)
         }
     }
 }

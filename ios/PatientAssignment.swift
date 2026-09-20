@@ -102,6 +102,41 @@ private struct NewPatientAssignment: Encodable {
     }
 }
 
+/// Ongoing diary assignment. `session_id` and completion timestamps stay NULL
+/// until the therapist cancels (`cancelled_at` only).
+private struct NewOngoingPatientAssignment: Encodable {
+    let patientId: UUID
+    let therapistId: UUID
+    let type: PatientAssignmentType
+
+    enum CodingKeys: String, CodingKey {
+        case patientId = "patient_id"
+        case therapistId = "therapist_id"
+        case sessionId = "session_id"
+        case type
+        case completedAt = "completed_at"
+        case cancelledAt = "cancelled_at"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(patientId, forKey: .patientId)
+        try container.encode(therapistId, forKey: .therapistId)
+        try container.encodeNil(forKey: .sessionId)
+        try container.encode(type, forKey: .type)
+        try container.encodeNil(forKey: .completedAt)
+        try container.encodeNil(forKey: .cancelledAt)
+    }
+}
+
+private struct CancelPatientAssignment: Encodable {
+    let cancelledAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case cancelledAt = "cancelled_at"
+    }
+}
+
 private struct IsPatientConnectedParams: Encodable {
     let pPatientId: UUID
 
@@ -199,6 +234,106 @@ final class PatientAssignmentService {
         } catch {
             AppLog.store.error(
                 "Questionnaire assignment create failed: \(error.localizedDescription, privacy: .public)"
+            )
+            throw error
+        }
+    }
+
+    /// Active ongoing diary assignment (`cancelled_at` is NULL). `completed_at`
+    /// is not part of diary active-state.
+    func activeOngoingAssignment(
+        patientId: UUID,
+        type: PatientAssignmentType
+    ) async throws -> PatientAssignment? {
+        try ensureConfigured()
+        try Self.requireOngoingType(type)
+        do {
+            let rows: [PatientAssignment] = try await client.from("patient_assignments")
+                .select(
+                    "id, patient_id, therapist_id, session_id, type, created_at, completed_at, cancelled_at"
+                )
+                .eq("patient_id", value: patientId)
+                .eq("type", value: type.rawValue)
+                .is("cancelled_at", value: nil)
+                .limit(1)
+                .execute()
+                .value
+            return rows.first
+        } catch {
+            AppLog.store.error(
+                "Ongoing assignment fetch failed: \(error.localizedDescription, privacy: .public)"
+            )
+            throw error
+        }
+    }
+
+    /// Inserts a new ongoing assignment. Never reopens a cancelled row.
+    func activateOngoingAssignment(
+        patientId: UUID,
+        type: PatientAssignmentType
+    ) async throws -> PatientAssignment {
+        try ensureConfigured()
+        try Self.requireOngoingType(type)
+        let connected = try await isPatientConnected(patientId: patientId)
+        guard connected else { throw PatientAssignmentError.patientNotConnected }
+
+        if let existing = try await activeOngoingAssignment(patientId: patientId, type: type) {
+            return existing
+        }
+
+        let therapistId = try await requireTherapistId()
+        do {
+            let created: PatientAssignment = try await client.from("patient_assignments")
+                .insert(
+                    NewOngoingPatientAssignment(
+                        patientId: patientId,
+                        therapistId: therapistId,
+                        type: type
+                    )
+                )
+                .select(
+                    "id, patient_id, therapist_id, session_id, type, created_at, completed_at, cancelled_at"
+                )
+                .single()
+                .execute()
+                .value
+            AppLog.store.info("Ongoing assignment created")
+            return created
+        } catch {
+            if Self.isUniqueViolation(error),
+               let existing = try? await activeOngoingAssignment(patientId: patientId, type: type) {
+                AppLog.store.info("Ongoing assignment already active")
+                return existing
+            }
+            AppLog.store.error(
+                "Ongoing assignment create failed: \(error.localizedDescription, privacy: .public)"
+            )
+            throw error
+        }
+    }
+
+    /// Stops an ongoing assignment by setting `cancelled_at` only.
+    func cancelOngoingAssignment(id: UUID) async throws {
+        try ensureConfigured()
+        do {
+            let updated: [PatientAssignment] = try await client.from("patient_assignments")
+                .update(
+                    CancelPatientAssignment(cancelledAt: Self.timestampString(from: Date()))
+                )
+                .eq("id", value: id)
+                .is("cancelled_at", value: nil)
+                .select(
+                    "id, patient_id, therapist_id, session_id, type, created_at, completed_at, cancelled_at"
+                )
+                .execute()
+                .value
+            guard !updated.isEmpty else {
+                throw PatientAssignmentError.invalidIdentifier
+            }
+            AppLog.store.info("Ongoing assignment cancelled")
+        } catch {
+            AppLog.store.error(
+                "Ongoing assignment cancel failed: \(error.localizedDescription, privacy: .public)"
             )
             throw error
         }
@@ -337,6 +472,33 @@ final class PatientAssignmentService {
 
     private func ensureConfigured() throws {
         guard SupabaseConfig.isConfigured else { throw PatientAssignmentError.notConfigured }
+    }
+
+    private static func requireOngoingType(_ type: PatientAssignmentType) throws {
+        switch type {
+        case .diaryOne, .diaryTwo:
+            return
+        case .questionnaire:
+            throw PatientAssignmentError.invalidIdentifier
+        }
+    }
+
+    private static func isUniqueViolation(_ error: Error) -> Bool {
+        if let postgrest = error as? PostgrestError, postgrest.code == "23505" {
+            return true
+        }
+        let nsError = error as NSError
+        if nsError.code == 23505 { return true }
+        if let nested = nsError.userInfo[NSUnderlyingErrorKey] as? Error {
+            return isUniqueViolation(nested)
+        }
+        return false
+    }
+
+    private static func timestampString(from date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
     }
 }
 
