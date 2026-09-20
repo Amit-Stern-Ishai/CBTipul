@@ -243,6 +243,7 @@ class AuthViewModel(
             AuthErrorKind.NotConfigured -> notConfigured
             AuthErrorKind.EmailNotConfirmed -> emailNotConfirmed
             AuthErrorKind.TooManyRequests -> tooManyRequests
+            AuthErrorKind.VerificationFailed -> notConfigured
         }
         else -> error.message ?: error.toString()
     }

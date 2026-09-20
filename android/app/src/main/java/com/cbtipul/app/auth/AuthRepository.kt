@@ -1,6 +1,7 @@
 package com.cbtipul.app.auth
 
 import android.content.Intent
+import android.util.Base64
 import com.cbtipul.app.data.SupabaseConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.annotations.SupabaseInternal
@@ -12,18 +13,26 @@ import io.github.jan.supabase.auth.handleDeeplinks
 import io.github.jan.supabase.auth.parseFragmentAndImportSession
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.functions.functions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class AuthRepository(private val client: SupabaseClient) {
 
     val session = client.auth.sessionStatus.map { status ->
         when (status) {
             SessionStatus.Initializing, is SessionStatus.RefreshFailure -> AuthSession.Loading
-            is SessionStatus.Authenticated -> AuthSession.SignedIn(status.session.user?.email)
+            is SessionStatus.Authenticated -> AuthSession.SignedIn(
+                email = status.session.user?.email,
+                userId = status.session.user?.id,
+                isAnonymous = isAnonymousSession(status.session),
+            )
             is SessionStatus.NotAuthenticated -> AuthSession.SignedOut
         }
     }
@@ -101,6 +110,29 @@ class AuthRepository(private val client: SupabaseClient) {
         runCatching { client.auth.signOut() }
     }
 
+    suspend fun signInAnonymously() {
+        ensureConfigured()
+        client.auth.signInAnonymously()
+    }
+
+    fun currentUserId(): String? = client.auth.currentSessionOrNull()?.user?.id
+
+    fun hasSession(): Boolean = client.auth.currentSessionOrNull() != null
+
+    fun isAnonymousSession(): Boolean {
+        val session = client.auth.currentSessionOrNull() ?: return false
+        return isAnonymousSession(session)
+    }
+
+    suspend fun signOutPatientMode() {
+        if (!isAnonymousSession()) {
+            throw AuthException(AuthErrorKind.VerificationFailed)
+        }
+        ensureConfigured()
+        client.auth.signOut()
+        _isRecoveringPassword.value = false
+    }
+
     suspend fun deleteAccount() {
         ensureConfigured()
         client.functions.invoke("delete-account")
@@ -133,19 +165,44 @@ class AuthRepository(private val client: SupabaseClient) {
 
     companion object {
         fun normalize(email: String): String = email.trim().lowercase()
+
+        fun isAnonymousSession(session: UserSession): Boolean {
+            val token = session.accessToken
+            val parts = token.split('.')
+            if (parts.size >= 2) {
+                val payload = runCatching {
+                    val decoded = Base64.decode(
+                        parts[1],
+                        Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+                    )
+                    String(decoded, Charsets.UTF_8)
+                }.getOrNull()
+                val flag = payload?.let {
+                    kotlinx.serialization.json.Json.parseToJsonElement(it)
+                        .jsonObject["is_anonymous"]?.jsonPrimitive?.booleanOrNull
+                }
+                if (flag == true) return true
+            }
+            return session.user?.identities?.any { it.provider.equals("anonymous", ignoreCase = true) } == true
+        }
     }
 }
 
 sealed interface AuthSession {
     data object Loading : AuthSession
     data object SignedOut : AuthSession
-    data class SignedIn(val email: String?) : AuthSession
+    data class SignedIn(
+        val email: String?,
+        val userId: String? = null,
+        val isAnonymous: Boolean = false,
+    ) : AuthSession
 }
 
 enum class AuthErrorKind {
     NotConfigured,
     EmailNotConfirmed,
     TooManyRequests,
+    VerificationFailed,
 }
 
 class AuthException(val kind: AuthErrorKind) : Exception()

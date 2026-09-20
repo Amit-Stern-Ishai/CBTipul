@@ -33,7 +33,8 @@ import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -103,6 +104,9 @@ fun PatientDetailScreen(
     isSavingGoal: Boolean,
     onOpenSessions: () -> Unit,
     onOpenQuestionnaires: () -> Unit,
+    onOpenDiaryOne: () -> Unit = {},
+    onInvitePatient: () -> Unit = {},
+    isCreatingInvitation: Boolean = false,
     onOpenChat: () -> Unit,
     isPreparing: Boolean,
     savedPreparationDate: String?,
@@ -386,9 +390,27 @@ fun PatientDetailScreen(
             )
             GroupedListDivider(startInset = 56.dp)
             IconChipRow(
-                icon = Icons.Outlined.ShowChart,
+                icon = Icons.Outlined.MenuBook,
+                title = stringResource(R.string.diary_one_title),
+                onClick = onOpenDiaryOne,
+            )
+            GroupedListDivider(startInset = 56.dp)
+            IconChipRow(
+                icon = Icons.Outlined.Description,
                 title = stringResource(R.string.view_questionnaires_action),
                 onClick = onOpenQuestionnaires,
+            )
+            GroupedListDivider(startInset = 56.dp)
+            IconChipRow(
+                icon = Icons.Outlined.Share,
+                title = stringResource(R.string.invite_patient_action),
+                enabled = !busy && !isCreatingInvitation,
+                trailing = {
+                    if (isCreatingInvitation) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
+                    }
+                },
+                onClick = onInvitePatient,
             )
             GroupedListDivider(startInset = 56.dp)
             IconChipRow(

@@ -21,14 +21,24 @@ import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
 import com.cbtipul.app.auth.AuthSession
 import com.cbtipul.app.auth.AuthViewModel
+import com.cbtipul.app.data.AnonymousPatientDestination
+import com.cbtipul.app.data.AppRootDestination
+import com.cbtipul.app.data.AppRootRouting
+import com.cbtipul.app.data.PatientDiaryOneSubmitError
 import com.cbtipul.app.ui.auth.AuthScreen
 import com.cbtipul.app.ui.auth.NewPasswordSheet
+import com.cbtipul.app.ui.invite.InvitationFlowScreen
 import com.cbtipul.app.ui.legal.AiConsentDialog
 import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.onboarding.WelcomeOnboardingScreen
+import com.cbtipul.app.ui.patient.PatientActivationIncompleteScreen
+import com.cbtipul.app.ui.patient.PatientContextRetryScreen
+import com.cbtipul.app.ui.patient.PatientModeScreen
+import com.cbtipul.app.ui.patient.PatientSettingsScreen
 import com.cbtipul.app.ui.patients.PatientListViewModel
 import com.cbtipul.app.ui.patients.PatientsNavHost
 import com.cbtipul.app.ui.settings.SettingsScreen
+import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.themedScreen
@@ -42,35 +52,62 @@ fun RootScreen() {
         factory = AuthViewModel.Factory(app.authRepository, app.preferences, app.patientRepository),
     )
     val session by authViewModel.session.collectAsStateWithLifecycle()
-    val email = (session as? AuthSession.SignedIn)?.email
+    val signedIn = session as? AuthSession.SignedIn
+    val isAnonymous = signedIn?.isAnonymous == true
+    val isTherapist = signedIn != null && !isAnonymous
+    val therapistIdentity = signedIn?.email?.takeUnless { it.isBlank() } ?: signedIn?.userId
+    val invitationPhase by app.invitationFlow.phase.collectAsStateWithLifecycle()
+    val invitationActive = invitationPhase !is com.cbtipul.app.data.InvitationPhase.Idle
+    val appContext by app.appContext.current.collectAsStateWithLifecycle()
+    val contextLoading by app.appContext.isLoading.collectAsStateWithLifecycle()
+    val rootDestination = AppRootRouting.destination(
+        invitationActive = invitationActive,
+        hasSession = signedIn != null,
+        isAnonymous = isAnonymous,
+    )
+    val anonymousDestination = AppRootRouting.anonymousDestination(
+        context = appContext,
+        isLoading = contextLoading || session is AuthSession.Loading,
+    )
+    LaunchedEffect(signedIn?.userId, isAnonymous, invitationActive) {
+        if (isAnonymous && !invitationActive) {
+            runCatching { app.appContext.getCurrentAppContext() }
+        } else if (signedIn == null && !invitationActive) {
+            app.appContext.clear()
+        }
+    }
     val listSession by authViewModel.listSession.collectAsStateWithLifecycle()
     val recovering by authViewModel.isRecoveringPassword.collectAsStateWithLifecycle()
     val callbackError by authViewModel.callbackError.collectAsStateWithLifecycle()
     val ui by authViewModel.ui.collectAsStateWithLifecycle()
-    val termsAccepted = remember(email) { mutableStateOf<Boolean?>(null) }
-    LaunchedEffect(email) {
-        val signedIn = email
-        if (signedIn == null) {
+    val termsAccepted = remember(therapistIdentity) { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(therapistIdentity) {
+        val identity = therapistIdentity
+        if (identity == null) {
             termsAccepted.value = null
             return@LaunchedEffect
         }
-        app.preferences.hasAcceptedTerms(signedIn).collect { termsAccepted.value = it }
+        app.preferences.hasAcceptedTerms(identity).collect { termsAccepted.value = it }
     }
     val consentPrompt by app.aiConsentStore.promptVisible.collectAsStateWithLifecycle()
     val textSize by app.preferences.textSize.collectAsStateWithLifecycle(AppTextSize.Standard)
-    val consentAcceptedFlow = remember(email) {
-        email?.let { app.preferences.hasAcceptedAiConsent(it) } ?: flowOf(false)
+    val appearance by app.preferences.appearance.collectAsStateWithLifecycle(AppAppearance.Dark)
+    val consentAcceptedFlow = remember(therapistIdentity) {
+        therapistIdentity?.let { app.preferences.hasAcceptedAiConsent(it) } ?: flowOf(false)
     }
     val aiConsentAccepted by consentAcceptedFlow.collectAsStateWithLifecycle(initialValue = false)
     val scope = rememberCoroutineScope()
-    LaunchedEffect(email) {
-        app.aiConsentStore.setActiveUser(email)
+    LaunchedEffect(therapistIdentity) {
+        app.aiConsentStore.setActiveUser(therapistIdentity)
     }
     var showSettings by remember { mutableStateOf(false) }
+    var showPatientSettings by remember { mutableStateOf(false) }
     var showWelcome by remember { mutableStateOf(false) }
     var patientsViewModel by remember { mutableStateOf<PatientListViewModel?>(null) }
     var isDeletingAccount by remember { mutableStateOf(false) }
     var deleteAccountError by remember { mutableStateOf<String?>(null) }
+    var isLeavingPatientMode by remember { mutableStateOf(false) }
+    var leavePatientError by remember { mutableStateOf<String?>(null) }
 
     val wantsDemoConsent by app.onboardingStore.wantsDemoConsent.collectAsStateWithLifecycle()
     LaunchedEffect(wantsDemoConsent) {
@@ -80,8 +117,8 @@ fun RootScreen() {
         showWelcome = true
         showSettings = false
     }
-    LaunchedEffect(email) {
-        if (email == null) {
+    LaunchedEffect(therapistIdentity) {
+        if (therapistIdentity == null) {
             showWelcome = false
             patientsViewModel = null
         }
@@ -94,10 +131,12 @@ fun RootScreen() {
     val enterEmailFirst = stringResource(R.string.enter_email_first_message)
     val resetSent = stringResource(R.string.password_reset_sent_message)
     val resentMessage = stringResource(R.string.verification_resent_message)
+    val diarySubmitFallback = stringResource(R.string.patient_diary_one_submit_error)
+    val leaveFailed = stringResource(R.string.patient_leave_mode_failed)
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
-            recovering -> {
+            recovering && !invitationActive -> {
                 NewPasswordSheet(
                     state = ui,
                     onPasswordChange = authViewModel::updateNewPassword,
@@ -113,7 +152,7 @@ fun RootScreen() {
                     onCancel = authViewModel::cancelRecovery,
                 )
             }
-            session is AuthSession.Loading || (email != null && termsAccepted.value == null) -> {
+            session is AuthSession.Loading && !invitationActive -> {
                 Box(
                     modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
                     contentAlignment = Alignment.Center,
@@ -121,22 +160,80 @@ fun RootScreen() {
                     CircularProgressIndicator(color = Theme.colors.gold)
                 }
             }
-            email != null && termsAccepted.value == false -> {
+            rootDestination == AppRootDestination.Invitation -> {
+                InvitationFlowScreen(app.invitationFlow)
+            }
+            rootDestination == AppRootDestination.AnonymousPatient -> {
+                when (anonymousDestination) {
+                    AnonymousPatientDestination.PatientMode -> PatientModeScreen(
+                        loadAssignments = {
+                            app.assignments.patientAssignments(appContext?.patientId)
+                        },
+                        submitQuestionnaire = { assignmentId, gad7, phq9, interference ->
+                            app.assignments.submitPatientQuestionnaire(
+                                assignmentId,
+                                gad7,
+                                phq9,
+                                interference,
+                            )
+                        },
+                        submitDiaryOne = { event, thought, feelings, behaviour, physicalSymptoms ->
+                            try {
+                                app.patientDiaryOne.submitEntry(
+                                    event,
+                                    thought,
+                                    feelings,
+                                    behaviour,
+                                    physicalSymptoms,
+                                    fallbackMessage = diarySubmitFallback,
+                                )
+                            } catch (error: PatientDiaryOneSubmitError.AccessDenied) {
+                                runCatching { app.appContext.getCurrentAppContext() }
+                                throw error
+                            }
+                        },
+                        onOpenSettings = { showPatientSettings = true },
+                    )
+                    AnonymousPatientDestination.Incomplete -> PatientActivationIncompleteScreen {
+                        scope.launch { runCatching { app.appContext.getCurrentAppContext() } }
+                    }
+                    AnonymousPatientDestination.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(color = Theme.colors.gold)
+                        }
+                    }
+                    AnonymousPatientDestination.Retry -> PatientContextRetryScreen {
+                        scope.launch { runCatching { app.appContext.getCurrentAppContext() } }
+                    }
+                }
+            }
+            isTherapist && termsAccepted.value == null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = Theme.colors.gold)
+                }
+            }
+            isTherapist && termsAccepted.value == false -> {
                 TermsScreen(
                     onAgree = {
-                        val signedIn = email ?: return@TermsScreen
-                        scope.launch { authViewModel.acceptTerms(signedIn) }
+                        val identity = therapistIdentity ?: return@TermsScreen
+                        scope.launch { authViewModel.acceptTerms(identity) }
                     },
                 )
             }
-            email != null && termsAccepted.value == true -> {
-                LaunchedEffect(email) {
-                    app.onboardingStore.setActiveUser(email)
+            isTherapist && termsAccepted.value == true -> {
+                LaunchedEffect(therapistIdentity) {
+                    therapistIdentity?.let { app.onboardingStore.setActiveUser(it) }
                 }
                 val welcomeDismissed by app.onboardingStore.welcomeDismissed.collectAsStateWithLifecycle()
                 val onboardingHydrated by app.onboardingStore.isHydrated.collectAsStateWithLifecycle()
                 val listVm: PatientListViewModel = viewModel(
-                    key = "$email-$listSession",
+                    key = "$therapistIdentity-$listSession",
                     factory = PatientListViewModel.Factory(app.patientRepository, app.onboardingStore),
                 )
                 SideEffect { patientsViewModel = listVm }
@@ -203,16 +300,44 @@ fun RootScreen() {
             }
         }
 
-        if (consentPrompt && !recovering) {
+        if (consentPrompt && !recovering && !isAnonymous) {
             AiConsentDialog(
                 onAccept = { scope.launch { app.aiConsentStore.accept() } },
                 onDecline = { scope.launch { app.aiConsentStore.decline() } },
             )
         }
 
+        if (showPatientSettings) {
+            PatientSettingsScreen(
+                textSize = textSize,
+                appearance = appearance,
+                onTextSize = { value -> scope.launch { app.preferences.setTextSize(value) } },
+                onAppearance = { value -> scope.launch { app.preferences.setAppearance(value) } },
+                isLeaving = isLeavingPatientMode,
+                leaveError = leavePatientError,
+                onLeavePatientMode = {
+                    isLeavingPatientMode = true
+                    leavePatientError = null
+                    scope.launch {
+                        try {
+                            app.authRepository.signOutPatientMode()
+                            app.appContext.clear()
+                            showPatientSettings = false
+                        } catch (_: Exception) {
+                            leavePatientError = leaveFailed
+                        } finally {
+                            isLeavingPatientMode = false
+                        }
+                    }
+                },
+                onClearLeaveError = { leavePatientError = null },
+                onDone = { showPatientSettings = false },
+            )
+        }
+
         if (showSettings) {
             SettingsScreen(
-                email = email,
+                email = signedIn?.email,
                 textSize = textSize,
                 aiConsentAccepted = aiConsentAccepted,
                 isDeleting = isDeletingAccount,

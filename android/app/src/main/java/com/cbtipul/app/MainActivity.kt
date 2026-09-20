@@ -1,6 +1,5 @@
 package com.cbtipul.app
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,7 +25,10 @@ class MainActivity : ComponentActivity() {
             val textSize by preferences.textSize.collectAsStateWithLifecycle(
                 initialValue = AppTextSize.Standard,
             )
-            CbTipulTheme(appearance = AppAppearance.Dark, textSize = textSize) {
+            val appearance by preferences.appearance.collectAsStateWithLifecycle(
+                initialValue = AppAppearance.Dark,
+            )
+            CbTipulTheme(appearance = appearance, textSize = textSize) {
                 RootScreen()
             }
         }
@@ -53,13 +55,9 @@ class MainActivity : ComponentActivity() {
 
     private fun handleInvitationIntent(intent: Intent?) {
         val token = InvitationLink.tokenFrom(intent?.data) ?: return
-        // TEMPORARY DEBUG: remove after App Link verification.
-        if (BuildConfig.DEBUG) {
-            AlertDialog.Builder(this)
-                .setTitle("DEBUG — Invitation")
-                .setMessage(token)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+        val app = application as CbTipulApp
+        app.applicationScope.launch {
+            app.invitationFlow.start(token)
         }
     }
 }

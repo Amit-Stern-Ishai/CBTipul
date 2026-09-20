@@ -1,12 +1,23 @@
 package com.cbtipul.app.ui.patients
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -16,8 +27,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
+import com.cbtipul.app.data.DemoData
+import com.cbtipul.app.data.PatientAssignmentRepository
+import com.cbtipul.app.data.TherapistProfile
 import com.cbtipul.app.model.CompletedQuestionnaire
+import com.cbtipul.app.ui.diary.TherapistDiaryOneScreen
 import com.cbtipul.app.model.DatabaseId
 import com.cbtipul.app.model.PatientFormulation
 import com.cbtipul.app.model.Session
@@ -25,6 +41,7 @@ import com.cbtipul.app.ui.onboarding.DemoModeChrome
 import com.cbtipul.app.ui.onboarding.DemoShowcaseIntroScreen
 import com.cbtipul.app.ui.onboarding.ShowcaseRevealPhase
 import com.cbtipul.app.ui.theme.hebrewDate
+import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
 
@@ -36,6 +53,20 @@ fun PatientsNavHost(
     navController: NavHostController = rememberNavController(),
 ) {
     val unnamed = stringResource(R.string.unnamed_patient)
+    val context = LocalContext.current
+    val app = context.applicationContext as CbTipulApp
+    val inviteScope = rememberCoroutineScope()
+    var isCreatingInvitation by remember { mutableStateOf(false) }
+    var invitationError by remember { mutableStateOf<String?>(null) }
+    var showDisplayNamePrompt by remember { mutableStateOf(false) }
+    var pendingInvitePatientId by remember { mutableStateOf<String?>(null) }
+    var displayNameDraft by remember { mutableStateOf("") }
+    var displayNameError by remember { mutableStateOf<String?>(null) }
+    var isSavingDisplayName by remember { mutableStateOf(false) }
+    val invalidInvite = stringResource(R.string.patient_invitation_invalid_patient)
+    val inviteFailed = stringResource(R.string.patient_invitation_failed_title)
+    val emptyDisplayName = stringResource(R.string.therapist_display_name_empty)
+    val displayNameSaveError = stringResource(R.string.therapist_display_name_save_error)
     val notConfigured = stringResource(R.string.supabase_not_configured_error)
     val rejected = stringResource(R.string.update_rejected_error)
     val sessionNotSaved = stringResource(R.string.session_not_saved_error)
@@ -157,6 +188,28 @@ fun PatientsNavHost(
                 isSavingGoal = ui.isSavingFormulation,
                 onOpenSessions = { navController.navigate("patient/$id/sessions") },
                 onOpenQuestionnaires = { navController.navigate("patient/$id/questionnaires") },
+                onOpenDiaryOne = { navController.navigate("patient/$id/diary-one") },
+                onInvitePatient = {
+                    inviteScope.launch {
+                        createAndShareInvitation(
+                            app = app,
+                            context = context,
+                            patientId = patient?.id,
+                            invalidInvite = invalidInvite,
+                            inviteFailed = inviteFailed,
+                            isCreating = { isCreatingInvitation },
+                            setCreating = { isCreatingInvitation = it },
+                            setError = { invitationError = it },
+                            onNeedDisplayName = { uuid ->
+                                pendingInvitePatientId = uuid
+                                displayNameDraft = ""
+                                displayNameError = null
+                                showDisplayNamePrompt = true
+                            },
+                        )
+                    }
+                },
+                isCreatingInvitation = isCreatingInvitation,
                 onOpenChat = { navController.navigate("patient/$id/chat") },
                 isPreparing = ui.isPreparing,
                 savedPreparationDate = savedPrep?.let { hebrewDate(Date(it.generatedAtMillis)) },
@@ -354,6 +407,25 @@ fun PatientsNavHost(
             )
         }
         composable(
+            "patient/{id}/diary-one",
+            arguments = listOf(navArgument("id") { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
+            if (patient == null) {
+                return@composable
+            }
+            TherapistDiaryOneScreen(
+                patientId = patient.id,
+                patientName = patient.displayName(unnamed),
+                atmosphere = PatientAvatarColor.background(patient.id),
+                diary = app.diaryOne,
+                assignments = app.assignments,
+                isDemo = isDemoMode || DemoData.isDemoId(patient.id),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
             "patient/{id}/session/{sessionId}",
             arguments = listOf(
                 navArgument("id") { type = NavType.StringType },
@@ -473,6 +545,8 @@ fun PatientsNavHost(
                 },
                 gettingStarted = viewModel.gettingStarted,
                 viewingPatientId = patient?.id,
+                assignmentRepository = app.assignments,
+                isDemo = isDemoMode || patient?.id?.let { DemoData.isDemoId(it) } == true,
             )
         }
         composable(
@@ -639,6 +713,97 @@ fun PatientsNavHost(
         if (atList && routerState.showcaseRevealPhase == ShowcaseRevealPhase.Intro) {
             DemoShowcaseIntroScreen(onExplore = { viewModel.finishShowcaseIntro() })
         }
+        MessageOverlay(
+            visible = invitationError != null,
+            title = inviteFailed,
+            message = invitationError.orEmpty(),
+            onDismiss = { invitationError = null },
+        )
+        if (showDisplayNamePrompt) {
+            AlertDialog(
+                onDismissRequest = {
+                    if (!isSavingDisplayName) {
+                        showDisplayNamePrompt = false
+                        pendingInvitePatientId = null
+                    }
+                },
+                title = { Text(stringResource(R.string.therapist_display_name_prompt_title)) },
+                text = {
+                    Column {
+                        Text(stringResource(R.string.therapist_display_name_prompt_explanation))
+                        OutlinedTextField(
+                            value = displayNameDraft,
+                            onValueChange = {
+                                displayNameDraft = it
+                                displayNameError = null
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isSavingDisplayName,
+                            singleLine = true,
+                            label = { Text(stringResource(R.string.therapist_display_name_placeholder)) },
+                            isError = displayNameError != null,
+                            supportingText = displayNameError?.let { { Text(it) } },
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = !isSavingDisplayName,
+                        onClick = {
+                            inviteScope.launch {
+                                val trimmed = TherapistProfile.normalized(displayNameDraft)
+                                if (!TherapistProfile.isValid(trimmed)) {
+                                    displayNameError = emptyDisplayName
+                                    return@launch
+                                }
+                                isSavingDisplayName = true
+                                try {
+                                    app.therapistProfiles.saveDisplayName(trimmed)
+                                    showDisplayNamePrompt = false
+                                    val uuid = pendingInvitePatientId
+                                    pendingInvitePatientId = null
+                                    uuid?.let { savedId ->
+                                        val patient = patients.find { it.id.queryValue == savedId }
+                                            ?: viewModel.patient(savedId)
+                                        createAndShareInvitation(
+                                            app = app,
+                                            context = context,
+                                            patientId = patient?.id ?: DatabaseId.Text(savedId),
+                                            invalidInvite = invalidInvite,
+                                            inviteFailed = inviteFailed,
+                                            isCreating = { isCreatingInvitation },
+                                            setCreating = { isCreatingInvitation = it },
+                                            setError = { invitationError = it },
+                                            onNeedDisplayName = { pending ->
+                                                pendingInvitePatientId = pending
+                                                showDisplayNamePrompt = true
+                                            },
+                                        )
+                                    }
+                                } catch (_: Exception) {
+                                    displayNameError = displayNameSaveError
+                                } finally {
+                                    isSavingDisplayName = false
+                                }
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.save))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        enabled = !isSavingDisplayName,
+                        onClick = {
+                            showDisplayNamePrompt = false
+                            pendingInvitePatientId = null
+                        },
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
     }
 }
 
@@ -656,5 +821,55 @@ private fun previousQuestionnaire(
     }.time
     return records.firstOrNull { record ->
         record.sessionId?.queryValue != session.databaseId?.queryValue && record.answeredDate < sessionDay
+    }
+}
+
+private suspend fun createAndShareInvitation(
+    app: CbTipulApp,
+    context: android.content.Context,
+    patientId: DatabaseId?,
+    invalidInvite: String,
+    inviteFailed: String,
+    isCreating: () -> Boolean,
+    setCreating: (Boolean) -> Unit,
+    setError: (String?) -> Unit,
+    onNeedDisplayName: (String) -> Unit,
+) {
+    if (isCreating()) return
+    setError(null)
+    val uuid = patientId?.let { PatientAssignmentRepository.uuidOrNull(it) }
+    if (uuid == null) {
+        setError(invalidInvite)
+        return
+    }
+    setCreating(true)
+    try {
+        val profile = app.therapistProfiles.getCurrentProfile()
+        val therapistName = profile
+            ?.displayName
+            ?.takeIf { TherapistProfile.isValid(it) }
+            ?.let(TherapistProfile::normalized)
+        if (therapistName == null) {
+            setCreating(false)
+            onNeedDisplayName(uuid)
+            return
+        }
+        val invitation = app.invitations.createPatientInvitation(uuid)
+        val message = context.getString(
+            R.string.patient_invitation_share_message,
+            therapistName,
+            invitation.invitationUrl,
+        )
+        val share = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, message)
+        }
+        context.startActivity(
+            Intent.createChooser(share, context.getString(R.string.invite_patient_action)),
+        )
+    } catch (_: Exception) {
+        setError(inviteFailed)
+    } finally {
+        setCreating(false)
     }
 }
