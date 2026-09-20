@@ -1051,6 +1051,25 @@ amitishai@gmail.com
 
     static let patientUpcomingTaskBody = "משימה זו תהיה זמינה בקרוב."
 
+    static let patientDiaryOneCardTitle = "יומן 1"
+
+    static let patientDiaryOneCardBody =
+        "רישום של אירוע, מחשבה, רגשות והתגובה שלך."
+
+    static let patientDiaryOneOngoingHint = "אפשר להוסיף רשומות בכל עת."
+
+    static let patientDiaryOneSaveAction = "שמירת הרשומה"
+
+    static let patientDiaryOneSaved = "הרשומה נשמרה"
+
+    static let patientDiaryOneSubmitting = "שומרים את הרשומה…"
+
+    static let patientDiaryOneSubmitError = "לא ניתן היה לשמור את הרשומה. נסו שוב."
+
+    static let patientDiaryOneNotActiveTitle = "היומן אינו פעיל"
+
+    static let patientDiaryOneNotActive = "היומן אינו פעיל יותר."
+
     static let patientTasksLoadError = "לא ניתן היה לטעון את המשימות. נסו שוב."
 
     static let patientQuestionnaireSubmitAction = "שליחה"

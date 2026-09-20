@@ -14,6 +14,7 @@ struct PatientModeView: View {
     @State private var loadState: LoadState = .loading
     @State private var assignments: [PatientAssignment] = []
     @State private var didSubmitQuestionnaire = false
+    @State private var didSubmitDiaryOne = false
     @State private var isShowingSettings = false
 
     private var openAssignments: [PatientAssignment] {
@@ -49,6 +50,9 @@ struct PatientModeView: View {
             }
             .task { await loadAssignments() }
             .alert(L10n.patientQuestionnaireSubmittedTitle, isPresented: $didSubmitQuestionnaire) {
+                Button(L10n.ok, role: .cancel) {}
+            }
+            .alert(L10n.patientDiaryOneSaved, isPresented: $didSubmitDiaryOne) {
                 Button(L10n.ok, role: .cancel) {}
             }
         }
@@ -135,7 +139,9 @@ struct PatientModeView: View {
         switch assignment.type {
         case .questionnaire:
             questionnaireCard(assignment)
-        case .diaryOne, .diaryTwo, nil:
+        case .diaryOne:
+            diaryOneCard
+        case .diaryTwo, nil:
             upcomingTaskCard
         }
     }
@@ -156,6 +162,39 @@ struct PatientModeView: View {
                 }
             } label: {
                 Text(L10n.patientQuestionnaireStartAction)
+                    .fontWeight(.semibold)
+            }
+            .buttonStyle(.pressableProminent)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .themedCard()
+    }
+
+    private var diaryOneCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.patientDiaryOneCardTitle)
+                .font(.headline)
+                .foregroundStyle(Theme.textBright)
+            Text(L10n.patientDiaryOneCardBody)
+                .font(.body)
+                .foregroundStyle(Theme.textBody)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(L10n.patientDiaryOneOngoingHint)
+                .font(.footnote)
+                .foregroundStyle(Theme.textFaint)
+            NavigationLink {
+                PatientDiaryOneEntryView(
+                    onSubmitted: {
+                        didSubmitDiaryOne = true
+                        await loadAssignments()
+                    },
+                    onDiaryInactive: {
+                        await loadAssignments()
+                    }
+                )
+            } label: {
+                Text(L10n.diaryOneAddEntryAction)
                     .fontWeight(.semibold)
             }
             .buttonStyle(.pressableProminent)

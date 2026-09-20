@@ -325,3 +325,100 @@ struct DiaryFeelingsEditor: View {
         .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 14))
     }
 }
+
+/// Guided Diary 1 fields shared by therapist and Patient Mode.
+struct DiaryOneDraftFields: View {
+    @Binding var draft: DiaryOneEntryDraft
+    var didAttemptSave: Bool
+    var errorMessage: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            stepCard(
+                title: L10n.diaryOneEventTitle,
+                question: L10n.diaryOneEventQuestion,
+                text: $draft.event,
+                incompleteMessage: didAttemptSave && draft.event.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? L10n.diaryOneValidationEvent : nil
+            )
+            stepCard(
+                title: L10n.diaryOneThoughtTitle,
+                question: L10n.diaryOneThoughtQuestion,
+                text: $draft.thought,
+                incompleteMessage: didAttemptSave && draft.thought.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? L10n.diaryOneValidationThought : nil
+            )
+            feelingsCard
+            stepCard(
+                title: L10n.diaryOneBehaviourTitle,
+                question: L10n.diaryOneBehaviourQuestion,
+                text: $draft.behaviour,
+                incompleteMessage: didAttemptSave && draft.behaviour.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? L10n.diaryOneValidationBehaviour : nil
+            )
+            stepCard(
+                title: L10n.diaryOnePhysicalSymptomsTitle,
+                question: L10n.diaryOnePhysicalSymptomsQuestion,
+                text: $draft.physicalSymptoms,
+                optionalHint: L10n.diaryOneOptionalHint
+            )
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.error)
+                    .padding(.horizontal, 4)
+            }
+        }
+    }
+
+    private var feelingsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.diaryFeelingsTitle)
+                .font(.headline)
+            DiaryFeelingsEditor(
+                drafts: $draft.feelings,
+                highlightIncomplete: didAttemptSave
+            )
+            if didAttemptSave, draft.feelings.isEmpty {
+                Text(L10n.diaryOneValidationFeelingsRequired)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.error)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .themedCard()
+    }
+
+    private func stepCard(
+        title: String,
+        question: String,
+        text: Binding<String>,
+        optionalHint: String? = nil,
+        incompleteMessage: String? = nil
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.headline)
+                if let optionalHint {
+                    Text(optionalHint)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.textFaint)
+                }
+            }
+            Text(question)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            NotesField(text: text, placeholder: question, minLines: 3, maxLines: 8)
+            if let incompleteMessage {
+                Text(incompleteMessage)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.error)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .themedCard()
+    }
+}
