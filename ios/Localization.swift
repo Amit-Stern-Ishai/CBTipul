@@ -1150,6 +1150,66 @@ amitishai@gmail.com
     // MARK: - Questionnaire history
     
     static let viewQuestionnairesAction = "שאלונים וגרפים"
+
+    static let diaryOneTitle = "יומן 1"
+
+    static let diaryOneAddEntryAction = "הוספת רשומה"
+
+    static let diaryOneSaveEntryAction = "שמירת רשומה"
+
+    static let diaryOneEventTitle = "האירוע"
+
+    static let diaryOneEventQuestion = "מה קרה?"
+
+    static let diaryOneThoughtTitle = "מחשבה"
+
+    static let diaryOneThoughtQuestion = "איזו מחשבה עברה לי בראש?"
+
+    static let diaryOneFeelingTitle = "רגש"
+
+    static let diaryOneFeelingQuestion = "מה הרגשתי?"
+
+    static let diaryOneFeelingIntensityTitle = "עוצמת הרגש"
+
+    static let diaryOneBehaviourTitle = "התנהגות"
+
+    static let diaryOneBehaviourQuestion = "איך הגבתי?"
+
+    static let diaryOnePhysicalSymptomsTitle = "תחושות גופניות"
+
+    static let diaryOnePhysicalSymptomsQuestion = "האם הרגש לווה בתחושות גופניות?"
+
+    static let diaryOneEmptyTitle = "אין רשומות ביומן 1 עדיין"
+
+    static let diaryOneEmptyBody = "הוסיפו רשומה כדי לתעד אירוע, מחשבה ורגש."
+
+    static let diaryOneIntensityUnset = "לא נבחרה"
+
+    static func diaryOneIntensityValue(_ value: Int) -> String {
+        "\(value)%"
+    }
+
+    static func diaryOneFeelingSummary(feeling: String, intensity: Int) -> String {
+        "\(feeling) — \(intensity)%"
+    }
+
+    static let diaryOneValidationTitle = "הרשומה אינה שלמה"
+
+    static let diaryOneValidationMessage =
+        "יש למלא אירוע, מחשבה, רגש והתנהגות, ולבחור עוצמת רגש."
+
+    static let diaryOneSaveFailed = "לא ניתן היה לשמור את הרשומה. נסו שוב."
+
+    static let diaryOneLoadFailed = "לא ניתן היה לטעון את יומן 1. נסו שוב."
+
+    static let diaryOneDeleteAction = "מחיקת רשומה"
+
+    static let diaryOneDeleteConfirmTitle = "למחוק את הרשומה?"
+
+    static let diaryOneDeleteConfirmMessage =
+        "הרשומה תימחק מיומן 1 ולא ניתן יהיה לשחזר אותה."
+
+    static let diaryOneDeleteFailed = "לא ניתן היה למחוק את הרשומה. נסו שוב."
     
     static let questionnairesTitle = "שאלוני מצב רוח"
     

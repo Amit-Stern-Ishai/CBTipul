@@ -8,6 +8,7 @@ struct MyApp: App {
     @State private var therapistProfiles: TherapistProfileService
     @State private var appContext: AppContextService
     @State private var invitationFlow: PatientInvitationFlow
+    @State private var diaryOne: DiaryOneStore
 
     init() {
         // The SwiftUI right-to-left override (see AppTextSizeModifier) doesn't
@@ -30,6 +31,7 @@ struct MyApp: App {
         _therapistProfiles = State(initialValue: TherapistProfileService(client: auth.client))
         _appContext = State(initialValue: AppContextService(client: auth.client))
         _invitationFlow = State(initialValue: PatientInvitationFlow())
+        _diaryOne = State(initialValue: DiaryOneStore(client: auth.client))
     }
 
     var body: some Scene {
@@ -40,6 +42,7 @@ struct MyApp: App {
                 .environment(therapistProfiles)
                 .environment(appContext)
                 .environment(invitationFlow)
+                .environment(diaryOne)
                 .onOpenURL(perform: handleIncomingURL)
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     if let url = activity.webpageURL {
@@ -303,4 +306,5 @@ struct ContentView: View {
         .environment(TherapistProfileService(client: auth.client))
         .environment(AppContextService(client: auth.client))
         .environment(PatientInvitationFlow())
+        .environment(DiaryOneStore(client: auth.client))
 }

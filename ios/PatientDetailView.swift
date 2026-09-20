@@ -248,6 +248,13 @@ struct PatientDetailView: View {
                 .listRowBackground(groupBorderedRow(.middle))
 
                 NavigationLink {
+                    PatientDiaryOneView(patient: patient)
+                } label: {
+                    iconChip("book.closed", title: L10n.diaryOneTitle)
+                }
+                .listRowBackground(groupBorderedRow(.middle))
+
+                NavigationLink {
                     PatientAIView(patient: patient)
                 } label: {
                     iconChip("sparkles", title: L10n.aiAction)
