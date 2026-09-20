@@ -86,52 +86,18 @@ struct ContentView: View {
         @Bindable var auth = auth
         @Bindable var onboarding = onboarding
         return ZStack {
-            if invitationFlow.isActive {
+            switch AppRootRouting.destination(
+                invitationActive: invitationFlow.isActive,
+                hasSession: auth.hasSession,
+                isAnonymous: auth.isAnonymous
+            ) {
+            case .invitation:
                 PatientInvitationFlowView()
-            } else if auth.isAuthenticated {
-                // Existing therapist email/password session. Unchanged.
-                if showOptionalDisplayNamePrompt {
-                    // Full-screen gate (not a second root sheet) so this
-                    // never races Terms/Welcome or the password-recovery sheet.
-                    TherapistDisplayNameEditorView(
-                        requirement: .optional,
-                        onOptionalFinished: {
-                            onboarding.markDisplayNamePromptShown()
-                            showOptionalDisplayNamePrompt = false
-                        }
-                    )
-                } else if isResolvingDisplayNameGate {
-                    Theme.base.ignoresSafeArea()
-                } else if !hasAcceptedTerms {
-                    // Signed in but not yet agreed: the app stays blocked
-                    // behind the terms until the user accepts.
-                    NavigationStack {
-                        TermsView {
-                            if let email = auth.currentUserEmail {
-                                TermsAcceptance.setAccepted(email: email)
-                            }
-                            hasAcceptedTerms = true
-                        }
-                    }
-                } else if !onboarding.welcomeDismissed {
-                    // After terms: blocking welcome until Start or Skip.
-                    WelcomeOnboardingView(
-                        onStartDemoTour: {
-                            onboarding.markDemoTourCompleted()
-                            onboarding.dismissWelcome()
-                            onboarding.showChecklistAgain()
-                            store.enterDemoMode()
-                        },
-                        onSkip: {
-                            onboarding.dismissWelcome()
-                        }
-                    )
-                } else {
-                    PatientListView()
-                }
-            } else if auth.hasSession {
+            case .therapist:
+                therapistSessionRoot
+            case .anonymousPatient:
                 patientSessionRoot
-            } else {
+            case .unauthenticated:
                 AuthView()
             }
 
@@ -147,19 +113,28 @@ struct ContentView: View {
             NewPasswordView()
         }
         .onChange(of: auth.currentUserEmail, initial: true) { _, email in
+            guard !auth.isAnonymous else {
+                hasAcceptedTerms = false
+                return
+            }
             hasAcceptedTerms = email.map(TermsAcceptance.hasAccepted) ?? false
             // AI data-sharing consent is per account too: switching users
             // swaps in that account's own stored decision.
             AIDataSharingConsentStore.shared.setActiveUser(email: email)
         }
         .onChange(of: auth.currentUserId, initial: true) { _, userId in
-            onboarding.setActiveUser(id: userId)
             if userId == nil {
                 therapistProfiles.clearCache()
                 appContext.clear()
                 showOptionalDisplayNamePrompt = false
                 isResolvingDisplayNameGate = false
             }
+            guard !auth.isAnonymous else {
+                showOptionalDisplayNamePrompt = false
+                isResolvingDisplayNameGate = false
+                return
+            }
+            onboarding.setActiveUser(id: userId)
             // After AuthView's UITesting inject: skip welcome and enter demo.
             if AuthManager.isUITesting, userId != nil {
                 hasAcceptedTerms = true
@@ -193,23 +168,62 @@ struct ContentView: View {
         }
     }
 
+    /// Non-anonymous therapist session: Terms / Welcome / Patients only.
+    @ViewBuilder
+    private var therapistSessionRoot: some View {
+        if showOptionalDisplayNamePrompt {
+            // Full-screen gate (not a second root sheet) so this
+            // never races Terms/Welcome or the password-recovery sheet.
+            TherapistDisplayNameEditorView(
+                requirement: .optional,
+                onOptionalFinished: {
+                    onboarding.markDisplayNamePromptShown()
+                    showOptionalDisplayNamePrompt = false
+                }
+            )
+        } else if isResolvingDisplayNameGate {
+            Theme.base.ignoresSafeArea()
+        } else if !hasAcceptedTerms {
+            NavigationStack {
+                TermsView {
+                    if let email = auth.currentUserEmail {
+                        TermsAcceptance.setAccepted(email: email)
+                    }
+                    hasAcceptedTerms = true
+                }
+            }
+        } else if !onboarding.welcomeDismissed {
+            WelcomeOnboardingView(
+                onStartDemoTour: {
+                    onboarding.markDemoTourCompleted()
+                    onboarding.dismissWelcome()
+                    onboarding.showChecklistAgain()
+                    store.enterDemoMode()
+                },
+                onSkip: {
+                    onboarding.dismissWelcome()
+                }
+            )
+        } else {
+            PatientListView()
+        }
+    }
+
     /// Anonymous sessions never use therapist AuthView. Context decides
     /// Patient Mode vs a recoverable incomplete/retry state.
     @ViewBuilder
     private var patientSessionRoot: some View {
-        if let context = appContext.current {
-            if context.isActivePatient {
-                PatientModeView()
-            } else if context.role == .patient {
-                PatientActivationIncompleteView {
-                    Task { await resolveAnonymousAppContext() }
-                }
-            } else {
-                PatientContextRetryView {
-                    Task { await resolveAnonymousAppContext() }
-                }
+        switch AppRootRouting.anonymousDestination(
+            context: appContext.current,
+            isLoading: appContext.isLoading
+        ) {
+        case .patientMode:
+            PatientModeView()
+        case .incomplete:
+            PatientActivationIncompleteView {
+                Task { await resolveAnonymousAppContext() }
             }
-        } else if appContext.isLoading {
+        case .loading:
             ZStack {
                 Theme.base.ignoresSafeArea()
                 VStack(spacing: 16) {
@@ -223,7 +237,7 @@ struct ContentView: View {
                 }
                 .padding(24)
             }
-        } else {
+        case .retry:
             PatientContextRetryView {
                 Task { await resolveAnonymousAppContext() }
             }
@@ -237,7 +251,7 @@ struct ContentView: View {
     }
 
     private func resolveAnonymousAppContext() async {
-        guard auth.hasSession, !auth.isAuthenticated, !AuthManager.isUITesting else {
+        guard auth.isAnonymous, !AuthManager.isUITesting else {
             return
         }
         do {
@@ -251,7 +265,7 @@ struct ContentView: View {
 
     private func resolveDisplayNameGate() async {
         showOptionalDisplayNamePrompt = false
-        guard auth.isAuthenticated,
+        guard auth.isTherapistAuthenticated,
               auth.currentUserId != nil,
               !AuthManager.isUITesting,
               !auth.isRecoveringPassword

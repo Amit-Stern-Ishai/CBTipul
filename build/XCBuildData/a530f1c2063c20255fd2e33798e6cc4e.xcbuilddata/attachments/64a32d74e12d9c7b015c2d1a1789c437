@@ -1,0 +1,65 @@
+{
+  "" : {
+    "const-values" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-master.swiftconstvalues",
+    "dependencies" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-master.d",
+    "diagnostics" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-master.dia",
+    "emit-module-dependencies" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-master-emit-module.dia",
+    "swift-dependencies" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-master.swiftdeps"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/ActorIsolated.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/ActorIsolated.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/ActorIsolated.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/ActorIsolated.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/AnyHashableSendable.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/AnyHashableSendable.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/AnyHashableSendable.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/AnyHashableSendable.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/AsyncStream.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/AsyncStream.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/AsyncStream.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/AsyncStream.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/AsyncThrowingStream.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/AsyncThrowingStream.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/AsyncThrowingStream.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/AsyncThrowingStream.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/Internal/Locking.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/Locking.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/Locking.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/Locking.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/Internal/UncheckedBox.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/UncheckedBox.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/UncheckedBox.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/UncheckedBox.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/LockIsolated.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/LockIsolated.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/LockIsolated.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/LockIsolated.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/MainSerialExecutor.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/MainSerialExecutor.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/MainSerialExecutor.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/MainSerialExecutor.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/Result.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/Result.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/Result.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/Result.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/Task.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/Task.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/Task.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/Task.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/UncheckedSendable.swift" : {
+    "index-unit-output-path" : "/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/UncheckedSendable.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/UncheckedSendable.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/swift-concurrency-extras/build/swift-concurrency-extras.build/Release-iphonesimulator/ConcurrencyExtras.build/Objects-normal/arm64/UncheckedSendable.o"
+  }
+}

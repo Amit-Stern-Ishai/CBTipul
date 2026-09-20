@@ -62,15 +62,22 @@ final class AuthManager {
     /// presents the new-password prompt until one is saved or it's skipped.
     var isRecoveringPassword = false
 
-    /// Email/password (or OAuth) therapist session. Anonymous patient
-    /// sessions have no email and are not treated as therapist sign-in.
-    var isAuthenticated: Bool { currentUserEmail != nil }
+    /// Therapist identity: a live non-anonymous session. Anonymous Patient
+    /// Mode users are never therapists, even if Auth reports an email.
+    var isTherapistAuthenticated: Bool { hasSession && !isAnonymousUser }
+
+    /// Same as `isTherapistAuthenticated`. Kept as the historical name used
+    /// by therapist UI.
+    var isAuthenticated: Bool { isTherapistAuthenticated }
 
     /// Any restored or live Supabase session, including anonymous patients.
     var hasSession: Bool { currentUserId != nil }
 
     /// True when the current Auth user is anonymous (patient installation).
     private(set) var isAnonymousUser = false
+
+    /// Canonical Patient Mode identity flag (`User.isAnonymous`).
+    var isAnonymous: Bool { isAnonymousUser }
 
     /// Launch argument used by XCUITests for an offline signed-in demo path.
     static var isUITesting: Bool {
@@ -95,9 +102,11 @@ final class AuthManager {
                 // UI tests inject a fake session; ignore live Auth updates.
                 if Self.isUITesting { continue }
                 AppLog.auth.info("Auth state changed: \(event.rawValue, privacy: .public), signed in: \(session != nil)")
-                self?.currentUserEmail = session?.user.email
-                self?.currentUserId = session?.user.id.uuidString
-                self?.isAnonymousUser = session?.user.isAnonymous ?? false
+                self?.apply(
+                    userId: session?.user.id,
+                    email: session?.user.email,
+                    isAnonymous: session?.user.isAnonymous ?? false
+                )
             }
         }
     }
@@ -236,6 +245,29 @@ final class AuthManager {
         await clearLocalSession()
     }
 
+    /// Ends this installation's anonymous Patient Mode session only.
+    /// Does not delete server-side patient data or call `delete-account`.
+    func signOutPatientMode() async throws {
+        guard isAnonymousUser else {
+            AppLog.auth.error("Patient Mode sign-out refused: not an anonymous session")
+            throw AuthError.verificationFailed
+        }
+        try ensureConfigured()
+        do {
+            try await client.auth.signOut()
+            currentUserEmail = nil
+            currentUserId = nil
+            isAnonymousUser = false
+            isRecoveringPassword = false
+            AppLog.auth.info("Patient Mode session ended")
+        } catch {
+            AppLog.auth.error(
+                "Patient Mode sign-out failed: \(error.localizedDescription, privacy: .public)"
+            )
+            throw error
+        }
+    }
+
     private func clearLocalSession() async {
         try? await client.auth.signOut()
         currentUserEmail = nil
@@ -266,13 +298,28 @@ final class AuthManager {
     func signInAnonymously() async throws {
         try ensureConfigured()
         let session = try await client.auth.signInAnonymously()
-        currentUserEmail = session.user.email
-        currentUserId = session.user.id.uuidString
-        isAnonymousUser = session.user.isAnonymous
-        guard currentUserId != nil, session.user.isAnonymous else {
+        apply(
+            userId: session.user.id,
+            email: session.user.email,
+            isAnonymous: session.user.isAnonymous
+        )
+        guard hasSession, isAnonymousUser else {
             throw AuthError.verificationFailed
         }
         AppLog.auth.info("Anonymous sign-in succeeded")
+    }
+
+    /// Applies Auth session fields. Anonymous users are never therapists,
+    /// regardless of a non-nil/empty `user.email`.
+    private func apply(userId: UUID?, email: String?, isAnonymous: Bool) {
+        isAnonymousUser = isAnonymous
+        currentUserId = userId?.uuidString
+        if isAnonymous {
+            currentUserEmail = nil
+        } else {
+            let trimmed = email?.trimmingCharacters(in: .whitespacesAndNewlines)
+            currentUserEmail = (trimmed?.isEmpty == false) ? trimmed : nil
+        }
     }
 
     private func ensureConfigured() throws {

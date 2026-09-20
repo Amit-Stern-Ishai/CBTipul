@@ -1068,6 +1068,18 @@ amitishai@gmail.com
     static let patientQuestionnaireAccessDeniedError =
         "לא ניתן לשלוח את השאלון כרגע."
 
+    static let patientLeaveModeAction = "יציאה ממצב מטופל/ת"
+
+    static let patientLeaveModeConfirmTitle = "יציאה ממצב מטופל/ת?"
+
+    static let patientLeaveModeConfirmMessage =
+        "לאחר היציאה יהיה צורך בהזמנה חדשה מהמטפל/ת כדי להתחבר שוב למצב מטופל/ת במכשיר זה."
+
+    static let patientLeaveModeConfirmAction = "יציאה"
+
+    static let patientLeaveModeFailed =
+        "לא ניתן היה לצאת ממצב מטופל/ת. נסו שוב."
+
     static let patientActivationIncompleteTitle = "החיבור עדיין לא הושלם"
 
     static let patientActivationIncompleteBody =

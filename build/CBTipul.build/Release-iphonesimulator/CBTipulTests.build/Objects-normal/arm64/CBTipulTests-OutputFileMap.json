@@ -1,0 +1,40 @@
+{
+  "" : {
+    "const-values" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/CBTipulTests-master.swiftconstvalues",
+    "dependencies" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/CBTipulTests-master.d",
+    "diagnostics" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/CBTipulTests-master.dia",
+    "emit-module-dependencies" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/CBTipulTests-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/CBTipulTests-master-emit-module.dia",
+    "swift-dependencies" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/CBTipulTests-master.swiftdeps"
+  },
+  "/Users/amitishai/Documents/CBTipul/CBTipulTests/AppRootRoutingTests.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/AppRootRoutingTests.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/AppRootRoutingTests.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/AppRootRoutingTests.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/CBTipulTests/CBTipulTests.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/CBTipulTests.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/CBTipulTests.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/CBTipulTests.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/CBTipulTests/ClinicalTextGateTests.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/ClinicalTextGateTests.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/ClinicalTextGateTests.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/ClinicalTextGateTests.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/CBTipulTests/InvitationLinkTests.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/InvitationLinkTests.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/InvitationLinkTests.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/InvitationLinkTests.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/CBTipulTests/OnboardingTests.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/OnboardingTests.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/OnboardingTests.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/OnboardingTests.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/CBTipulTests/ReleaseSanityTests.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/ReleaseSanityTests.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/ReleaseSanityTests.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulTests.build/Objects-normal/arm64/ReleaseSanityTests.o"
+  }
+}

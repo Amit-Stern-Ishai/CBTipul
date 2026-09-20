@@ -1,0 +1,315 @@
+{
+  "" : {
+    "const-values" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/CBTipul-master.swiftconstvalues",
+    "dependencies" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/CBTipul-master.d",
+    "diagnostics" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/CBTipul-master.dia",
+    "emit-module-dependencies" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/CBTipul-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/CBTipul-master-emit-module.dia",
+    "swift-dependencies" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/CBTipul-master.swiftdeps"
+  },
+  "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/AIDataSharingConsent.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AIDataSharingConsent.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AIDataSharingConsent.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AIDataSharingConsent.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/AIPrompts.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AIPrompts.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AIPrompts.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AIPrompts.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/AddPatientView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AddPatientView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AddPatientView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AddPatientView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/AppContext.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AppContext.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AppContext.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AppContext.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/AppLog.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AppLog.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AppLog.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AppLog.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/AppRootRouting.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AppRootRouting.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AppRootRouting.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AppRootRouting.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/AuthManager.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AuthManager.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AuthManager.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AuthManager.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/AuthView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AuthView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AuthView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/AuthView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/BusyOverlay.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/BusyOverlay.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/BusyOverlay.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/BusyOverlay.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/ClinicalTextAnonymizer.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ClinicalTextAnonymizer.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ClinicalTextAnonymizer.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ClinicalTextAnonymizer.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/ContentView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ContentView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/ContextualTipSheets.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ContextualTipSheets.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ContextualTipSheets.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ContextualTipSheets.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/DeleteCodeChallenge.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DeleteCodeChallenge.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DeleteCodeChallenge.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DeleteCodeChallenge.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/DemoClinicStore.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoClinicStore.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoClinicStore.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoClinicStore.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/DemoData.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoData.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoData.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoData.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/DemoModeBanner.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoModeBanner.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoModeBanner.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoModeBanner.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/DemoShowcaseRevealView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoShowcaseRevealView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoShowcaseRevealView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/DemoShowcaseRevealView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/GettingStartedCard.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/GettingStartedCard.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/GettingStartedCard.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/GettingStartedCard.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/GroupBorder.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/GroupBorder.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/GroupBorder.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/GroupBorder.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/InvitationLink.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/InvitationLink.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/InvitationLink.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/InvitationLink.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/KeyboardDismiss.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/KeyboardDismiss.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/KeyboardDismiss.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/KeyboardDismiss.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/Localization.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/Localization.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/Localization.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/Localization.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/Models.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/Models.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/Models.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/Models.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/NextSessionPreparationView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/NextSessionPreparationView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/NextSessionPreparationView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/NextSessionPreparationView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/NotesField.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/NotesField.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/NotesField.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/NotesField.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/OnboardingStore.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/OnboardingStore.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/OnboardingStore.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/OnboardingStore.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientAIView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientAIView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientAIView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientAIView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientAssignment.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientAssignment.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientAssignment.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientAssignment.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientAvatarColor.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientAvatarColor.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientAvatarColor.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientAvatarColor.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientContext.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientContext.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientContext.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientContext.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientDetailView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientDetailView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientDetailView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientDetailView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientIdentityStore.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientIdentityStore.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientIdentityStore.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientIdentityStore.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientInvitation.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientInvitation.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientInvitation.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientInvitation.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientInvitationFlow.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientInvitationFlow.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientInvitationFlow.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientInvitationFlow.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientInvitationFlowView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientInvitationFlowView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientInvitationFlowView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientInvitationFlowView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientListView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientListView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientListView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientListView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientModePlaceholderView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientModePlaceholderView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientModePlaceholderView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientModePlaceholderView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientModeView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientModeView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientModeView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientModeView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientQuestionnairesView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientQuestionnairesView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientQuestionnairesView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientQuestionnairesView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientSessionsView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientSessionsView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientSessionsView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientSessionsView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientSettingsView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientSettingsView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientSettingsView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientSettingsView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientStore.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientStore.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientStore.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PatientStore.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PressableButtonStyle.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PressableButtonStyle.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PressableButtonStyle.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PressableButtonStyle.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PrivacyPolicyView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PrivacyPolicyView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PrivacyPolicyView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/PrivacyPolicyView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/QuestionnaireView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/QuestionnaireView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/QuestionnaireView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/QuestionnaireView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/ScoreCapsule.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ScoreCapsule.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ScoreCapsule.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/ScoreCapsule.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/SessionAnalysisView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SessionAnalysisView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SessionAnalysisView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SessionAnalysisView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/SessionEditorView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SessionEditorView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SessionEditorView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SessionEditorView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/SettingsView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SettingsView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SettingsView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SettingsView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/SplashView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SplashView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SplashView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SplashView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/SupabaseChatService.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SupabaseChatService.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SupabaseChatService.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SupabaseChatService.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/SupabaseConfig.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SupabaseConfig.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SupabaseConfig.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/SupabaseConfig.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/TermsView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TermsView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TermsView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TermsView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/Theme.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/Theme.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/Theme.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/Theme.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/TherapistDisplayNameEditorView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TherapistDisplayNameEditorView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TherapistDisplayNameEditorView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TherapistDisplayNameEditorView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/TherapistProfile.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TherapistProfile.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TherapistProfile.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TherapistProfile.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/TutorialPulse.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TutorialPulse.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TutorialPulse.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/TutorialPulse.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/VoiceNoteRecorder.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/VoiceNoteRecorder.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/VoiceNoteRecorder.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/VoiceNoteRecorder.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/WelcomeOnboardingView.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/WelcomeOnboardingView.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/WelcomeOnboardingView.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/WelcomeOnboardingView.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/WhisperService.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/WhisperService.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/WhisperService.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipul.build/Objects-normal/arm64/WhisperService.o"
+  }
+}

@@ -14,6 +14,7 @@ struct PatientModeView: View {
     @State private var loadState: LoadState = .loading
     @State private var assignments: [PatientAssignment] = []
     @State private var didSubmitQuestionnaire = false
+    @State private var isShowingSettings = false
 
     private var openAssignments: [PatientAssignment] {
         assignments.filter(\.isOpen)
@@ -34,6 +35,18 @@ struct PatientModeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.base.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isShowingSettings = true
+                    } label: {
+                        Label(L10n.settingsTitle, systemImage: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $isShowingSettings) {
+                PatientSettingsView()
+            }
             .task { await loadAssignments() }
             .alert(L10n.patientQuestionnaireSubmittedTitle, isPresented: $didSubmitQuestionnaire) {
                 Button(L10n.ok, role: .cancel) {}

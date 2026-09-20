@@ -434,7 +434,7 @@ struct SettingsView: View {
 /// spinner while the page loads. SwiftUI's WebView exists only on iOS 26+,
 /// so older systems (the app deploys to iOS 18.6) get a wrapped WKWebView
 /// with the same loading treatment.
-private struct OfficialLinkWebView: View {
+struct OfficialLinkWebView: View {
     let url: URL
 
     var body: some View {
@@ -508,7 +508,7 @@ private struct LegacyWebView: UIViewRepresentable {
 }
 
 /// Text size selection, each option shown at the size it represents.
-private struct TextSizePickerView: View {
+struct TextSizePickerView: View {
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
 
     var body: some View {
@@ -540,6 +540,42 @@ private struct TextSizePickerView: View {
         .patientAtmosphere(Theme.gold)
         .themedScreen()
         .navigationTitle(L10n.settingsTextSizeTitle)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Appearance selection for the shared app-wide `appAppearance` setting.
+struct AppearancePickerView: View {
+    @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(AppAppearance.allCases, id: \.self) { option in
+                    Button {
+                        appearance = option
+                    } label: {
+                        HStack {
+                            Text(option.label)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if appearance == option {
+                                Image(systemName: "checkmark")
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Theme.gold)
+                            }
+                        }
+                    }
+                    .listRowBackground(groupBorderedRow(
+                        .at(AppAppearance.allCases.firstIndex(of: option) ?? 0,
+                            of: AppAppearance.allCases.count),
+                        accent: Theme.gold))
+                }
+            }
+        }
+        .patientAtmosphere(Theme.gold)
+        .themedScreen()
+        .navigationTitle(L10n.settingsAppearanceTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 }
