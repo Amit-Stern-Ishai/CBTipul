@@ -1165,9 +1165,9 @@ amitishai@gmail.com
 
     static let diaryOneThoughtQuestion = "איזו מחשבה עברה לי בראש?"
 
-    static let diaryOneFeelingTitle = "רגש"
+    static let diaryOneFeelingTitle = "רגשות"
 
-    static let diaryOneFeelingQuestion = "מה הרגשתי?"
+    static let diaryOneFeelingQuestion = "אילו רגשות הרגשתי?"
 
     static let diaryOneFeelingIntensityTitle = "עוצמת הרגש"
 
@@ -1181,7 +1181,7 @@ amitishai@gmail.com
 
     static let diaryOneEmptyTitle = "אין רשומות ביומן 1 עדיין"
 
-    static let diaryOneEmptyBody = "הוסיפו רשומה כדי לתעד אירוע, מחשבה ורגש."
+    static let diaryOneEmptyBody = "הוסיפו רשומה כדי לתעד אירוע, מחשבה ורגשות."
 
     static let diaryOneIntensityUnset = "לא נבחרה"
 
@@ -1189,14 +1189,65 @@ amitishai@gmail.com
         "\(value)%"
     }
 
-    static func diaryOneFeelingSummary(feeling: String, intensity: Int) -> String {
-        "\(feeling) — \(intensity)%"
+    static func diaryFeelingsPreview(_ feelings: [DiaryFeeling]) -> String {
+        let visible = feelings.prefix(3).map { "\($0.name) \($0.intensity)%" }
+        var text = visible.joined(separator: " · ")
+        if feelings.count > 3 {
+            text += " · \(diaryFeelingsMoreCount(feelings.count - 3))"
+        }
+        return text
     }
+
+    static func diaryFeelingsMoreCount(_ count: Int) -> String {
+        "+\(count)"
+    }
+
+    static let diaryFeelingsTitle = "רגשות"
+
+    static let diaryFeelingPickTitle = "בחירת רגש"
+
+    static let diaryAddFeelingAction = "הוספת רגש"
+
+    static let diaryOtherFeelingAction = "רגש אחר"
+
+    static let diaryRemoveFeelingAction = "הסרת רגש"
+
+    static let diaryFeelingSearchPrompt = "חיפוש רגש"
+
+    static let diaryFeelingSearchEmpty = "לא נמצאו רגשות מתאימים"
+
+    static let diaryCustomFeelingPlaceholder = "שם הרגש"
+
+    static let diaryCustomFeelingConfirmAction = "הוספה"
+
+    static let diaryCustomFeelingEmpty = "יש להזין שם לרגש."
+
+    static let diaryFeelingAlreadySelected = "הרגש הזה כבר נבחר."
 
     static let diaryOneValidationTitle = "הרשומה אינה שלמה"
 
     static let diaryOneValidationMessage =
-        "יש למלא אירוע, מחשבה, רגש והתנהגות, ולבחור עוצמת רגש."
+        "יש למלא אירוע, מחשבה והתנהגות, לבחור לפחות רגש אחד, ולבחור עוצמה לכל רגש."
+
+    static let diaryOneValidationEvent = "יש למלא את האירוע."
+
+    static let diaryOneValidationThought = "יש למלא את המחשבה."
+
+    static let diaryOneValidationFeelingsRequired = "יש לבחור לפחות רגש אחד."
+
+    static let diaryOneValidationFeelingName = "יש לבחור רגש."
+
+    static func diaryOneValidationFeelingIntensity(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return "יש לבחור עוצמה לכל רגש."
+        }
+        return "יש לבחור עוצמה עבור \(trimmed)."
+    }
+
+    static let diaryOneValidationBehaviour = "יש למלא את ההתנהגות."
+
+    static let diaryOneOptionalHint = "לא חובה"
 
     static let diaryOneSaveFailed = "לא ניתן היה לשמור את הרשומה. נסו שוב."
 

@@ -15,8 +15,7 @@ nonisolated struct DiaryOneEntry: Identifiable, Equatable, Sendable, Codable {
     let createdBy: DiaryOneEntryCreator
     var event: String
     var thought: String
-    var feeling: String
-    var feelingIntensity: Int
+    var feelings: [DiaryFeeling]
     var behaviour: String
     var physicalSymptoms: String?
     let createdAt: Date
@@ -29,8 +28,7 @@ nonisolated struct DiaryOneEntry: Identifiable, Equatable, Sendable, Codable {
         case createdBy = "created_by"
         case event
         case thought
-        case feeling
-        case feelingIntensity = "feeling_intensity"
+        case feelings
         case behaviour
         case physicalSymptoms = "physical_symptoms"
         case createdAt = "created_at"
@@ -44,8 +42,7 @@ private struct NewDiaryOneEntry: Encodable {
     let createdBy: DiaryOneEntryCreator
     let event: String
     let thought: String
-    let feeling: String
-    let feelingIntensity: Int
+    let feelings: [DiaryFeeling]
     let behaviour: String
     let physicalSymptoms: String?
 
@@ -53,8 +50,7 @@ private struct NewDiaryOneEntry: Encodable {
         case patientId = "patient_id"
         case therapistId = "therapist_id"
         case createdBy = "created_by"
-        case event, thought, feeling, behaviour
-        case feelingIntensity = "feeling_intensity"
+        case event, thought, feelings, behaviour
         case physicalSymptoms = "physical_symptoms"
     }
 
@@ -65,8 +61,7 @@ private struct NewDiaryOneEntry: Encodable {
         try container.encode(createdBy, forKey: .createdBy)
         try container.encode(event, forKey: .event)
         try container.encode(thought, forKey: .thought)
-        try container.encode(feeling, forKey: .feeling)
-        try container.encode(feelingIntensity, forKey: .feelingIntensity)
+        try container.encode(feelings, forKey: .feelings)
         try container.encode(behaviour, forKey: .behaviour)
         try container.encode(physicalSymptoms, forKey: .physicalSymptoms)
     }
@@ -75,15 +70,13 @@ private struct NewDiaryOneEntry: Encodable {
 private struct DiaryOneEntryClinicalUpdate: Encodable {
     let event: String
     let thought: String
-    let feeling: String
-    let feelingIntensity: Int
+    let feelings: [DiaryFeeling]
     let behaviour: String
     let physicalSymptoms: String?
     let updatedAt: String
 
     enum CodingKeys: String, CodingKey {
-        case event, thought, feeling, behaviour
-        case feelingIntensity = "feeling_intensity"
+        case event, thought, feelings, behaviour
         case physicalSymptoms = "physical_symptoms"
         case updatedAt = "updated_at"
     }
@@ -92,8 +85,7 @@ private struct DiaryOneEntryClinicalUpdate: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(event, forKey: .event)
         try container.encode(thought, forKey: .thought)
-        try container.encode(feeling, forKey: .feeling)
-        try container.encode(feelingIntensity, forKey: .feelingIntensity)
+        try container.encode(feelings, forKey: .feelings)
         try container.encode(behaviour, forKey: .behaviour)
         try container.encode(physicalSymptoms, forKey: .physicalSymptoms)
         try container.encode(updatedAt, forKey: .updatedAt)
@@ -103,6 +95,9 @@ private struct DiaryOneEntryClinicalUpdate: Encodable {
 private struct DeletedDiaryOneRow: Decodable {
     let id: UUID
 }
+
+private let diaryOneSelectColumns =
+    "id, patient_id, therapist_id, created_by, event, thought, feelings, behaviour, physical_symptoms, created_at, updated_at"
 
 /// Therapist CRUD for `public.diary_one_entries`. RLS is the authorization
 /// boundary. Demo clinic IDs stay in memory because they are not UUIDs.
@@ -132,9 +127,7 @@ final class DiaryOneStore {
         }
         do {
             let rows: [DiaryOneEntry] = try await client.from("diary_one_entries")
-                .select(
-                    "id, patient_id, therapist_id, created_by, event, thought, feeling, feeling_intensity, behaviour, physical_symptoms, created_at, updated_at"
-                )
+                .select(diaryOneSelectColumns)
                 .eq("patient_id", value: patientUUID)
                 .order("created_at", ascending: false)
                 .execute()
@@ -154,8 +147,7 @@ final class DiaryOneStore {
         patientId: DatabaseID,
         event: String,
         thought: String,
-        feeling: String,
-        feelingIntensity: Int,
+        feelings: [DiaryFeeling],
         behaviour: String,
         physicalSymptoms: String?
     ) async throws -> DiaryOneEntry {
@@ -168,8 +160,7 @@ final class DiaryOneStore {
                 createdBy: .therapist,
                 event: event,
                 thought: thought,
-                feeling: feeling,
-                feelingIntensity: feelingIntensity,
+                feelings: feelings,
                 behaviour: behaviour,
                 physicalSymptoms: symptoms,
                 createdAt: .now,
@@ -190,15 +181,12 @@ final class DiaryOneStore {
                         createdBy: .therapist,
                         event: event,
                         thought: thought,
-                        feeling: feeling,
-                        feelingIntensity: feelingIntensity,
+                        feelings: feelings,
                         behaviour: behaviour,
                         physicalSymptoms: symptoms
                     )
                 )
-                .select(
-                    "id, patient_id, therapist_id, created_by, event, thought, feeling, feeling_intensity, behaviour, physical_symptoms, created_at, updated_at"
-                )
+                .select(diaryOneSelectColumns)
                 .single()
                 .execute()
                 .value
@@ -218,8 +206,7 @@ final class DiaryOneStore {
         patientId: DatabaseID,
         event: String,
         thought: String,
-        feeling: String,
-        feelingIntensity: Int,
+        feelings: [DiaryFeeling],
         behaviour: String,
         physicalSymptoms: String?
     ) async throws -> DiaryOneEntry {
@@ -230,8 +217,7 @@ final class DiaryOneStore {
             }
             entry.event = event
             entry.thought = thought
-            entry.feeling = feeling
-            entry.feelingIntensity = feelingIntensity
+            entry.feelings = feelings
             entry.behaviour = behaviour
             entry.physicalSymptoms = symptoms
             entry.updatedAt = .now
@@ -245,17 +231,14 @@ final class DiaryOneStore {
                     DiaryOneEntryClinicalUpdate(
                         event: event,
                         thought: thought,
-                        feeling: feeling,
-                        feelingIntensity: feelingIntensity,
+                        feelings: feelings,
                         behaviour: behaviour,
                         physicalSymptoms: symptoms,
                         updatedAt: Self.timestampString(from: Date())
                     )
                 )
                 .eq("id", value: id)
-                .select(
-                    "id, patient_id, therapist_id, created_by, event, thought, feeling, feeling_intensity, behaviour, physical_symptoms, created_at, updated_at"
-                )
+                .select(diaryOneSelectColumns)
                 .single()
                 .execute()
                 .value
