@@ -93,6 +93,7 @@ final class AuthManager {
             supabaseURL: SupabaseConfig.url,
             supabaseKey: SupabaseConfig.anonKey
         )
+        PushNotificationManager.shared.attach(client: client)
 
         // Keep local state in sync with Supabase (session restore on launch,
         // sign-in, sign-out, token refresh).
@@ -254,6 +255,7 @@ final class AuthManager {
         }
         try ensureConfigured()
         do {
+            await PushNotificationManager.shared.unregisterCurrentToken()
             try await client.auth.signOut()
             currentUserEmail = nil
             currentUserId = nil
@@ -269,6 +271,7 @@ final class AuthManager {
     }
 
     private func clearLocalSession() async {
+        await PushNotificationManager.shared.unregisterCurrentToken()
         try? await client.auth.signOut()
         currentUserEmail = nil
         currentUserId = nil
@@ -288,6 +291,7 @@ final class AuthManager {
             AppLog.auth.error("Account deletion failed: \(error.localizedDescription, privacy: .public)")
             throw error
         }
+        await PushNotificationManager.shared.unregisterCurrentToken()
         try? await client.auth.signOut()
         currentUserEmail = nil
         currentUserId = nil
@@ -312,6 +316,7 @@ final class AuthManager {
     /// Applies Auth session fields. Anonymous users are never therapists,
     /// regardless of a non-nil/empty `user.email`.
     private func apply(userId: UUID?, email: String?, isAnonymous: Bool) {
+        let previousUserId = currentUserId
         isAnonymousUser = isAnonymous
         currentUserId = userId?.uuidString
         if isAnonymous {
@@ -319,6 +324,14 @@ final class AuthManager {
         } else {
             let trimmed = email?.trimmingCharacters(in: .whitespacesAndNewlines)
             currentUserEmail = (trimmed?.isEmpty == false) ? trimmed : nil
+        }
+        let nextUserId = currentUserId
+        if nextUserId != previousUserId {
+            Task {
+                await PushNotificationManager.shared.registerPersistedTokenForCurrentIdentity(
+                    userId: nextUserId
+                )
+            }
         }
     }
 

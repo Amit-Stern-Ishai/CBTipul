@@ -3,6 +3,7 @@ import OSLog
 
 @main
 struct MyApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var auth: AuthManager
     @State private var store: PatientStore
     @State private var therapistProfiles: TherapistProfileService
@@ -155,6 +156,10 @@ struct ContentView: View {
         .task(id: auth.currentUserId) {
             await resolveAnonymousAppContext()
         }
+        .task(id: pushRegistrationContext) {
+            guard pushRegistrationContext != nil else { return }
+            await PushNotificationManager.shared.startAfterEnteringAuthenticatedMode()
+        }
         .environment(onboarding)
         .task {
             if AuthManager.isUITesting {
@@ -251,6 +256,34 @@ struct ContentView: View {
     /// or password recovery ends (recovery uses the root sheet).
     private var displayNameGateTaskID: String {
         "\(auth.currentUserId ?? "")-\(auth.isRecoveringPassword)"
+    }
+
+    /// Permission is requested only after therapist onboarding (patient list)
+    /// or a successful Patient Mode activation — never on Auth, Terms,
+    /// Welcome, invitation, or incomplete activation.
+    private var pushRegistrationContext: String? {
+        if AuthManager.isUITesting { return nil }
+        switch AppRootRouting.destination(
+            invitationActive: invitationFlow.isActive,
+            hasSession: auth.hasSession,
+            isAnonymous: auth.isAnonymous
+        ) {
+        case .therapist:
+            let ready = hasAcceptedTerms
+                && onboarding.welcomeDismissed
+                && !showOptionalDisplayNamePrompt
+                && !isResolvingDisplayNameGate
+                && !auth.isRecoveringPassword
+            return ready ? auth.currentUserId.map { "therapist-\($0)" } : nil
+        case .anonymousPatient:
+            let active = AppRootRouting.anonymousDestination(
+                context: appContext.current,
+                isLoading: appContext.isLoading
+            ) == .patientMode
+            return active ? auth.currentUserId.map { "patient-\($0)" } : nil
+        case .invitation, .unauthenticated:
+            return nil
+        }
     }
 
     private func resolveAnonymousAppContext() async {

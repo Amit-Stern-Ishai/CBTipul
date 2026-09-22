@@ -15,4 +15,6 @@ enum AppLog {
     static let store = Logger(subsystem: subsystem, category: "store")
     /// AI features: chat, transcription, analysis, preparation, supervision.
     static let ai = Logger(subsystem: subsystem, category: "ai")
+    /// Native APNs permission and device-token RPCs.
+    static let push = Logger(subsystem: subsystem, category: "push")
 }
