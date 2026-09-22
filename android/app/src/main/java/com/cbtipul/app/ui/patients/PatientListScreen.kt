@@ -321,7 +321,6 @@ fun SessionType.labelRes(): Int = when (this) {
 }
 
 @Composable
-@Composable
 private fun PersistentAddButton(
     label: String,
     onClick: () -> Unit,

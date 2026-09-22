@@ -6,11 +6,9 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,9 +16,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.outlined.Contrast
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.FormatSize
+import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.PrivacyTip
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -49,6 +51,7 @@ import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.patients.ConfirmDeleteOverlay
 import com.cbtipul.app.ui.patients.MessageOverlay
+import com.cbtipul.app.ui.settings.SettingsRow
 import com.cbtipul.app.ui.theme.BusyOverlay
 import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.GroupedListDivider
@@ -143,6 +146,7 @@ fun PatientSettingsScreen(
                         SettingsRow(
                             title = stringResource(R.string.settings_text_size_title),
                             trailing = stringResource(textSize.labelRes()),
+                            icon = Icons.Outlined.FormatSize,
                             onClick = { page = PatientSettingsPage.TextSize },
                         )
                         GroupedListDivider()
@@ -155,6 +159,7 @@ fun PatientSettingsScreen(
                                     R.string.appearance_dark
                                 },
                             ),
+                            icon = Icons.Outlined.Contrast,
                             onClick = { page = PatientSettingsPage.Appearance },
                         )
                     }
@@ -165,37 +170,41 @@ fun PatientSettingsScreen(
                     GroupedListCard(accent = colors.gold) {
                         SettingsRow(
                             title = stringResource(R.string.terms_title),
+                            icon = Icons.Outlined.Description,
                             onClick = { page = PatientSettingsPage.Terms },
                         )
                         GroupedListDivider()
                         SettingsRow(
                             title = privacy,
+                            icon = Icons.Outlined.PrivacyTip,
+                            external = true,
                             onClick = { page = PatientSettingsPage.Web(privacy, "https://cbtipul.com/privacy") },
                         )
                         GroupedListDivider()
                         SettingsRow(
                             title = support,
+                            icon = Icons.Outlined.HelpOutline,
+                            external = true,
                             onClick = { page = PatientSettingsPage.Web(support, "https://cbtipul.com/support") },
                         )
                         GroupedListDivider()
                         SettingsRow(
                             title = choices,
+                            icon = Icons.Outlined.Tune,
+                            external = true,
                             onClick = {
                                 page = PatientSettingsPage.Web(choices, "https://cbtipul.com/privacy-choices")
                             },
                         )
                     }
 
-                    Button(
-                        onClick = { confirmLeave = true },
-                        enabled = !isLeaving,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.error,
-                            contentColor = colors.textBright,
-                        ),
-                    ) {
-                        Text(stringResource(R.string.patient_leave_mode_action))
+                    GroupedListCard(accent = colors.gold) {
+                        SettingsRow(
+                            title = stringResource(R.string.patient_leave_mode_action),
+                            destructive = true,
+                            enabled = !isLeaving,
+                            onClick = { confirmLeave = true },
+                        )
                     }
 
                     Text(
@@ -204,8 +213,9 @@ fun PatientSettingsScreen(
                             BuildConfig.VERSION_NAME,
                             BuildConfig.VERSION_CODE.toString(),
                         ),
-                        color = colors.textFaint,
+                        color = colors.textBody,
                         fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -231,30 +241,6 @@ fun PatientSettingsScreen(
         message = leaveError.orEmpty(),
         onDismiss = onClearLeaveError,
     )
-}
-
-@Composable
-private fun SettingsRow(
-    title: String,
-    trailing: String? = null,
-    selected: Boolean = false,
-    onClick: (() -> Unit)?,
-) {
-    val colors = Theme.colors
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(title, color = colors.textBright, modifier = Modifier.weight(1f))
-        when {
-            selected -> Icon(Icons.Outlined.Check, contentDescription = null, tint = colors.gold)
-            trailing != null -> Text(trailing, color = colors.textBody)
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

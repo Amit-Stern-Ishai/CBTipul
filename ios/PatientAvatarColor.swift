@@ -5,13 +5,14 @@ extension View {
     /// the upper-right, fading into the navy base well before the bottom.
     /// Apply before the base background (`themedScreen()` / `Theme.base`)
     /// so it layers in front of the base and behind all content. A `nil`
-    /// accent (patient unknown) draws nothing.
+    /// accent (no patient color) falls back to the patient-list gold.
     func patientAtmosphere(_ accent: Color?) -> some View {
-        background(
+        let wash = accent ?? Theme.gold
+        return background(
             RadialGradient(
                 gradient: Gradient(stops: [
-                    .init(color: (accent ?? .clear).opacity(0.12), location: 0),
-                    .init(color: (accent ?? .clear).opacity(0.05), location: 0.55),
+                    .init(color: wash.opacity(0.12), location: 0),
+                    .init(color: wash.opacity(0.05), location: 0.55),
                     .init(color: .clear, location: 1),
                 ]),
                 center: UnitPoint(x: 0.85, y: 0.05),

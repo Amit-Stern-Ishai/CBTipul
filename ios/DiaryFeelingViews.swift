@@ -74,7 +74,7 @@ struct DiaryFeelingChip: View {
                     Capsule().fill(isEnabled ? Theme.elevated : Theme.elevated.opacity(0.5))
                 )
                 .overlay(
-                    Capsule().stroke(Theme.borderDefault, lineWidth: 1)
+                    Capsule().stroke(Theme.gold.opacity(0.35), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -323,6 +323,10 @@ struct DiaryFeelingsEditor: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1)
+        )
     }
 }
 

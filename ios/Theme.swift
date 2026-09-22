@@ -443,16 +443,16 @@ extension View {
             .background(Theme.base.ignoresSafeArea())
     }
 
-    /// Standard card chrome:
-    /// Theme.surface background with a faint border.
-    func themedCard(cornerRadius: CGFloat = 16) -> some View {
+    /// Standard card chrome: Theme.surface with a thin accent outline.
+    /// Defaults to patient-list gold when no patient color is known.
+    func themedCard(cornerRadius: CGFloat = 16, accent: Color = Theme.gold) -> some View {
         background(
             Theme.surface,
             in: RoundedRectangle(cornerRadius: cornerRadius)
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius)
-                .strokeBorder(Theme.borderFaint)
+                .strokeBorder(accent.opacity(0.35), lineWidth: 1)
         )
     }
 }

@@ -146,6 +146,8 @@
     <string name="appearance_light">בהיר</string>
     <string name="appearance_dark">כהה</string>
     <string name="settings_account_section_title">חשבון</string>
+    <string name="settings_therapist_display_name_title">שם לתצוגה למטופלים</string>
+    <string name="settings_therapist_display_name_unset">לא הוגדר</string>
     <string name="delete_account_action">מחיקת חשבון</string>
     <string name="delete_account_confirm_title">למחוק את החשבון?</string>
     <string name="delete_account_confirm_message">מחיקת החשבון וכל המידע שלו — מטופלים, פגישות, שאלונים והערות — תהיה לצמיתות. לא ניתן לבטל פעולה זו.</string>
@@ -622,8 +624,9 @@
     <string name="questionnaire_assignment_send_error">לא ניתן היה לשלוח את השאלון. נסו שוב.</string>
     <string name="questionnaire_assignment_retry">ניסיון חוזר</string>
     <string name="therapist_display_name_prompt_title">מה השם שיוצג למטופלים?</string>
-    <string name="therapist_display_name_prompt_explanation">השם יוצג למטופלים בהזמנה ל-CBTipul.</string>
+    <string name="therapist_display_name_prompt_explanation">השם יוצג למטופלים שתזמין/י להשתמש ב-CBTipul.</string>
     <string name="therapist_display_name_placeholder">שם לתצוגה</string>
     <string name="therapist_display_name_empty">יש להזין שם לתצוגה.</string>
     <string name="therapist_display_name_save_error">לא ניתן היה לשמור את השם. יש לנסות שוב.</string>
+    <string name="therapist_display_name_load_error">לא ניתן היה לטעון את השם. יש לנסות שוב.</string>
 </resources>

@@ -296,15 +296,11 @@ struct QuestionnaireSections: View {
         return answers[index]
     }
 
-    /// A row's background: its slice of the group outline when a patient
-    /// accent is known, the plain surface otherwise.
+    /// A row's background: its slice of the group outline. Falls back to
+    /// patient-list gold when no patient color is known.
     @ViewBuilder
     private func rowBackground(_ position: GroupRowPosition) -> some View {
-        if let accent {
-            groupBorderedRow(position, accent: accent)
-        } else {
-            Theme.surface
-        }
+        groupBorderedRow(position, accent: accent ?? Theme.gold)
     }
 
     var body: some View {
@@ -653,9 +649,9 @@ struct AnswerScaleView: View {
                             if previousValue == value {
                                 RoundedRectangle(cornerRadius: 8)
                                     .strokeBorder(Theme.warning, lineWidth: 2)
-                            } else if let accent {
+                            } else {
                                 RoundedRectangle(cornerRadius: 8)
-                                    .strokeBorder(accent, lineWidth: 1)
+                                    .strokeBorder(accent ?? Theme.gold, lineWidth: 1)
                             }
                         }
                 }

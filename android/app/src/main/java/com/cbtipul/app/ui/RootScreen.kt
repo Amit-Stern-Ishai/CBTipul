@@ -108,6 +108,18 @@ fun RootScreen() {
     var deleteAccountError by remember { mutableStateOf<String?>(null) }
     var isLeavingPatientMode by remember { mutableStateOf(false) }
     var leavePatientError by remember { mutableStateOf<String?>(null) }
+    var therapistDisplayName by remember { mutableStateOf<String?>(null) }
+    var therapistDisplayNameLoadFailed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showSettings, signedIn?.userId, isAnonymous) {
+        if (!showSettings || signedIn == null || isAnonymous) return@LaunchedEffect
+        therapistDisplayNameLoadFailed = false
+        try {
+            therapistDisplayName = app.therapistProfiles.getCurrentProfile()?.displayName
+        } catch (_: Exception) {
+            therapistDisplayNameLoadFailed = true
+        }
+    }
 
     val wantsDemoConsent by app.onboardingStore.wantsDemoConsent.collectAsStateWithLifecycle()
     LaunchedEffect(wantsDemoConsent) {
@@ -340,12 +352,29 @@ fun RootScreen() {
                 email = signedIn?.email,
                 textSize = textSize,
                 aiConsentAccepted = aiConsentAccepted,
+                displayName = therapistDisplayName,
+                displayNameLoadFailed = therapistDisplayNameLoadFailed,
                 isDeleting = isDeletingAccount,
                 deleteError = deleteAccountError,
                 onTextSize = { value -> scope.launch { app.preferences.setTextSize(value) } },
                 onSignOut = {
                     authViewModel.signOut()
                     showSettings = false
+                },
+                onLoadDisplayName = {
+                    try {
+                        val loaded = app.therapistProfiles.getCurrentProfile()?.displayName
+                        therapistDisplayName = loaded
+                        therapistDisplayNameLoadFailed = false
+                        loaded
+                    } catch (_: Exception) {
+                        therapistDisplayNameLoadFailed = true
+                        throw IllegalStateException("display_name_load_failed")
+                    }
+                },
+                onSaveDisplayName = { name ->
+                    therapistDisplayName = app.therapistProfiles.saveDisplayName(name).displayName
+                    therapistDisplayNameLoadFailed = false
                 },
                 onDeleteAccount = {
                     isDeletingAccount = true

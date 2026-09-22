@@ -28,6 +28,7 @@ struct PatientActivationIncompleteView: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .patientAtmosphere(Theme.gold)
         .background(Theme.base.ignoresSafeArea())
         .appTextSize()
     }
@@ -60,6 +61,7 @@ struct PatientContextRetryView: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .patientAtmosphere(Theme.gold)
         .background(Theme.base.ignoresSafeArea())
         .appTextSize()
     }

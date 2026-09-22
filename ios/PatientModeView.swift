@@ -34,6 +34,7 @@ struct PatientModeView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -273,7 +274,7 @@ struct PatientQuestionnaireView: View {
                 questionnaire: $questionnaire,
                 isEditable: !isSubmitting,
                 previous: nil,
-                accent: nil,
+                accent: Theme.gold,
                 showsTherapistNotes: false
             )
 
@@ -285,6 +286,7 @@ struct PatientQuestionnaireView: View {
                 }
             }
         }
+        .patientAtmosphere(Theme.gold)
         .themedScreen()
         .navigationTitle(L10n.patientQuestionnaireCardTitle)
         .navigationBarTitleDisplayMode(.inline)

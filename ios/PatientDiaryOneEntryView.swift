@@ -39,6 +39,7 @@ struct PatientDiaryOneEntryView: View {
             .padding(.bottom, 28)
         }
         .scrollDismissesKeyboard(.interactively)
+        .patientAtmosphere(Theme.gold)
         .themedScreen()
         .dismissesKeyboardOnTap()
         .navigationTitle(L10n.diaryOneTitle)

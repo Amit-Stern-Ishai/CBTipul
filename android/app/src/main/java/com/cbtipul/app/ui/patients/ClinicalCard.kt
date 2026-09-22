@@ -41,7 +41,7 @@ fun ClinicalCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = Theme.colors
-    val outline = (accent ?: Color.Transparent).copy(alpha = 0.35f)
+    val outline = (accent ?: colors.gold).copy(alpha = 0.35f)
     Column(
         modifier
             .fillMaxWidth()

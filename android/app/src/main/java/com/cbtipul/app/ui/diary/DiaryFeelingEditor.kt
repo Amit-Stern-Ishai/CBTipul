@@ -73,6 +73,7 @@ fun DiaryFeelingsEditor(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(colors.elevated, RoundedCornerShape(14.dp))
+                    .border(1.dp, colors.gold.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -205,7 +206,7 @@ private fun DiaryFeelingChip(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             .background(if (enabled) colors.elevated else colors.elevated.copy(alpha = 0.5f))
-            .border(1.dp, colors.borderDefault, RoundedCornerShape(50))
+            .border(1.dp, colors.gold.copy(alpha = 0.35f), RoundedCornerShape(50))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         color = if (enabled) colors.textBright else colors.textFaint,
@@ -382,7 +383,7 @@ private fun FeelingChipFlow(
 @Composable
 private fun feelingFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = Theme.colors.gold,
-    unfocusedBorderColor = Theme.colors.borderDefault,
+    unfocusedBorderColor = Theme.colors.gold.copy(alpha = 0.35f),
     cursorColor = Theme.colors.gold,
     focusedTextColor = Theme.colors.textBright,
     unfocusedTextColor = Theme.colors.textBright,
