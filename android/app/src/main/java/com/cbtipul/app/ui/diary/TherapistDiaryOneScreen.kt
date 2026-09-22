@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -253,6 +255,11 @@ fun TherapistDiaryOneScreen(
             )
         },
     ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
         PullToRefreshBox(
             isRefreshing = loadState == DiaryLoadState.Loading && entries.isNotEmpty(),
             onRefresh = {
@@ -262,8 +269,8 @@ fun TherapistDiaryOneScreen(
                 }
             },
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+                .weight(1f)
+                .fillMaxWidth(),
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -372,6 +379,29 @@ fun TherapistDiaryOneScreen(
                 }
                 item { Spacer(Modifier.height(24.dp)) }
             }
+        }
+        Button(
+            onClick = {
+                editorError = null
+                editor = null
+                isCreating = true
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(top = 8.dp, bottom = 12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colors.gold,
+                contentColor = colors.textOnAccent,
+            ),
+        ) {
+            Text(
+                stringResource(
+                    if (entries.isEmpty()) R.string.empty_diary_one_primary_action
+                    else R.string.diary_one_add_entry,
+                ),
+            )
+        }
         }
     }
 

@@ -234,6 +234,7 @@ fun PatientsNavHost(
                 onOpenLastPreparation = { navController.navigate("patient/$id/prepare") },
                 notesError = ui.sessionError,
                 isSavingNotes = ui.isSavingNotes,
+                isSavingStatus = ui.isSavingStatus,
                 isTranscribing = ui.isTranscribing,
                 isAnonymizingTranscription = ui.isAnonymizingTranscription,
                 onSaveNotes = { notes, leave ->
@@ -395,6 +396,7 @@ fun PatientsNavHost(
             LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             PatientQuestionnairesScreen(
                 records = questionnaires[id].orEmpty(),
+                patientName = patient?.displayName(unnamed).orEmpty(),
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 isLoading = ui.isLoadingQuestionnaires && questionnaires[id].isNullOrEmpty(),
                 loadError = ui.questionnairesError,

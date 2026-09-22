@@ -37,12 +37,31 @@ struct PatientDiaryOneView: View {
         PatientAvatarColor.background(for: patient.id)
     }
 
+    private var addDiaryEntryCTA: some View {
+        NavigationLink {
+            DiaryOneEntryFormView(patient: patient, mode: .create)
+                .id("diary-one-create-\(patient.id.queryValue)")
+        } label: {
+            Text(entries.isEmpty ? L10n.emptyDiaryOnePrimaryAction : L10n.diaryOneAddEntryAction)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(Theme.base)
+    }
+
     var body: some View {
         entryList
         .patientAtmosphere(patientColor)
         .themedScreen()
-        .demoModeChrome()
         .navigationTitleWithSubtitle(L10n.diaryOneTitle, subtitle: patient.displayName)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            addDiaryEntryCTA
+        }
+        .demoModeChrome()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink {

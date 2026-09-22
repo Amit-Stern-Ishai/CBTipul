@@ -59,6 +59,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -80,6 +81,7 @@ import java.util.Date
 @Composable
 fun PatientQuestionnairesScreen(
     records: List<CompletedQuestionnaire>,
+    patientName: String = "",
     atmosphere: Color?,
     isLoading: Boolean,
     loadError: String?,
@@ -97,7 +99,14 @@ fun PatientQuestionnairesScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.questionnaires_title), color = colors.textBright) },
+                title = {
+                    Column {
+                        Text(stringResource(R.string.questionnaires_title), color = colors.textBright)
+                        if (patientName.isNotBlank()) {
+                            Text(patientName, color = colors.textBody, fontSize = 13.sp)
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
@@ -125,15 +134,32 @@ fun PatientQuestionnairesScreen(
                         onClick = onRetry,
                         modifier = Modifier.padding(top = 16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-                    ) { Text(stringResource(R.string.retry)) }
+                    ) { Text(stringResource(R.string.retry_action)) }
                 }
             }
             newestFirst.isEmpty() -> {
-            Text(
-                stringResource(R.string.no_questionnaires_message),
-                color = colors.textBody,
-                modifier = Modifier.padding(padding).padding(24.dp),
-            )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 32.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        stringResource(R.string.empty_questionnaires_title),
+                        color = colors.textBright,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 20.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        stringResource(R.string.empty_questionnaires_body),
+                        color = colors.textBody,
+                        modifier = Modifier.padding(top = 12.dp),
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
             else -> {
         LazyColumn(

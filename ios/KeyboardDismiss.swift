@@ -15,6 +15,49 @@ extension View {
     }
 }
 
+/// Re-enables the interactive pop gesture when the system back button is
+/// hidden. Keep `isEnabled` false whenever leaving would lose unsaved work.
+struct EnablesSwipeBack: UIViewRepresentable {
+    var isEnabled: Bool
+
+    func makeUIView(context: Context) -> AnchorView {
+        let view = AnchorView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ view: AnchorView, context: Context) {
+        view.isEnabled = isEnabled
+        view.apply()
+    }
+
+    final class AnchorView: UIView {
+        var isEnabled = false
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            apply()
+        }
+
+        func apply() {
+            guard let navigation = nearestNavigationController(),
+                  let pop = navigation.interactivePopGestureRecognizer else { return }
+            pop.isEnabled = isEnabled && navigation.viewControllers.count > 1
+            pop.delegate = nil
+        }
+
+        private func nearestNavigationController() -> UINavigationController? {
+            var responder: UIResponder? = self
+            while let current = responder {
+                if let navigation = current as? UINavigationController { return navigation }
+                responder = current.next
+            }
+            return nil
+        }
+    }
+}
+
 /// Zero-size helper view whose only job is to install the window recognizer
 /// once it lands in a window.
 private struct KeyboardDismissInstaller: UIViewRepresentable {

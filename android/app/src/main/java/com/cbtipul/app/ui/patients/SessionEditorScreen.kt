@@ -290,7 +290,16 @@ fun SessionEditorScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { },
+                title = {
+                    Text(
+                        if (isNew) {
+                            stringResource(R.string.new_session_title)
+                        } else {
+                            stringResource(R.string.session_editor_title, sessionNumber?.let { " $it" } ?: "")
+                        },
+                        color = colors.textBright,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { requestBack() }, enabled = !busy) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)

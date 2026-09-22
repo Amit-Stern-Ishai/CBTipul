@@ -156,7 +156,12 @@ struct SettingsView: View {
                         onboarding.requestDemoConsent()
                     } label: {
                         Label {
-                            Text(L10n.gettingStartedGuideSettingsTitle)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(L10n.gettingStartedGuideSettingsTitle)
+                                Text(L10n.gettingStartedGuideSettingsSubtitle)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                         } icon: {
                             Image(systemName: "list.bullet.clipboard")
                                 .font(.footnote.weight(.semibold))
@@ -314,8 +319,12 @@ struct SettingsView: View {
             .navigationTitle(L10n.settingsTitle)
             .task { await refreshDisplayNameRow() }
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.settingsDoneAction) { dismiss() }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Label(L10n.back, systemImage: "chevron.backward")
+                    }
                 }
             }
             .alert(L10n.deleteAccountConfirmTitle,

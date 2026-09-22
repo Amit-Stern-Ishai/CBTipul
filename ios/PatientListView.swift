@@ -13,6 +13,7 @@ struct PatientListView: View {
     @State private var loadError: String?
     @State private var path = NavigationPath()
     @State private var gettingStartedRouter = GettingStartedRouter()
+    @State private var patientSearch = ""
 
     /// Tutorial patient the walkthrough is following (furthest along).
     private var tutorialFocusPatientID: DatabaseID? {
@@ -43,6 +44,11 @@ struct PatientListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("patients.root")
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if showsPatientAddCTA {
+                    addPatientCTA
+                }
+            }
             .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
             .demoModeChrome()
@@ -167,49 +173,80 @@ struct PatientListView: View {
         .environment(gettingStartedRouter)
     }
 
+    /// Gold add control stays on-screen after the first patient exists.
+    private var showsPatientAddCTA: Bool {
+        !store.patients.isEmpty || (!isLoading && loadError == nil)
+    }
+
+    private var addPatientCTA: some View {
+        VStack(spacing: 8) {
+            Button(store.patients.isEmpty ? L10n.emptyPatientsPrimaryAction : L10n.addPatientAction) {
+                isAddingPatient = true
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .frame(maxWidth: .infinity)
+            .tutorialPulse(
+                store.isDemoMode
+                    && !onboarding.checklistDismissed
+                    && gettingStartedRouter.shouldPulse(.addPatient)
+            )
+            if store.patients.isEmpty && !store.isDemoMode {
+                Button(L10n.enterDemoModeAction) { startDemoTour() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(Theme.base)
+    }
+
     private var emptyPatientsContent: some View {
         ContentUnavailableView {
             Label(L10n.noPatientsTitle, systemImage: "person.crop.circle.badge.plus")
         } description: {
             Text(L10n.addFirstPatientMessage)
-        } actions: {
-            Button(L10n.emptyPatientsPrimaryAction) { isAddingPatient = true }
-                .buttonStyle(.borderedProminent)
-                .tutorialPulse(
-                    store.isDemoMode
-                        && !onboarding.checklistDismissed
-                        && gettingStartedRouter.shouldPulse(.addPatient)
-                )
-            if !store.isDemoMode {
-                Button(L10n.enterDemoModeAction) { startDemoTour() }
-                    .buttonStyle(.bordered)
-            }
         }
     }
 
     private var patientsListContent: some View {
         List {
             Section {
-                ForEach(sortedPatients) { patient in
-                    let isTutorialFocus =
-                        store.isDemoMode
-                        && !onboarding.checklistDismissed
-                        && gettingStartedRouter.shouldPulse(.tutorialPatient)
-                        && patient.id == tutorialFocusPatientID
-                    NavigationLink(value: patient) {
-                        PatientRow(patient: patient)
-                            .tutorialPulse(isTutorialFocus)
+                if visiblePatients.isEmpty {
+                    Text(L10n.patientsSearchEmpty)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                } else {
+                    ForEach(visiblePatients) { patient in
+                        let isTutorialFocus =
+                            store.isDemoMode
+                            && !onboarding.checklistDismissed
+                            && gettingStartedRouter.shouldPulse(.tutorialPatient)
+                            && patient.id == tutorialFocusPatientID
+                        NavigationLink(value: patient) {
+                            PatientRow(patient: patient)
+                                .tutorialPulse(isTutorialFocus)
+                        }
+                        .listRowBackground(groupBorderedRow(
+                            .at(visiblePatients.firstIndex(of: patient) ?? 0,
+                                of: visiblePatients.count),
+                            accent: Theme.gold))
+                        .listRowSeparatorTint(Theme.borderFaint)
                     }
-                    .listRowBackground(groupBorderedRow(
-                        .at(sortedPatients.firstIndex(of: patient) ?? 0,
-                            of: sortedPatients.count),
-                        accent: Theme.gold))
-                    .listRowSeparatorTint(Theme.borderFaint)
                 }
             }
         }
         .patientAtmosphere(Theme.gold)
         .themedScreen()
+        .modifier(PatientSearchModifier(
+            text: $patientSearch,
+            isEnabled: store.patients.count > 7
+        ))
     }
 
     /// Patients with the active ones on top, alphabetical within each group,
@@ -220,6 +257,14 @@ struct PatientListView: View {
                 return $0.status == .active
             }
             return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+    }
+
+    private var visiblePatients: [Patient] {
+        let query = patientSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard store.patients.count > 7, !query.isEmpty else { return sortedPatients }
+        return sortedPatients.filter {
+            $0.displayName.localizedStandardContains(query)
         }
     }
 
@@ -297,7 +342,7 @@ struct PatientListView: View {
 /// A single row in the patient list: name and the last session's type with
 /// the session count next to the avatar, the latest questionnaire scores on
 /// the trailing edge, and a minimal status dot on the avatar (green =
-/// active, faint = inactive).
+/// active, red = inactive).
 private struct PatientRow: View {
     let patient: Patient
 
@@ -307,7 +352,7 @@ private struct PatientRow: View {
         HStack(spacing: 12) {
             InitialsAvatar(name: patient.displayName, size: 44, patientID: patient.id)
                 .overlay(alignment: .bottomTrailing) { statusDot }
-                .accessibilityLabel(patient.status.rawValue)
+                .accessibilityLabel(L10n.patientStatus(patient.status))
             VStack(alignment: .leading, spacing: 3) {
                 Text(patient.displayName)
                     .font(.headline)
@@ -340,7 +385,7 @@ private struct PatientRow: View {
     /// the avatar.
     private var statusDot: some View {
         Circle()
-            .fill(patient.status == .active ? Theme.success : Theme.textFaint)
+            .fill(patient.status == .active ? Theme.success : Theme.error)
             .frame(width: 12, height: 12)
             .overlay(Circle().strokeBorder(Theme.surface, lineWidth: 2))
     }
@@ -431,14 +476,27 @@ struct InitialsAvatar: View {
     }
 }
 
+private struct PatientSearchModifier: ViewModifier {
+    @Binding var text: String
+    let isEnabled: Bool
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.searchable(text: $text, prompt: L10n.patientsSearchPrompt)
+        } else {
+            content
+        }
+    }
+}
+
 /// A colored capsule showing whether a patient is active.
 struct StatusBadge: View {
     let status: PatientStatus
 
-    private var color: Color { status == .active ? Theme.success : Theme.textBody }
+    private var color: Color { status == .active ? Theme.success : Theme.error }
 
     var body: some View {
-        Text(status.rawValue)
+        Text(L10n.patientStatus(status))
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)

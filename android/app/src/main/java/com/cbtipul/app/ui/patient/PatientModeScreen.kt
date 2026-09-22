@@ -121,7 +121,7 @@ fun PatientModeScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = {},
+                    title = { Text(stringResource(R.string.app_title), color = colors.textBright) },
                     navigationIcon = {
                         IconButton(onClick = onOpenSettings) {
                             Icon(

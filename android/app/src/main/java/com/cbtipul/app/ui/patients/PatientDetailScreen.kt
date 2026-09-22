@@ -116,6 +116,7 @@ fun PatientDetailScreen(
     onOpenLastPreparation: () -> Unit,
     notesError: String?,
     isSavingNotes: Boolean,
+    isSavingStatus: Boolean = false,
     isTranscribing: Boolean,
     isAnonymizingTranscription: Boolean,
     onSaveNotes: (String, Boolean) -> Unit,
@@ -145,7 +146,7 @@ fun PatientDetailScreen(
     var statusExpanded by remember { mutableStateOf(false) }
     val name = patient.displayName(unnamed)
     val treatmentGoal = patient.formulation?.treatmentGoal.orEmpty()
-    val busy = isSavingNotes || isSavingGoal || isTranscribing || isAnonymizingTranscription
+    val busy = isSavingNotes || isSavingStatus || isSavingGoal || isTranscribing || isAnonymizingTranscription
     val context = LocalContext.current
     var recorderTick by remember { mutableIntStateOf(0) }
     val recorder = remember {
@@ -390,15 +391,15 @@ fun PatientDetailScreen(
             )
             GroupedListDivider(startInset = 56.dp)
             IconChipRow(
-                icon = Icons.Outlined.MenuBook,
-                title = stringResource(R.string.diary_one_title),
-                onClick = onOpenDiaryOne,
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
                 icon = Icons.Outlined.Description,
                 title = stringResource(R.string.view_questionnaires_action),
                 onClick = onOpenQuestionnaires,
+            )
+            GroupedListDivider(startInset = 56.dp)
+            IconChipRow(
+                icon = Icons.Outlined.MenuBook,
+                title = stringResource(R.string.diary_one_title),
+                onClick = onOpenDiaryOne,
             )
             GroupedListDivider(startInset = 56.dp)
             IconChipRow(
@@ -544,7 +545,7 @@ fun PatientDetailScreen(
         }
     }
         BusyOverlay(
-            isBusy = isSavingNotes || isAnonymizingTranscription,
+            isBusy = isSavingNotes || isSavingStatus || isAnonymizingTranscription,
             label = if (isAnonymizingTranscription) stringResource(R.string.anonymizing_status_label) else null,
         )
         if (showGoal) {

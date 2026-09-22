@@ -27,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -101,9 +100,13 @@ fun SettingsScreen(
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(R.string.settings_title), color = colors.textBright) },
-                    actions = {
-                        TextButton(onClick = onDone, enabled = !isDeleting) {
-                            Text(stringResource(R.string.settings_done_action), color = colors.gold)
+                    navigationIcon = {
+                        IconButton(onClick = onDone, enabled = !isDeleting) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = stringResource(R.string.back),
+                                tint = colors.gold,
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -121,6 +124,7 @@ fun SettingsScreen(
                     GroupedListCard(accent = colors.gold) {
                         SettingsRow(
                             title = stringResource(R.string.getting_started_guide_settings_title),
+                            subtitle = stringResource(R.string.getting_started_guide_settings_subtitle),
                             onClick = onGettingStartedGuide,
                         )
                     }
@@ -225,6 +229,7 @@ fun SettingsScreen(
 @Composable
 private fun SettingsRow(
     title: String,
+    subtitle: String? = null,
     trailing: String? = null,
     selected: Boolean = false,
     onClick: (() -> Unit)?,
@@ -238,7 +243,12 @@ private fun SettingsRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, color = colors.textBright, modifier = Modifier.weight(1f))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = colors.textBright)
+            if (subtitle != null) {
+                Text(subtitle, color = colors.textBody, fontSize = 13.sp)
+            }
+        }
         when {
             selected -> Icon(Icons.Outlined.Check, contentDescription = null, tint = colors.gold)
             trailing != null -> Text(trailing, color = colors.textBody)

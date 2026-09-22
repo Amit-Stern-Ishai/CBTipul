@@ -20,8 +20,6 @@ struct PatientQuestionnairesView: View {
     /// Graphs are shown one beat after switching to them, so the charts'
     /// expensive first layout doesn't happen mid-transition and jitter.
     @State private var isPreparingGraphs = true
-    @State private var questionnaireSession: Session?
-    @State private var newSessionForQuestionnaire: Session?
 
     /// `previewQuestionnaires` seeds the list so previews have data to show;
     /// the app always starts empty and loads from the cache/server.
@@ -32,12 +30,14 @@ struct PatientQuestionnairesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker(L10n.modePickerTitle, selection: $mode) {
-                Text(L10n.listModeTitle).tag(Mode.list)
-                Text(L10n.graphsModeTitle).tag(Mode.graphs)
+            if !questionnaires.isEmpty {
+                Picker(L10n.modePickerTitle, selection: $mode) {
+                    Text(L10n.listModeTitle).tag(Mode.list)
+                    Text(L10n.graphsModeTitle).tag(Mode.graphs)
+                }
+                .pickerStyle(.segmented)
+                .padding([.horizontal, .top])
             }
-            .pickerStyle(.segmented)
-            .padding([.horizontal, .top])
 
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -62,21 +62,6 @@ struct PatientQuestionnairesView: View {
             }
             await load()
         }
-        .sheet(item: $questionnaireSession) { session in
-            NavigationStack {
-                CombinedMoodQuestionnaireView(patient: patient, session: session,
-                                              showsCancelButton: true)
-            }
-            .appTextSize()
-        }
-        .sheet(item: $newSessionForQuestionnaire) { session in
-            SessionEditorView(
-                session: session,
-                patient: patient,
-                isNew: true,
-                sessionNumber: nil
-            )
-        }
     }
 
     @ViewBuilder
@@ -99,11 +84,6 @@ struct PatientQuestionnairesView: View {
                 Label(L10n.emptyQuestionnairesTitle, systemImage: "list.clipboard")
             } description: {
                 Text(L10n.emptyQuestionnairesBody)
-            } actions: {
-                Button(L10n.emptyQuestionnairesPrimaryAction) {
-                    startAddQuestionnaire()
-                }
-                .buttonStyle(.borderedProminent)
             }
         } else {
             switch mode {
@@ -210,16 +190,6 @@ struct PatientQuestionnairesView: View {
             loadError = error.localizedDescription
         }
         isLoading = false
-    }
-
-    /// Opens the questionnaire editor on the latest session, or a new session
-    /// when the patient has none yet.
-    private func startAddQuestionnaire() {
-        if let latest = patient.sessions.max(by: { $0.date < $1.date }) {
-            questionnaireSession = latest
-        } else {
-            newSessionForQuestionnaire = Session()
-        }
     }
 }
 

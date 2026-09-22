@@ -44,7 +44,7 @@ struct AddPatientView: View {
                     TextField(L10n.lastNamePlaceholder, text: $lastName, prompt: Text(""))
                         .stablePlaceholder(L10n.lastNamePlaceholder, isShown: lastName.isEmpty)
                     Picker(L10n.statusLabel, selection: $status) {
-                        ForEach(PatientStatus.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(PatientStatus.allCases) { Text(L10n.patientStatus($0)).tag($0) }
                     }
                 }
                 .listRowBackground(Theme.surface)

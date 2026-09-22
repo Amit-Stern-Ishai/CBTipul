@@ -26,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -34,6 +35,9 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -73,6 +77,15 @@ fun PatientListScreen(
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
     val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
     val colors = Theme.colors
+    var patientSearch by remember { mutableStateOf("") }
+    val visiblePatients = remember(patients, patientSearch) {
+        val query = patientSearch.trim()
+        if (patients.size > 7 && query.isNotEmpty()) {
+            patients.filter { it.displayName(unnamed).contains(query, ignoreCase = true) }
+        } else {
+            patients
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.gettingStarted.setPlacement(TutorialCoachPlacement.PatientList)
@@ -99,68 +112,111 @@ fun PatientListScreen(
             )
         },
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = ui.isLoading && patients.isNotEmpty() && !isDemoMode,
-            onRefresh = { viewModel.refresh(fromUser = true) },
-            modifier = Modifier.fillMaxSize().padding(padding),
+        val showLoadingEmpty =
+            patients.isEmpty() && ui.loadError == null && (ui.isLoading || !ui.hasLoaded) && !isDemoMode
+        val showLoadError = ui.loadError != null && patients.isEmpty() && !isDemoMode
+        val showPatientAddCta = !showLoadingEmpty && !showLoadError
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
         ) {
-            when {
-                patients.isEmpty() && ui.loadError == null && (ui.isLoading || !ui.hasLoaded) && !isDemoMode -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = colors.gold)
-                            Spacer(Modifier.height(12.dp))
-                            Text(stringResource(R.string.loading_patients_label), color = colors.textBody)
+            if (patients.size > 7) {
+                OutlinedTextField(
+                    value = patientSearch,
+                    onValueChange = { patientSearch = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.patients_search_prompt)) },
+                )
+            }
+            PullToRefreshBox(
+                isRefreshing = ui.isLoading && patients.isNotEmpty() && !isDemoMode,
+                onRefresh = { viewModel.refresh(fromUser = true) },
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
+                when {
+                    showLoadingEmpty -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = colors.gold)
+                                Spacer(Modifier.height(12.dp))
+                                Text(stringResource(R.string.loading_patients_label), color = colors.textBody)
+                            }
+                        }
+                    }
+                    showLoadError -> {
+                        EmptyState(
+                            title = stringResource(R.string.couldnt_load_patients_title),
+                            message = ui.loadError.orEmpty(),
+                            action = stringResource(R.string.retry),
+                            onAction = viewModel::refresh,
+                        )
+                    }
+                    patients.isEmpty() -> {
+                        EmptyState(
+                            title = stringResource(R.string.no_patients_title),
+                            message = stringResource(R.string.add_first_patient_message),
+                        )
+                    }
+                    else -> {
+                        val focusId = routerState.progress.focusPatientId?.queryValue
+                        if (visiblePatients.isEmpty()) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(stringResource(R.string.patients_search_empty), color = colors.textBody)
+                            }
+                        } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .groupedListCard(colors.gold),
+                        ) {
+                            itemsIndexed(visiblePatients, key = { _, it -> it.id.queryValue }) { index, patient ->
+                                val pulse = isDemoMode &&
+                                    DemoData.isTutorialPatientId(patient.id) &&
+                                    patient.id.queryValue == focusId &&
+                                    viewModel.gettingStarted.shouldPulse(TutorialHighlight.TutorialPatient)
+                                PatientRow(
+                                    patient = patient,
+                                    unnamed = unnamed,
+                                    records = questionnaires[patient.id.queryValue],
+                                    onClick = { onOpenPatient(patient.id.queryValue) },
+                                    onLoadScores = { viewModel.ensureQuestionnaires(patient.id) },
+                                    pulse = pulse,
+                                )
+                                if (index < visiblePatients.lastIndex) {
+                                    GroupedListDivider(startInset = 72.dp)
+                                }
+                            }
+                        }
                         }
                     }
                 }
-                ui.loadError != null && patients.isEmpty() && !isDemoMode -> {
-                    EmptyState(
-                        title = stringResource(R.string.couldnt_load_patients_title),
-                        message = ui.loadError.orEmpty(),
-                        action = stringResource(R.string.retry),
-                        onAction = viewModel::refresh,
-                    )
-                }
-                patients.isEmpty() -> {
-                    EmptyState(
-                        title = stringResource(R.string.no_patients_title),
-                        message = stringResource(R.string.add_first_patient_message),
-                        action = stringResource(R.string.empty_patients_primary_action),
-                        onAction = onAddPatient,
-                        pulseAction = isDemoMode && viewModel.gettingStarted.shouldPulse(TutorialHighlight.AddPatient),
-                        secondaryAction = if (!isDemoMode) stringResource(R.string.enter_demo_mode_action) else null,
-                        onSecondary = if (!isDemoMode) {
-                            { viewModel.requestDemoConsent() }
-                        } else {
-                            null
-                        },
-                    )
-                }
-                else -> {
-                    val focusId = routerState.progress.focusPatientId?.queryValue
-                    LazyColumn(
+            }
+            if (showPatientAddCta) {
+                PersistentAddButton(
+                    label = stringResource(
+                        if (patients.isEmpty()) R.string.empty_patients_primary_action
+                        else R.string.add_patient_action,
+                    ),
+                    onClick = onAddPatient,
+                    pulse = isDemoMode && viewModel.gettingStarted.shouldPulse(TutorialHighlight.AddPatient),
+                )
+                if (patients.isEmpty() && !isDemoMode) {
+                    OutlinedButton(
+                        onClick = { viewModel.requestDemoConsent() },
                         modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .groupedListCard(colors.gold),
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 12.dp),
                     ) {
-                        itemsIndexed(patients, key = { _, it -> it.id.queryValue }) { index, patient ->
-                            val pulse = isDemoMode &&
-                                DemoData.isTutorialPatientId(patient.id) &&
-                                patient.id.queryValue == focusId &&
-                                viewModel.gettingStarted.shouldPulse(TutorialHighlight.TutorialPatient)
-                            PatientRow(
-                                patient = patient,
-                                unnamed = unnamed,
-                                records = questionnaires[patient.id.queryValue],
-                                onClick = { onOpenPatient(patient.id.queryValue) },
-                                onLoadScores = { viewModel.ensureQuestionnaires(patient.id) },
-                                pulse = pulse,
-                            )
-                            if (index < patients.lastIndex) {
-                                GroupedListDivider(startInset = 72.dp)
-                            }
-                        }
+                        Text(stringResource(R.string.enter_demo_mode_action), color = colors.gold)
                     }
                 }
             }
@@ -201,7 +257,7 @@ private fun PatientRow(
                     .align(Alignment.BottomEnd)
                     .size(12.dp)
                     .background(
-                        if (patient.status == PatientStatus.Active) colors.success else colors.textFaint,
+                        if (patient.status == PatientStatus.Active) colors.success else colors.error,
                         CircleShape,
                     )
                     .border(2.dp, colors.surface, CircleShape),
@@ -265,14 +321,36 @@ fun SessionType.labelRes(): Int = when (this) {
 }
 
 @Composable
+@Composable
+private fun PersistentAddButton(
+    label: String,
+    onClick: () -> Unit,
+    pulse: Boolean = false,
+) {
+    val colors = Theme.colors
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 8.dp, bottom = 12.dp)
+            .tutorialPulse(pulse),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = colors.gold,
+            contentColor = colors.textOnAccent,
+        ),
+    ) {
+        Text(label)
+    }
+}
+
+@Composable
 private fun EmptyState(
     title: String,
     message: String,
-    action: String,
-    onAction: () -> Unit,
+    action: String? = null,
+    onAction: (() -> Unit)? = null,
     pulseAction: Boolean = false,
-    secondaryAction: String? = null,
-    onSecondary: (() -> Unit)? = null,
 ) {
     val colors = Theme.colors
     Column(
@@ -283,17 +361,13 @@ private fun EmptyState(
         Text(title, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         Spacer(Modifier.height(8.dp))
         Text(message, color = colors.textBody)
-        Spacer(Modifier.height(16.dp))
-        Button(
-            onClick = onAction,
-            modifier = Modifier.tutorialPulse(pulseAction),
-            colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-        ) { Text(action) }
-        if (secondaryAction != null && onSecondary != null) {
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onSecondary) {
-                Text(secondaryAction, color = colors.gold)
-            }
+        if (action != null && onAction != null) {
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = onAction,
+                modifier = Modifier.tutorialPulse(pulseAction),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+            ) { Text(action) }
         }
     }
 }

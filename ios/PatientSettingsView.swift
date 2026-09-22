@@ -110,9 +110,13 @@ struct PatientSettingsView: View {
             .themedScreen()
             .navigationTitle(L10n.settingsTitle)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.settingsDoneAction) { dismiss() }
-                        .disabled(isLeaving)
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Label(L10n.back, systemImage: "chevron.backward")
+                    }
+                    .disabled(isLeaving)
                 }
             }
             .alert(L10n.patientLeaveModeConfirmTitle, isPresented: $isConfirmingLeave) {

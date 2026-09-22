@@ -119,113 +119,129 @@ fun PatientSessionsScreen(
             )
         },
     ) { padding ->
-        if (sorted.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 32.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    stringResource(R.string.empty_sessions_title),
-                    color = colors.textBright,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 20.sp,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    stringResource(R.string.empty_sessions_body),
-                    color = colors.textBody,
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = onAdd,
-                    modifier = Modifier.tutorialPulse(pulseAddSession),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.gold,
-                        contentColor = colors.textOnAccent,
-                    ),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            if (sorted.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(stringResource(R.string.empty_sessions_primary_action))
+                    Text(
+                        stringResource(R.string.empty_sessions_title),
+                        color = colors.textBright,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 20.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.empty_sessions_body),
+                        color = colors.textBody,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                    )
                 }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-            ) {
-                groups.forEach { group ->
-                    item(key = "month-${group.month.time}") {
-                        Text(
-                            hebrewMonth(group.month),
-                            color = colors.gold,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-                        )
-                    }
-                    item(key = "group-${group.month.time}") {
-                        GroupedListCard(accent = accent) {
-                            group.items.forEachIndexed { row, item ->
-                                val number = sorted.size - item.index
-                                val isLatest = item.session.id == sorted.firstOrNull()?.id
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .tutorialPulse(
-                                            isLatest &&
-                                                gettingStarted?.shouldPulse(TutorialHighlight.LatestSession) == true,
-                                        )
-                                        .clickable { onOpenSession(item.session) }
-                                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                ) {
-                                    Box(
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+                ) {
+                    groups.forEach { group ->
+                        item(key = "month-${group.month.time}") {
+                            Text(
+                                hebrewMonth(group.month),
+                                color = colors.gold,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                            )
+                        }
+                        item(key = "group-${group.month.time}") {
+                            GroupedListCard(accent = accent) {
+                                group.items.forEachIndexed { row, item ->
+                                    val number = sorted.size - item.index
+                                    val isLatest = item.session.id == sorted.firstOrNull()?.id
+                                    Row(
                                         modifier = Modifier
-                                            .size(34.dp)
-                                            .background(colors.goldGhost, CircleShape),
-                                        contentAlignment = Alignment.Center,
+                                            .fillMaxWidth()
+                                            .tutorialPulse(
+                                                isLatest &&
+                                                    gettingStarted?.shouldPulse(TutorialHighlight.LatestSession) == true,
+                                            )
+                                            .clickable { onOpenSession(item.session) }
+                                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
-                                        Text("$number", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    }
-                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .background(colors.goldGhost, CircleShape),
+                                            contentAlignment = Alignment.Center,
                                         ) {
-                                            Text(hebrewDate(item.session.date), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                                            if (item.session.structuredNotes != null) {
-                                                Icon(
-                                                    Icons.Outlined.Description,
-                                                    contentDescription = stringResource(R.string.has_structured_summary_label),
-                                                    tint = colors.textBody,
-                                                    modifier = Modifier.size(16.dp),
-                                                )
+                                            Text("$number", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        }
+                                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Text(hebrewDate(item.session.date), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                                                if (item.session.structuredNotes != null) {
+                                                    Icon(
+                                                        Icons.Outlined.Description,
+                                                        contentDescription = stringResource(R.string.has_structured_summary_label),
+                                                        tint = colors.textBody,
+                                                        modifier = Modifier.size(16.dp),
+                                                    )
+                                                }
+                                            }
+                                            item.session.type?.let {
+                                                Text(stringResource(it.labelRes()), color = colors.textBody, fontSize = 14.sp)
                                             }
                                         }
-                                        item.session.type?.let {
-                                            Text(stringResource(it.labelRes()), color = colors.textBody, fontSize = 14.sp)
+                                        sessionScores(item.session, item.index, sorted, questionnaires)?.let { preview ->
+                                            Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
+                                                GAD7ScoreCapsule(preview.first, preview.second)
+                                                PHQ9ScoreCapsule(preview.first, preview.second)
+                                            }
                                         }
                                     }
-                                    sessionScores(item.session, item.index, sorted, questionnaires)?.let { preview ->
-                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
-                                            GAD7ScoreCapsule(preview.first, preview.second)
-                                            PHQ9ScoreCapsule(preview.first, preview.second)
-                                        }
+                                    if (row < group.items.lastIndex) {
+                                        GroupedListDivider(startInset = 62.dp)
                                     }
-                                }
-                                if (row < group.items.lastIndex) {
-                                    GroupedListDivider(startInset = 62.dp)
                                 }
                             }
                         }
                     }
                 }
+            }
+            Button(
+                onClick = onAdd,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 8.dp, bottom = 12.dp)
+                    .tutorialPulse(pulseAddSession),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.gold,
+                    contentColor = colors.textOnAccent,
+                ),
+            ) {
+                Text(
+                    stringResource(
+                        if (sorted.isEmpty()) R.string.empty_sessions_primary_action
+                        else R.string.add_session_action,
+                    ),
+                )
             }
         }
     }

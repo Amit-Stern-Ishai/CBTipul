@@ -131,9 +131,15 @@ private nonisolated struct SessionRow: Decodable {
     }
 }
 
-/// Row shape for updates of a patient's notes.
+/// Row shape for updates of a patient's notes and active flag.
 private nonisolated struct UpdatedPatientNotesRecord: Encodable {
     let notes: String?
+    let active: Bool
+}
+
+/// Row shape for an immediate active-flag update.
+private nonisolated struct UpdatedPatientStatusRecord: Encodable {
+    let active: Bool
 }
 
 /// Row shape for updates of an existing `Sessions` row.
@@ -928,7 +934,7 @@ final class PatientStore {
         // Select the updated rows back: with row-level security a blocked
         // update "succeeds" with zero rows, which must not pass as saved.
         let updated: [InsertedRow] = try await client.from("Patients")
-            .update(UpdatedPatientNotesRecord(notes: anonymizedNotes))
+            .update(UpdatedPatientNotesRecord(notes: anonymizedNotes, active: patient.status == .active))
             .eq("id", value: patientID.queryValue)
             .select("id")
             .execute()
@@ -936,6 +942,24 @@ final class PatientStore {
         guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
         // The local model mirrors what the server now stores.
         patient.notes = anonymizedNotes ?? ""
+        saveCachedPatients()
+    }
+
+    /// Persists only the active/inactive flag, without touching notes.
+    func updatePatientStatus(_ patient: Patient) async throws {
+        if DemoData.isDemoID(patient.id) {
+            persistDemoClinic()
+            return
+        }
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        let patientID = patient.id
+        let updated: [InsertedRow] = try await client.from("Patients")
+            .update(UpdatedPatientStatusRecord(active: patient.status == .active))
+            .eq("id", value: patientID.queryValue)
+            .select("id")
+            .execute()
+            .value
+        guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
         saveCachedPatients()
     }
 

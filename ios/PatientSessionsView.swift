@@ -62,6 +62,21 @@ struct PatientSessionsView: View {
         CBTipul.groupBorderedRow(position, accent: PatientAvatarColor.background(for: patient.id))
     }
 
+    private var addSessionCTA: some View {
+        Button(patient.sessions.isEmpty ? L10n.emptySessionsPrimaryAction : L10n.addSessionAction) {
+            gettingStartedRouter.clearHighlightIfMatching(.addSession)
+            route = .new(Session())
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .frame(maxWidth: .infinity)
+        .tutorialPulse(shouldPulseAddSession)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(Theme.base)
+    }
+
     private var shouldPulseAddSession: Bool {
         store.isDemoMode
             && !onboarding.checklistDismissed
@@ -79,13 +94,6 @@ struct PatientSessionsView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                    Button(L10n.emptySessionsPrimaryAction) {
-                        gettingStartedRouter.clearHighlightIfMatching(.addSession)
-                        route = .new(Session())
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tutorialPulse(shouldPulseAddSession)
-                    .padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
@@ -122,6 +130,9 @@ struct PatientSessionsView: View {
                     }
                 }
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            addSessionCTA
         }
         .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()

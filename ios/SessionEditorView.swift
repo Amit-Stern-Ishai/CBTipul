@@ -306,9 +306,9 @@ struct SessionEditorView: View {
             .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
             .themedScreen()
             .dismissesKeyboardOnTap()
-//            .navigationTitle(isNew
-//                             ? L10n.newSessionTitle
-//                             : L10n.sessionEditorTitle(sessionNumber))
+            .navigationTitle(isNew
+                             ? L10n.newSessionTitle
+                             : L10n.sessionEditorTitle(sessionNumber))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

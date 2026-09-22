@@ -54,6 +54,7 @@ data class PatientListUiState(
     val savedPreparations: Map<String, SavedPreparation> = emptyMap(),
     val pendingAnalysis: CBTSessionAnalysis? = null,
     val isSavingNotes: Boolean = false,
+    val isSavingStatus: Boolean = false,
     val isSavingFormulation: Boolean = false,
     val isAiBusy: Boolean = false,
     val isLoadingQuestionnaires: Boolean = false,
@@ -647,12 +648,14 @@ class PatientListViewModel(
         anonymizationFailed: String,
     ) {
         viewModelScope.launch {
-            _ui.update { it.copy(sessionError = null) }
+            _ui.update { it.copy(isSavingStatus = true, sessionError = null) }
             try {
                 repository.updatePatientStatus(patientId, status)
+                _ui.update { it.copy(isSavingStatus = false) }
             } catch (error: Exception) {
                 _ui.update {
                     it.copy(
+                        isSavingStatus = false,
                         sessionError = mapSessionError(
                             error,
                             notConfigured,

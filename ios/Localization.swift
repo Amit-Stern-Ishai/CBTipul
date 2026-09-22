@@ -13,17 +13,19 @@ enum L10n {
     static let cancel = "ביטול"
     static let done = "סיום"
     static let add = "הוספה"
-    static let back = "אחורה"
-    static let retry = "נסיון שני"
+    static let back = "חזרה"
+    static let retry = "ניסיון נוסף"
     
     // MARK: - Auth
     
     static let appTitle = "CBTipul"
     static let authWelcomeSignIn = "נא להתחבר כדי להמשיך"
-    static let authWelcomeSignUp = "אנא ליצור חשבון על מנת להמשיך"
-    static let authModePickerTitle = "Mode"
+    static let authWelcomeSignUp = "נא ליצור חשבון על מנת להמשיך"
+    static let authModePickerTitle = "מצב"
+    static let authSignInAction = "התחברות"
+    static let authSignUpAction = "הרשמה"
     static let emailPlaceholder = "אימייל"
-    static let passwordPlaceholder = "סיסמא"
+    static let passwordPlaceholder = "סיסמה"
     static let forgotPasswordAction = "איפוס סיסמה"
     static let verifyEmailTitle = "אימות כתובת האימייל"
     /// The post-sign-up screen: where the verification link went and that
@@ -47,8 +49,8 @@ enum L10n {
     static let passwordRuleLowercase = "לפחות אות קטנה אחת (a-z)"
     static let passwordRuleDigit = "לפחות ספרה אחת"
     static let passwordRuleSpecial = "לפחות תו מיוחד אחד (! @ # $ %)"
-    static let enterEmailFirstMessage = "אנא לכתוב את האימייל קודם, ואז ללחוץ על ״איפוס סיסמה״"
-    static let passwordResetSentMessage = "מייל לאיפוס סיסמא נשלח. אנא לבדוק במייל ולאפס סיסמא"
+    static let enterEmailFirstMessage = "נא לכתוב את האימייל קודם, ואז ללחוץ על ״איפוס סיסמה״."
+    static let passwordResetSentMessage = "מייל לאיפוס סיסמה נשלח. נא לבדוק במייל ולאפס סיסמה."
     static let signOutAction = "התנתקות"
     
     // MARK: - Patients
@@ -66,6 +68,16 @@ enum L10n {
     static let firstNamePlaceholder = "שם פרטי"
     static let lastNamePlaceholder = "שם משפחה"
     static let statusLabel = "סטטוס"
+    static let patientStatusActive = "פעיל/ה"
+    static let patientStatusInactive = "לא פעיל/ה"
+    static func patientStatus(_ status: PatientStatus) -> String {
+        switch status {
+        case .active: patientStatusActive
+        case .inactive: patientStatusInactive
+        }
+    }
+    static let patientsSearchPrompt = "חיפוש מטופלים"
+    static let patientsSearchEmpty = "לא נמצאו מטופלים"
     static let unnamedPatient = "מטופל/ת ללא שם"
     static let notesSection = "הערות"
     static let sessionSummarySection = "סיכום פגישה"
@@ -86,13 +98,13 @@ enum L10n {
 
     static let welcomeTitle = "בואו נכיר את האפליקציה"
     static let welcomeBody =
-        "מצב ההדגמה פועל בסביבה נפרדת. המטופלים האמיתיים שלך יוסתרו זמנית ולא יימחקו. המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, פגישה ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלג לנתונים לדוגמה») יופיעו נתונים לדוגמה לצורכי התנסות. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת."
+        "מצב ההדגמה פועל בסביבה נפרדת. המטופלים האמיתיים שלך יוסתרו זמנית ולא יימחקו. המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, פגישה ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלגו לנתונים לדוגמה») יופיעו נתונים לדוגמה לצורכי התנסות. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת."
     static let welcomePrimaryAction = "המשך למצב הדגמה"
     static let welcomeSecondaryAction = "אפשר לעבור על זה אחר כך"
     static let welcomeInfoLink = "איך נשמר המידע?"
     static let welcomeInfoBody =
         "שמות המטופלים נשמרים באופן מוצפן במכשיר בלבד ואינם מועלים לשרת. מידע אחר נשמר ומעובד בהתאם למדיניות הפרטיות ולהסכמות שניתנו באפליקציה."
-    static let welcomeInfoDoneAction = "סגור"
+    static let welcomeInfoDoneAction = "סגירה"
 
     static let gettingStartedTitle = "הצעדים הראשונים"
     static let gettingStartedSubtitle =
@@ -109,14 +121,16 @@ enum L10n {
     static let gettingStartedStepAISummary = "יצירת סיכום AI"
     static let gettingStartedStepPreparation = "הכנה לפגישה הבאה"
     static let gettingStartedCompleteMessage = "המדריך הושלם — כל הכבוד!"
-    static let gettingStartedRestartAction = "התחל מחדש"
+    static let gettingStartedRestartAction = "התחילו מחדש"
     static let gettingStartedDismissAccessibilityLabel = "הסתרת מדריך ההתחלה"
-    static let gettingStartedGuideSettingsTitle = "מדריך התחלה"
+    static let gettingStartedGuideSettingsTitle = "הדרכה והתנסות באפליקציה"
+    static let gettingStartedGuideSettingsSubtitle =
+        "הדרכה מודרכת והתנסות עם מטופלים לדוגמה"
 
     static let tutorialCoachHintAddPatient =
         "לחצו על ״הוספת מטופל/ת ראשון/ה״ כדי להוסיף מטופל/ת"
     static let tutorialCoachHintFillNewPatient =
-        "מילאו את שם המטופל/ת וליחצו על ״הוספת מטופל/ת״"
+        "מילאו את שם המטופל/ת ולחצו על ״הוספת מטופל/ת״"
     static let tutorialCoachHintReturnPatientsAdd =
         "חזרו לרשימת המטופלים ולחצו על ״הוספת מטופל/ת ראשון/ה״"
     static let tutorialCoachHintOpenPatient =
@@ -131,7 +145,7 @@ enum L10n {
     static let tutorialCoachHintCompleteQuestionnaire =
         "סמנו בחירה לכל שאלה, ולחצו על ״שמירה״ למעלה מצד שמאל."
     static let tutorialCoachHintRecordNotes =
-        "הקלידו או הקליטו סיכום פגישה לדוגמא. האפליקציה תתמלל את ההקלטה באופן אוטומטי. הקלטה מתבצעת על ידי לחיצה על כפתור המיקרופון הצהוב."
+        "הקלידו או הקליטו סיכום פגישה לדוגמה. האפליקציה תתמלל את ההקלטה באופן אוטומטי. הקלטה מתבצעת על ידי לחיצה על כפתור המיקרופון הצהוב."
     static let tutorialCoachHintAISummary = "לחצו על ״יצירת סיכום AI מובנה״"
     static let tutorialCoachHintReturnSessions = "חזרו למסך הפגישות כדי להמשיך"
     static let tutorialCoachHintFollowGlow = "עקבו אחרי הכפתור המסומן"
@@ -142,7 +156,7 @@ enum L10n {
     static let exitDemoModeAction = "חזרה למטופלים שלי"
     static let enterDemoModeAction = "כניסה למצב הדגמה"
 
-    static let tutorialCoachSkipToShowcase = "דלג לנתונים לדוגמה"
+    static let tutorialCoachSkipToShowcase = "דלגו לנתונים לדוגמה"
     static let showcaseCountdownTitle = "עוד רגע — נתונים לדוגמה"
     static func showcaseCountdownSeconds(_ seconds: Int) -> String {
         "\(seconds) שניות"
@@ -160,7 +174,7 @@ enum L10n {
     static let emptySessionsPrimaryAction = "הוספת פגישה ראשונה"
     static let emptyQuestionnairesTitle = "עדיין לא נוספו שאלונים"
     static let emptyQuestionnairesBody =
-        "שאלונים מאפשרים לעקוב אחר שינויים בתסמינים לאורך זמן ולהציג תשובות קודמות במילוי הבא."
+        "שאלונים מאפשרים לעקוב אחר שינויים בתסמינים לאורך זמן. כדי למלא שאלון יש ליצור פגישה ואז למלא אותו משם, או לבקש מהמטופל/ת למלא אם כבר מחובר/ת ל-CBTipul."
     static let emptyQuestionnairesPrimaryAction = "הוספת שאלון"
     static let preparationInsufficientTitle = "עדיין אין מספיק מידע להכנה"
     static let preparationInsufficientBody =
@@ -1175,6 +1189,7 @@ amitishai@gmail.com
     static let diaryOneTitle = "יומן 1"
 
     static let diaryOneAddEntryAction = "הוספת רשומה"
+    static let emptyDiaryOnePrimaryAction = "הוספת רשומה ראשונה"
 
     static let diaryOneSaveEntryAction = "שמירת רשומה"
 
@@ -1505,7 +1520,7 @@ amitishai@gmail.com
     
     static func label(for severity: PHQ9Severity) -> String {
         switch severity {
-        case .minimal: return "דיכאוןם מינימאלי"
+        case .minimal: return "דיכאון מינימלי"
         case .mild: return "דיכאון קל"
         case .moderate: return "דיכאון בינוני"
         case .moderatelySevere: return "דיכאון בינוני כבד"
@@ -1518,10 +1533,10 @@ amitishai@gmail.com
     static func suggestion(for severity: PHQ9Severity) -> String {
         switch severity {
         case .minimal: return "אין צורך בטיפול לדיכאון"
-        case .mild: return "כדאי לשקול טיפול ע״פ דיווח הסימפטומים של המטופל וע״פ התפקוד הכללי"
-        case .moderate: return "כדאי לשקול טיפול ע״פ דיווח הסימפטומים של המטופל וע״פ התפקוד הכללי"
-        case .moderatelySevere: return "מומלץ טיפול בדיכאון בתרופות, פסיכוטרפיה או שילוב שלהם"
-        case .severe: return "מומלץ טיפול בדיכאון בתרופות, פסיכוטרפיה או שילוב שלהם"
+        case .mild: return "כדאי לשקול טיפול עפ״י דיווח הסימפטומים של המטופל/ת ועפ״י התפקוד הכללי"
+        case .moderate: return "כדאי לשקול טיפול עפ״י דיווח הסימפטומים של המטופל/ת ועפ״י התפקוד הכללי"
+        case .moderatelySevere: return "מומלץ טיפול בדיכאון בתרופות, פסיכותרפיה או שילוב שלהם"
+        case .severe: return "מומלץ טיפול בדיכאון בתרופות, פסיכותרפיה או שילוב שלהם"
         }
     }
     
@@ -1589,7 +1604,7 @@ amitishai@gmail.com
     
     static let reasonPlaceholder = "סיבה"
     
-    static let discussedAction = "נידון"
+    static let discussedAction = "נדון"
     
     static let followUpAction = "למעקב"
     

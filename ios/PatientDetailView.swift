@@ -62,8 +62,9 @@ struct PatientDetailView: View {
     }
 
     /// Whether anything would be lost by leaving without saving: edited
-    /// notes or a voice note that hasn't been transcribed yet. The treatment
-    /// goal is not included — its edit sheet saves immediately.
+    /// notes or a voice note that hasn't been transcribed yet. Status saves
+    /// immediately. The treatment goal is not included — its edit sheet
+    /// saves immediately.
     private var hasUnsavedChanges: Bool {
         if let initialNotes, initialNotes != patient.notes { return true }
         if voiceRecorder.recordingURL != nil { return true }
@@ -223,9 +224,14 @@ struct PatientDetailView: View {
 
             Section {
                 Picker(selection: $patient.status) {
-                    ForEach(PatientStatus.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(PatientStatus.allCases) { Text(L10n.patientStatus($0)).tag($0) }
                 } label: {
                     iconChip("person.crop.circle.badge.checkmark", title: L10n.statusLabel)
+                }
+                .disabled(isSaving)
+                .onChange(of: patient.status) { previous, current in
+                    guard previous != current else { return }
+                    persistStatus(revertingTo: previous)
                 }
                 .listRowBackground(groupBorderedRow(.first))
 
@@ -389,9 +395,10 @@ struct PatientDetailView: View {
         .patientAtmosphere(patientColor)
         .themedScreen()
         .demoModeChrome()
-//        .navigationTitle(patient.displayName)
+        .navigationTitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .background(EnablesSwipeBack(isEnabled: !hasUnsavedChanges && !isSaving))
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
@@ -405,11 +412,11 @@ struct PatientDetailView: View {
                 }
                 .disabled(isSaving)
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button(L10n.save) { save() }
+                    .fontWeight(.semibold)
+                    .disabled(isSaving || !hasUnsavedChanges)
                 Menu {
-                    Button(L10n.save) { save() }
-                        .disabled(isSaving || !hasUnsavedChanges)
-                    Divider()
                     Button(L10n.deletePatientAction, role: .destructive) {
                         isShowingDeleteConfirmation = true
                     }
@@ -809,6 +816,21 @@ struct PatientDetailView: View {
             do {
                 try await store.saveFormulation(patient.formulation ?? .empty, for: patient)
             } catch {
+                errorMessage = error.userFacingMessage
+            }
+            isSaving = false
+        }
+    }
+
+    private func persistStatus(revertingTo previous: PatientStatus) {
+        errorMessage = nil
+        busyLabel = nil
+        isSaving = true
+        Task {
+            do {
+                try await store.updatePatientStatus(patient)
+            } catch {
+                patient.status = previous
                 errorMessage = error.userFacingMessage
             }
             isSaving = false

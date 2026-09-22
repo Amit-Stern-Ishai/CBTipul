@@ -2,9 +2,16 @@ import SwiftUI
 
 /// Sign-in / sign-up screen using email and password.
 struct AuthView: View {
-    private enum Mode: String, CaseIterable {
-        case signIn = "התחברות"
-        case signUp = "הרשמה"
+    private enum Mode: CaseIterable {
+        case signIn
+        case signUp
+
+        var title: String {
+            switch self {
+            case .signIn: L10n.authSignInAction
+            case .signUp: L10n.authSignUpAction
+            }
+        }
     }
 
     @Environment(AuthManager.self) private var auth
@@ -151,7 +158,7 @@ struct AuthView: View {
     private var card: some View {
         VStack(spacing: 16) {
             Picker(L10n.authModePickerTitle, selection: $mode) {
-                ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                ForEach(Mode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
 
@@ -197,7 +204,7 @@ struct AuthView: View {
                         ProgressView()
                             .tint(Theme.textOnAccent)
                     } else {
-                        Text(mode.rawValue)
+                        Text(mode.title)
                             .fontWeight(.semibold)
                     }
                 }
