@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "38238084823",
+    "project_id": "cbtipul-33572",
+    "storage_bucket": "cbtipul-33572.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:38238084823:android:d10930c12b0c1e56cb1a92",
+        "android_client_info": {
+          "package_name": "com.CBTipul.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqBUl2OuCYGhZA-vM829JzZQye11Q2i2U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

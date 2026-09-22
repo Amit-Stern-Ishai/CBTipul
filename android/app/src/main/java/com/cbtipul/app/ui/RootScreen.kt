@@ -1,5 +1,9 @@
 package com.cbtipul.app.ui
 
+import android.Manifest
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -96,6 +100,8 @@ fun RootScreen() {
         therapistIdentity?.let { app.preferences.hasAcceptedAiConsent(it) } ?: flowOf(false)
     }
     val aiConsentAccepted by consentAcceptedFlow.collectAsStateWithLifecycle(initialValue = false)
+    val welcomeDismissed by app.onboardingStore.welcomeDismissed.collectAsStateWithLifecycle()
+    val onboardingHydrated by app.onboardingStore.isHydrated.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     LaunchedEffect(therapistIdentity) {
         app.aiConsentStore.setActiveUser(therapistIdentity)
@@ -145,6 +151,28 @@ fun RootScreen() {
     val resentMessage = stringResource(R.string.verification_resent_message)
     val diarySubmitFallback = stringResource(R.string.patient_diary_one_submit_error)
     val leaveFailed = stringResource(R.string.patient_leave_mode_failed)
+    val activity = LocalContext.current as? Activity
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> app.pushManager.onNotificationPermissionResult(granted) }
+    val pushRegistrationContext = when {
+        recovering || invitationActive -> null
+        isTherapist &&
+            termsAccepted.value == true &&
+            onboardingHydrated &&
+            welcomeDismissed -> signedIn?.userId?.let { "therapist-$it" }
+        rootDestination == AppRootDestination.AnonymousPatient &&
+            anonymousDestination == AnonymousPatientDestination.PatientMode ->
+            signedIn?.userId?.let { "patient-$it" }
+        else -> null
+    }
+    LaunchedEffect(pushRegistrationContext) {
+        if (pushRegistrationContext == null) return@LaunchedEffect
+        val host = activity ?: return@LaunchedEffect
+        app.pushManager.startAfterEnteringAuthenticatedMode(host) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {

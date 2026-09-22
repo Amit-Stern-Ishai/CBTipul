@@ -23,7 +23,11 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-class AuthRepository(private val client: SupabaseClient) {
+class AuthRepository(
+    private val client: SupabaseClient,
+    private val unregisterPush: suspend () -> Unit = {},
+) {
+    internal val supabaseClient: SupabaseClient get() = client
 
     val session = client.auth.sessionStatus.map { status ->
         when (status) {
@@ -107,6 +111,7 @@ class AuthRepository(private val client: SupabaseClient) {
 
     suspend fun signOut() {
         _isRecoveringPassword.value = false
+        runCatching { unregisterPush() }
         runCatching { client.auth.signOut() }
     }
 
@@ -129,6 +134,7 @@ class AuthRepository(private val client: SupabaseClient) {
             throw AuthException(AuthErrorKind.VerificationFailed)
         }
         ensureConfigured()
+        runCatching { unregisterPush() }
         client.auth.signOut()
         _isRecoveringPassword.value = false
     }
@@ -137,6 +143,7 @@ class AuthRepository(private val client: SupabaseClient) {
         ensureConfigured()
         client.functions.invoke("delete-account")
         _isRecoveringPassword.value = false
+        runCatching { unregisterPush() }
         runCatching { client.auth.signOut() }
     }
 

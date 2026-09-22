@@ -20,6 +20,7 @@ import com.cbtipul.app.data.PatientRepository
 import com.cbtipul.app.data.TherapistProfileRepository
 import com.cbtipul.app.data.WhisperService
 import com.cbtipul.app.data.createCbTipulSupabaseClient
+import com.cbtipul.app.push.PushNotificationManager
 import com.cbtipul.app.settings.AppPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +53,8 @@ class CbTipulApp : Application() {
         private set
     lateinit var invitations: PatientInvitationService
         private set
+    lateinit var pushManager: PushNotificationManager
+        private set
 
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -59,7 +62,16 @@ class CbTipulApp : Application() {
         super.onCreate()
         preferences = AppPreferences(this)
         val client = createCbTipulSupabaseClient()
-        authRepository = AuthRepository(client)
+        authRepository = AuthRepository(client) {
+            if (::pushManager.isInitialized) pushManager.unregisterCurrentToken()
+        }
+        pushManager = PushNotificationManager(
+            appContext = this,
+            client = client,
+            auth = authRepository,
+            scope = applicationScope,
+        )
+        pushManager.start()
         aiConsentStore = AiConsentStore(preferences)
         onboardingStore = OnboardingStore(this)
         demoClinicStore = DemoClinicStore(this)

@@ -55,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -63,8 +64,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.cbtipul.app.BuildConfig
+import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
 import com.cbtipul.app.data.TherapistProfile
+import com.cbtipul.app.debug.DebugPushTestSection
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.patients.ConfirmDeleteOverlay
@@ -264,6 +267,13 @@ fun SettingsScreen(
                             destructive = true,
                             enabled = !isDeleting,
                             onClick = { confirmDelete = true },
+                        )
+                    }
+
+                    if (BuildConfig.DEBUG) {
+                        DebugPushTestSection(
+                            (LocalContext.current.applicationContext as CbTipulApp)
+                                .authRepository.supabaseClient,
                         )
                     }
 

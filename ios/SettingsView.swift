@@ -1,5 +1,11 @@
 import SwiftUI
 import WebKit
+#if DEBUG
+import Functions
+import os
+import OSLog
+import Supabase
+#endif
 
 /// How the AI assistant reveals its answers.
 enum AIResponseStyle: String, CaseIterable {
@@ -108,6 +114,11 @@ struct SettingsView: View {
     @State private var isDeletingAccount = false
     @State private var deleteAccountError: String?
     @State private var displayNameLoadFailed = false
+    #if DEBUG
+    @State private var isSendingPushTest = false
+    @State private var pushTestAlertTitle: String?
+    @State private var pushTestAlertMessage: String?
+    #endif
     // Tutorial consent is presented by PatientListView — not here — so
     // dismissing Settings cannot flash under a cover.
 
@@ -305,6 +316,24 @@ struct SettingsView: View {
                 }
                 .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
 
+                #if DEBUG
+                Section {
+                    Button {
+                        Task { await sendDebugPushTest() }
+                    } label: {
+                        HStack {
+                            Text("שליחת התראת בדיקה")
+                                .frame(maxWidth: .infinity)
+                            if isSendingPushTest {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(isSendingPushTest)
+                }
+                .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
+                #endif
+
                 Section {
                     Text(appVersionLine)
                         .font(.footnote)
@@ -369,10 +398,63 @@ struct SettingsView: View {
             } message: {
                 Text(deleteAccountError ?? "")
             }
+            #if DEBUG
+            .alert(
+                pushTestAlertTitle ?? "",
+                isPresented: .init(
+                    get: { pushTestAlertTitle != nil },
+                    set: { if !$0 { pushTestAlertTitle = nil; pushTestAlertMessage = nil } }
+                )
+            ) {
+                Button(L10n.ok, role: .cancel) {}
+            } message: {
+                Text(pushTestAlertMessage ?? "")
+            }
+            #endif
             .busyOverlay(isDeletingAccount)
         }
         .appTextSize()
     }
+
+    #if DEBUG
+    private func sendDebugPushTest() async {
+        guard !isSendingPushTest else { return }
+        isSendingPushTest = true
+        defer { isSendingPushTest = false }
+        do {
+            let raw: String = try await auth.client.functions.invoke(
+                "test-apns-push",
+                options: FunctionInvokeOptions(body: [String: String]())
+            ) { data, response in
+                let body = String(data: data, encoding: .utf8) ?? ""
+                return "status=\(response.statusCode) body=\(body)"
+            }
+            AppLog.push.debug("test-apns-push \(Self.redactSecrets(raw), privacy: .public)")
+            pushTestAlertTitle = "התראת הבדיקה נשלחה"
+            pushTestAlertMessage = nil
+        } catch {
+            AppLog.push.error(
+                "test-apns-push failed: \(error.localizedDescription, privacy: .public)"
+            )
+            pushTestAlertTitle = "שליחת התראת הבדיקה נכשלה"
+            pushTestAlertMessage = error.localizedDescription
+        }
+    }
+
+    private static func redactSecrets(_ text: String) -> String {
+        let jwt = try? NSRegularExpression(pattern: "eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")
+        let hex = try? NSRegularExpression(pattern: "\\b[a-fA-F0-9]{32,}\\b")
+        var result = text
+        for regex in [jwt, hex].compactMap({ $0 }) {
+            result = regex.stringByReplacingMatches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: "[redacted]"
+            )
+        }
+        return result
+    }
+    #endif
 
     /// One of the official cbtipul.com pages, shown in an in-app web view.
     private struct OfficialLink: Identifiable {
