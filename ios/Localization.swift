@@ -82,6 +82,10 @@ enum L10n {
     static func patientConnectedPushBody(name: String) -> String {
         PatientPushCopy.patientConnectedBody(name: name)
     }
+    static let questionnaireCompletedPushGeneric = PatientPushCopy.genericQuestionnaireCompleted
+    static func questionnaireCompletedPushBody(name: String) -> String {
+        PatientPushCopy.questionnaireCompletedBody(name: name)
+    }
     static let notesSection = "הערות"
     static let sessionSummarySection = "סיכום פגישה"
     

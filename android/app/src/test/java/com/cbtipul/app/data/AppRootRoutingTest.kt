@@ -92,4 +92,27 @@ class AppRootRoutingTest {
             ),
         )
     }
+
+    @Test
+    fun anonymousRelaunchSelectsPatientModeNotSignIn() {
+        assertEquals(
+            AppRootDestination.AnonymousPatient,
+            AppRootRouting.destination(
+                invitationActive = false,
+                hasSession = true,
+                isAnonymous = true,
+            ),
+        )
+        assertEquals(
+            AnonymousPatientDestination.PatientMode,
+            AppRootRouting.anonymousDestination(
+                context = AppContext(
+                    role = AppRole.Patient,
+                    activation = PatientActivation.Active,
+                    patientId = "patient-1",
+                ),
+                isLoading = false,
+            ),
+        )
+    }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import Functions
 import OSLog
 import Supabase
 
@@ -36,6 +37,33 @@ private struct SubmitPatientQuestionnaireRequest: Encodable {
     let gad7Answers: [Int]
     let phq9Answers: [Int]
     let interferenceLevel: Int
+}
+
+private struct RequestPatientQuestionnaireRequest: Encodable {
+    let patientId: UUID
+    let sessionId: UUID
+}
+
+private struct RequestPatientQuestionnaireResponse: Decodable {
+    let id: UUID
+    let patientId: UUID
+    let therapistId: UUID?
+    let sessionId: UUID?
+    let typeValue: String
+    let createdAt: String
+    let completedAt: String?
+    let cancelledAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case patientId = "patient_id"
+        case therapistId = "therapist_id"
+        case sessionId = "session_id"
+        case typeValue = "type"
+        case createdAt = "created_at"
+        case completedAt = "completed_at"
+        case cancelledAt = "cancelled_at"
+    }
 }
 
 private struct SubmitPatientQuestionnaireResponse: Decodable, Sendable {
@@ -86,20 +114,6 @@ nonisolated struct PatientAssignment: Decodable, Sendable {
     var type: PatientAssignmentType? { PatientAssignmentType(rawValue: typeValue) }
 
     var isOpen: Bool { completedAt == nil && cancelledAt == nil }
-}
-
-private struct NewPatientAssignment: Encodable {
-    let patientId: UUID
-    let therapistId: UUID
-    let sessionId: UUID
-    let type: PatientAssignmentType
-
-    enum CodingKeys: String, CodingKey {
-        case patientId = "patient_id"
-        case therapistId = "therapist_id"
-        case sessionId = "session_id"
-        case type
-    }
 }
 
 /// Ongoing diary assignment. `session_id` and completion timestamps stay NULL
@@ -198,44 +212,64 @@ final class PatientAssignmentService {
         }
     }
 
-    /// Creates a one-time questionnaire assignment after a connection and
-    /// duplicate check. Does not write CombinedMood / questionnaire answers.
+    /// Creates a one-time questionnaire assignment via `request-patient-questionnaire`.
+    /// Duplicate/open handling and connection checks are performed by the Edge Function.
     func sendQuestionnaireAssignment(
         patientId: UUID,
         sessionId: UUID
     ) async throws -> PatientAssignment {
         try ensureConfigured()
-        let connected = try await isPatientConnected(patientId: patientId)
-        guard connected else { throw PatientAssignmentError.patientNotConnected }
-
-        if let existing = try await openQuestionnaireAssignment(sessionId: sessionId) {
-            return existing
-        }
-
-        let therapistId = try await requireTherapistId()
         do {
-            let created: PatientAssignment = try await client.from("patient_assignments")
-                .insert(
-                    NewPatientAssignment(
+            let response: RequestPatientQuestionnaireResponse = try await client.functions.invoke(
+                "request-patient-questionnaire",
+                options: FunctionInvokeOptions(
+                    body: RequestPatientQuestionnaireRequest(
                         patientId: patientId,
-                        therapistId: therapistId,
-                        sessionId: sessionId,
-                        type: .questionnaire
+                        sessionId: sessionId
                     )
                 )
-                .select(
-                    "id, patient_id, therapist_id, session_id, type, created_at, completed_at, cancelled_at"
-                )
-                .single()
-                .execute()
-                .value
+            )
+            guard let createdAt = Self.parseEdgeTimestamp(response.createdAt) else {
+                throw PatientAssignmentError.invalidIdentifier
+            }
+            let completedAt: Date?
+            if let raw = response.completedAt {
+                guard let parsed = Self.parseEdgeTimestamp(raw) else {
+                    throw PatientAssignmentError.invalidIdentifier
+                }
+                completedAt = parsed
+            } else {
+                completedAt = nil
+            }
+            let cancelledAt: Date?
+            if let raw = response.cancelledAt {
+                guard let parsed = Self.parseEdgeTimestamp(raw) else {
+                    throw PatientAssignmentError.invalidIdentifier
+                }
+                cancelledAt = parsed
+            } else {
+                cancelledAt = nil
+            }
             AppLog.store.info("Questionnaire assignment created")
-            return created
+            return PatientAssignment(
+                id: response.id,
+                patientId: response.patientId,
+                therapistId: response.therapistId,
+                sessionId: response.sessionId,
+                typeValue: response.typeValue,
+                createdAt: createdAt,
+                completedAt: completedAt,
+                cancelledAt: cancelledAt
+            )
+        } catch let error as PatientAssignmentError {
+            throw error
+        } catch let FunctionsError.httpError(code, data) {
+            throw Self.requestQuestionnaireError(from: data, statusCode: code)
         } catch {
             AppLog.store.error(
                 "Questionnaire assignment create failed: \(error.localizedDescription, privacy: .public)"
             )
-            throw error
+            throw PatientAssignmentError.invalidIdentifier
         }
     }
 
@@ -430,6 +464,22 @@ final class PatientAssignmentService {
         }
     }
 
+    private static func requestQuestionnaireError(from data: Data, statusCode: Int) -> PatientAssignmentError {
+        let code = edgeErrorCode(from: data)
+        switch code {
+        case "patient_not_connected":
+            return .patientNotConnected
+        case "unauthorized":
+            return .notSignedIn
+        default:
+            if statusCode == 401 || statusCode == 403 {
+                return .notSignedIn
+            }
+            AppLog.store.error("Questionnaire assignment create failed")
+            return .invalidIdentifier
+        }
+    }
+
     private static func submitError(from data: Data, statusCode: Int) -> PatientQuestionnaireSubmitError {
         let code = edgeErrorCode(from: data)
         switch code {
@@ -499,6 +549,17 @@ final class PatientAssignmentService {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)
+    }
+
+    private static func parseEdgeTimestamp(_ raw: String) -> Date? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = withFraction.date(from: trimmed) { return date }
+        let withoutFraction = ISO8601DateFormatter()
+        withoutFraction.formatOptions = [.withInternetDateTime]
+        return withoutFraction.date(from: trimmed)
     }
 }
 

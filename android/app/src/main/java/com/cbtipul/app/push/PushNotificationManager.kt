@@ -127,6 +127,8 @@ class PushNotificationManager(
     fun onMessageReceived(message: RemoteMessage) {
         val type = message.data["type"]
         val patientId = message.data["patientId"] ?: message.data["patient_id"]
+        val assignmentId = message.data["assignmentId"] ?: message.data["assignment_id"]
+        val sessionId = message.data["sessionId"] ?: message.data["session_id"]
         val fallbackTitle = message.notification?.title ?: message.data["title"]
         val fallbackBody = message.notification?.body ?: message.data["body"]
         debug {
@@ -138,6 +140,8 @@ class PushNotificationManager(
             patientId = patientId,
             fallbackTitle = fallbackTitle,
             fallbackBody = fallbackBody,
+            assignmentId = assignmentId,
+            sessionId = sessionId,
             nameForPatientId = ::localNameForPatientId,
         )
         if (personalized.title.isBlank() && personalized.body.isBlank()) return
@@ -243,6 +247,8 @@ class PushNotificationManager(
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             personalized.type?.let { putExtra(PatientPushPersonalizer.EXTRA_TYPE, it) }
             personalized.patientId?.let { putExtra(PatientPushPersonalizer.EXTRA_PATIENT_ID, it) }
+            personalized.assignmentId?.let { putExtra(PatientPushPersonalizer.EXTRA_ASSIGNMENT_ID, it) }
+            personalized.sessionId?.let { putExtra(PatientPushPersonalizer.EXTRA_SESSION_ID, it) }
         }
         val requestCode = (messageId?.hashCode() ?: System.currentTimeMillis().toInt()) and 0x7fffffff
         val pending = PendingIntent.getActivity(

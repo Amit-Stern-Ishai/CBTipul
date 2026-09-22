@@ -25,6 +25,7 @@ import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
 import com.cbtipul.app.auth.AuthSession
 import com.cbtipul.app.auth.AuthViewModel
+import com.cbtipul.app.debug.InviteDebugLog
 import com.cbtipul.app.data.AnonymousPatientDestination
 import com.cbtipul.app.data.AppRootDestination
 import com.cbtipul.app.data.AppRootRouting
@@ -73,7 +74,20 @@ fun RootScreen() {
         context = appContext,
         isLoading = contextLoading || session is AuthSession.Loading,
     )
-    LaunchedEffect(signedIn?.userId, isAnonymous, invitationActive) {
+    LaunchedEffect(rootDestination, anonymousDestination, signedIn != null, isAnonymous) {
+        InviteDebugLog.d("session exists: ${signedIn != null}")
+        InviteDebugLog.d("isAnonymous: $isAnonymous")
+        InviteDebugLog.d("root destination selected: ${rootDestination.name.lowercase()}")
+        if (rootDestination == AppRootDestination.AnonymousPatient) {
+            InviteDebugLog.d("anonymous destination: ${anonymousDestination.name.lowercase()}")
+            appContext?.let {
+                InviteDebugLog.d("get-app-context role: ${it.role.name.lowercase()}")
+                InviteDebugLog.d("activation: ${it.activation?.name?.lowercase() ?: "null"}")
+            }
+        }
+    }
+    LaunchedEffect(signedIn?.userId, isAnonymous, invitationActive, session) {
+        if (session is AuthSession.Loading) return@LaunchedEffect
         if (isAnonymous && !invitationActive) {
             runCatching { app.appContext.getCurrentAppContext() }
         } else if (signedIn == null && !invitationActive) {

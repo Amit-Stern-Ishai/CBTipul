@@ -42,7 +42,7 @@ class AuthViewModel(
     val session: StateFlow<AuthSession> = combine(
         auth.session,
         _treatAsSignedOut,
-    ) { session, signedOut -> if (signedOut) AuthSession.SignedOut else session }
+    ) { session, signedOut -> effectiveAuthSession(session, signedOut) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, AuthSession.Loading)
 
     private val _listSession = MutableStateFlow(0)

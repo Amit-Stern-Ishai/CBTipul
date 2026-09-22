@@ -127,6 +127,10 @@ class PatientInvitationFlow(
                     return
                 }
                 therapistDisplayName = null
+                InviteDebugLog.d("session exists: ${auth.hasSession()}")
+                InviteDebugLog.d("isAnonymous: ${auth.isAnonymousSession()}")
+                InviteDebugLog.d("claim succeeded: $didSucceedClaim")
+                InviteDebugLog.d("root destination selected: anonymouspatient")
                 _phase.value = InvitationPhase.Idle
                 InviteDebugLog.d("Patient Mode activation complete")
             } catch (error: CancellationException) {

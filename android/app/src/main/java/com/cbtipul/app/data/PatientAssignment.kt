@@ -21,6 +21,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -64,11 +66,9 @@ private data class PatientAssignmentRow(
 )
 
 @Serializable
-private data class NewPatientAssignment(
-    @SerialName("patient_id") val patientId: String,
-    @SerialName("therapist_id") val therapistId: String,
-    @SerialName("session_id") val sessionId: String,
-    val type: String,
+internal data class RequestPatientQuestionnaireRequest(
+    val patientId: String,
+    val sessionId: String,
 )
 
 @Serializable
@@ -129,22 +129,23 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
 
     suspend fun sendQuestionnaireAssignment(patientId: String, sessionId: String): PatientAssignment {
         ensureConfigured()
-        if (!isPatientConnected(patientId)) throw PatientAssignmentException.PatientNotConnected
-        openQuestionnaireAssignment(sessionId)?.let { return it }
-        val therapistId = requireTherapistId()
-        return client.from("patient_assignments")
-            .insert(
-                NewPatientAssignment(
+        return try {
+            val http = client.functions.invoke(
+                function = "request-patient-questionnaire",
+                body = RequestPatientQuestionnaireRequest(
                     patientId = patientId,
-                    therapistId = therapistId,
                     sessionId = sessionId,
-                    type = PatientAssignmentType.Questionnaire.raw,
                 ),
-            ) {
-                select(assignmentColumns)
-            }
-            .decodeSingle<PatientAssignmentRow>()
-            .toDomain()
+                headers = Headers.build {
+                    append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                },
+            )
+            assignmentFromEdgeJson(http.bodyAsText())
+        } catch (error: PatientAssignmentException) {
+            throw error
+        } catch (error: Exception) {
+            throw mapRequestQuestionnaireError(error)
+        }
     }
 
     suspend fun activeOngoingAssignment(patientId: String, type: PatientAssignmentType): PatientAssignment? {
@@ -276,6 +277,13 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         }
     }
 
+    private suspend fun mapRequestQuestionnaireError(error: Exception): PatientAssignmentException {
+        val body = EdgePayload.responseBody(error)
+        val (code, _) = EdgePayload.codeAndMessage(body)
+        val status = EdgePayload.httpStatus(error)
+        return mapRequestQuestionnaireCode(code, status)
+    }
+
     private suspend fun requireTherapistId(): String {
         return client.auth.currentSessionOrNull()?.user?.id
             ?: throw PatientAssignmentException.NotSignedIn
@@ -301,17 +309,6 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         return formatter.format(Date())
     }
 
-    private fun PatientAssignmentRow.toDomain() = PatientAssignment(
-        id = id,
-        patientId = patientId,
-        therapistId = therapistId,
-        sessionId = sessionId,
-        typeValue = type,
-        createdAt = parseIso(createdAt),
-        completedAt = completedAt?.let(::parseIso),
-        cancelledAt = cancelledAt?.let(::parseIso),
-    )
-
     companion object {
         private val assignmentColumns = Columns.raw(
             "id, patient_id, therapist_id, session_id, type, created_at, completed_at, cancelled_at",
@@ -320,14 +317,55 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         fun uuidOrNull(id: DatabaseId): String? =
             runCatching { UUID.fromString(id.queryValue).toString() }.getOrNull()
 
-        private fun parseIso(raw: String): Date {
+        internal fun encodeQuestionnaireRequest(patientId: String, sessionId: String): String =
+            EdgePayload.json.encodeToString(
+                RequestPatientQuestionnaireRequest.serializer(),
+                RequestPatientQuestionnaireRequest(patientId = patientId, sessionId = sessionId),
+            )
+
+        internal fun assignmentFromEdgeJson(json: String): PatientAssignment =
+            EdgePayload.json.decodeFromString(PatientAssignmentRow.serializer(), json).toDomain()
+
+        internal fun mapRequestQuestionnaireCode(code: String, status: Int?): PatientAssignmentException {
+            return when (code) {
+                "patient_not_connected" -> PatientAssignmentException.PatientNotConnected
+                "unauthorized" -> PatientAssignmentException.NotSignedIn
+                else -> if (status == 401 || status == 403) {
+                    PatientAssignmentException.NotSignedIn
+                } else {
+                    PatientAssignmentException.InvalidIdentifier
+                }
+            }
+        }
+
+        internal fun parseAssignmentTimestamp(raw: String): Date {
+            val trimmed = raw.trim()
+            require(trimmed.isNotEmpty())
+            runCatching { Date.from(OffsetDateTime.parse(trimmed).toInstant()) }.getOrNull()?.let { return it }
+            runCatching { Date.from(Instant.parse(trimmed)) }.getOrNull()?.let { return it }
             listOf(
                 SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US),
                 SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX", Locale.US),
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX", Locale.US),
             ).forEach { formatter ->
-                formatter.parse(raw)?.let { return it }
+                formatter.timeZone = TimeZone.getTimeZone("UTC")
+                formatter.parse(trimmed)?.let { return it }
             }
-            return Date()
+            throw IllegalArgumentException("invalid_timestamp")
         }
+
+        private fun parseIso(raw: String): Date = parseAssignmentTimestamp(raw)
+
+        private fun PatientAssignmentRow.toDomain() = PatientAssignment(
+            id = id,
+            patientId = patientId,
+            therapistId = therapistId,
+            sessionId = sessionId,
+            typeValue = type,
+            createdAt = parseIso(createdAt),
+            completedAt = completedAt?.let(::parseIso),
+            cancelledAt = cancelledAt?.let(::parseIso),
+        )
     }
 }

@@ -205,6 +205,23 @@ sealed interface AuthSession {
     ) : AuthSession
 }
 
+/**
+ * AuthViewModel can briefly treat a therapist as signed out for snappy logout.
+ * That flag must never hide a later anonymous Patient Mode session.
+ */
+internal fun effectiveAuthSession(
+    session: AuthSession,
+    treatAsSignedOut: Boolean,
+): AuthSession {
+    if (!treatAsSignedOut) return session
+    val signedIn = session as? AuthSession.SignedIn
+    if (signedIn?.isAnonymous == true) return session
+    return when (session) {
+        AuthSession.Loading -> AuthSession.Loading
+        else -> AuthSession.SignedOut
+    }
+}
+
 enum class AuthErrorKind {
     NotConfigured,
     EmailNotConfirmed,
