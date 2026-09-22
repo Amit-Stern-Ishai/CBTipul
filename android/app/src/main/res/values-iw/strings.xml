@@ -9,6 +9,8 @@
     <string name="app_title">CBTipul</string>
     <string name="app_name">CBTipul</string>
     <string name="notifications_channel_name">התראות CBTipul</string>
+    <string name="push_patient_connected_generic">המטופל/ת התחבר/ה בהצלחה ל-CBTipul</string>
+    <string name="push_patient_connected_named">%1$s התחבר/ה בהצלחה ל-CBTipul</string>
     <string name="auth_mode_sign_in">התחברות</string>
     <string name="auth_mode_sign_up">הרשמה</string>
     <string name="auth_welcome_sign_in">נא להתחבר כדי להמשיך</string>

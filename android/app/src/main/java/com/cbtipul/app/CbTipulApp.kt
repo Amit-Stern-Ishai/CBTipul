@@ -62,6 +62,7 @@ class CbTipulApp : Application() {
         super.onCreate()
         preferences = AppPreferences(this)
         val client = createCbTipulSupabaseClient()
+        val identityStore = PatientIdentityStore(this)
         authRepository = AuthRepository(client) {
             if (::pushManager.isInitialized) pushManager.unregisterCurrentToken()
         }
@@ -69,6 +70,7 @@ class CbTipulApp : Application() {
             appContext = this,
             client = client,
             auth = authRepository,
+            identityStore = identityStore,
             scope = applicationScope,
         )
         pushManager.start()
@@ -78,7 +80,7 @@ class CbTipulApp : Application() {
         val anonymizer = ClinicalTextAnonymizer(client, aiConsentStore)
         patientRepository = PatientRepository(
             client = client,
-            identityStore = PatientIdentityStore(this),
+            identityStore = identityStore,
             cache = PatientCache(this),
             textGate = ClinicalTextGate { anonymizer.anonymize(it) },
             whisper = WhisperService(client, aiConsentStore),

@@ -19,7 +19,9 @@ import com.cbtipul.app.MainActivity
 import com.cbtipul.app.R
 import com.cbtipul.app.auth.AuthRepository
 import com.cbtipul.app.auth.AuthSession
+import com.cbtipul.app.data.PatientIdentityStore
 import com.cbtipul.app.data.SupabaseConfig
+import com.cbtipul.app.model.DatabaseId
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.RemoteMessage
 import io.github.jan.supabase.SupabaseClient
@@ -40,6 +42,7 @@ class PushNotificationManager(
     private val appContext: Context,
     private val client: SupabaseClient,
     private val auth: AuthRepository,
+    private val identityStore: PatientIdentityStore,
     private val scope: CoroutineScope,
 ) {
     private val prefs: SharedPreferences =
@@ -122,14 +125,23 @@ class PushNotificationManager(
     }
 
     fun onMessageReceived(message: RemoteMessage) {
-        val title = message.notification?.title ?: message.data["title"]
-        val body = message.notification?.body ?: message.data["body"]
+        val type = message.data["type"]
+        val patientId = message.data["patientId"] ?: message.data["patient_id"]
+        val fallbackTitle = message.notification?.title ?: message.data["title"]
+        val fallbackBody = message.notification?.body ?: message.data["body"]
         debug {
-            "Foreground FCM message messageId=${message.messageId ?: "none"} " +
+            "FCM message messageId=${message.messageId ?: "none"} " +
                 "hasNotification=${message.notification != null} dataKeys=${message.data.keys}"
         }
-        if (title.isNullOrBlank() && body.isNullOrBlank()) return
-        showVisibleNotification(title, body)
+        val personalized = PatientPushPersonalizer.personalize(
+            type = type,
+            patientId = patientId,
+            fallbackTitle = fallbackTitle,
+            fallbackBody = fallbackBody,
+            nameForPatientId = ::localNameForPatientId,
+        )
+        if (personalized.title.isBlank() && personalized.body.isBlank()) return
+        showVisibleNotification(personalized, message.messageId)
     }
 
     suspend fun unregisterCurrentToken() {
@@ -213,21 +225,38 @@ class PushNotificationManager(
         )
     }
 
-    private fun showVisibleNotification(title: String?, body: String?) {
+    private fun localNameForPatientId(patientId: String): String? {
+        val fromText = identityStore.name(DatabaseId.Text(patientId))
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        if (fromText != null) return fromText
+        val intId = patientId.toIntOrNull() ?: return null
+        return identityStore.name(DatabaseId.Integer(intId))?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun showVisibleNotification(
+        personalized: PatientPushPersonalizer.Result,
+        messageId: String?,
+    ) {
         ensureChannel()
         val launch = Intent(appContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            personalized.type?.let { putExtra(PatientPushPersonalizer.EXTRA_TYPE, it) }
+            personalized.patientId?.let { putExtra(PatientPushPersonalizer.EXTRA_PATIENT_ID, it) }
         }
+        val requestCode = (messageId?.hashCode() ?: System.currentTimeMillis().toInt()) and 0x7fffffff
         val pending = PendingIntent.getActivity(
             appContext,
-            0,
+            requestCode,
             launch,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(appContext, PushRegistration.CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title ?: appContext.getString(R.string.app_name))
-            .setContentText(body)
+            .setContentTitle(
+                personalized.title.ifBlank { appContext.getString(R.string.app_name) },
+            )
+            .setContentText(personalized.body)
             .setAutoCancel(true)
             .setContentIntent(pending)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
