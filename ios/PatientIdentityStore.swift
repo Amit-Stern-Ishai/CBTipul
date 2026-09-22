@@ -45,6 +45,7 @@ final class PatientIdentityStore {
         guard status == errSecSuccess else {
             throw PatientIdentityStoreError.keychainFailure(status)
         }
+        PatientNameResolver.setDisplayName(name, forPatientId: patientID.queryValue)
     }
 
     /// The name stored for a patient, or nil when there is no mapping or the
@@ -76,6 +77,7 @@ final class PatientIdentityStore {
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw PatientIdentityStoreError.keychainFailure(status)
         }
+        PatientNameResolver.removeDisplayName(forPatientId: patientID.queryValue)
     }
 
     /// Upserts a patientID → name mapping for every patient. Safe to run
@@ -95,6 +97,35 @@ final class PatientIdentityStore {
             } catch {
                 logger.error("Saving patient name failed: \(error)")
             }
+        }
+        mirrorExistingNamesToAppGroup()
+    }
+
+    /// Copies existing Keychain names into App Group storage for the
+    /// Notification Service Extension. Keychain remains the source of truth.
+    func mirrorExistingNamesToAppGroup() {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.service,
+            kSecAttrSynchronizable as String: true,
+            kSecReturnAttributes as String: true,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+        ]
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess, let items = result as? [[String: Any]] else {
+            if status != errSecItemNotFound {
+                logger.error("Mirroring patient names failed: \(status)")
+            }
+            return
+        }
+        for item in items {
+            guard let account = item[kSecAttrAccount as String] as? String,
+                  let data = item[kSecValueData as String] as? Data,
+                  let name = String(data: data, encoding: .utf8)
+            else { continue }
+            PatientNameResolver.setDisplayName(name, forPatientId: account)
         }
     }
 }

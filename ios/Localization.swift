@@ -79,6 +79,9 @@ enum L10n {
     static let patientsSearchPrompt = "חיפוש מטופלים"
     static let patientsSearchEmpty = "לא נמצאו מטופלים"
     static let unnamedPatient = "מטופל/ת ללא שם"
+    static func patientConnectedPushBody(name: String) -> String {
+        PatientPushCopy.patientConnectedBody(name: name)
+    }
     static let notesSection = "הערות"
     static let sessionSummarySection = "סיכום פגישה"
     

@@ -279,6 +279,7 @@ final class PatientStore {
         textGate = ClinicalTextGate(
             anonymize: anonymizeText ?? { try await anonymizer.anonymize($0) }
         )
+        identityStore.mirrorExistingNamesToAppGroup()
     }
 
     /// Installs local demo mode with an empty clinic — like a new signup.
@@ -653,6 +654,7 @@ final class PatientStore {
         for patient in loadedPatients {
             patient.localName = identityStore.name(for: patient.id)
         }
+        identityStore.mirrorExistingNamesToAppGroup()
         patients = loadedPatients
         AppLog.store.info("Patients loaded from server: \(patientRows.count), sessions: \(sessionRows.count)")
         saveCachedPatients()

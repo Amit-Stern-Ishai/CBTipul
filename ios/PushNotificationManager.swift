@@ -215,7 +215,15 @@ private struct UnregisterPushDeviceParams: Encodable {
     }
 }
 
-final class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
     func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
@@ -232,5 +240,30 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Task { @MainActor in
             PushNotificationManager.shared.handleRegistrationFailure(error)
         }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        let original = notification.request.content
+        guard let personalized = original.mutableCopy() as? UNMutableNotificationContent else {
+            return [.banner, .list, .sound, .badge]
+        }
+        PatientPushPersonalizer.apply(to: personalized)
+        if personalized.body == original.body {
+            return [.banner, .list, .sound, .badge]
+        }
+        let request = UNNotificationRequest(
+            identifier: notification.request.identifier,
+            content: personalized,
+            trigger: nil
+        )
+        do {
+            try await center.add(request)
+        } catch {
+            return [.banner, .list, .sound, .badge]
+        }
+        return []
     }
 }
