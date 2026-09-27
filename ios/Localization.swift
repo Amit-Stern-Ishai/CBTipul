@@ -199,8 +199,11 @@ enum L10n {
     static let emptySessionsPrimaryAction = "הוספת פגישה ראשונה"
     static let emptyQuestionnairesTitle = "עדיין לא נוספו שאלונים"
     static let emptyQuestionnairesBody =
-        "שאלונים מאפשרים לעקוב אחר שינויים בתסמינים לאורך זמן. כדי למלא שאלון יש ליצור פגישה ואז למלא אותו משם, או לבקש מהמטופל/ת למלא אם כבר מחובר/ת ל-CBTipul."
+        "שאלונים מאפשרים לעקוב אחר שינויים בתסמינים לאורך זמן. אפשר למלא שאלון כאן, לשייך אותו לפגישה אם רלוונטי, או לבקש מהמטופל/ת למלא אם כבר מחובר/ת ל-CBTipul."
     static let emptyQuestionnairesPrimaryAction = "הוספת שאלון"
+    static let questionnaireAnsweredDateLabel = "תאריך השאלון"
+    static let questionnaireSessionAssociationLabel = "שיוך לפגישה"
+    static let questionnaireNoSessionAssociation = "ללא שיוך לפגישה"
     static let preparationInsufficientTitle = "עדיין אין מספיק מידע להכנה"
     static let preparationInsufficientBody =
         "מומלץ להוסיף לפחות סיכום פגישה אחד או שאלון כדי ליצור הכנה שימושית יותר."
@@ -217,6 +220,11 @@ enum L10n {
     static let addSessionAction = "הוספת פגישה"
     
     static let newSessionTitle = "פגישה חדשה"
+    static let selectPatientTitle = "בחירת מטופל/ת"
+    static let upcomingSessionsSection = "קרובות"
+    static let recentSessionsSection = "אחרונות"
+    static let createSessionAction = "יצירת פגישה"
+    static let noUpcomingSessionsLabel = "אין פגישות קרובות"
     
     static func session(_ number: Int) -> String {
         "פגישה \(number)"
@@ -994,6 +1002,17 @@ amitishai@gmail.com
     static let therapistDisplayNameNotSignedInError = "יש להתחבר כדי לשמור שם לתצוגה."
 
     static let invitePatientAction = "הזמנת מטופל/ת"
+    static let sendToPatientAction = "שליחה למטופל/ת"
+    static let progressAndTrackingSection = "מעקב והתקדמות"
+    static let graphsAndTrendsTitle = "גרפים ומגמות"
+    static let questionnairesHistoryAction = "שאלונים"
+    static let treatmentCourseSection = "מהלך הטיפול"
+    static let diariesTitle = "יומנים"
+    static let clinicalToolsSection = "כלים קליניים"
+    static let patientConnectedStatus = "מחובר/ת ל-CBTipul"
+    static let patientNotConnectedStatus = "לא מחובר/ת ל-CBTipul"
+    static let patientConnectionChecking = "בודק חיבור…"
+    static let diaryOneSentToPatient = "יומן 1 הופעל אצל המטופל/ת"
 
     static let patientInvitationFailedTitle = "לא ניתן היה ליצור הזמנה"
 

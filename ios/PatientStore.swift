@@ -51,7 +51,7 @@ private nonisolated struct NewSessionRecord: Encodable {
 /// Row shape for inserts into the combined questionnaire table.
 private nonisolated struct NewQuestionnaireRecord: Encodable {
     let patientID: DatabaseID
-    let sessionID: DatabaseID
+    let sessionID: DatabaseID?
     let answeredDate: String
     let gad7Answers: [Int]
     let phq9Answers: [Int]
@@ -66,6 +66,54 @@ private nonisolated struct NewQuestionnaireRecord: Encodable {
         case phq9Answers = "phq9_answers"
         case interferenceLevel = "interference_level"
         case combinedNotes = "combined_notes"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(patientID, forKey: .patientID)
+        if let sessionID {
+            try container.encode(sessionID, forKey: .sessionID)
+        } else {
+            try container.encodeNil(forKey: .sessionID)
+        }
+        try container.encode(answeredDate, forKey: .answeredDate)
+        try container.encode(gad7Answers, forKey: .gad7Answers)
+        try container.encode(phq9Answers, forKey: .phq9Answers)
+        try container.encodeIfPresent(interferenceLevel, forKey: .interferenceLevel)
+        try container.encode(combinedNotes, forKey: .combinedNotes)
+    }
+}
+
+/// Row shape for updates of an existing CombinedMood questionnaire by `id`.
+private nonisolated struct UpdatedQuestionnaireRecord: Encodable {
+    let sessionID: DatabaseID?
+    let answeredDate: String
+    let gad7Answers: [Int]
+    let phq9Answers: [Int]
+    let interferenceLevel: Int?
+    let combinedNotes: QuestionnaireNotes
+
+    enum CodingKeys: String, CodingKey {
+        case sessionID = "session_id"
+        case answeredDate = "answered_date"
+        case gad7Answers = "gad7_answers"
+        case phq9Answers = "phq9_answers"
+        case interferenceLevel = "interference_level"
+        case combinedNotes = "combined_notes"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let sessionID {
+            try container.encode(sessionID, forKey: .sessionID)
+        } else {
+            try container.encodeNil(forKey: .sessionID)
+        }
+        try container.encode(answeredDate, forKey: .answeredDate)
+        try container.encode(gad7Answers, forKey: .gad7Answers)
+        try container.encode(phq9Answers, forKey: .phq9Answers)
+        try container.encodeIfPresent(interferenceLevel, forKey: .interferenceLevel)
+        try container.encode(combinedNotes, forKey: .combinedNotes)
     }
 }
 
@@ -1017,7 +1065,7 @@ final class PatientStore {
         if DemoData.isDemoID(patient.id) || isDemoMode {
             patient.sessions.removeAll { $0.id == session.id }
             if let sessionID = session.databaseID {
-                questionnairesByPatient[patient.id]?.removeAll { $0.sessionID == sessionID }
+                detachQuestionnaires(from: sessionID, for: patient)
             }
             persistDemoClinic()
             return
@@ -1039,6 +1087,7 @@ final class PatientStore {
         }
 
         patient.sessions.removeAll { $0.id == session.id }
+        detachQuestionnaires(from: sessionID, for: patient)
         AppLog.store.notice("Session deleted: \(sessionID.queryValue, privacy: .public)")
         saveCachedPatients()
     }
@@ -1076,108 +1125,213 @@ final class PatientStore {
         saveCachedPatients()
     }
 
+    /// Session questionnaires stay in patient history after the session is
+    /// deleted; the database sets `session_id` to NULL.
+    private func detachQuestionnaires(from sessionID: DatabaseID, for patient: Patient) {
+        guard var cached = questionnairesByPatient[patient.id] else { return }
+        cached = cached.map { record in
+            guard record.sessionID == sessionID else { return record }
+            return CompletedQuestionnaire(
+                databaseID: record.databaseID,
+                sessionID: nil,
+                answeredDate: record.answeredDate,
+                questionnaire: record.questionnaire
+            )
+        }
+        questionnairesByPatient[patient.id] = cached
+    }
+
     /// Saves a completed combined mood questionnaire for a session as a
-    /// single row with the GAD-7 and PHQ-9 answers side by side.
-    ///
-    /// Upserts on `session_id`, so re-saving a session's questionnaire
-    /// updates its existing row instead of adding a duplicate.
+    /// patient-level CombinedMood row linked to that session.
     func saveQuestionnaire(_ questionnaire: CombinedMoodQuestionnaire,
                            for patient: Patient,
                            session: Session) async throws {
-        if DemoData.isDemoID(patient.id) || isDemoMode {
-            guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
-            let record = CompletedQuestionnaire(
-                databaseID: .text("demo-q-\(UUID().uuidString)"),
-                sessionID: sessionID,
-                answeredDate: session.date,
-                questionnaire: questionnaire
-            )
-            var cached = questionnairesByPatient[patient.id] ?? []
-            cached.removeAll { $0.sessionID == sessionID }
-            cached.insert(record, at: 0)
-            questionnairesByPatient[patient.id] = cached
-            session.questionnaire = questionnaire
-            persistDemoClinic()
-            return
-        }
-        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        let patientID = patient.id
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+        let existingID = questionnairesByPatient[patient.id]?
+            .first { $0.sessionID == sessionID }?
+            .databaseID
+        try await saveQuestionnaire(
+            questionnaire,
+            for: patient,
+            answeredDate: session.date,
+            sessionID: sessionID,
+            existingID: existingID
+        )
+    }
 
-        // Anonymize every changed, non-empty note separately — each stays at
-        // its own question index — before anything is sent. One failure
-        // aborts the whole save without uploading any original text.
+    /// Saves a patient-level questionnaire. New standalone rows are inserted;
+    /// existing rows are updated by CombinedMood `id`. `sessionID` is optional.
+    func saveQuestionnaire(_ questionnaire: CombinedMoodQuestionnaire,
+                           for patient: Patient,
+                           answeredDate: Date,
+                           sessionID: DatabaseID?,
+                           existingID: DatabaseID? = nil) async throws {
+        let clinicalDate = min(answeredDate, Date.now)
         var anonymizedQuestionnaire = questionnaire
         anonymizedQuestionnaire.gad7Notes = try await textGate.prepare(notes: questionnaire.gad7Notes)
         anonymizedQuestionnaire.phq9Notes = try await textGate.prepare(notes: questionnaire.phq9Notes)
         anonymizedQuestionnaire.interferenceNote =
             try await textGate.prepare(questionnaire.interferenceNote) ?? ""
 
-        let record = NewQuestionnaireRecord(
-            patientID: patientID,
-            sessionID: sessionID,
-            answeredDate: Self.dateOnlyFormatter.string(from: session.date),
-            gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
-            phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
-            interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
-            combinedNotes: QuestionnaireNotes(
-                gad7: anonymizedQuestionnaire.gad7Notes,
-                phq9: anonymizedQuestionnaire.phq9Notes,
-                interference: anonymizedQuestionnaire.interferenceNote
-            )
-        )
-        let saved: InsertedRow = try await client.from(CombinedMoodQuestionnaire.tableName)
-            .upsert(record, onConflict: "session_id")
-            .select("id")
-            .single()
-            .execute()
-            .value
-
-        // The in-memory copy mirrors what the server now stores.
-        session.questionnaire = anonymizedQuestionnaire
-        // Keep the cache in sync so the history views stay fresh offline.
-        let completed = CompletedQuestionnaire(
-            databaseID: saved.id,
-            sessionID: sessionID,
-            answeredDate: session.date,
-            questionnaire: anonymizedQuestionnaire
-        )
-        var cached = questionnairesByPatient[patientID] ?? []
-        cached.removeAll { $0.sessionID == sessionID }
-        cached.append(completed)
-        cached.sort { $0.answeredDate > $1.answeredDate }
-        questionnairesByPatient[patientID] = cached
-        AppLog.store.info("Questionnaire saved for session \(sessionID.queryValue, privacy: .public)")
-    }
-
-    /// Deletes a session's saved questionnaire row and removes it from the
-    /// cache.
-    func deleteQuestionnaire(for patient: Patient, session: Session) async throws {
         if DemoData.isDemoID(patient.id) || isDemoMode {
-            guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
-            questionnairesByPatient[patient.id]?.removeAll { $0.sessionID == sessionID }
-            session.questionnaire = CombinedMoodQuestionnaire()
+            let previousSessionID = existingID.flatMap { id in
+                questionnairesByPatient[patient.id]?.first { $0.databaseID == id }?.sessionID
+            }
+            let record = CompletedQuestionnaire(
+                databaseID: existingID ?? .text("demo-q-\(UUID().uuidString)"),
+                sessionID: sessionID,
+                answeredDate: clinicalDate,
+                questionnaire: anonymizedQuestionnaire
+            )
+            upsertCachedQuestionnaire(record, for: patient, replacing: existingID)
+            syncSessionQuestionnaire(
+                anonymizedQuestionnaire,
+                for: patient,
+                sessionID: sessionID,
+                previousSessionID: previousSessionID
+            )
             persistDemoClinic()
             return
         }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+        let patientID = patient.id
+        let previousSessionID = existingID.flatMap { id in
+            questionnairesByPatient[patientID]?.first { $0.databaseID == id }?.sessionID
+        }
+        let answeredDateString = Self.dateOnlyFormatter.string(from: clinicalDate)
+        let notes = QuestionnaireNotes(
+            gad7: anonymizedQuestionnaire.gad7Notes,
+            phq9: anonymizedQuestionnaire.phq9Notes,
+            interference: anonymizedQuestionnaire.interferenceNote
+        )
+        let savedID: DatabaseID
+        if let existingID {
+            let update = UpdatedQuestionnaireRecord(
+                sessionID: sessionID,
+                answeredDate: answeredDateString,
+                gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
+                phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
+                interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
+                combinedNotes: notes
+            )
+            let updated: [InsertedRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
+                .update(update)
+                .eq("id", value: existingID.queryValue)
+                .select("id")
+                .execute()
+                .value
+            guard let id = updated.first?.id else {
+                AppLog.store.error("Questionnaire update rejected: \(existingID.queryValue, privacy: .public)")
+                throw PatientStoreError.updateRejected
+            }
+            savedID = id
+        } else {
+            let record = NewQuestionnaireRecord(
+                patientID: patientID,
+                sessionID: sessionID,
+                answeredDate: answeredDateString,
+                gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
+                phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
+                interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
+                combinedNotes: notes
+            )
+            let saved: InsertedRow = try await client.from(CombinedMoodQuestionnaire.tableName)
+                .insert(record)
+                .select("id")
+                .single()
+                .execute()
+                .value
+            savedID = saved.id
+        }
 
-        // Select the deleted rows back: with row-level security a blocked
-        // delete "succeeds" with zero rows, which must not pass as deleted.
+        let completed = CompletedQuestionnaire(
+            databaseID: savedID,
+            sessionID: sessionID,
+            answeredDate: clinicalDate,
+            questionnaire: anonymizedQuestionnaire
+        )
+        upsertCachedQuestionnaire(completed, for: patient, replacing: existingID ?? savedID)
+        syncSessionQuestionnaire(
+            anonymizedQuestionnaire,
+            for: patient,
+            sessionID: sessionID,
+            previousSessionID: previousSessionID
+        )
+        AppLog.store.info("Questionnaire saved: \(savedID.queryValue, privacy: .public)")
+    }
+
+    private func upsertCachedQuestionnaire(
+        _ record: CompletedQuestionnaire,
+        for patient: Patient,
+        replacing existingID: DatabaseID?
+    ) {
+        var cached = questionnairesByPatient[patient.id] ?? []
+        if let existingID {
+            cached.removeAll { $0.databaseID == existingID }
+        }
+        if let sessionID = record.sessionID {
+            cached.removeAll { $0.sessionID == sessionID && $0.databaseID != record.databaseID }
+        }
+        cached.append(record)
+        cached.sort { $0.answeredDate > $1.answeredDate }
+        questionnairesByPatient[patient.id] = cached
+    }
+
+    private func syncSessionQuestionnaire(
+        _ questionnaire: CombinedMoodQuestionnaire,
+        for patient: Patient,
+        sessionID: DatabaseID?,
+        previousSessionID: DatabaseID?
+    ) {
+        if let previousSessionID, previousSessionID != sessionID,
+           let previous = patient.sessions.first(where: { $0.databaseID == previousSessionID }) {
+            previous.questionnaire = CombinedMoodQuestionnaire()
+        }
+        if let sessionID,
+           let session = patient.sessions.first(where: { $0.databaseID == sessionID }) {
+            session.questionnaire = questionnaire
+        }
+    }
+
+    /// Deletes a questionnaire by CombinedMood record ID.
+    func deleteQuestionnaire(_ record: CompletedQuestionnaire, for patient: Patient) async throws {
+        if DemoData.isDemoID(patient.id) || isDemoMode {
+            questionnairesByPatient[patient.id]?.removeAll { $0.databaseID == record.databaseID }
+            if let sessionID = record.sessionID,
+               let session = patient.sessions.first(where: { $0.databaseID == sessionID }) {
+                session.questionnaire = CombinedMoodQuestionnaire()
+            }
+            persistDemoClinic()
+            return
+        }
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+
         let deleted: [InsertedRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
             .delete()
-            .eq("session_id", value: sessionID.queryValue)
+            .eq("id", value: record.databaseID.queryValue)
             .select("id")
             .execute()
             .value
         guard !deleted.isEmpty else {
-            AppLog.store.error("Questionnaire delete rejected for session \(sessionID.queryValue, privacy: .public)")
+            AppLog.store.error("Questionnaire delete rejected: \(record.databaseID.queryValue, privacy: .public)")
             throw PatientStoreError.updateRejected
         }
 
-        questionnairesByPatient[patient.id]?.removeAll { $0.sessionID == sessionID }
-        AppLog.store.notice("Questionnaire deleted for session \(sessionID.queryValue, privacy: .public)")
+        questionnairesByPatient[patient.id]?.removeAll { $0.databaseID == record.databaseID }
+        if let sessionID = record.sessionID,
+           let session = patient.sessions.first(where: { $0.databaseID == sessionID }) {
+            session.questionnaire = CombinedMoodQuestionnaire()
+        }
+        AppLog.store.notice("Questionnaire deleted: \(record.databaseID.queryValue, privacy: .public)")
+    }
+
+    /// Deletes a session's saved questionnaire row and removes it from the cache.
+    func deleteQuestionnaire(for patient: Patient, session: Session) async throws {
+        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+        guard let record = questionnairesByPatient[patient.id]?.first(where: { $0.sessionID == sessionID }) else {
+            throw PatientStoreError.updateRejected
+        }
+        try await deleteQuestionnaire(record, for: patient)
     }
 
     /// Loads all saved questionnaires of a patient, newest first, and

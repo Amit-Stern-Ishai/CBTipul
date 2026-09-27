@@ -47,6 +47,12 @@ struct PatientDetailView: View {
     @State private var pendingInvitationAfterDisplayName = false
     @State private var invitationError: String?
     @State private var invitationShare: InvitationSharePayload?
+    @State private var isShowingSendMenu = false
+    @State private var pendingSendToPatient: SendToPatientKind?
+    @State private var isSendingToPatient = false
+    @State private var sendFeedbackTitle: String?
+    @State private var sendFeedbackMessage: String?
+    @State private var connectionState: PatientConnectionState = .checking
 
     /// A saved preparation goes stale once a session dated after its
     /// generation has already taken place — i.e. the session it prepared
@@ -84,42 +90,11 @@ struct PatientDetailView: View {
         )
     }
 
-    /// True until the questionnaire cache has been filled for this patient,
-    /// while the current-state chips show reserved placeholders.
-    private var isLoadingQuestionnaires: Bool {
-        store.cachedQuestionnaires(for: patient) == nil
-    }
-
-    /// The most recently answered questionnaire, from the store's cache.
-    private var lastQuestionnaire: CompletedQuestionnaire? {
-        store.cachedQuestionnaires(for: patient)?.max { $0.answeredDate < $1.answeredDate }
-    }
-
-    /// The questionnaire answered before the most recent one, for the
-    /// score chips' trend arrows.
-    private var previousQuestionnaire: CompletedQuestionnaire? {
-        guard let records = store.cachedQuestionnaires(for: patient),
-              let last = lastQuestionnaire else { return nil }
-        return records
-            .filter { $0.id != last.id && $0.answeredDate <= last.answeredDate }
-            .max { $0.answeredDate < $1.answeredDate }
-    }
-
-    /// The patient's most recent session by date.
-    private var lastSession: Session? {
-        patient.sessions.max { $0.date < $1.date }
-    }
-
     /// The patient's identity color — the exact color of their list avatar.
     /// Used only for patient-specific accents; gold remains the color of
     /// app actions and navigation, navy the primary surfaces.
     private var patientColor: Color {
         PatientAvatarColor.background(for: patient.id)
-    }
-
-    /// Black or white, matching the contrast rule of the avatar initials.
-    private var onPatientColor: Color {
-        PatientAvatarColor.foreground(for: patient.id)
     }
 
     /// This screen's group outlines, in the patient's identity color.
@@ -140,17 +115,16 @@ struct PatientDetailView: View {
     var body: some View {
         List {
             Section {
-                VStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(patient.displayName)
                             .font(.title2.bold())
                         Button {
                             startEditingName()
                         } label: {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.title3)
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(onPatientColor, patientColor)
+                            Image(systemName: "pencil")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel(L10n.editPatientNameAction)
@@ -159,82 +133,73 @@ struct PatientDetailView: View {
                         Text(treatmentGoal.wrappedValue.isEmpty
                              ? L10n.noTreatmentGoalPlaceholder
                              : treatmentGoal.wrappedValue)
-                            .font(.callout.weight(.semibold))
+                            .font(.subheadline)
                             .foregroundStyle(treatmentGoal.wrappedValue.isEmpty ? .secondary : .primary)
-                            .multilineTextAlignment(.center)
                         Button {
                             goalDraft = treatmentGoal.wrappedValue
                             isEditingGoal = true
                         } label: {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.title3)
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(onPatientColor, patientColor)
+                            Image(systemName: "pencil")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel(L10n.editTreatmentGoalAction)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    // The goal pill carries the patient's identity color —
-                    // same ghost strength the gold version used.
-                    .background(patientColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-                    StatusBadge(status: patient.status)
+                    HStack(spacing: 10) {
+                        StatusBadge(status: patient.status)
+                        Text(connectionStatusText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             Section {
-                HStack {
-                    Spacer()
-                    if let questionnaire = lastQuestionnaire?.questionnaire {
-                        VStack(spacing: 4) {
-                            ScoreCapsule.gad7(questionnaire, previous: previousQuestionnaire?.questionnaire)
-                            ScoreCapsule.phq9(questionnaire, previous: previousQuestionnaire?.questionnaire)
-                        }
-                        .transition(.opacity)
-                        Spacer()
-                    } else if isLoadingQuestionnaires {
-                        // Reserve the chips' space while the cache fills, so
-                        // the row doesn't jump when the scores arrive.
-                        VStack(spacing: 4) {
-                            ScoreCapsule(text: L10n.scoreBadge(name: L10n.gad7ShortName, score: 10),
-                                         color: Theme.textFaint)
-                            ScoreCapsule(text: L10n.scoreBadge(name: L10n.phq9ShortName, score: 10),
-                                         color: Theme.textFaint)
-                        }
-                        .redacted(reason: .placeholder)
-                        .opacity(0.4)
-                        .transition(.opacity)
-                        Spacer()
-                    }
-                    if let type = lastSession?.type {
-                        Text(L10n.label(for: type))
-                        Spacer()
-                    }
-                    Text(L10n.sessionsCount(patient.sessionsUpToTodayCount))
-                    Spacer()
-                }
-                .font(.subheadline.weight(.semibold))
-                .animation(.easeInOut(duration: 0.35), value: isLoadingQuestionnaires)
-                .animation(.easeInOut(duration: 0.35), value: lastQuestionnaire?.id)
-            }
-            .listRowBackground(groupBorderedRow(.only))
-
-            Section {
-                Picker(selection: $patient.status) {
-                    ForEach(PatientStatus.allCases) { Text(L10n.patientStatus($0)).tag($0) }
+                Button {
+                    sessionsInitialAction = .addSession
+                    isShowingSessions = true
                 } label: {
-                    iconChip("person.crop.circle.badge.checkmark", title: L10n.statusLabel)
-                }
-                .disabled(isSaving)
-                .onChange(of: patient.status) { previous, current in
-                    guard previous != current else { return }
-                    persistStatus(revertingTo: previous)
+                    iconChip("calendar.badge.plus", title: L10n.newSessionTitle)
                 }
                 .listRowBackground(groupBorderedRow(.first))
 
+                Button {
+                    resignCurrentKeyboard()
+                    isShowingSendMenu = true
+                } label: {
+                    HStack {
+                        iconChip("paperplane", title: L10n.sendToPatientAction)
+                        if isSendingToPatient {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isSendingToPatient || isSaving)
+                .listRowBackground(groupBorderedRow(.last))
+            }
+
+            Section(L10n.progressAndTrackingSection) {
+                NavigationLink {
+                    PatientQuestionnairesView(patient: patient, startsOnGraphs: true)
+                } label: {
+                    iconChip("chart.xyaxis.line", title: L10n.graphsAndTrendsTitle)
+                }
+                .listRowBackground(groupBorderedRow(.first))
+
+                NavigationLink {
+                    PatientQuestionnairesView(patient: patient)
+                } label: {
+                    iconChip("list.clipboard", title: L10n.questionnairesHistoryAction)
+                }
+                .listRowBackground(groupBorderedRow(.last))
+            }
+
+            Section(L10n.treatmentCourseSection) {
                 NavigationLink {
                     PatientSessionsView(patient: patient)
                 } label: {
@@ -244,42 +209,23 @@ struct PatientDetailView: View {
                                 && patient.id == gettingStartedRouter.progress.focusPatientID
                         )
                 }
-                .listRowBackground(groupBorderedRow(.middle))
-
-                NavigationLink {
-                    PatientQuestionnairesView(patient: patient)
-                } label: {
-                    iconChip("chart.xyaxis.line", title: L10n.viewQuestionnairesAction)
-                }
-                .listRowBackground(groupBorderedRow(.middle))
+                .listRowBackground(groupBorderedRow(.first))
 
                 NavigationLink {
                     PatientDiaryOneView(patient: patient)
                 } label: {
-                    iconChip("book.closed", title: L10n.diaryOneTitle)
+                    iconChip("book.closed", title: L10n.diariesTitle)
                 }
-                .listRowBackground(groupBorderedRow(.middle))
+                .listRowBackground(groupBorderedRow(.last))
+            }
 
+            Section(L10n.clinicalToolsSection) {
                 NavigationLink {
                     PatientAIView(patient: patient)
                 } label: {
                     iconChip("sparkles", title: L10n.aiAction)
                 }
-                .listRowBackground(groupBorderedRow(.middle))
-
-                Button {
-                    startPatientInvitation()
-                } label: {
-                    HStack {
-                        iconChip("square.and.arrow.up", title: L10n.invitePatientAction)
-                        if isCreatingInvitation {
-                            Spacer()
-                            ProgressView()
-                        }
-                    }
-                }
-                .disabled(isCreatingInvitation || isSaving)
-                .listRowBackground(groupBorderedRow(.middle))
+                .listRowBackground(groupBorderedRow(.first))
 
                 Button {
                     requestPrepareNextSession()
@@ -322,6 +268,20 @@ struct PatientDetailView: View {
                     }
                     .listRowBackground(groupBorderedRow(.last))
                 }
+            }
+
+            Section {
+                Picker(selection: $patient.status) {
+                    ForEach(PatientStatus.allCases) { Text(L10n.patientStatus($0)).tag($0) }
+                } label: {
+                    iconChip("person.crop.circle.badge.checkmark", title: L10n.statusLabel)
+                }
+                .disabled(isSaving)
+                .onChange(of: patient.status) { previous, current in
+                    guard previous != current else { return }
+                    persistStatus(revertingTo: previous)
+                }
+                .listRowBackground(groupBorderedRow(.only))
             }
 
             Section(L10n.notesSection) {
@@ -394,6 +354,8 @@ struct PatientDetailView: View {
         }
         .patientAtmosphere(patientColor)
         .themedScreen()
+        .scrollDismissesKeyboard(.interactively)
+        .dismissesKeyboardOnTap()
         .demoModeChrome()
         .navigationTitle(patient.displayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -417,6 +379,11 @@ struct PatientDetailView: View {
                     .fontWeight(.semibold)
                     .disabled(isSaving || !hasUnsavedChanges)
                 Menu {
+                    Button {
+                        startPatientInvitation()
+                    } label: {
+                        Label(L10n.invitePatientAction, systemImage: "square.and.arrow.up")
+                    }
                     Button(L10n.deletePatientAction, role: .destructive) {
                         isShowingDeleteConfirmation = true
                     }
@@ -424,7 +391,7 @@ struct PatientDetailView: View {
                     Image(systemName: "ellipsis")
                         .rotationEffect(.degrees(90))
                 }
-                .disabled(isSaving)
+                .disabled(isSaving || isCreatingInvitation)
             }
         }
         .alert(L10n.deletePatientConfirmTitle,
@@ -516,7 +483,7 @@ struct PatientDetailView: View {
             .presentationDetents([.medium])
             .appTextSize()
         }
-        .busyOverlay(isSaving || isCreatingInvitation, label: busyLabel)
+        .busyOverlay(isSaving || isCreatingInvitation || isSendingToPatient, label: busyLabel)
         .alert(L10n.patientInvitationFailedTitle,
                isPresented: .init(
                 get: { invitationError != nil },
@@ -588,8 +555,38 @@ struct PatientDetailView: View {
         .onChange(of: patient.sessions.count) { _, _ in
             gettingStartedRouter.refresh(using: store)
         }
+        .confirmationDialog(L10n.sendToPatientAction, isPresented: $isShowingSendMenu, titleVisibility: .visible) {
+            Button(L10n.questionnaireSectionTitle) {
+                pendingSendToPatient = .questionnaire
+            }
+            Button(L10n.diaryOneTitle) {
+                pendingSendToPatient = .diaryOne
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        }
+        .onChange(of: isShowingSendMenu) { _, showing in
+            guard !showing, let pending = pendingSendToPatient else { return }
+            pendingSendToPatient = nil
+            switch pending {
+            case .questionnaire: sendStandaloneQuestionnaire()
+            case .diaryOne: sendDiaryOne()
+            }
+        }
+        .alert(
+            sendFeedbackTitle ?? "",
+            isPresented: .init(
+                get: { sendFeedbackTitle != nil },
+                set: { if !$0 { sendFeedbackTitle = nil; sendFeedbackMessage = nil } }
+            )
+        ) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let sendFeedbackMessage {
+                Text(sendFeedbackMessage)
+            }
+        }
         .task {
-            // The last-questionnaire row needs the questionnaire cache filled.
+            await refreshConnectionState()
             if store.cachedQuestionnaires(for: patient) == nil {
                 _ = try? await store.loadQuestionnaires(for: patient)
             }
@@ -601,6 +598,129 @@ struct PatientDetailView: View {
         guard let action = gettingStartedRouter.consumeSessionsAction() else { return }
         sessionsInitialAction = action
         isShowingSessions = true
+    }
+
+    private var connectionStatusText: String {
+        switch connectionState {
+        case .checking: L10n.patientConnectionChecking
+        case .connected: L10n.patientConnectedStatus
+        case .notConnected, .unavailable: L10n.patientNotConnectedStatus
+        case .failed: L10n.patientConnectionCheckError
+        }
+    }
+
+    private func assignmentService() -> PatientAssignmentService {
+        PatientAssignmentService(client: auth.client)
+    }
+
+    private func refreshConnectionState() async {
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            connectionState = .unavailable
+            return
+        }
+        guard let patientId = patient.id.uuidValue else {
+            connectionState = .unavailable
+            return
+        }
+        connectionState = .checking
+        do {
+            connectionState = try await assignmentService().isPatientConnected(patientId: patientId)
+                ? .connected
+                : .notConnected
+        } catch {
+            connectionState = .failed
+        }
+    }
+
+    private func sendStandaloneQuestionnaire() {
+        guard !isSendingToPatient else { return }
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            presentSendFeedback(
+                title: L10n.patientNotConnectedTitle,
+                message: L10n.patientNotConnectedBody
+            )
+            return
+        }
+        guard let patientId = patient.id.uuidValue else {
+            presentSendFeedback(
+                title: L10n.patientInvitationFailedTitle,
+                message: L10n.patientInvitationInvalidPatientError
+            )
+            return
+        }
+        isSendingToPatient = true
+        Task {
+            defer { isSendingToPatient = false }
+            try? await Task.sleep(for: .milliseconds(250))
+            do {
+                _ = try await assignmentService().sendQuestionnaireAssignment(
+                    patientId: patientId,
+                    sessionId: nil
+                )
+                presentSendFeedback(
+                    title: L10n.sendQuestionnaireToPatientAction,
+                    message: L10n.questionnaireSentToPatient
+                )
+            } catch PatientAssignmentError.patientNotConnected {
+                presentSendFeedback(
+                    title: L10n.patientNotConnectedTitle,
+                    message: L10n.patientNotConnectedBody
+                )
+            } catch {
+                presentSendFeedback(
+                    title: L10n.sendQuestionnaireToPatientAction,
+                    message: L10n.questionnaireAssignmentSendError
+                )
+            }
+        }
+    }
+
+    private func sendDiaryOne() {
+        guard !isSendingToPatient else { return }
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            presentSendFeedback(
+                title: L10n.patientNotConnectedTitle,
+                message: L10n.patientNotConnectedBody
+            )
+            return
+        }
+        guard let patientId = patient.id.uuidValue else {
+            presentSendFeedback(
+                title: L10n.diaryPatientModeTitle,
+                message: L10n.patientInvitationInvalidPatientError
+            )
+            return
+        }
+        isSendingToPatient = true
+        Task {
+            defer { isSendingToPatient = false }
+            try? await Task.sleep(for: .milliseconds(250))
+            do {
+                _ = try await assignmentService().activateOngoingAssignment(
+                    patientId: patientId,
+                    type: .diaryOne
+                )
+                presentSendFeedback(
+                    title: L10n.diaryOneTitle,
+                    message: L10n.diaryOneSentToPatient
+                )
+            } catch PatientAssignmentError.patientNotConnected {
+                presentSendFeedback(
+                    title: L10n.patientNotConnectedTitle,
+                    message: L10n.patientNotConnectedBody
+                )
+            } catch {
+                presentSendFeedback(
+                    title: L10n.diaryPatientModeTitle,
+                    message: L10n.diaryPatientModeActivateFailed
+                )
+            }
+        }
+    }
+
+    private func presentSendFeedback(title: String, message: String) {
+        sendFeedbackTitle = title
+        sendFeedbackMessage = message
     }
 
     /// Gates preparation behind useful clinical input and a one-time tip.
@@ -924,6 +1044,19 @@ struct PatientDetailView: View {
                 .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
         }
     }
+}
+
+private enum SendToPatientKind {
+    case questionnaire
+    case diaryOne
+}
+
+private enum PatientConnectionState {
+    case checking
+    case connected
+    case notConnected
+    case unavailable
+    case failed
 }
 
 #Preview {

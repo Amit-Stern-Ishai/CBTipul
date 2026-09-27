@@ -254,21 +254,319 @@ struct CombinedMoodQuestionnaireView: View {
     }
 }
 
+/// Therapist entry/edit of a patient-level questionnaire, with clinical date
+/// and optional session association. Reuses `QuestionnaireSections`.
+struct PatientQuestionnaireEditorView: View {
+    let patient: Patient
+    var existing: CompletedQuestionnaire? = nil
+
+    @Environment(PatientStore.self) private var store
+    @Environment(OnboardingStore.self) private var onboarding
+    @Environment(GettingStartedRouter.self) private var gettingStartedRouter
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var questionnaire: CombinedMoodQuestionnaire
+    @State private var answeredDate: Date
+    @State private var sessionChoice: SessionChoice
+    @State private var isSaving = false
+    @State private var busyLabel: String?
+    @State private var errorMessage: String?
+    @State private var isEditing: Bool
+    @State private var isShowingDeleteConfirmation = false
+    @State private var isShowingDeleteCodeChallenge = false
+    @State private var isShowingBackWarning = false
+    @State private var isShowingIncompleteAlert = false
+    @State private var isShowingFirstQuestionnaireTip = false
+    @State private var initialQuestionnaire: CombinedMoodQuestionnaire?
+    @State private var initialAnsweredDate: Date?
+    @State private var initialSessionChoice: SessionChoice?
+
+    private enum SessionChoice: Hashable {
+        case none
+        case session(DatabaseID)
+    }
+
+    private var isExisting: Bool { existing != nil }
+
+    private var patientColor: Color {
+        PatientAvatarColor.background(for: patient.id)
+    }
+
+    init(patient: Patient, existing: CompletedQuestionnaire? = nil) {
+        self.patient = patient
+        self.existing = existing
+        _questionnaire = State(initialValue: existing?.questionnaire ?? CombinedMoodQuestionnaire())
+        _answeredDate = State(initialValue: existing?.answeredDate ?? .now)
+        if let sessionID = existing?.sessionID {
+            _sessionChoice = State(initialValue: .session(sessionID))
+        } else {
+            _sessionChoice = State(initialValue: .none)
+        }
+        _isEditing = State(initialValue: existing == nil)
+    }
+
+    private var canSave: Bool {
+        questionnaire.isComplete && isEditing && !isSaving
+    }
+
+    private var hasUnsavedChanges: Bool {
+        guard let initialQuestionnaire,
+              let initialAnsweredDate,
+              let initialSessionChoice else { return false }
+        return questionnaire != initialQuestionnaire
+            || !Calendar.current.isDate(answeredDate, inSameDayAs: initialAnsweredDate)
+            || sessionChoice != initialSessionChoice
+    }
+
+    private var selectedSessionID: DatabaseID? {
+        if case .session(let id) = sessionChoice { return id }
+        return nil
+    }
+
+    private var previousQuestionnaire: CompletedQuestionnaire? {
+        guard let cached = store.cachedQuestionnaires(for: patient) else { return nil }
+        return cached
+            .filter { $0.databaseID != existing?.databaseID }
+            .filter { $0.answeredDate <= answeredDate }
+            .max { $0.answeredDate < $1.answeredDate }
+    }
+
+    private var selectableSessions: [Session] {
+        let occupied = Set(
+            (store.cachedQuestionnaires(for: patient) ?? [])
+                .compactMap(\.sessionID)
+                .filter { $0 != existing?.sessionID }
+        )
+        return patient.sessions
+            .filter { session in
+                guard let id = session.databaseID else { return false }
+                return !occupied.contains(id)
+            }
+            .sorted { $0.date > $1.date }
+    }
+
+    private func sessionNumber(for session: Session) -> Int {
+        let chronological = patient.sessions.sorted { $0.date < $1.date }
+        return (chronological.firstIndex { $0.id == session.id } ?? 0) + 1
+    }
+
+    var body: some View {
+        Form {
+            if isEditing {
+                Section {
+                    DatePicker(
+                        L10n.questionnaireAnsweredDateLabel,
+                        selection: $answeredDate,
+                        in: ...Date.now,
+                        displayedComponents: .date
+                    )
+                    .listRowBackground(groupBorderedRow(.first, accent: patientColor))
+
+                    Picker(L10n.questionnaireSessionAssociationLabel, selection: $sessionChoice) {
+                        Text(L10n.questionnaireNoSessionAssociation).tag(SessionChoice.none)
+                        ForEach(selectableSessions) { session in
+                            if let id = session.databaseID {
+                                Text("\(L10n.session(sessionNumber(for: session))) · \(L10n.hebrewDate(session.date))")
+                                    .tag(SessionChoice.session(id))
+                            }
+                        }
+                    }
+                    .listRowBackground(groupBorderedRow(.last, accent: patientColor))
+                }
+            }
+
+            QuestionnaireSections(
+                questionnaire: $questionnaire,
+                isEditable: isEditing,
+                previous: previousQuestionnaire,
+                accent: patientColor
+            )
+
+            if let errorMessage {
+                Section {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.error)
+                }
+                .listRowBackground(groupBorderedRow(.only, accent: patientColor))
+            }
+        }
+        .patientAtmosphere(patientColor)
+        .themedScreen()
+        .demoModeChrome()
+        .navigationTitleWithSubtitle(patient.displayName, subtitle: L10n.hebrewDate(answeredDate))
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    if hasUnsavedChanges {
+                        isShowingBackWarning = true
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    Label(L10n.back, systemImage: "chevron.backward")
+                        .labelStyle(.titleAndIcon)
+                }
+                .disabled(isSaving)
+            }
+            if isEditing {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.save) {
+                        if questionnaire.isComplete {
+                            save()
+                        } else {
+                            isShowingIncompleteAlert = true
+                        }
+                    }
+                    .disabled(isSaving)
+                }
+            }
+            if !isEditing || isExisting {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if !isEditing {
+                            Button(L10n.editQuestionnaireAction) { isEditing = true }
+                        }
+                        if isExisting {
+                            Divider()
+                            Button(L10n.deleteQuestionnaireAction, role: .destructive) {
+                                isShowingDeleteConfirmation = true
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .rotationEffect(.degrees(90))
+                    }
+                    .disabled(isSaving)
+                }
+            }
+        }
+        .alert(L10n.deleteQuestionnaireConfirmTitle,
+               isPresented: $isShowingDeleteConfirmation) {
+            Button(L10n.deleteQuestionnaireAction, role: .destructive) {
+                isShowingDeleteCodeChallenge = true
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.deleteQuestionnaireConfirmMessage)
+        }
+        .deleteCodeChallenge(isPresented: $isShowingDeleteCodeChallenge) { deleteQuestionnaire() }
+        .alert(L10n.discardChangesTitle,
+               isPresented: $isShowingBackWarning) {
+            if canSave {
+                Button(L10n.saveChangesAction) { save() }
+            }
+            Button(L10n.discardChangesAction, role: .destructive) { dismiss() }
+            Button(L10n.keepEditingAction, role: .cancel) {}
+        }
+        .alert(L10n.questionnaireIncompleteTitle,
+               isPresented: $isShowingIncompleteAlert) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            Text(L10n.questionnaireIncompleteMessage)
+        }
+        .busyOverlay(isSaving, label: busyLabel)
+        .animation(.easeInOut(duration: 0.2), value: errorMessage)
+        .sheet(isPresented: $isShowingFirstQuestionnaireTip) {
+            ContextualTipSheet(message: L10n.firstQuestionnaireTipBody) {
+                onboarding.markFirstQuestionnaireTipSeen()
+                isShowingFirstQuestionnaireTip = false
+            }
+            .presentationDetents([.medium])
+            .appTextSize()
+        }
+        .task {
+            if initialQuestionnaire == nil {
+                initialQuestionnaire = questionnaire
+                initialAnsweredDate = answeredDate
+                initialSessionChoice = sessionChoice
+            }
+            if store.cachedQuestionnaires(for: patient) == nil {
+                _ = try? await store.loadQuestionnaires(for: patient)
+            }
+            if !isExisting, !onboarding.hasSeenFirstQuestionnaireTip {
+                isShowingFirstQuestionnaireTip = true
+            }
+        }
+    }
+
+    private func save() {
+        errorMessage = nil
+        let hasNoteText = (questionnaire.gad7Notes + questionnaire.phq9Notes + [questionnaire.interferenceNote])
+            .contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        busyLabel = hasNoteText ? L10n.anonymizingStatusLabel : nil
+        isSaving = true
+        Task {
+            do {
+                try await store.saveQuestionnaire(
+                    questionnaire,
+                    for: patient,
+                    answeredDate: answeredDate,
+                    sessionID: selectedSessionID,
+                    existingID: existing?.databaseID
+                )
+                gettingStartedRouter.refresh(using: store)
+                dismiss()
+            } catch {
+                errorMessage = error.userFacingMessage
+                isSaving = false
+            }
+        }
+    }
+
+    private func deleteQuestionnaire() {
+        guard let existing else { return }
+        errorMessage = nil
+        busyLabel = nil
+        isSaving = true
+        Task {
+            do {
+                try await store.deleteQuestionnaire(existing, for: patient)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+                isSaving = false
+            }
+        }
+    }
+}
+
 /// Read-only view of a saved questionnaire, opened from the questionnaire
 /// history list. Uses the same layout as the editing screen (including the
 /// per-question notes) but without note icons, and taps change nothing.
 struct CompletedQuestionnaireView: View {
     let record: CompletedQuestionnaire
+    var patient: Patient? = nil
     var patientName: String? = nil
     /// The questionnaire preceding this one, for the previous-answer marks.
     var previous: CompletedQuestionnaire? = nil
     /// The patient's identity color for the group outlines, when known.
     var accent: Color? = nil
 
+    @Environment(PatientStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @State private var isEditingRecord = false
+
+    private var displayed: CompletedQuestionnaire {
+        guard let patient else { return record }
+        return store.cachedQuestionnaires(for: patient)?
+            .first { $0.databaseID == record.databaseID } ?? record
+    }
+
+    private var titleName: String {
+        patient?.displayName ?? patientName ?? ""
+    }
+
+    private var cacheContainsRecord: Bool? {
+        guard let patient else { return nil }
+        return store.cachedQuestionnaires(for: patient)?.contains { $0.databaseID == record.databaseID }
+    }
+
     var body: some View {
         Form {
             QuestionnaireSections(
-                questionnaire: .constant(record.questionnaire),
+                questionnaire: .constant(displayed.questionnaire),
                 isEditable: false,
                 previous: previous,
                 accent: accent
@@ -276,7 +574,26 @@ struct CompletedQuestionnaireView: View {
         }
         .patientAtmosphere(accent)
         .themedScreen()
-        .navigationTitleWithSubtitle(patientName ?? "", subtitle: L10n.hebrewDate(record.answeredDate))
+        .navigationTitleWithSubtitle(titleName, subtitle: L10n.hebrewDate(displayed.answeredDate))
+        .toolbar {
+            if let patient {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L10n.editQuestionnaireAction) {
+                        isEditingRecord = true
+                    }
+                }
+            }
+        }
+        .navigationDestination(isPresented: $isEditingRecord) {
+            if let patient {
+                PatientQuestionnaireEditorView(patient: patient, existing: displayed)
+            }
+        }
+        .onChange(of: cacheContainsRecord) { _, stillThere in
+            if stillThere == false {
+                dismiss()
+            }
+        }
     }
 }
 
@@ -680,4 +997,5 @@ struct AnswerScaleView: View {
             questionnaire: questionnaire
         ), patientName: "Alex Rivera")
     }
+    .environment(PatientStore(client: AuthManager().client))
 }

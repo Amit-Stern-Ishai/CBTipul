@@ -41,7 +41,24 @@ private struct SubmitPatientQuestionnaireRequest: Encodable {
 
 private struct RequestPatientQuestionnaireRequest: Encodable {
     let patientId: UUID
-    let sessionId: UUID
+    let sessionId: UUID?
+
+    enum CodingKeys: String, CodingKey {
+        case patientId
+        case sessionId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(patientId, forKey: .patientId)
+        // Standalone requests must send JSON null, not omit the key. The Edge
+        // Function forwards this as RPC `p_session_id`.
+        if let sessionId {
+            try container.encode(sessionId, forKey: .sessionId)
+        } else {
+            try container.encodeNil(forKey: .sessionId)
+        }
+    }
 }
 
 private struct RequestPatientQuestionnaireResponse: Decodable {
@@ -213,21 +230,23 @@ final class PatientAssignmentService {
     }
 
     /// Creates a one-time questionnaire assignment via `request-patient-questionnaire`.
-    /// Duplicate/open handling and connection checks are performed by the Edge Function.
+    /// Pass `sessionId` to keep the assignment tied to a session, or `nil` for a
+    /// patient-level request. Duplicate/open handling and connection checks are
+    /// performed by the Edge Function.
     func sendQuestionnaireAssignment(
         patientId: UUID,
-        sessionId: UUID
+        sessionId: UUID? = nil
     ) async throws -> PatientAssignment {
         try ensureConfigured()
+        let request = RequestPatientQuestionnaireRequest(
+            patientId: patientId,
+            sessionId: sessionId
+        )
+        Self.logQuestionnaireRequest(request)
         do {
             let response: RequestPatientQuestionnaireResponse = try await client.functions.invoke(
                 "request-patient-questionnaire",
-                options: FunctionInvokeOptions(
-                    body: RequestPatientQuestionnaireRequest(
-                        patientId: patientId,
-                        sessionId: sessionId
-                    )
-                )
+                options: FunctionInvokeOptions(body: request)
             )
             guard let createdAt = Self.parseEdgeTimestamp(response.createdAt) else {
                 throw PatientAssignmentError.invalidIdentifier
@@ -264,10 +283,11 @@ final class PatientAssignmentService {
         } catch let error as PatientAssignmentError {
             throw error
         } catch let FunctionsError.httpError(code, data) {
+            Self.logQuestionnaireFailure(statusCode: code, data: data)
             throw Self.requestQuestionnaireError(from: data, statusCode: code)
         } catch {
             AppLog.store.error(
-                "Questionnaire assignment create failed: \(error.localizedDescription, privacy: .public)"
+                "request-patient-questionnaire failed type=\(String(describing: type(of: error)), privacy: .public) \(error.localizedDescription, privacy: .public) \(String(describing: error), privacy: .public)"
             )
             throw PatientAssignmentError.invalidIdentifier
         }
@@ -465,8 +485,8 @@ final class PatientAssignmentService {
     }
 
     private static func requestQuestionnaireError(from data: Data, statusCode: Int) -> PatientAssignmentError {
-        let code = edgeErrorCode(from: data)
-        switch code {
+        let parsed = edgeErrorFields(from: data)
+        switch parsed.code {
         case "patient_not_connected":
             return .patientNotConnected
         case "unauthorized":
@@ -475,7 +495,9 @@ final class PatientAssignmentService {
             if statusCode == 401 || statusCode == 403 {
                 return .notSignedIn
             }
-            AppLog.store.error("Questionnaire assignment create failed")
+            AppLog.store.error(
+                "request-patient-questionnaire mapped to invalidIdentifier code=\(parsed.code, privacy: .public) message=\(parsed.message, privacy: .public) details=\(parsed.details, privacy: .public) hint=\(parsed.hint, privacy: .public)"
+            )
             return .invalidIdentifier
         }
     }
@@ -499,17 +521,62 @@ final class PatientAssignmentService {
     }
 
     private static func edgeErrorCode(from data: Data) -> String {
+        edgeErrorFields(from: data).code
+    }
+
+    private struct EdgeErrorFields {
+        var code: String = ""
+        var message: String = ""
+        var details: String = ""
+        var hint: String = ""
+    }
+
+    private static func edgeErrorFields(from data: Data) -> EdgeErrorFields {
+        var fields = EdgeErrorFields()
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return ""
+            return fields
         }
-        if let error = json["error"] as? String { return error }
-        if let code = json["code"] as? String { return code }
-        if let nested = json["error"] as? [String: Any],
-           let code = nested["code"] as? String {
-            return code
+        fields.message = stringValue(json["message"])
+        fields.details = stringValue(json["details"])
+        fields.hint = stringValue(json["hint"])
+        if let error = json["error"] as? String {
+            fields.code = error
+        } else if let code = json["code"] as? String {
+            fields.code = code
+        } else if let nested = json["error"] as? [String: Any] {
+            if fields.code.isEmpty { fields.code = stringValue(nested["code"]) }
+            if fields.message.isEmpty { fields.message = stringValue(nested["message"]) }
+            if fields.details.isEmpty { fields.details = stringValue(nested["details"]) }
+            if fields.hint.isEmpty { fields.hint = stringValue(nested["hint"]) }
+        } else if let status = json["status"] as? String {
+            fields.code = status
         }
-        if let status = json["status"] as? String { return status }
-        return ""
+        return fields
+    }
+
+    private static func stringValue(_ value: Any?) -> String {
+        switch value {
+        case let text as String: text
+        case let number as NSNumber: number.stringValue
+        default: ""
+        }
+    }
+
+    private static func logQuestionnaireRequest(_ request: RequestPatientQuestionnaireRequest) {
+        let encoder = JSONEncoder()
+        let json = (try? encoder.encode(request)).flatMap { String(data: $0, encoding: .utf8) } ?? "<encode-failed>"
+        let session: String = request.sessionId?.uuidString ?? "null"
+        AppLog.store.error(
+            "request-patient-questionnaire sending function=request-patient-questionnaire patientId=\(request.patientId.uuidString, privacy: .public) sessionId=\(session, privacy: .public) json=\(json, privacy: .public)"
+        )
+    }
+
+    private static func logQuestionnaireFailure(statusCode: Int, data: Data) {
+        let body = String(data: data, encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
+        let parsed = edgeErrorFields(from: data)
+        AppLog.store.error(
+            "request-patient-questionnaire HTTP \(statusCode) code=\(parsed.code, privacy: .public) message=\(parsed.message, privacy: .public) details=\(parsed.details, privacy: .public) hint=\(parsed.hint, privacy: .public) body=\(body, privacy: .public)"
+        )
     }
 
     private func requireTherapistId() async throws -> UUID {

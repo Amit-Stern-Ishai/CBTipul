@@ -21,16 +21,25 @@ struct PatientQuestionnairesView: View {
     /// expensive first layout doesn't happen mid-transition and jitter.
     @State private var isPreparingGraphs = true
 
+    /// When true, this screen opens on graphs and hides the list/graph picker.
+    private let startsOnGraphs: Bool
+
     /// `previewQuestionnaires` seeds the list so previews have data to show;
     /// the app always starts empty and loads from the cache/server.
-    init(patient: Patient, previewQuestionnaires: [CompletedQuestionnaire] = []) {
+    init(
+        patient: Patient,
+        previewQuestionnaires: [CompletedQuestionnaire] = [],
+        startsOnGraphs: Bool = false
+    ) {
         self.patient = patient
+        self.startsOnGraphs = startsOnGraphs
         _questionnaires = State(initialValue: previewQuestionnaires)
+        _mode = State(initialValue: startsOnGraphs ? .graphs : .list)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            if !questionnaires.isEmpty {
+            if !questionnaires.isEmpty, !startsOnGraphs {
                 Picker(L10n.modePickerTitle, selection: $mode) {
                     Text(L10n.listModeTitle).tag(Mode.list)
                     Text(L10n.graphsModeTitle).tag(Mode.graphs)
@@ -45,10 +54,34 @@ struct PatientQuestionnairesView: View {
                 .animation(.easeInOut(duration: 0.25), value: mode)
                 .animation(.easeInOut(duration: 0.25), value: isPreparingGraphs)
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !startsOnGraphs {
+                addQuestionnaireCTA
+            }
+        }
         .patientAtmosphere(patientColor)
         .background(Theme.base.ignoresSafeArea())
         .demoModeChrome()
-        .navigationTitleWithSubtitle(L10n.questionnairesTitle, subtitle: patient.displayName)
+        .navigationTitleWithSubtitle(
+            startsOnGraphs ? L10n.graphsAndTrendsTitle : L10n.questionnairesTitle,
+            subtitle: patient.displayName
+        )
+        .toolbar {
+            if !startsOnGraphs {
+                ToolbarItem(placement: .primaryAction) {
+                    NavigationLink {
+                        PatientQuestionnaireEditorView(patient: patient)
+                    } label: {
+                        Label(L10n.emptyQuestionnairesPrimaryAction, systemImage: "plus")
+                    }
+                }
+            }
+        }
+        .onAppear {
+            if let cached = store.cachedQuestionnaires(for: patient) {
+                questionnaires = cached
+            }
+        }
         .task(id: mode) {
             guard mode == .graphs else { return }
             isPreparingGraphs = true
@@ -109,12 +142,27 @@ struct PatientQuestionnairesView: View {
         PatientAvatarColor.background(for: patient.id)
     }
 
+    private var addQuestionnaireCTA: some View {
+        NavigationLink {
+            PatientQuestionnaireEditorView(patient: patient)
+        } label: {
+            Text(L10n.emptyQuestionnairesPrimaryAction)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(Theme.base)
+    }
+
     private var questionnaireList: some View {
         List(questionnaires) { record in
             NavigationLink {
                 CompletedQuestionnaireView(
                     record: record,
-                    patientName: patient.displayName,
+                    patient: patient,
                     previous: previousQuestionnaire(before: record),
                     accent: patientColor
                 )

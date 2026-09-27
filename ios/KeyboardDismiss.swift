@@ -3,6 +3,15 @@ import SwiftUI
 #if canImport(UIKit)
 import UIKit
 
+func resignCurrentKeyboard() {
+    UIApplication.shared.sendAction(
+        #selector(UIResponder.resignFirstResponder),
+        to: nil,
+        from: nil,
+        for: nil
+    )
+}
+
 extension View {
     /// Closes the keyboard when tapping anywhere outside a text input.
     ///
@@ -118,6 +127,8 @@ private final class KeyboardDismissGesture: NSObject, UIGestureRecognizerDelegat
 }
 
 #else
+
+func resignCurrentKeyboard() {}
 
 extension View {
     func dismissesKeyboardOnTap() -> some View { self }

@@ -245,7 +245,7 @@ struct PatientSessionsView: View {
 
 /// A session row's questionnaire plus the previous filled one, for the
 /// score chips and their trend arrows.
-private struct ScorePreview {
+struct ScorePreview {
     let questionnaire: CombinedMoodQuestionnaire
     let previous: CombinedMoodQuestionnaire?
 }
