@@ -13,14 +13,17 @@ struct TherapistRootView: View {
     @Environment(PatientStore.self) private var store
     @Environment(OnboardingStore.self) private var onboarding
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
+    @Environment(NotificationStore.self) private var notificationStore
+    @Environment(TherapistNotificationCoordinator.self) private var coordinator
+    @Environment(\.scenePhase) private var scenePhase
 
-    @State private var selectedTab: TherapistRootTab = .patients
     @State private var isShowingWelcome = false
 
     var body: some View {
+        @Bindable var coordinator = coordinator
         // GettingStartedRouter is installed on ContentView, an ancestor of
         // this TabView. Applying it on TabView / tabItem is dropped by SwiftUI.
-        TabView(selection: $selectedTab) {
+        TabView(selection: $coordinator.selectedTab) {
             PatientListView()
                 .tabItem {
                     Label(L10n.therapistTabPatients, systemImage: "person.2.fill")
@@ -40,6 +43,7 @@ struct TherapistRootView: View {
                     Label(L10n.therapistTabNotifications, systemImage: "bell.fill")
                 }
                 .tag(TherapistRootTab.notifications)
+                .badge(notificationStore.unreadCount)
                 .accessibilityIdentifier("therapist.tab.notifications")
 
             LibraryPlaceholderView()
@@ -67,13 +71,19 @@ struct TherapistRootView: View {
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) {
-                selectedTab = .patients
+                coordinator.selectedTab = .patients
                 isShowingWelcome = true
             }
         }
         .onChange(of: store.isDemoMode) { _, isDemo in
-            guard isDemo else { return }
-            selectedTab = .patients
+            guard isDemo else {
+                notificationStore.isDemoInbox = false
+                Task { await notificationStore.refresh() }
+                return
+            }
+            notificationStore.isDemoInbox = true
+            notificationStore.clear()
+            coordinator.selectedTab = .patients
             gettingStartedRouter.setPlacement(.patientList)
             gettingStartedRouter.refresh(using: store)
         }
@@ -90,6 +100,34 @@ struct TherapistRootView: View {
             .appTextSize()
         }
         .showcaseIntroHost()
+        .task {
+            coordinator.markTherapistRootReady()
+            store.loadCachedPatients()
+            if store.isDemoMode {
+                notificationStore.isDemoInbox = true
+                notificationStore.clear()
+            } else {
+                notificationStore.isDemoInbox = false
+                await notificationStore.refresh()
+            }
+            coordinator.processPending(patients: store.patients)
+        }
+        .onDisappear {
+            coordinator.markTherapistRootNotReady()
+        }
+        .onChange(of: coordinator.pendingRevision) { _, _ in
+            coordinator.processPending(patients: store.patients)
+        }
+        .onChange(of: store.patients.map(\.id.queryValue).joined(separator: ",")) { _, _ in
+            coordinator.processPending(patients: store.patients)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, !store.isDemoMode else { return }
+            Task {
+                await notificationStore.refresh()
+                coordinator.processPending(patients: store.patients)
+            }
+        }
     }
 
     private func startDemoTour() {
@@ -100,7 +138,7 @@ struct TherapistRootView: View {
             onboarding.dismissWelcome()
             onboarding.showChecklistAgain()
             store.enterDemoMode()
-            selectedTab = .patients
+            coordinator.selectedTab = .patients
             gettingStartedRouter.setPlacement(.patientList)
             gettingStartedRouter.refresh(using: store)
             gettingStartedRouter.resetShowcaseReveal()

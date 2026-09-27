@@ -247,6 +247,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         let original = notification.request.content
+        defer {
+            Task { await NotificationStore.shared?.refresh() }
+        }
         guard let personalized = original.mutableCopy() as? UNMutableNotificationContent else {
             return [.banner, .list, .sound, .badge]
         }
@@ -265,5 +268,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return [.banner, .list, .sound, .badge]
         }
         return []
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let userInfo = response.notification.request.content.userInfo
+        if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            await MainActor.run {
+                TherapistNotificationCoordinator.shared.handlePushTap(userInfo: userInfo)
+            }
+        }
+        await NotificationStore.shared?.refresh()
     }
 }

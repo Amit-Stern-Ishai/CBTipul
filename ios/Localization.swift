@@ -70,6 +70,27 @@ enum L10n {
     static let notificationsPlaceholderTitle = "התראות"
     static let notificationsPlaceholderBody =
         "אין התראות כרגע."
+    static let notificationsEmptyTitle = "אין התראות"
+    static let notificationQuestionnaireCompleted = "השאלון הושלם"
+    static let notificationGenericTitle = "התראה"
+    static let notificationGenericPatient = "מטופל/ת"
+    static let notificationTargetUnavailable = "הפריט כבר אינו זמין"
+    static let notificationUnreadAccessibility = "לא נקראה"
+    static let notificationsLoadFailedTitle = "טעינת התראות נכשלה"
+
+    /// Relative time for inbox rows (e.g. "היום, 14:32").
+    static func notificationTimestamp(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let time = date.formatted(Date.FormatStyle(date: .omitted, time: .shortened,
+                                                   locale: Locale(identifier: "he_IL")))
+        if calendar.isDateInToday(date) {
+            return "היום, \(time)"
+        }
+        if calendar.isDateInYesterday(date) {
+            return "אתמול, \(time)"
+        }
+        return hebrewDateTime(date)
+    }
     static let libraryPlaceholderTitle = "ספרייה"
     static let libraryPlaceholderBody =
         "הספרייה תתווסף בהמשך."

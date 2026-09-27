@@ -32,6 +32,22 @@ nonisolated enum DatabaseID: Codable, Hashable, Sendable {
         case .text(let value): return value
         }
     }
+
+    /// Parses a push/notification identifier without assuming UUID vs integer.
+    static func parse(_ raw: String) -> DatabaseID? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let intValue = Int(trimmed), String(intValue) == trimmed {
+            return .integer(intValue)
+        }
+        return .text(trimmed)
+    }
+
+    func matches(_ raw: String) -> Bool {
+        queryValue.caseInsensitiveCompare(
+            raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        ) == .orderedSame
+    }
 }
 
 /// Whether a patient is currently in active treatment.

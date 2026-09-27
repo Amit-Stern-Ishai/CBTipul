@@ -10,6 +10,7 @@ struct MyApp: App {
     @State private var appContext: AppContextService
     @State private var invitationFlow: PatientInvitationFlow
     @State private var diaryOne: DiaryOneStore
+    @State private var notificationStore: NotificationStore
 
     init() {
         // The SwiftUI right-to-left override (see AppTextSizeModifier) doesn't
@@ -33,6 +34,7 @@ struct MyApp: App {
         _appContext = State(initialValue: AppContextService(client: auth.client))
         _invitationFlow = State(initialValue: PatientInvitationFlow())
         _diaryOne = State(initialValue: DiaryOneStore(client: auth.client))
+        _notificationStore = State(initialValue: NotificationStore(client: auth.client))
     }
 
     var body: some Scene {
@@ -44,6 +46,8 @@ struct MyApp: App {
                 .environment(appContext)
                 .environment(invitationFlow)
                 .environment(diaryOne)
+                .environment(notificationStore)
+                .environment(TherapistNotificationCoordinator.shared)
                 .onOpenURL(perform: handleIncomingURL)
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     if let url = activity.webpageURL {
@@ -79,6 +83,7 @@ struct ContentView: View {
     @Environment(TherapistProfileService.self) private var therapistProfiles
     @Environment(AppContextService.self) private var appContext
     @Environment(PatientInvitationFlow.self) private var invitationFlow
+    @Environment(NotificationStore.self) private var notificationStore
 
     @State private var isShowingSplash = true
     @State private var hasAcceptedTerms = false
@@ -133,6 +138,8 @@ struct ContentView: View {
                 appContext.clear()
                 showOptionalDisplayNamePrompt = false
                 isResolvingDisplayNameGate = false
+                notificationStore.clear()
+                TherapistNotificationCoordinator.shared.resetOnLogout()
             }
             guard !auth.isAnonymous else {
                 showOptionalDisplayNamePrompt = false
@@ -345,4 +352,6 @@ struct ContentView: View {
         .environment(AppContextService(client: auth.client))
         .environment(PatientInvitationFlow())
         .environment(DiaryOneStore(client: auth.client))
+        .environment(NotificationStore(client: auth.client))
+        .environment(TherapistNotificationCoordinator.shared)
 }

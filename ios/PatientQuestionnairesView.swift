@@ -20,19 +20,25 @@ struct PatientQuestionnairesView: View {
     /// Graphs are shown one beat after switching to them, so the charts'
     /// expensive first layout doesn't happen mid-transition and jitter.
     @State private var isPreparingGraphs = true
+    @State private var presentedQuestionnaireID: DatabaseID?
+    @State private var didAttemptFocus = false
 
     /// When true, this screen opens on graphs and hides the list/graph picker.
     private let startsOnGraphs: Bool
+    /// CombinedMood id to open after load, from notification routing.
+    private let focusQuestionnaireID: DatabaseID?
 
     /// `previewQuestionnaires` seeds the list so previews have data to show;
     /// the app always starts empty and loads from the cache/server.
     init(
         patient: Patient,
         previewQuestionnaires: [CompletedQuestionnaire] = [],
-        startsOnGraphs: Bool = false
+        startsOnGraphs: Bool = false,
+        focusQuestionnaireID: DatabaseID? = nil
     ) {
         self.patient = patient
         self.startsOnGraphs = startsOnGraphs
+        self.focusQuestionnaireID = focusQuestionnaireID
         _questionnaires = State(initialValue: previewQuestionnaires)
         _mode = State(initialValue: startsOnGraphs ? .graphs : .list)
     }
@@ -81,6 +87,7 @@ struct PatientQuestionnairesView: View {
             if let cached = store.cachedQuestionnaires(for: patient) {
                 questionnaires = cached
             }
+            attemptFocusIfNeeded()
         }
         .task(id: mode) {
             guard mode == .graphs else { return }
@@ -93,7 +100,18 @@ struct PatientQuestionnairesView: View {
             if let cached = store.cachedQuestionnaires(for: patient) {
                 questionnaires = cached
             }
+            attemptFocusIfNeeded()
             await load()
+        }
+        .navigationDestination(item: $presentedQuestionnaireID) { id in
+            if let record = questionnaires.first(where: { $0.databaseID == id }) {
+                CompletedQuestionnaireView(
+                    record: record,
+                    patient: patient,
+                    previous: previousQuestionnaire(before: record),
+                    accent: patientColor
+                )
+            }
         }
     }
 
@@ -238,6 +256,17 @@ struct PatientQuestionnairesView: View {
             loadError = error.localizedDescription
         }
         isLoading = false
+        attemptFocusIfNeeded()
+    }
+
+    private func attemptFocusIfNeeded() {
+        guard !didAttemptFocus, let focusQuestionnaireID else { return }
+        if questionnaires.contains(where: { $0.databaseID == focusQuestionnaireID }) {
+            didAttemptFocus = true
+            presentedQuestionnaireID = focusQuestionnaireID
+        } else if !isLoading {
+            didAttemptFocus = true
+        }
     }
 }
 

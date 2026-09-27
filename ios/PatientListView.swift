@@ -5,6 +5,7 @@ struct PatientListView: View {
     @Environment(PatientStore.self) private var store
     @Environment(OnboardingStore.self) private var onboarding
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
+    @Environment(TherapistNotificationCoordinator.self) private var notificationCoordinator
 
     @State private var isAddingPatient = false
     @State private var isLoading = false
@@ -58,6 +59,18 @@ struct PatientListView: View {
             .refreshable { await load() }
             .navigationDestination(for: Patient.self) { patient in
                 PatientDetailView(patient: patient)
+            }
+            .navigationDestination(for: PatientQuestionnairesRoute.self) { route in
+                if let patient = store.patients.first(where: { $0.id == route.patientID }) {
+                    PatientQuestionnairesView(
+                        patient: patient,
+                        focusQuestionnaireID: route.focusQuestionnaireID
+                    )
+                } else {
+                    ContentUnavailableView {
+                        Label(L10n.notificationTargetUnavailable, systemImage: "questionmark.circle")
+                    }
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -127,6 +140,13 @@ struct PatientListView: View {
                 isAddingPatient = false
             }
             gettingStartedRouter.patientListDidReset(using: onboarding)
+        }
+        .onChange(of: notificationCoordinator.pendingPatientNavigation?.token) { _, token in
+            guard token != nil else { return }
+            applyPendingNotificationRoute()
+        }
+        .onAppear {
+            applyPendingNotificationRoute()
         }
     }
 
@@ -265,8 +285,23 @@ struct PatientListView: View {
         }
         isLoading = false
         hasFinishedInitialLoad = true
+        notificationCoordinator.markPatientsLoadSettled()
+        notificationCoordinator.processPending(patients: store.patients)
         await loadQuestionnairesForProgress()
         refreshProgress()
+    }
+
+    private func applyPendingNotificationRoute() {
+        guard let route = notificationCoordinator.consumePatientNavigation() else { return }
+        guard let patient = store.patients.first(where: { $0.id == route.patientID }) else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            var next = NavigationPath()
+            next.append(patient)
+            next.append(route)
+            path = next
+        }
     }
 
     private func refreshProgress() {
