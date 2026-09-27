@@ -56,6 +56,23 @@ enum L10n {
     // MARK: - Patients
     
     static let patientsTitle = "מטופלים/ות"
+
+    /// Bottom-tab labels (shorter than some screen titles).
+    static let therapistTabPatients = "מטופלים"
+    static let therapistTabSessions = "פגישות"
+    static let therapistTabNotifications = "התראות"
+    static let therapistTabLibrary = "ספרייה"
+    static let therapistTabSettings = "הגדרות"
+
+    static let globalSessionsPlaceholderTitle = "פגישות"
+    static let globalSessionsPlaceholderBody =
+        "כאן יופיעו הפגישות מכלל הקליניקה."
+    static let notificationsPlaceholderTitle = "התראות"
+    static let notificationsPlaceholderBody =
+        "אין התראות כרגע."
+    static let libraryPlaceholderTitle = "ספרייה"
+    static let libraryPlaceholderBody =
+        "הספרייה תתווסף בהמשך."
     static let loadingPatientsLabel = "טעינת מטופלים..."
     static let couldntLoadPatientsTitle = "טעינת מטופלים נכשלה"
     static let noPatientsTitle = "עדיין אין מטופלים"

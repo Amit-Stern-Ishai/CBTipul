@@ -1,5 +1,17 @@
 import SwiftUI
 
+private struct DemoChromeExtendsIntoBottomSafeAreaKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    /// When false, demo chrome must not paint under the therapist tab bar.
+    var demoChromeExtendsIntoBottomSafeArea: Bool {
+        get { self[DemoChromeExtendsIntoBottomSafeAreaKey.self] }
+        set { self[DemoChromeExtendsIntoBottomSafeAreaKey.self] = newValue }
+    }
+}
+
 /// Slim strip: “demo mode” + exit (stays under the nav bar).
 struct DemoModeBanner: View {
     @Environment(PatientStore.self) private var store
@@ -91,6 +103,7 @@ private struct DemoModeBannerInset: ViewModifier {
     @Environment(PatientStore.self) private var store
     @Environment(OnboardingStore.self) private var onboarding
     @Environment(GettingStartedRouter.self) private var router
+    @Environment(\.demoChromeExtendsIntoBottomSafeArea) private var extendsIntoBottomSafeArea
 
     func body(content: Content) -> some View {
         content
@@ -113,6 +126,7 @@ private struct DemoModeBannerInset: ViewModifier {
                         onDismiss: { router.dismissCoach(using: onboarding) },
                         onSkipToShowcase: { router.skipToShowcaseData(using: store) }
                     )
+                    .padding(.bottom, extendsIntoBottomSafeArea ? 0 : 8)
                     .transaction { $0.animation = nil }
                 }
             }

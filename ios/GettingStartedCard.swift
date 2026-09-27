@@ -326,6 +326,8 @@ struct TutorialCoachCard: View {
     var onDismiss: () -> Void
     var onSkipToShowcase: () -> Void
 
+    @Environment(\.demoChromeExtendsIntoBottomSafeArea) private var extendsIntoBottomSafeArea
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
@@ -436,7 +438,7 @@ struct TutorialCoachCard: View {
                     .offset(x: CGFloat(t) * 400 - 200)
                 }
             }
-            .ignoresSafeArea(edges: .bottom)
+            .ignoresSafeArea(edges: extendsIntoBottomSafeArea ? .bottom : [])
         }
         .shadow(color: Theme.warning.opacity(0.35), radius: 16, y: -4)
     }

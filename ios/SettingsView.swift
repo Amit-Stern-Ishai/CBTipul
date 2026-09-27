@@ -102,7 +102,6 @@ extension View {
 struct SettingsView: View {
     @AppStorage("aiResponseStyle") private var responseStyle: AIResponseStyle = .typing
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
-    @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(OnboardingStore.self) private var onboarding
@@ -119,8 +118,8 @@ struct SettingsView: View {
     @State private var pushTestAlertTitle: String?
     @State private var pushTestAlertMessage: String?
     #endif
-    // Tutorial consent is presented by PatientListView — not here — so
-    // dismissing Settings cannot flash under a cover.
+    // Tutorial consent is presented by TherapistRootView — not here — so
+    // Settings cannot flash under a cover.
 
     private var displayNameRowValue: String {
         if displayNameLoadFailed, therapistProfiles.cachedProfile == nil {
@@ -141,8 +140,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
+        Form {
 //                Section(L10n.settingsAISectionTitle) {
 //                    Picker(selection: $responseStyle) {
 //                        Text(L10n.settingsResponseStyleTyping).tag(AIResponseStyle.typing)
@@ -162,8 +160,7 @@ struct SettingsView: View {
 
                 Section {
                     Button {
-                        // PatientListView presents consent and closes this sheet
-                        // under that cover — do not dismiss here or the list flashes.
+                        // TherapistRootView presents consent over the tabs.
                         onboarding.requestDemoConsent()
                     } label: {
                         Label {
@@ -346,16 +343,8 @@ struct SettingsView: View {
             .themedScreen()
             .demoModeChrome()
             .navigationTitle(L10n.settingsTitle)
+            .accessibilityIdentifier("settings.root")
             .task { await refreshDisplayNameRow() }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Label(L10n.back, systemImage: "chevron.backward")
-                    }
-                }
-            }
             .alert(L10n.deleteAccountConfirmTitle,
                    isPresented: $isShowingDeleteAccountConfirmation) {
                 Button(L10n.deleteAccountAction, role: .destructive) {
@@ -412,8 +401,7 @@ struct SettingsView: View {
             }
             #endif
             .busyOverlay(isDeletingAccount)
-        }
-        .appTextSize()
+            .appTextSize()
     }
 
     #if DEBUG
@@ -512,7 +500,6 @@ struct SettingsView: View {
                 }
                 store.wipeLocalData()
                 therapistProfiles.clearCache()
-                dismiss()
             } catch {
                 deleteAccountError = error.localizedDescription
             }
@@ -673,9 +660,12 @@ struct AppearancePickerView: View {
 
 #Preview {
     let auth = AuthManager()
-    SettingsView()
-        .environment(auth)
-        .environment(PatientStore(client: auth.client))
-        .environment(OnboardingStore.shared)
-        .environment(TherapistProfileService(client: auth.client))
+    NavigationStack {
+        SettingsView()
+    }
+    .environment(auth)
+    .environment(PatientStore(client: auth.client))
+    .environment(OnboardingStore.shared)
+    .environment(GettingStartedRouter())
+    .environment(TherapistProfileService(client: auth.client))
 }

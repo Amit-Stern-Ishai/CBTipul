@@ -16,8 +16,8 @@ final class OnboardingStore {
     /// Optional therapist display-name prompt has been shown (or skipped /
     /// already had a name) for this account on this device.
     private(set) var displayNamePromptShown = false
-    /// Settings asked to show demo consent on the root patient list (not
-    /// as a cover inside the Settings sheet — that flashed Settings on exit).
+    /// Settings asked to show demo consent on the therapist tab root (not
+    /// as a cover inside Settings — that flashed Settings on exit).
     private(set) var wantsDemoConsent = false
 
     @ObservationIgnored
@@ -56,7 +56,7 @@ final class OnboardingStore {
         persist()
     }
 
-    /// Settings requests the root list to present demo consent.
+    /// Settings requests the therapist tab root to present demo consent.
     func requestDemoConsent() {
         wantsDemoConsent = true
     }

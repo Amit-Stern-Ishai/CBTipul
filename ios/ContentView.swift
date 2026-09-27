@@ -83,6 +83,7 @@ struct ContentView: View {
     @State private var isShowingSplash = true
     @State private var hasAcceptedTerms = false
     @State private var onboarding = OnboardingStore.shared
+    @State private var gettingStartedRouter = GettingStartedRouter()
     @State private var isResolvingDisplayNameGate = false
     @State private var showOptionalDisplayNamePrompt = false
 
@@ -161,6 +162,10 @@ struct ContentView: View {
             await PushNotificationManager.shared.startAfterEnteringAuthenticatedMode()
         }
         .environment(onboarding)
+        // Must sit on this ancestor of TabView. Modifiers on TabView itself
+        // (and often on tabItem children) are not forwarded into tab pages.
+        .environment(gettingStartedRouter)
+        .environment(\.demoChromeExtendsIntoBottomSafeArea, false)
         .task {
             if AuthManager.isUITesting {
                 // Skip splash so AuthView (and its IDs) appear immediately.
@@ -176,7 +181,7 @@ struct ContentView: View {
         }
     }
 
-    /// Non-anonymous therapist session: Terms / Welcome / Patients only.
+    /// Non-anonymous therapist session: Terms / Welcome / tab shell.
     @ViewBuilder
     private var therapistSessionRoot: some View {
         if showOptionalDisplayNamePrompt {
@@ -213,7 +218,7 @@ struct ContentView: View {
                 }
             )
         } else {
-            PatientListView()
+            TherapistRootView()
         }
     }
 
@@ -258,7 +263,7 @@ struct ContentView: View {
         "\(auth.currentUserId ?? "")-\(auth.isRecoveringPassword)"
     }
 
-    /// Permission is requested only after therapist onboarding (patient list)
+    /// Permission is requested only after therapist onboarding (tab shell)
     /// or a successful Patient Mode activation — never on Auth, Terms,
     /// Welcome, invitation, or incomplete activation.
     private var pushRegistrationContext: String? {

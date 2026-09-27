@@ -4,15 +4,13 @@ import SwiftUI
 struct PatientListView: View {
     @Environment(PatientStore.self) private var store
     @Environment(OnboardingStore.self) private var onboarding
+    @Environment(GettingStartedRouter.self) private var gettingStartedRouter
 
     @State private var isAddingPatient = false
-    @State private var isShowingSettings = false
-    @State private var isShowingWelcome = false
     @State private var isLoading = false
     @State private var hasFinishedInitialLoad = false
     @State private var loadError: String?
     @State private var path = NavigationPath()
-    @State private var gettingStartedRouter = GettingStartedRouter()
     @State private var patientSearch = ""
 
     /// Tutorial patient the walkthrough is following (furthest along).
@@ -68,19 +66,12 @@ struct PatientListView: View {
                     } label: {
                         Label(L10n.addPatientAction, systemImage: "plus")
                     }
-                    .tutorialPulse(
+                        .tutorialPulse(
                         store.isDemoMode
                             && !onboarding.checklistDismissed
                             && gettingStartedRouter.shouldPulse(.addPatient),
                         style: .toolbar
                     )
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        isShowingSettings = true
-                    } label: {
-                        Label(L10n.settingsTitle, systemImage: "gearshape")
-                    }
                 }
             }
             .sheet(isPresented: $isAddingPatient, onDismiss: {
@@ -88,33 +79,6 @@ struct PatientListView: View {
                 refreshProgress()
             }) {
                 AddPatientView()
-            }
-            .sheet(isPresented: $isShowingSettings) {
-                SettingsView()
-            }
-            .fullScreenCover(isPresented: $isShowingWelcome) {
-                WelcomeOnboardingView(
-                    onStartDemoTour: {
-                        startDemoTour()
-                    },
-                    onSkip: {
-                        onboarding.dismissWelcome()
-                        isShowingWelcome = false
-                    }
-                )
-                .appTextSize()
-            }
-            .onChange(of: onboarding.wantsDemoConsent) { _, wants in
-                guard wants else { return }
-                onboarding.clearDemoConsentRequest()
-                // Present consent from the list root, then drop Settings under
-                // it — never present consent inside the Settings sheet.
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    isShowingWelcome = true
-                    isShowingSettings = false
-                }
             }
             .onChange(of: tutorialProgressSignature) { _, _ in
                 refreshProgress()
@@ -139,9 +103,6 @@ struct PatientListView: View {
         }
         .onChange(of: store.isDemoMode) { wasDemo, isDemo in
             if isDemo {
-                // Drop Settings if demo was started from its consent cover so
-                // that sheet cannot flash under the cover.
-                isShowingSettings = false
                 isAddingPatient = false
                 gettingStartedRouter.setPlacement(.patientList)
                 refreshProgress()
@@ -153,7 +114,6 @@ struct PatientListView: View {
             withTransaction(transaction) {
                 path = NavigationPath()
                 isAddingPatient = false
-                isShowingSettings = false
             }
             gettingStartedRouter.clearHighlight()
             refreshProgress()
@@ -165,12 +125,9 @@ struct PatientListView: View {
             withTransaction(transaction) {
                 path = NavigationPath()
                 isAddingPatient = false
-                isShowingSettings = false
             }
             gettingStartedRouter.patientListDidReset(using: onboarding)
         }
-        .showcaseIntroHost()
-        .environment(gettingStartedRouter)
     }
 
     /// Gold add control stays on-screen after the first patient exists.
@@ -331,7 +288,6 @@ struct PatientListView: View {
                 var dismissTx = Transaction()
                 dismissTx.disablesAnimations = true
                 withTransaction(dismissTx) {
-                    isShowingWelcome = false
                     gettingStartedRouter.syncHighlight()
                 }
             }
@@ -517,5 +473,6 @@ struct StatusBadge: View {
         .environment(auth)
         .environment(store)
         .environment(OnboardingStore.shared)
+        .environment(GettingStartedRouter())
         .appTextSize()
 }

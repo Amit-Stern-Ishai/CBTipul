@@ -14,9 +14,9 @@
 		452035D8301BA785006FC5A3 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 452035D7301BA785006FC5A3 /* Storage */; };
 		452035DA301BA785006FC5A3 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 452035D9301BA785006FC5A3 /* Supabase */; };
 		45203611303360F7006FC5A3 /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 45203610303360E0006FC5A3 /* CLAUDE.md */; };
-		A7E10200 /* PatientNameResolver.swift in NotificationService */ = {isa = PBXBuildFile; fileRef = A7E10201 /* PatientNameResolver.swift */; };
-		A7E10202 /* PatientPushPersonalizer.swift in NotificationService */ = {isa = PBXBuildFile; fileRef = A7E10203 /* PatientPushPersonalizer.swift */; };
 		A7E10014 /* CBTipulNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A7E10004 /* CBTipulNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A7E10200 /* ios/PatientNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E10201 /* ios/PatientNameResolver.swift */; };
+		A7E10202 /* ios/PatientPushPersonalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E10203 /* ios/PatientPushPersonalizer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,14 +46,12 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		A7E10013 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "";
-			dstSubfolderSpec = 13;
+			dstSubfolder = PlugIns;
 			files = (
 				A7E10014 /* CBTipulNotificationService.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -64,15 +62,14 @@
 		45BE139C3042E1F5005EB38C /* CBTipulTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CBTipulTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D43042E20000UI0003 /* CBTipulUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CBTipulUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A7E10004 /* CBTipulNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CBTipulNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		A7E10201 /* PatientNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/PatientNameResolver.swift; sourceTree = "<group>"; };
-		A7E10203 /* PatientPushPersonalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/PatientPushPersonalizer.swift; sourceTree = "<group>"; };
+		A7E10201 /* ios/PatientNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/PatientNameResolver.swift; sourceTree = "<group>"; };
+		A7E10203 /* ios/PatientPushPersonalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/PatientPushPersonalizer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		A7E10101 /* Exceptions for "NotificationService" folder in "CBTipulNotificationService" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				CBTipulNotificationService.entitlements,
 				Info.plist,
 			);
 			target = A7E1000A /* CBTipulNotificationService */;
@@ -145,6 +142,7 @@
 				45BE139D3042E1F5005EB38C /* CBTipulTests */,
 				A1B2C3D43042E20000UI0004 /* CBTipulUITests */,
 				000000000000000000000020 /* Products */,
+				450711FE3062AB5C004EAEC5 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -157,6 +155,15 @@
 				A7E10004 /* CBTipulNotificationService.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		450711FE3062AB5C004EAEC5 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				A7E10201 /* ios/PatientNameResolver.swift */,
+				A7E10203 /* ios/PatientPushPersonalizer.swift */,
+			);
+			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -215,7 +222,7 @@
 		};
 		A1B2C3D43042E20000UI0001 /* CBTipulUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 4554FAFE305BE3FB00C689C9 /* Build configuration list */;
+			buildConfigurationList = 4554FAFE305BE3FB00C689C9 /* Build configuration list for PBXNativeTarget "CBTipulUITests" */;
 			buildPhases = (
 				A1B2C3D43042E20000UI0006 /* Sources */,
 				A1B2C3D43042E20000UI0005 /* Frameworks */,
@@ -243,8 +250,6 @@
 				A7E1000D /* Resources */,
 			);
 			buildRules = (
-			);
-			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
 				A7E10100 /* NotificationService */,
@@ -348,8 +353,8 @@
 		A7E1000B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
-				A7E10200 /* PatientNameResolver.swift in NotificationService */,
-				A7E10202 /* PatientPushPersonalizer.swift in NotificationService */,
+				A7E10200 /* ios/PatientNameResolver.swift in Sources */,
+				A7E10202 /* ios/PatientPushPersonalizer.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
@@ -619,7 +624,7 @@
 			};
 			name = Release;
 		};
-		4554FAFC305BC02A00C689C9 /* Debug configuration */ = {
+		4554FAFC305BC02A00C689C9 /* Debug configuration for PBXNativeTarget "CBTipulUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COPY_PHASE_STRIP = NO;
@@ -629,7 +634,7 @@
 			};
 			name = Debug;
 		};
-		4554FAFD305BC02A00C689C9 /* Release configuration */ = {
+		4554FAFD305BC02A00C689C9 /* Release configuration for PBXNativeTarget "CBTipulUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COPY_PHASE_STRIP = YES;
@@ -767,11 +772,11 @@
 			);
 			defaultConfigurationName = Release;
 		};
-		4554FAFE305BE3FB00C689C9 /* Build configuration list */ = {
+		4554FAFE305BE3FB00C689C9 /* Build configuration list for PBXNativeTarget "CBTipulUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				4554FAFC305BC02A00C689C9 /* Debug configuration */,
-				4554FAFD305BC02A00C689C9 /* Release configuration */,
+				4554FAFC305BC02A00C689C9 /* Debug configuration for PBXNativeTarget "CBTipulUITests" */,
+				4554FAFD305BC02A00C689C9 /* Release configuration for PBXNativeTarget "CBTipulUITests" */,
 			);
 			defaultConfigurationName = Release;
 		};

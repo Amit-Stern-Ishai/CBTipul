@@ -25,6 +25,16 @@ final class SmokeTests: XCTestCase {
             "Patient list should appear after UITesting demo bypass"
         )
 
+        let therapistRoot = app.descendants(matching: .any)["therapist.root"]
+        XCTAssertTrue(
+            therapistRoot.waitForExistence(timeout: 4),
+            "Therapist tab shell should wrap the patient list"
+        )
+        XCTAssertTrue(
+            app.tabBars.firstMatch.exists,
+            "Five-tab therapist bar should be visible in demo shell"
+        )
+
         let demoBanner = app.descendants(matching: .any)["demo.banner"]
         XCTAssertTrue(
             demoBanner.waitForExistence(timeout: 8),
