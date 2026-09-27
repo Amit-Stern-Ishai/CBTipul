@@ -293,19 +293,21 @@ struct PatientListView: View {
     }
 
     private func applyPendingNotificationRoute() {
-        guard let route = notificationCoordinator.consumePatientNavigation() else { return }
-        guard let patient = store.patients.first(where: { $0.id == route.patientID }) else { return }
+        guard let pending = notificationCoordinator.consumePatientNavigation() else { return }
+        guard let patient = store.patients.first(where: { $0.id == pending.patientID }) else { return }
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             var next = NavigationPath()
             next.append(patient)
-            next.append(route)
+            if let questionnaires = pending.questionnairesRoute {
+                next.append(questionnaires)
+            }
             path = next
         }
         #if DEBUG
         AppLog.store.debug(
-            "notification path applied patient=\(patient.id.queryValue, privacy: .public) focus=\(route.focusQuestionnaireID?.queryValue ?? "nil", privacy: .public)"
+            "notification path applied patient=\(patient.id.queryValue, privacy: .public) focus=\(pending.questionnairesRoute?.focusQuestionnaireID?.queryValue ?? "nil", privacy: .public)"
         )
         #endif
     }

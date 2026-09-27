@@ -178,6 +178,78 @@ struct NotificationRoutingTests {
         #expect(payload?.resourceType == "questionnaire")
         #expect(payload?.resourceId == "42")
     }
+
+    @Test func patientConnectedDecodesAndDoesNotUseQuestionnaireRoute() {
+        let payload = AppNotificationPayload.from(userInfo: [
+            "type": "patient_connected",
+            "notificationId": "11111111-1111-1111-1111-111111111111",
+            "patientId": "patient-1",
+        ])
+        #expect(payload?.type == .patientConnected)
+        #expect(payload?.patientId == "patient-1")
+        #expect(payload?.sessionId == nil)
+        #expect(payload?.resourceId == nil)
+        #expect(
+            NotificationRouter.destination(from: payload!) == .patientDetail(patientId: "patient-1")
+        )
+        #expect(
+            NotificationInboxCopy.message(for: .patientConnected) == L10n.notificationPatientConnected
+        )
+        #expect(
+            NotificationInboxCopy.message(for: .patientConnected) != L10n.notificationGenericTitle
+        )
+        #expect(
+            NotificationInboxCopy.message(for: .questionnaireCompleted)
+                == L10n.notificationQuestionnaireCompleted
+        )
+    }
+
+    @Test func patientConnectedInboxAndPushSharePatientDetailRoute() {
+        let notification = AppNotification(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            type: .patientConnected,
+            patientId: "patient-1",
+            sessionId: nil,
+            assignmentId: nil,
+            resourceType: nil,
+            resourceId: nil,
+            createdAt: Date(),
+            seenAt: nil,
+            readAt: nil
+        )
+        let fromRecord = NotificationRouter.destination(from: notification)
+        let fromPush = NotificationRouter.destination(from: AppNotificationPayload.from(userInfo: [
+            "type": "patient_connected",
+            "notificationId": "11111111-1111-1111-1111-111111111111",
+            "patientId": "patient-1",
+        ])!)
+        #expect(fromRecord == fromPush)
+        #expect(fromRecord == .patientDetail(patientId: "patient-1"))
+    }
+
+    @Test func patientConnectedWithoutPatientDoesNotRoute() {
+        let payload = AppNotificationPayload.from(userInfo: [
+            "type": "patient_connected",
+            "notificationId": "11111111-1111-1111-1111-111111111111",
+        ])!
+        #expect(NotificationRouter.destination(from: payload) == .none)
+    }
+
+    @Test func patientConnectedResolvesLocalNameAndGenericFallback() {
+        let named = Patient(id: .text("patient-1"))
+        named.localName = "דני"
+        #expect(
+            NotificationPatientName.resolve(patientId: "patient-1", patients: [named]) == "דני"
+        )
+        #expect(
+            NotificationPatientName.resolve(patientId: "missing", patients: [named])
+                == L10n.notificationGenericPatient
+        )
+        #expect(
+            NotificationPatientName.resolve(patientId: nil, patients: [named])
+                == L10n.notificationGenericPatient
+        )
+    }
 }
 
 struct NotificationInboxSemanticsTests {

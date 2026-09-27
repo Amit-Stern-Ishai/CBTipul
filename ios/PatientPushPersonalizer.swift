@@ -6,7 +6,7 @@ enum PatientPushCopy {
     static let appTitle = "CBTipul"
 
     static func patientConnectedBody(name: String) -> String {
-        "\(name) התחבר/ה בהצלחה ל-CBTipul"
+        "\(name) התחבר/ה ל-CBTipul"
     }
 
     static let genericQuestionnaireCompleted = "מטופל/ת מילא/ה שאלון חדש"

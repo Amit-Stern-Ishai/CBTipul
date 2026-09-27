@@ -17,6 +17,8 @@ enum NotificationDestination: Equatable {
         resourceType: String?,
         resourceId: String?
     )
+    /// Therapist Patients tab → Patient Detail. No session/questionnaire.
+    case patientDetail(patientId: String)
     /// Unknown, Patient Mode, or missing identifiers — do not navigate.
     case none
 }
@@ -33,6 +35,11 @@ enum NotificationRouter {
                 resourceType: payload.resourceType,
                 resourceId: payload.resourceId
             )
+        case .patientConnected:
+            guard let patientId = payload.patientId, !patientId.isEmpty else {
+                return .none
+            }
+            return .patientDetail(patientId: patientId)
         case .questionnaireAssigned, .unknown:
             return .none
         }
@@ -127,16 +134,33 @@ final class TherapistNotificationCoordinator {
         case .none:
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
+        case .patientDetail(let patientId):
+            guard let patient = resolvedPatient(
+                patientId: patientId,
+                patients: patients,
+                fingerprint: fingerprint,
+                waitForPatients: waitForPatients
+            ) else { return }
+            pendingPayload = nil
+            lastConsumedFingerprint = fingerprint
+            selectedTab = .patients
+            pendingPatientNavigation = PendingPatientNavigation(
+                token: UUID(),
+                patientID: patient.id,
+                questionnairesRoute: nil
+            )
+            #if DEBUG
+            AppLog.push.debug(
+                "notification route patient_connected patient=\(patient.id.queryValue, privacy: .public)"
+            )
+            #endif
         case .completedQuestionnaire(let patientId, let resourceType, let resourceId):
-            guard let patient = patients.first(where: { $0.id.matches(patientId) }) else {
-                if waitForPatients, !patientsLoadSettled {
-                    return
-                }
-                pendingPayload = nil
-                lastConsumedFingerprint = fingerprint
-                selectedTab = .notifications
-                return
-            }
+            guard let patient = resolvedPatient(
+                patientId: patientId,
+                patients: patients,
+                fingerprint: fingerprint,
+                waitForPatients: waitForPatients
+            ) else { return }
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
             selectedTab = .patients
@@ -151,7 +175,8 @@ final class TherapistNotificationCoordinator {
             #endif
             pendingPatientNavigation = PendingPatientNavigation(
                 token: UUID(),
-                route: PatientQuestionnairesRoute(
+                patientID: patient.id,
+                questionnairesRoute: PatientQuestionnairesRoute(
                     patientID: patient.id,
                     focusQuestionnaireID: focusID
                 )
@@ -164,21 +189,43 @@ final class TherapistNotificationCoordinator {
         }
     }
 
-    func consumePatientNavigation() -> PatientQuestionnairesRoute? {
+    /// Missing patient stays on Notifications after clinic load has settled.
+    /// Cold-start waits until patients are available.
+    private func resolvedPatient(
+        patientId: String,
+        patients: [Patient],
+        fingerprint: String,
+        waitForPatients: Bool
+    ) -> Patient? {
+        if let patient = patients.first(where: { $0.id.matches(patientId) }) {
+            return patient
+        }
+        if waitForPatients, !patientsLoadSettled {
+            return nil
+        }
+        pendingPayload = nil
+        lastConsumedFingerprint = fingerprint
+        selectedTab = .notifications
+        return nil
+    }
+
+    func consumePatientNavigation() -> PendingPatientNavigation? {
         let pending = pendingPatientNavigation
         pendingPatientNavigation = nil
         #if DEBUG
-        if let route = pending?.route {
+        if let pending {
             AppLog.push.debug(
-                "notification route consumed questionnaires patient=\(route.patientID.queryValue, privacy: .public) focus=\(route.focusQuestionnaireID?.queryValue ?? "nil", privacy: .public)"
+                "notification route consumed patient=\(pending.patientID.queryValue, privacy: .public) questionnaires=\(pending.questionnairesRoute != nil, privacy: .public)"
             )
         }
         #endif
-        return pending?.route
+        return pending
     }
 }
 
 struct PendingPatientNavigation: Equatable {
     let token: UUID
-    let route: PatientQuestionnairesRoute
+    let patientID: DatabaseID
+    /// When nil, open Patient Detail only (`patient_connected`).
+    let questionnairesRoute: PatientQuestionnairesRoute?
 }

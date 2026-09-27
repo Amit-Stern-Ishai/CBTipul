@@ -8,25 +8,31 @@ final class PatientPushPersonalizerTests: XCTestCase {
     func testUnknownTypeLeavesBodyUnchanged() {
         let content = UNMutableNotificationContent()
         content.title = "CBTipul"
-        content.body = "המטופל/ת התחבר/ה בהצלחה ל-CBTipul"
+        content.body = "המטופל/ת התחבר/ה ל-CBTipul"
         content.userInfo = ["type": "other"]
         PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
-        XCTAssertEqual(content.body, "המטופל/ת התחבר/ה בהצלחה ל-CBTipul")
+        XCTAssertEqual(content.body, "המטופל/ת התחבר/ה ל-CBTipul")
     }
 
     func testPatientConnectedMissingPatientIdLeavesBodyUnchanged() {
         let content = UNMutableNotificationContent()
         content.title = "CBTipul"
-        content.body = "המטופל/ת התחבר/ה בהצלחה ל-CBTipul"
+        content.body = "המטופל/ת התחבר/ה ל-CBTipul"
         content.userInfo = ["type": "patient_connected"]
         PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
-        XCTAssertEqual(content.body, "המטופל/ת התחבר/ה בהצלחה ל-CBTipul")
+        XCTAssertEqual(content.body, "המטופל/ת התחבר/ה ל-CBTipul")
     }
 
     func testPatientConnectedKnownIdUsesLocalName() {
         let content = connectedContent(patientId: "known-id")
         PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
-        XCTAssertEqual(content.body, "דני התחבר/ה בהצלחה ל-CBTipul")
+        XCTAssertEqual(content.body, "דני התחבר/ה ל-CBTipul")
+    }
+
+    func testPatientConnectedUnknownIdUsesGenericFallback() {
+        let content = connectedContent(patientId: "unknown-id")
+        PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
+        XCTAssertEqual(content.body, "המטופל/ת התחבר/ה ל-CBTipul")
     }
 
     func testQuestionnaireCompletedKnownIdUsesLocalName() {
@@ -56,7 +62,7 @@ final class PatientPushPersonalizerTests: XCTestCase {
     private func connectedContent(patientId: String?) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = "CBTipul"
-        content.body = "המטופל/ת התחבר/ה בהצלחה ל-CBTipul"
+        content.body = "המטופל/ת התחבר/ה ל-CBTipul"
         var info: [AnyHashable: Any] = ["type": "patient_connected"]
         if let patientId { info["patientId"] = patientId }
         content.userInfo = info

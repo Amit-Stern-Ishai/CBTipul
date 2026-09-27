@@ -132,11 +132,6 @@ private struct NotificationInboxRow: View {
     }
 
     private var title: String {
-        switch item.type {
-        case .questionnaireCompleted:
-            L10n.notificationQuestionnaireCompleted
-        case .questionnaireAssigned, .unknown:
-            L10n.notificationGenericTitle
-        }
+        NotificationInboxCopy.message(for: item.type)
     }
 }

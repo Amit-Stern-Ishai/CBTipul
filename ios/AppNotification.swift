@@ -5,6 +5,7 @@ import Foundation
 enum AppNotificationType: Hashable, Sendable {
     case questionnaireAssigned
     case questionnaireCompleted
+    case patientConnected
     case unknown(String)
 
     init(rawValue: String) {
@@ -13,6 +14,8 @@ enum AppNotificationType: Hashable, Sendable {
             self = .questionnaireAssigned
         case "questionnaire_completed":
             self = .questionnaireCompleted
+        case "patient_connected":
+            self = .patientConnected
         default:
             self = .unknown(rawValue)
         }
@@ -22,6 +25,7 @@ enum AppNotificationType: Hashable, Sendable {
         switch self {
         case .questionnaireAssigned: "questionnaire_assigned"
         case .questionnaireCompleted: "questionnaire_completed"
+        case .patientConnected: "patient_connected"
         case .unknown(let raw): raw
         }
     }
@@ -151,6 +155,20 @@ struct AppNotificationPayload: Equatable, Sendable {
             return value.stringValue
         }
         return nil
+    }
+}
+
+enum NotificationInboxCopy {
+    /// Inbox subtitle. Patient names never come from the notification row.
+    static func message(for type: AppNotificationType) -> String {
+        switch type {
+        case .questionnaireCompleted:
+            L10n.notificationQuestionnaireCompleted
+        case .patientConnected:
+            L10n.notificationPatientConnected
+        case .questionnaireAssigned, .unknown:
+            L10n.notificationGenericTitle
+        }
     }
 }
 
