@@ -43,7 +43,7 @@ struct TherapistRootView: View {
                     Label(L10n.therapistTabNotifications, systemImage: "bell.fill")
                 }
                 .tag(TherapistRootTab.notifications)
-                .badge(notificationStore.unreadCount)
+                .badge(notificationStore.unseenCount)
                 .accessibilityIdentifier("therapist.tab.notifications")
 
             LibraryPlaceholderView()
@@ -117,6 +117,20 @@ struct TherapistRootView: View {
         }
         .onChange(of: coordinator.pendingRevision) { _, _ in
             coordinator.processPending(patients: store.patients)
+        }
+        .task(id: coordinator.selectedTab) {
+            guard NotificationInboxSeenPolicy.shouldMarkSeen(
+                isInboxVisible: coordinator.selectedTab == .notifications,
+                unseenCount: notificationStore.unseenCount
+            ) else { return }
+            await notificationStore.markInboxSeen()
+        }
+        .onChange(of: notificationStore.unseenCount) { _, count in
+            guard NotificationInboxSeenPolicy.shouldMarkSeen(
+                isInboxVisible: coordinator.selectedTab == .notifications,
+                unseenCount: count
+            ) else { return }
+            Task { await notificationStore.markInboxSeen() }
         }
         .onChange(of: store.patients.map(\.id.queryValue).joined(separator: ",")) { _, _ in
             coordinator.processPending(patients: store.patients)

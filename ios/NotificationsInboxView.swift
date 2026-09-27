@@ -52,7 +52,28 @@ struct NotificationsInboxView: View {
     }
 
     private var inboxList: some View {
-        List(notifications.notifications) { item in
+        let unread = NotificationInboxSections.unread(notifications.notifications)
+        let read = NotificationInboxSections.read(notifications.notifications)
+        return List {
+            if !unread.isEmpty {
+                Section(L10n.notificationsUnreadSection) {
+                    inboxRows(unread)
+                }
+            }
+            if !read.isEmpty {
+                Section(L10n.notificationsReadSection) {
+                    inboxRows(read)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .themedScreen()
+    }
+
+    @ViewBuilder
+    private func inboxRows(_ items: [AppNotification]) -> some View {
+        ForEach(items) { item in
             Button {
                 Task { await open(item) }
             } label: {
@@ -66,20 +87,17 @@ struct NotificationsInboxView: View {
             }
             .buttonStyle(.plain)
             .listRowBackground(groupBorderedRow(
-                .at(notifications.notifications.firstIndex(where: { $0.id == item.id }) ?? 0,
-                    of: notifications.notifications.count),
+                .at(items.firstIndex(where: { $0.id == item.id }) ?? 0,
+                    of: items.count),
                 accent: Theme.gold
             ))
             .listRowSeparatorTint(Theme.borderFaint)
         }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .themedScreen()
     }
 
     private func open(_ item: AppNotification) async {
-        await notifications.markRead(item)
         coordinator.handleInboxTap(item, patients: store.patients)
+        await notifications.markRead(item)
     }
 }
 
@@ -101,7 +119,7 @@ private struct NotificationInboxRow: View {
                     .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 8)
-            if item.isUnread {
+            if item.isUnseen {
                 Circle()
                     .fill(Theme.gold)
                     .frame(width: 8, height: 8)

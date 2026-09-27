@@ -48,6 +48,23 @@ nonisolated enum DatabaseID: Codable, Hashable, Sendable {
             raw.trimmingCharacters(in: .whitespacesAndNewlines)
         ) == .orderedSame
     }
+
+    /// CombinedMood `id` is a PostgreSQL bigint carried as a decimal string.
+    /// UUIDs and other non-numeric values are rejected.
+    static func parseCombinedMoodID(_ raw: String) -> DatabaseID? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Int64(trimmed), String(value) == trimmed else { return nil }
+        if let intValue = Int(exactly: value) {
+            return .integer(intValue)
+        }
+        return .text(trimmed)
+    }
+
+    /// True when two IDs refer to the same CombinedMood row even if one
+    /// decoded as `.integer` and the other as numeric `.text`.
+    func isSameIdentity(as other: DatabaseID) -> Bool {
+        matches(other.queryValue)
+    }
 }
 
 /// Whether a patient is currently in active treatment.

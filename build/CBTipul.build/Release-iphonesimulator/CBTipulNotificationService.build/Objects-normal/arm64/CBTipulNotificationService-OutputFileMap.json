@@ -1,0 +1,25 @@
+{
+  "" : {
+    "const-values" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/CBTipulNotificationService-master.swiftconstvalues",
+    "dependencies" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/CBTipulNotificationService-master.d",
+    "diagnostics" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/CBTipulNotificationService-master.dia",
+    "emit-module-dependencies" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/CBTipulNotificationService-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/CBTipulNotificationService-master-emit-module.dia",
+    "swift-dependencies" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/CBTipulNotificationService-master.swiftdeps"
+  },
+  "/Users/amitishai/Documents/CBTipul/NotificationService/NotificationService.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/NotificationService.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/NotificationService.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/NotificationService.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientNameResolver.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/PatientNameResolver.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/PatientNameResolver.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/PatientNameResolver.o"
+  },
+  "/Users/amitishai/Documents/CBTipul/ios/PatientPushPersonalizer.swift" : {
+    "index-unit-output-path" : "/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/PatientPushPersonalizer.o",
+    "llvm-bc" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/PatientPushPersonalizer.bc",
+    "object" : "/Users/amitishai/Documents/CBTipul/build/CBTipul.build/Release-iphonesimulator/CBTipulNotificationService.build/Objects-normal/arm64/PatientPushPersonalizer.o"
+  }
+}

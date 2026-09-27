@@ -49,6 +49,12 @@ struct NotificationRoutingTests {
                     resourceId: "42"
                 )
         )
+        #expect(
+            QuestionnaireNotificationFocus.combinedMoodID(
+                resourceType: "questionnaire",
+                resourceId: "42"
+            ) == .integer(42)
+        )
     }
 
     @Test func snakeCaseKeysAreAccepted() {
@@ -79,6 +85,7 @@ struct NotificationRoutingTests {
             resourceType: "questionnaire",
             resourceId: "42",
             createdAt: Date(),
+            seenAt: nil,
             readAt: nil
         )
         let fromRecord = NotificationRouter.destination(from: notification)
@@ -90,12 +97,46 @@ struct NotificationRoutingTests {
             "resourceId": "42",
         ])!)
         #expect(fromRecord == fromPush)
-        if case .completedQuestionnaire(_, let resourceType, let resourceId) = fromRecord {
+        if case .completedQuestionnaire(let patientId, let resourceType, let resourceId) = fromRecord {
+            #expect(patientId == "patient-1")
             #expect(resourceType == "questionnaire")
             #expect(resourceId == "42")
+            #expect(
+                QuestionnaireNotificationFocus.combinedMoodID(
+                    resourceType: resourceType,
+                    resourceId: resourceId
+                ) == .integer(42)
+            )
         } else {
             Issue.record("expected completedQuestionnaire destination")
         }
+    }
+
+    @Test func malformedResourceIdFallsBackToQuestionnaireList() {
+        #expect(
+            QuestionnaireNotificationFocus.combinedMoodID(
+                resourceType: "questionnaire",
+                resourceId: "not-a-number"
+            ) == nil
+        )
+        #expect(
+            QuestionnaireNotificationFocus.combinedMoodID(
+                resourceType: "assignment",
+                resourceId: "42"
+            ) == nil
+        )
+        #expect(
+            QuestionnaireNotificationFocus.combinedMoodID(
+                resourceType: "questionnaire",
+                resourceId: nil
+            ) == nil
+        )
+    }
+
+    @Test func combinedMoodIntegerAndTextIdentitiesMatch() {
+        #expect(DatabaseID.integer(42).isSameIdentity(as: .text("42")))
+        #expect(DatabaseID.parseCombinedMoodID("42") == .integer(42))
+        #expect(DatabaseID.parseCombinedMoodID("11111111-1111-1111-1111-111111111111") == nil)
     }
 
     @Test func questionnaireCompletedWithoutPatientDoesNotRoute() {
@@ -136,5 +177,199 @@ struct NotificationRoutingTests {
         #expect(payload?.patientId == "patient-1")
         #expect(payload?.resourceType == "questionnaire")
         #expect(payload?.resourceId == "42")
+    }
+}
+
+struct NotificationInboxSemanticsTests {
+    private func item(
+        id: String,
+        created: Date,
+        seenAt: Date? = nil,
+        readAt: Date? = nil
+    ) -> AppNotification {
+        AppNotification(
+            id: UUID(uuidString: id)!,
+            type: .questionnaireCompleted,
+            patientId: "patient-1",
+            sessionId: nil,
+            assignmentId: nil,
+            resourceType: "questionnaire",
+            resourceId: "42",
+            createdAt: created,
+            seenAt: seenAt,
+            readAt: readAt
+        )
+    }
+
+    @Test func unseenUnreadSeenUnreadAndReadStates() {
+        let unseenUnread = item(
+            id: "11111111-1111-1111-1111-111111111111",
+            created: Date(timeIntervalSince1970: 100)
+        )
+        let seenUnread = item(
+            id: "22222222-2222-2222-2222-222222222222",
+            created: Date(timeIntervalSince1970: 200),
+            seenAt: Date(timeIntervalSince1970: 250)
+        )
+        let read = item(
+            id: "33333333-3333-3333-3333-333333333333",
+            created: Date(timeIntervalSince1970: 50),
+            seenAt: Date(timeIntervalSince1970: 60),
+            readAt: Date(timeIntervalSince1970: 80)
+        )
+        #expect(unseenUnread.isUnseen)
+        #expect(unseenUnread.isUnread)
+        #expect(!seenUnread.isUnseen)
+        #expect(seenUnread.isUnread)
+        #expect(!read.isUnseen)
+        #expect(!read.isUnread)
+        #expect(NotificationInboxSections.unread([unseenUnread, seenUnread, read]).map(\.id) == [
+            seenUnread.id, unseenUnread.id
+        ])
+        #expect(NotificationInboxSections.read([unseenUnread, seenUnread, read]).map(\.id) == [read.id])
+    }
+
+    @Test func unseenCountIgnoresSeenRowsUnreadCountIgnoresReadRows() {
+        let unseenUnread = item(
+            id: "11111111-1111-1111-1111-111111111111",
+            created: Date(timeIntervalSince1970: 100)
+        )
+        let seenUnread = item(
+            id: "22222222-2222-2222-2222-222222222222",
+            created: Date(timeIntervalSince1970: 200),
+            seenAt: Date(timeIntervalSince1970: 250)
+        )
+        let read = item(
+            id: "33333333-3333-3333-3333-333333333333",
+            created: Date(timeIntervalSince1970: 50),
+            seenAt: Date(timeIntervalSince1970: 60),
+            readAt: Date(timeIntervalSince1970: 80)
+        )
+        let items = [unseenUnread, seenUnread, read]
+        #expect(NotificationCounts.unseen(items) == 1)
+        #expect(NotificationCounts.unread(items) == 2)
+    }
+
+    @Test func groupingPutsUnreadAndReadInNewestFirstSections() {
+        let olderUnread = item(
+            id: "11111111-1111-1111-1111-111111111111",
+            created: Date(timeIntervalSince1970: 100)
+        )
+        let newerUnread = item(
+            id: "22222222-2222-2222-2222-222222222222",
+            created: Date(timeIntervalSince1970: 300)
+        )
+        let olderRead = item(
+            id: "33333333-3333-3333-3333-333333333333",
+            created: Date(timeIntervalSince1970: 50),
+            readAt: Date(timeIntervalSince1970: 80)
+        )
+        let newerRead = item(
+            id: "44444444-4444-4444-4444-444444444444",
+            created: Date(timeIntervalSince1970: 200),
+            readAt: Date(timeIntervalSince1970: 250)
+        )
+        let items = [olderUnread, newerRead, newerUnread, olderRead]
+        let unread = NotificationInboxSections.unread(items)
+        let read = NotificationInboxSections.read(items)
+        #expect(unread.map(\.id) == [newerUnread.id, olderUnread.id])
+        #expect(read.map(\.id) == [newerRead.id, olderRead.id])
+    }
+
+    @Test func acknowledgingInboxClearsUnseenWithoutChangingReadAt() {
+        let unread = item(
+            id: "11111111-1111-1111-1111-111111111111",
+            created: Date(timeIntervalSince1970: 100)
+        )
+        let seenAt = Date(timeIntervalSince1970: 150)
+        let after = NotificationSeenAcknowledgement.applying([unread], seenAt: seenAt)
+        #expect(NotificationCounts.unseen(after) == 0)
+        #expect(NotificationCounts.unread(after) == 1)
+        #expect(after[0].readAt == nil)
+        #expect(after[0].seenAt == seenAt)
+        #expect(NotificationInboxSections.unread(after).map(\.id) == [unread.id])
+    }
+
+    @Test func newUnseenRowAfterAcknowledgementCountsAgain() {
+        let first = item(
+            id: "11111111-1111-1111-1111-111111111111",
+            created: Date(timeIntervalSince1970: 100)
+        )
+        let acknowledged = NotificationSeenAcknowledgement.applying(
+            [first],
+            seenAt: Date(timeIntervalSince1970: 150)
+        )
+        let second = item(
+            id: "22222222-2222-2222-2222-222222222222",
+            created: Date(timeIntervalSince1970: 200)
+        )
+        let items = acknowledged + [second]
+        #expect(NotificationCounts.unseen(items) == 1)
+        #expect(NotificationCounts.unread(items) == 2)
+    }
+
+    @Test func markingOneReadLeavesOthersUnreadAndTreatsItAsSeen() {
+        let first = item(
+            id: "11111111-1111-1111-1111-111111111111",
+            created: Date(timeIntervalSince1970: 100)
+        )
+        let second = item(
+            id: "22222222-2222-2222-2222-222222222222",
+            created: Date(timeIntervalSince1970: 200)
+        )
+        let opened = first.opened(at: Date(timeIntervalSince1970: 300))
+        let items = [opened, second]
+        #expect(opened.seenAt != nil)
+        #expect(opened.readAt != nil)
+        #expect(NotificationInboxSections.read(items).map(\.id) == [first.id])
+        #expect(NotificationInboxSections.unread(items).map(\.id) == [second.id])
+        #expect(second.readAt == nil)
+        #expect(second.seenAt == nil)
+        #expect(NotificationRouter.destination(from: opened) != .none)
+    }
+
+    @Test func failedMarkReadKeepsRowUnreadAndDestinationStillExists() {
+        let unread = item(
+            id: "11111111-1111-1111-1111-111111111111",
+            created: Date(timeIntervalSince1970: 100)
+        )
+        let destination = NotificationRouter.destination(from: unread)
+        #expect(unread.isUnread)
+        #expect(unread.isUnseen)
+        #expect(destination != .none)
+    }
+
+    @Test func refreshMappingDoesNotInventSeenAt() {
+        let fetched = item(
+            id: "11111111-1111-1111-1111-111111111111",
+            created: Date(timeIntervalSince1970: 100),
+            seenAt: nil,
+            readAt: nil
+        )
+        #expect(fetched.isUnseen)
+        #expect(NotificationCounts.unseen([fetched]) == 1)
+    }
+
+    @Test func enteringInboxMarksSeenWhenUnseenExistButDoesNotMarkRead() {
+        #expect(
+            NotificationInboxSeenPolicy.shouldMarkSeen(isInboxVisible: true, unseenCount: 3)
+        )
+        let items = [
+            item(id: "11111111-1111-1111-1111-111111111111", created: Date(timeIntervalSince1970: 100)),
+            item(id: "22222222-2222-2222-2222-222222222222", created: Date(timeIntervalSince1970: 200)),
+        ]
+        let after = NotificationSeenAcknowledgement.applying(items, seenAt: Date(timeIntervalSince1970: 300))
+        #expect(NotificationCounts.unseen(after) == 0)
+        #expect(NotificationCounts.unread(after) == 2)
+        #expect(after.allSatisfy { $0.readAt == nil })
+    }
+
+    @Test func refreshOnAnotherTabDoesNotMarkSeen() {
+        #expect(
+            !NotificationInboxSeenPolicy.shouldMarkSeen(isInboxVisible: false, unseenCount: 3)
+        )
+        #expect(
+            !NotificationInboxSeenPolicy.shouldMarkSeen(isInboxVisible: true, unseenCount: 0)
+        )
     }
 }

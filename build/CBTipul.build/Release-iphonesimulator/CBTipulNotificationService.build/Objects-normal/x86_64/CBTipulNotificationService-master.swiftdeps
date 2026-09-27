@@ -1,0 +1,8 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "44927d2ae3aeea1fe6aedfa8055f7bdf126a2203087e09fdc707427250899c8e"
+build_start_time: [1790517870, 890456000]
+build_end_time: [1790517871, 407528000]
+inputs:
+  "/Users/amitishai/Documents/CBTipul/NotificationService/NotificationService.swift": !dirty [1790078746, 19326433]
+  "/Users/amitishai/Documents/CBTipul/ios/PatientNameResolver.swift": !dirty [1790078741, 742143437]
+  "/Users/amitishai/Documents/CBTipul/ios/PatientPushPersonalizer.swift": !dirty [1790089006, 549535933]

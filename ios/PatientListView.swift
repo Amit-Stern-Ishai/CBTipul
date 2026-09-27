@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 
 /// Lists the therapist's patients and allows adding new ones.
 struct PatientListView: View {
@@ -302,6 +303,11 @@ struct PatientListView: View {
             next.append(route)
             path = next
         }
+        #if DEBUG
+        AppLog.store.debug(
+            "notification path applied patient=\(patient.id.queryValue, privacy: .public) focus=\(route.focusQuestionnaireID?.queryValue ?? "nil", privacy: .public)"
+        )
+        #endif
     }
 
     private func refreshProgress() {

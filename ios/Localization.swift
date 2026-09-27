@@ -76,6 +76,8 @@ enum L10n {
     static let notificationGenericPatient = "מטופל/ת"
     static let notificationTargetUnavailable = "הפריט כבר אינו זמין"
     static let notificationUnreadAccessibility = "לא נקראה"
+    static let notificationsUnreadSection = "לא נקראו"
+    static let notificationsReadSection = "נקראו"
     static let notificationsLoadFailedTitle = "טעינת התראות נכשלה"
 
     /// Relative time for inbox rows (e.g. "היום, 14:32").

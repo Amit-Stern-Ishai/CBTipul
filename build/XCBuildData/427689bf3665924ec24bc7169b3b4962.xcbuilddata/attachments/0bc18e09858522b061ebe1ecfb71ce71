@@ -1,0 +1,135 @@
+{
+  "" : {
+    "const-values" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeV2-master.swiftconstvalues",
+    "dependencies" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeV2-master.d",
+    "diagnostics" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeV2-master.dia",
+    "emit-module-dependencies" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeV2-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeV2-master-emit-module.dia",
+    "swift-dependencies" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeV2-master.swiftdeps"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/CallbackManager.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/CallbackManager.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/CallbackManager.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/CallbackManager.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/ChannelEvent.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/ChannelEvent.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/ChannelEvent.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/ChannelEvent.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/ChannelStateManager.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/ChannelStateManager.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/ChannelStateManager.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/ChannelStateManager.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/ConnectionManager.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/ConnectionManager.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/ConnectionManager.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/ConnectionManager.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/Exports.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/Exports.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/Exports.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/Exports.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/PostgresAction.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PostgresAction.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PostgresAction.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PostgresAction.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/PostgresActionData.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PostgresActionData.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PostgresActionData.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PostgresActionData.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/PresenceAction.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PresenceAction.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PresenceAction.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PresenceAction.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/PushV2.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PushV2.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PushV2.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/PushV2.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeChannel+AsyncAwait.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeChannel+AsyncAwait.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeChannel+AsyncAwait.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeChannel+AsyncAwait.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeChannel+Status.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeChannel+Status.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeChannel+Status.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeChannel+Status.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeChannelV2.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeChannelV2.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeChannelV2.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeChannelV2.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeClient+HeartbeatStatus.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeClient+HeartbeatStatus.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeClient+HeartbeatStatus.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeClient+HeartbeatStatus.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeClient+Status.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeClient+Status.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeClient+Status.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeClient+Status.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeClientV2.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeClientV2.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeClientV2.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeClientV2.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeError.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeError.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeError.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeError.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeJoinConfig.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeJoinConfig.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeJoinConfig.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeJoinConfig.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeLifecycleManager.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeLifecycleManager.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeLifecycleManager.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeLifecycleManager.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeMessageV2.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeMessageV2.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeMessageV2.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeMessageV2.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimePostgresFilter.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimePostgresFilter.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimePostgresFilter.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimePostgresFilter.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimePostgresFilterValue.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimePostgresFilterValue.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimePostgresFilterValue.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimePostgresFilterValue.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/RealtimeSerializer.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeSerializer.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeSerializer.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/RealtimeSerializer.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/Types.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/Types.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/Types.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/Types.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/WebSocket/URLSessionWebSocket.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/URLSessionWebSocket.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/URLSessionWebSocket.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/URLSessionWebSocket.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/RealtimeV2/WebSocket/WebSocket.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/WebSocket.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/WebSocket.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/RealtimeV2.build/Objects-normal/arm64/WebSocket.o"
+  }
+}

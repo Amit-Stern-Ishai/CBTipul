@@ -38,9 +38,41 @@ struct AppNotification: Identifiable, Hashable, Sendable {
     let resourceType: String?
     let resourceId: String?
     let createdAt: Date
+    let seenAt: Date?
     let readAt: Date?
 
+    var isUnseen: Bool { seenAt == nil }
     var isUnread: Bool { readAt == nil }
+
+    func acknowledged(at seenAt: Date) -> AppNotification {
+        AppNotification(
+            id: id,
+            type: type,
+            patientId: patientId,
+            sessionId: sessionId,
+            assignmentId: assignmentId,
+            resourceType: resourceType,
+            resourceId: resourceId,
+            createdAt: createdAt,
+            seenAt: self.seenAt ?? seenAt,
+            readAt: readAt
+        )
+    }
+
+    func opened(at readAt: Date) -> AppNotification {
+        AppNotification(
+            id: id,
+            type: type,
+            patientId: patientId,
+            sessionId: sessionId,
+            assignmentId: assignmentId,
+            resourceType: resourceType,
+            resourceId: resourceId,
+            createdAt: createdAt,
+            seenAt: seenAt ?? readAt,
+            readAt: readAt
+        )
+    }
 }
 
 /// Identifier payload shared by APNs `userInfo` and persisted rows.
@@ -119,6 +151,53 @@ struct AppNotificationPayload: Equatable, Sendable {
             return value.stringValue
         }
         return nil
+    }
+}
+
+enum NotificationInboxSections {
+    static func unread(_ items: [AppNotification]) -> [AppNotification] {
+        items.filter { $0.readAt == nil }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    static func read(_ items: [AppNotification]) -> [AppNotification] {
+        items.filter { $0.readAt != nil }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+}
+
+enum NotificationCounts {
+    static func unseen(_ items: [AppNotification]) -> Int {
+        items.reduce(0) { $0 + ($1.isUnseen ? 1 : 0) }
+    }
+
+    static func unread(_ items: [AppNotification]) -> Int {
+        items.reduce(0) { $0 + ($1.isUnread ? 1 : 0) }
+    }
+}
+
+enum NotificationSeenAcknowledgement {
+    /// Local result of a successful `mark_notifications_seen` RPC.
+    /// Does not change `readAt`.
+    static func applying(_ items: [AppNotification], seenAt: Date) -> [AppNotification] {
+        items.map { $0.acknowledged(at: seenAt) }
+    }
+}
+
+enum NotificationInboxSeenPolicy {
+    /// Inbox-seen RPC only when the Notifications tab is the visible selection.
+    /// Fetch / launch / other tabs never qualify on their own.
+    static func shouldMarkSeen(isInboxVisible: Bool, unseenCount: Int) -> Bool {
+        isInboxVisible && unseenCount > 0
+    }
+}
+
+enum QuestionnaireNotificationFocus {
+    /// Exact CombinedMood id for `questionnaire_completed`, or nil to stop
+    /// at the patient's questionnaire list.
+    static func combinedMoodID(resourceType: String?, resourceId: String?) -> DatabaseID? {
+        guard resourceType == "questionnaire", let resourceId else { return nil }
+        return DatabaseID.parseCombinedMoodID(resourceId)
     }
 }
 

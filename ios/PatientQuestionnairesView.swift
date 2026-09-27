@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import OSLog
 
 /// A patient's saved questionnaires, shown either as a list (newest first,
 /// tap to view read-only) or as score-over-time graphs for GAD-7 and PHQ-9.
@@ -21,7 +22,6 @@ struct PatientQuestionnairesView: View {
     /// expensive first layout doesn't happen mid-transition and jitter.
     @State private var isPreparingGraphs = true
     @State private var presentedQuestionnaireID: DatabaseID?
-    @State private var didAttemptFocus = false
 
     /// When true, this screen opens on graphs and hides the list/graph picker.
     private let startsOnGraphs: Bool
@@ -104,7 +104,7 @@ struct PatientQuestionnairesView: View {
             await load()
         }
         .navigationDestination(item: $presentedQuestionnaireID) { id in
-            if let record = questionnaires.first(where: { $0.databaseID == id }) {
+            if let record = questionnaires.first(where: { $0.databaseID.isSameIdentity(as: id) }) {
                 CompletedQuestionnaireView(
                     record: record,
                     patient: patient,
@@ -260,13 +260,31 @@ struct PatientQuestionnairesView: View {
     }
 
     private func attemptFocusIfNeeded() {
-        guard !didAttemptFocus, let focusQuestionnaireID else { return }
-        if questionnaires.contains(where: { $0.databaseID == focusQuestionnaireID }) {
-            didAttemptFocus = true
-            presentedQuestionnaireID = focusQuestionnaireID
-        } else if !isLoading {
-            didAttemptFocus = true
+        guard let focusQuestionnaireID else { return }
+        if let match = questionnaires.first(where: { $0.databaseID.isSameIdentity(as: focusQuestionnaireID) }) {
+            if presentedQuestionnaireID == nil {
+                presentedQuestionnaireID = match.databaseID
+                #if DEBUG
+                AppLog.store.debug(
+                    "notification questionnaire presented id=\(match.databaseID.queryValue, privacy: .public)"
+                )
+                #endif
+            }
+            return
         }
+        if isLoading {
+            #if DEBUG
+            AppLog.store.debug(
+                "notification questionnaire waiting load focus=\(focusQuestionnaireID.queryValue, privacy: .public)"
+            )
+            #endif
+            return
+        }
+        #if DEBUG
+        AppLog.store.debug(
+            "notification questionnaire not found focus=\(focusQuestionnaireID.queryValue, privacy: .public)"
+        )
+        #endif
     }
 }
 

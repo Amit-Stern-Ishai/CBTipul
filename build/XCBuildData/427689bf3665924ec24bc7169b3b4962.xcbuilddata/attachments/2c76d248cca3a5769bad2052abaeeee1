@@ -1,0 +1,40 @@
+{
+  "" : {
+    "const-values" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Supabase-master.swiftconstvalues",
+    "dependencies" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Supabase-master.d",
+    "diagnostics" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Supabase-master.dia",
+    "emit-module-dependencies" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Supabase-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Supabase-master-emit-module.dia",
+    "swift-dependencies" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Supabase-master.swiftdeps"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/Supabase/Constants.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Constants.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Constants.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Constants.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/Supabase/Deprecated.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Deprecated.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Deprecated.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Deprecated.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/Supabase/Exports.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Exports.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Exports.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Exports.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/Supabase/SupabaseClient.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/SupabaseClient.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/SupabaseClient.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/SupabaseClient.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/Supabase/Tracing.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Tracing.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Tracing.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Tracing.o"
+  },
+  "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/Sources/Supabase/Types.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Types.o",
+    "llvm-bc" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Types.bc",
+    "object" : "/Users/amitishai/Library/Developer/Xcode/DerivedData/CBTipul-ffpeqmmgvomodggwxqpxcalpaqxk/SourcePackages/checkouts/supabase-swift/build/Supabase.build/Release-iphonesimulator/Supabase.build/Objects-normal/x86_64/Types.o"
+  }
+}

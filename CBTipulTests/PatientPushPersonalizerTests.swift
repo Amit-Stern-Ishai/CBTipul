@@ -1,5 +1,6 @@
 import UserNotifications
 import XCTest
+@testable import CBTipul
 
 final class PatientPushPersonalizerTests: XCTestCase {
     private let names: [String: String] = ["known-id": "דני"]

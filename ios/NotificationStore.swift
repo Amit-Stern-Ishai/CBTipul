@@ -1,7 +1,6 @@
 import Foundation
 import OSLog
 import Supabase
-import UserNotifications
 
 /// Therapist Notification Center source of truth. Rows live on the server;
 /// this type does not invent local history when the table is missing.
@@ -17,20 +16,28 @@ final class NotificationStore {
     /// Demo clinic must not show live therapist notifications.
     var isDemoInbox = false
 
+    /// Persistent rows the therapist has not opened (`readAt == nil`).
     var unreadCount: Int {
-        notifications.reduce(0) { $0 + ($1.isUnread ? 1 : 0) }
+        NotificationCounts.unread(notifications)
+    }
+
+    /// Rows the therapist has not seen in the inbox (`seenAt == nil`).
+    /// Drives the tab badge and in-app icon badge — not the same as `unreadCount`.
+    var unseenCount: Int {
+        NotificationCounts.unseen(notifications)
     }
 
     init(client: SupabaseClient) {
         self.client = client
         Self.shared = self
+        UserDefaults.standard.removeObject(forKey: "cbtipul.notifications.inboxAcknowledgedCreatedAt")
     }
 
     func clear() {
         notifications = []
         didFailLastLoad = false
         isLoading = false
-        synchronizeAppIconBadge()
+        Task { await synchronizeAppIconBadge() }
     }
 
     func refresh() async {
@@ -39,7 +46,7 @@ final class NotificationStore {
             notifications = []
             didFailLastLoad = false
             isLoading = false
-            synchronizeAppIconBadge()
+            await synchronizeAppIconBadge()
             return
         }
         isLoading = true
@@ -47,31 +54,50 @@ final class NotificationStore {
         defer { isLoading = false }
         guard SupabaseConfig.isConfigured else {
             notifications = []
-            synchronizeAppIconBadge()
+            await synchronizeAppIconBadge()
             return
         }
         do {
             _ = try await client.auth.session
         } catch {
             notifications = []
-            synchronizeAppIconBadge()
+            await synchronizeAppIconBadge()
             return
         }
         do {
             let rows: [NotificationRow] = try await client.from("notifications")
-                .select("id, type, patient_id, session_id, assignment_id, resource_type, resource_id, created_at, read_at")
+                .select("id, type, patient_id, session_id, assignment_id, resource_type, resource_id, created_at, seen_at, read_at")
                 .order("created_at", ascending: false)
                 .execute()
                 .value
             notifications = rows.map(\.asAppNotification)
-            synchronizeAppIconBadge()
+            await synchronizeAppIconBadge()
         } catch {
             didFailLastLoad = true
             notifications = []
-            synchronizeAppIconBadge()
+            await synchronizeAppIconBadge()
             #if DEBUG
             AppLog.push.debug(
                 "notifications refresh failed: \(error.localizedDescription, privacy: .public)"
+            )
+            #endif
+        }
+    }
+
+    /// Marks currently unseen inbox rows as seen via `mark_notifications_seen`.
+    /// Does not change `readAt`. No-ops when there is nothing unseen (avoids RPC loops).
+    func markInboxSeen() async {
+        guard unseenCount > 0 else { return }
+        guard !isDemoInbox, !AuthManager.isUITesting else { return }
+        guard SupabaseConfig.isConfigured else { return }
+        do {
+            try await client.rpc("mark_notifications_seen").execute()
+            notifications = NotificationSeenAcknowledgement.applying(notifications, seenAt: Date())
+            await synchronizeAppIconBadge()
+        } catch {
+            #if DEBUG
+            AppLog.push.debug(
+                "notifications mark-seen failed: \(error.localizedDescription, privacy: .public)"
             )
             #endif
         }
@@ -87,19 +113,7 @@ final class NotificationStore {
                 params: MarkNotificationReadParams(pNotificationId: notification.id)
             )
             .execute()
-            apply(
-                AppNotification(
-                    id: notification.id,
-                    type: notification.type,
-                    patientId: notification.patientId,
-                    sessionId: notification.sessionId,
-                    assignmentId: notification.assignmentId,
-                    resourceType: notification.resourceType,
-                    resourceId: notification.resourceId,
-                    createdAt: notification.createdAt,
-                    readAt: Date()
-                )
-            )
+            apply(notification.opened(at: Date()))
         } catch {
             #if DEBUG
             AppLog.push.debug(
@@ -112,25 +126,14 @@ final class NotificationStore {
     private func apply(_ notification: AppNotification) {
         if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
             notifications[index] = notification
-            synchronizeAppIconBadge()
+            Task { await synchronizeAppIconBadge() }
         }
     }
 
-    /// App icon and tab badge share `unreadCount`. Failures here must not
+    /// App icon follows `unseenCount`. Failures here must not
     /// affect fetch or mark-read. Does not request notification permission.
-    private func synchronizeAppIconBadge() {
-        let count = unreadCount
-        Task {
-            do {
-                try await UNUserNotificationCenter.current().setBadgeCount(count)
-            } catch {
-                #if DEBUG
-                AppLog.push.debug(
-                    "app icon badge sync failed: \(error.localizedDescription, privacy: .public)"
-                )
-                #endif
-            }
-        }
+    private func synchronizeAppIconBadge() async {
+        await ApplicationIconBadge.sync(count: unseenCount)
     }
 }
 
@@ -151,6 +154,7 @@ private nonisolated struct NotificationRow: Decodable {
     let resourceType: String?
     let resourceID: String?
     let createdAt: Date
+    let seenAt: Date?
     let readAt: Date?
 
     enum CodingKeys: String, CodingKey {
@@ -162,6 +166,7 @@ private nonisolated struct NotificationRow: Decodable {
         case resourceType = "resource_type"
         case resourceID = "resource_id"
         case createdAt = "created_at"
+        case seenAt = "seen_at"
         case readAt = "read_at"
     }
 
@@ -175,6 +180,7 @@ private nonisolated struct NotificationRow: Decodable {
         resourceType = try container.decodeIfPresent(String.self, forKey: .resourceType)
         resourceID = Self.decodeFlexibleString(container, forKey: .resourceID)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
+        seenAt = try container.decodeIfPresent(Date.self, forKey: .seenAt)
         readAt = try container.decodeIfPresent(Date.self, forKey: .readAt)
     }
 
@@ -206,6 +212,7 @@ private nonisolated struct NotificationRow: Decodable {
             resourceType: resourceType,
             resourceId: resourceID,
             createdAt: createdAt,
+            seenAt: seenAt,
             readAt: readAt
         )
     }

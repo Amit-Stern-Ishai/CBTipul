@@ -627,19 +627,38 @@
 		4554FAFC305BC02A00C689C9 /* Debug configuration for PBXNativeTarget "CBTipulUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HYK8779JBA;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = amit.CBTipulUITests;
 				PRODUCT_NAME = CBTipulUITests;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = CBTipul;
 			};
 			name = Debug;
 		};
 		4554FAFD305BC02A00C689C9 /* Release configuration for PBXNativeTarget "CBTipulUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = HYK8779JBA;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = amit.CBTipulUITests;
 				PRODUCT_NAME = CBTipulUITests;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = CBTipul;
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};

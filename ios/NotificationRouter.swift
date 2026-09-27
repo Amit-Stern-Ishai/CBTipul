@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 /// Programmatic path on the Patients tab: Patient Detail → שאלונים
 /// (and optionally the completed questionnaire).
@@ -139,12 +140,15 @@ final class TherapistNotificationCoordinator {
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
             selectedTab = .patients
-            let focusID: DatabaseID?
-            if resourceType == "questionnaire" {
-                focusID = resourceId.flatMap(DatabaseID.parse)
-            } else {
-                focusID = nil
-            }
+            let focusID = QuestionnaireNotificationFocus.combinedMoodID(
+                resourceType: resourceType,
+                resourceId: resourceId
+            )
+            #if DEBUG
+            AppLog.push.debug(
+                "notification route questionnaire_completed patientId=\(patientId, privacy: .public) resourceType=\(resourceType ?? "nil", privacy: .public) resourceId=\(resourceId ?? "nil", privacy: .public) parsedCombinedMood=\(focusID?.queryValue ?? "nil", privacy: .public)"
+            )
+            #endif
             pendingPatientNavigation = PendingPatientNavigation(
                 token: UUID(),
                 route: PatientQuestionnairesRoute(
@@ -152,12 +156,24 @@ final class TherapistNotificationCoordinator {
                     focusQuestionnaireID: focusID
                 )
             )
+            #if DEBUG
+            AppLog.push.debug(
+                "notification route created questionnaires patient=\(patient.id.queryValue, privacy: .public) focus=\(focusID?.queryValue ?? "nil", privacy: .public)"
+            )
+            #endif
         }
     }
 
     func consumePatientNavigation() -> PatientQuestionnairesRoute? {
         let pending = pendingPatientNavigation
         pendingPatientNavigation = nil
+        #if DEBUG
+        if let route = pending?.route {
+            AppLog.push.debug(
+                "notification route consumed questionnaires patient=\(route.patientID.queryValue, privacy: .public) focus=\(route.focusQuestionnaireID?.queryValue ?? "nil", privacy: .public)"
+            )
+        }
+        #endif
         return pending?.route
     }
 }

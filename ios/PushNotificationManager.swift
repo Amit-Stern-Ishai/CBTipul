@@ -247,15 +247,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         let original = notification.request.content
+        // APNs sets `aps.badge` while backgrounded/terminated. Foreground
+        // presentation must not apply that badge: the in-app icon follows
+        // `NotificationStore.unseenCount` after refresh.
         defer {
             Task { await NotificationStore.shared?.refresh() }
         }
         guard let personalized = original.mutableCopy() as? UNMutableNotificationContent else {
-            return [.banner, .list, .sound, .badge]
+            return [.banner, .list, .sound]
         }
         PatientPushPersonalizer.apply(to: personalized)
         if personalized.body == original.body {
-            return [.banner, .list, .sound, .badge]
+            return [.banner, .list, .sound]
         }
         let request = UNNotificationRequest(
             identifier: notification.request.identifier,
@@ -265,7 +268,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         do {
             try await center.add(request)
         } catch {
-            return [.banner, .list, .sound, .badge]
+            return [.banner, .list, .sound]
         }
         return []
     }
