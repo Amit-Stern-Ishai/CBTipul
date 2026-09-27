@@ -73,6 +73,15 @@ struct PatientListView: View {
                     }
                 }
             }
+            .navigationDestination(for: PatientDiaryOneRoute.self) { route in
+                if let patient = store.patients.first(where: { $0.id == route.patientID }) {
+                    PatientDiaryOneView(patient: patient, focusEntryID: route.focusEntryID)
+                } else {
+                    ContentUnavailableView {
+                        Label(L10n.notificationTargetUnavailable, systemImage: "questionmark.circle")
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -302,6 +311,8 @@ struct PatientListView: View {
             next.append(patient)
             if let questionnaires = pending.questionnairesRoute {
                 next.append(questionnaires)
+            } else if let diaryOne = pending.diaryOneRoute {
+                next.append(diaryOne)
             }
             path = next
         }

@@ -8,11 +8,23 @@ struct PatientQuestionnairesRoute: Hashable {
     let focusQuestionnaireID: DatabaseID?
 }
 
+/// Programmatic path: Patient Detail → Diary 1 → optional exact entry.
+struct PatientDiaryOneRoute: Hashable {
+    let patientID: DatabaseID
+    let focusEntryID: UUID?
+}
+
 /// Result of parsing a push or inbox record. Push taps and inbox taps share
 /// this type so routing is not duplicated.
 enum NotificationDestination: Equatable {
     /// Therapist Patients tab → patient → questionnaires → optional CombinedMood.
     case completedQuestionnaire(
+        patientId: String,
+        resourceType: String?,
+        resourceId: String?
+    )
+    /// Therapist Patients tab → patient → Diary 1 → optional exact entry.
+    case diaryOneEntry(
         patientId: String,
         resourceType: String?,
         resourceId: String?
@@ -35,12 +47,21 @@ enum NotificationRouter {
                 resourceType: payload.resourceType,
                 resourceId: payload.resourceId
             )
+        case .diaryOneEntryAdded:
+            guard let patientId = payload.patientId, !patientId.isEmpty else {
+                return .none
+            }
+            return .diaryOneEntry(
+                patientId: patientId,
+                resourceType: payload.resourceType,
+                resourceId: payload.resourceId
+            )
         case .patientConnected:
             guard let patientId = payload.patientId, !patientId.isEmpty else {
                 return .none
             }
             return .patientDetail(patientId: patientId)
-        case .questionnaireAssigned, .messageReceived, .unknown:
+        case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .unknown:
             return .none
         }
     }
@@ -147,7 +168,8 @@ final class TherapistNotificationCoordinator {
             pendingPatientNavigation = PendingPatientNavigation(
                 token: UUID(),
                 patientID: patient.id,
-                questionnairesRoute: nil
+                questionnairesRoute: nil,
+                diaryOneRoute: nil
             )
             #if DEBUG
             AppLog.push.debug(
@@ -179,13 +201,42 @@ final class TherapistNotificationCoordinator {
                 questionnairesRoute: PatientQuestionnairesRoute(
                     patientID: patient.id,
                     focusQuestionnaireID: focusID
-                )
+                ),
+                diaryOneRoute: nil
             )
             #if DEBUG
             AppLog.push.debug(
                 "notification route created questionnaires patient=\(patient.id.queryValue, privacy: .public) focus=\(focusID?.queryValue ?? "nil", privacy: .public)"
             )
             #endif
+        case .diaryOneEntry(let patientId, let resourceType, let resourceId):
+            guard let patient = resolvedPatient(
+                patientId: patientId,
+                patients: patients,
+                fingerprint: fingerprint,
+                waitForPatients: waitForPatients
+            ) else { return }
+            pendingPayload = nil
+            lastConsumedFingerprint = fingerprint
+            selectedTab = .patients
+            let focusID = DiaryOneNotificationFocus.entryID(
+                resourceType: resourceType,
+                resourceId: resourceId
+            )
+            #if DEBUG
+            AppLog.push.debug(
+                "notification route diary_1_entry_added patientId=\(patientId, privacy: .public) resourceType=\(resourceType ?? "nil", privacy: .public) resourceId=\(resourceId ?? "nil", privacy: .public) parsedEntry=\(focusID?.uuidString ?? "nil", privacy: .public)"
+            )
+            #endif
+            pendingPatientNavigation = PendingPatientNavigation(
+                token: UUID(),
+                patientID: patient.id,
+                questionnairesRoute: nil,
+                diaryOneRoute: PatientDiaryOneRoute(
+                    patientID: patient.id,
+                    focusEntryID: focusID
+                )
+            )
         }
     }
 
@@ -215,7 +266,7 @@ final class TherapistNotificationCoordinator {
         #if DEBUG
         if let pending {
             AppLog.push.debug(
-                "notification route consumed patient=\(pending.patientID.queryValue, privacy: .public) questionnaires=\(pending.questionnairesRoute != nil, privacy: .public)"
+                "notification route consumed patient=\(pending.patientID.queryValue, privacy: .public) questionnaires=\(pending.questionnairesRoute != nil, privacy: .public) diaryOne=\(pending.diaryOneRoute != nil, privacy: .public)"
             )
         }
         #endif
@@ -228,4 +279,5 @@ struct PendingPatientNavigation: Equatable {
     let patientID: DatabaseID
     /// When nil, open Patient Detail only (`patient_connected`).
     let questionnairesRoute: PatientQuestionnairesRoute?
+    let diaryOneRoute: PatientDiaryOneRoute?
 }

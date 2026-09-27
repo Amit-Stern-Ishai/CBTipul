@@ -22,6 +22,7 @@ struct PatientModeView: View {
     @State private var didSubmitQuestionnaire = false
     @State private var didSubmitDiaryOne = false
     @State private var isShowingSettings = false
+    @State private var isShowingDiaryOneEntry = false
 
     private var openAssignments: [PatientAssignment] {
         assignments.filter(\.isOpen)
@@ -70,6 +71,17 @@ struct PatientModeView: View {
                         Label(L10n.patientMessagesEmptyTitle, systemImage: "envelope")
                     }
                 }
+            }
+            .navigationDestination(isPresented: $isShowingDiaryOneEntry) {
+                PatientDiaryOneEntryView(
+                    onSubmitted: {
+                        didSubmitDiaryOne = true
+                        await loadAssignments()
+                    },
+                    onDiaryInactive: {
+                        await loadAssignments()
+                    }
+                )
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -375,14 +387,28 @@ struct PatientModeView: View {
 
     private func applyPendingMessageRoute() async {
         guard let destination = messageCoordinator.consumePending() else { return }
-        await loadMessages()
+        switch destination {
+        case .none:
+            break
+        case .messages(let messagesDestination):
+            await loadMessages()
+            await applyMessageDestination(messagesDestination)
+        case .diaryOneAssigned(let diaryDestination):
+            await loadAssignments()
+            applyDiaryOneAssignedDestination(diaryDestination)
+        }
+    }
+
+    private func applyMessageDestination(_ destination: PatientMessageDestination) async {
         switch destination {
         case .none:
             break
         case .list:
             openedMessageID = nil
+            isShowingDiaryOneEntry = false
             isShowingMessages = true
         case .exact(let id):
+            isShowingDiaryOneEntry = false
             if messages.contains(where: { $0.id == id }) == false,
                let fetched = try? await PatientMessageService(client: auth.client).message(id: id) {
                 messages.insert(fetched, at: 0)
@@ -394,6 +420,23 @@ struct PatientModeView: View {
                 openedMessageID = nil
                 isShowingMessages = true
             }
+        }
+    }
+
+    private func applyDiaryOneAssignedDestination(_ destination: PatientDiaryOneAssignedDestination) {
+        switch destination {
+        case .none:
+            break
+        case .entryForm(let assignmentId):
+            guard let assignmentId,
+                  PatientDiaryOneAssignedRouter.matchingAssignment(
+                    in: assignments,
+                    assignmentId: assignmentId
+                  ) != nil
+            else { return }
+            openedMessageID = nil
+            isShowingMessages = false
+            isShowingDiaryOneEntry = true
         }
     }
 }

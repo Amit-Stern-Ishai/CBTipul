@@ -14,6 +14,9 @@ enum PatientPushCopy {
     static func questionnaireCompletedBody(name: String) -> String {
         "\(name) מילא/ה שאלון חדש"
     }
+
+    static let genericPatient = "מטופל/ת"
+    static let diaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן 1"
 }
 
 /// Applies device-only patient-name substitution to a notification.
@@ -22,6 +25,7 @@ enum PatientPushPersonalizer: Sendable {
     enum NotificationType: String {
         case patientConnected = "patient_connected"
         case questionnaireCompleted = "questionnaire_completed"
+        case diaryOneEntryAdded = "diary_1_entry_added"
     }
 
     nonisolated static func apply(to content: UNMutableNotificationContent) {
@@ -47,6 +51,8 @@ enum PatientPushPersonalizer: Sendable {
                 namedBody: PatientPushCopy.questionnaireCompletedBody,
                 nameForPatientId: nameForPatientId
             )
+        case .diaryOneEntryAdded:
+            applyDiaryOneEntryAdded(to: content, nameForPatientId: nameForPatientId)
         }
     }
 
@@ -60,6 +66,17 @@ enum PatientPushPersonalizer: Sendable {
 
     nonisolated static func sessionId(from userInfo: [AnyHashable: Any]) -> String? {
         stringValue(userInfo["sessionId"] ?? userInfo["session_id"])
+    }
+
+    private nonisolated static func applyDiaryOneEntryAdded(
+        to content: UNMutableNotificationContent,
+        nameForPatientId: (String) -> String?
+    ) {
+        guard let patientId = patientId(from: content.userInfo) else { return }
+        let resolved = nameForPatientId(patientId)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        content.title = resolved.isEmpty ? PatientPushCopy.genericPatient : resolved
+        content.body = PatientPushCopy.diaryOneEntryAdded
     }
 
     private nonisolated static func applyNamedBody(

@@ -73,6 +73,7 @@ enum L10n {
     static let notificationsEmptyTitle = "אין התראות"
     static let notificationQuestionnaireCompleted = "השאלון הושלם"
     static let notificationPatientConnected = "התחבר/ה ל-CBTipul"
+    static let notificationDiaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן 1"
     static let notificationGenericTitle = "התראה"
     static let notificationGenericPatient = "מטופל/ת"
     static let notificationTargetUnavailable = "הפריט כבר אינו זמין"

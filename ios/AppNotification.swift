@@ -7,6 +7,8 @@ enum AppNotificationType: Hashable, Sendable {
     case questionnaireCompleted
     case patientConnected
     case messageReceived
+    case diaryOneAssigned
+    case diaryOneEntryAdded
     case unknown(String)
 
     init(rawValue: String) {
@@ -19,6 +21,10 @@ enum AppNotificationType: Hashable, Sendable {
             self = .patientConnected
         case "message_received":
             self = .messageReceived
+        case "diary_1_assigned":
+            self = .diaryOneAssigned
+        case "diary_1_entry_added":
+            self = .diaryOneEntryAdded
         default:
             self = .unknown(rawValue)
         }
@@ -30,7 +36,20 @@ enum AppNotificationType: Hashable, Sendable {
         case .questionnaireCompleted: "questionnaire_completed"
         case .patientConnected: "patient_connected"
         case .messageReceived: "message_received"
+        case .diaryOneAssigned: "diary_1_assigned"
+        case .diaryOneEntryAdded: "diary_1_entry_added"
         case .unknown(let raw): raw
+        }
+    }
+
+    /// Patient Mode APNs taps. Not inferred from `patientId`.
+    var routesInPatientMode: Bool {
+        switch self {
+        case .messageReceived, .diaryOneAssigned:
+            true
+        case .questionnaireAssigned, .questionnaireCompleted, .patientConnected,
+             .diaryOneEntryAdded, .unknown:
+            false
         }
     }
 }
@@ -170,7 +189,9 @@ enum NotificationInboxCopy {
             L10n.notificationQuestionnaireCompleted
         case .patientConnected:
             L10n.notificationPatientConnected
-        case .questionnaireAssigned, .messageReceived, .unknown:
+        case .diaryOneEntryAdded:
+            L10n.notificationDiaryOneEntryAdded
+        case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .unknown:
             L10n.notificationGenericTitle
         }
     }
@@ -220,6 +241,16 @@ enum QuestionnaireNotificationFocus {
     static func combinedMoodID(resourceType: String?, resourceId: String?) -> DatabaseID? {
         guard resourceType == "questionnaire", let resourceId else { return nil }
         return DatabaseID.parseCombinedMoodID(resourceId)
+    }
+}
+
+enum DiaryOneNotificationFocus {
+    /// Exact Diary 1 entry UUID, or nil to stop at the patient's Diary 1 list.
+    static func entryID(resourceType: String?, resourceId: String?) -> UUID? {
+        guard resourceType == "diary_one_entry", let resourceId else { return nil }
+        let trimmed = resourceId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return UUID(uuidString: trimmed)
     }
 }
 

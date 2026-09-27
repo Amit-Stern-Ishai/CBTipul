@@ -143,6 +143,40 @@ final class DiaryOneStore {
         }
     }
 
+    /// Single entry for notification routing. Requires the entry to belong to
+    /// `patientId`; missing or mismatched rows return nil.
+    func loadEntry(id: UUID, patientId: DatabaseID) async throws -> DiaryOneEntry? {
+        if DemoData.isDemoID(patientId) {
+            return DiaryOneEntryLookup.accepted(
+                cached(for: patientId).first(where: { $0.id == id }),
+                for: patientId
+            )
+        }
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let patientUUID = patientId.uuidValue else {
+            throw AuthError.notConfigured
+        }
+        do {
+            let rows: [DiaryOneEntry] = try await client.from("diary_one_entries")
+                .select(diaryOneSelectColumns)
+                .eq("id", value: id)
+                .eq("patient_id", value: patientUUID)
+                .limit(1)
+                .execute()
+                .value
+            guard let entry = DiaryOneEntryLookup.accepted(rows.first, for: patientId) else {
+                return nil
+            }
+            upsertCache(entry)
+            return entry
+        } catch {
+            AppLog.store.error(
+                "Diary 1 entry load failed: \(error.localizedDescription, privacy: .public)"
+            )
+            throw error
+        }
+    }
+
     func createEntry(
         patientId: DatabaseID,
         event: String,
@@ -319,5 +353,12 @@ final class DiaryOneStore {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)
+    }
+}
+
+enum DiaryOneEntryLookup {
+    static func accepted(_ entry: DiaryOneEntry?, for patientId: DatabaseID) -> DiaryOneEntry? {
+        guard let entry, entry.patientId.isSameIdentity(as: patientId) else { return nil }
+        return entry
     }
 }

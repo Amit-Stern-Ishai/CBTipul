@@ -116,8 +116,47 @@ enum PatientMessageRouter {
     }
 }
 
-/// Patient Mode pending `message_received` route. Therapist routing stays
-/// on `TherapistNotificationCoordinator`.
+enum PatientDiaryOneAssignedRouter {
+    static func destination(from payload: AppNotificationPayload) -> PatientDiaryOneAssignedDestination {
+        guard payload.type == .diaryOneAssigned else { return .none }
+        return .entryForm(assignmentId: assignmentID(from: payload))
+    }
+
+    static func assignmentID(from payload: AppNotificationPayload) -> UUID? {
+        if let raw = payload.assignmentId {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let id = UUID(uuidString: trimmed) { return id }
+        }
+        if payload.resourceType == "assignment", let raw = payload.resourceId {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let id = UUID(uuidString: trimmed) { return id }
+        }
+        return nil
+    }
+
+    static func matchingAssignment(
+        in assignments: [PatientAssignment],
+        assignmentId: UUID
+    ) -> PatientAssignment? {
+        assignments.first {
+            $0.id == assignmentId && $0.type == .diaryOne && $0.isOpen
+        }
+    }
+}
+
+enum PatientDiaryOneAssignedDestination: Equatable {
+    case none
+    case entryForm(assignmentId: UUID?)
+}
+
+enum PatientModePushDestination: Equatable {
+    case none
+    case messages(PatientMessageDestination)
+    case diaryOneAssigned(PatientDiaryOneAssignedDestination)
+}
+
+/// Patient Mode pending `message_received` / `diary_1_assigned` route. Therapist
+/// routing stays on `TherapistNotificationCoordinator`.
 @Observable
 @MainActor
 final class PatientModeMessageCoordinator {
@@ -132,14 +171,14 @@ final class PatientModeMessageCoordinator {
 
     func handlePushTap(userInfo: [AnyHashable: Any]) {
         guard let payload = AppNotificationPayload.from(userInfo: userInfo),
-              payload.type == .messageReceived
+              payload.type.routesInPatientMode
         else { return }
         if lastConsumedFingerprint == payload.routingFingerprint { return }
         pendingPayload = payload
         pendingRevision += 1
         #if DEBUG
         AppLog.push.debug(
-            "patient message_received queued resourceId=\(payload.resourceId ?? "nil", privacy: .public)"
+            "patient mode push queued type=\(payload.typeRaw, privacy: .public) resourceId=\(payload.resourceId ?? "nil", privacy: .public)"
         )
         #endif
     }
@@ -152,7 +191,7 @@ final class PatientModeMessageCoordinator {
         isReady = false
     }
 
-    func consumePending() -> PatientMessageDestination? {
+    func consumePending() -> PatientModePushDestination? {
         guard isReady, let payload = pendingPayload else { return nil }
         if lastConsumedFingerprint == payload.routingFingerprint {
             pendingPayload = nil
@@ -160,7 +199,14 @@ final class PatientModeMessageCoordinator {
         }
         lastConsumedFingerprint = payload.routingFingerprint
         pendingPayload = nil
-        return PatientMessageRouter.destination(from: payload)
+        switch payload.type {
+        case .messageReceived:
+            return .messages(PatientMessageRouter.destination(from: payload))
+        case .diaryOneAssigned:
+            return .diaryOneAssigned(PatientDiaryOneAssignedRouter.destination(from: payload))
+        default:
+            return .none
+        }
     }
 }
 

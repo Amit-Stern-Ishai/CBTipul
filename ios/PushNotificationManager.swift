@@ -257,7 +257,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return [.banner, .list, .sound]
         }
         PatientPushPersonalizer.apply(to: personalized)
-        if personalized.body == original.body {
+        if personalized.body == original.body, personalized.title == original.title {
             return [.banner, .list, .sound]
         }
         let request = UNNotificationRequest(
@@ -280,7 +280,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let userInfo = response.notification.request.content.userInfo
         if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             await MainActor.run {
-                if AppNotificationPayload.from(userInfo: userInfo)?.type == .messageReceived {
+                if AppNotificationPayload.from(userInfo: userInfo)?.type.routesInPatientMode == true {
                     PatientModeMessageCoordinator.shared.handlePushTap(userInfo: userInfo)
                 } else {
                     TherapistNotificationCoordinator.shared.handlePushTap(userInfo: userInfo)

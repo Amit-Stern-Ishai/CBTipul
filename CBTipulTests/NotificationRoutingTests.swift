@@ -252,6 +252,282 @@ struct NotificationRoutingTests {
     }
 }
 
+struct DiaryOneNotificationRoutingTests {
+    private let patientID = "22222222-2222-2222-2222-222222222222"
+    private let entryID = UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!
+    private let assignmentID = UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")!
+
+    @Test func diaryOneAssignedDecodesExplicitTypeAndRoutesInPatientMode() {
+        let payload = AppNotificationPayload.from(userInfo: [
+            "type": "diary_1_assigned",
+            "notificationId": "11111111-1111-1111-1111-111111111111",
+            "patientId": patientID,
+            "assignmentId": assignmentID.uuidString,
+            "resourceType": "assignment",
+            "resourceId": assignmentID.uuidString,
+        ])
+        #expect(payload?.type == .diaryOneAssigned)
+        #expect(payload?.type.routesInPatientMode == true)
+        #expect(NotificationRouter.destination(from: payload!) == .none)
+        #expect(
+            PatientDiaryOneAssignedRouter.destination(from: payload!)
+                == .entryForm(assignmentId: assignmentID)
+        )
+        #expect(PatientMessageRouter.destination(from: payload!) == .none)
+    }
+
+    @Test func diaryOneEntryAddedDecodesExplicitTypeAndExactEntryDestination() {
+        let payload = AppNotificationPayload.from(userInfo: [
+            "type": "diary_1_entry_added",
+            "notificationId": "11111111-1111-1111-1111-111111111111",
+            "patientId": patientID,
+            "resourceType": "diary_one_entry",
+            "resourceId": entryID.uuidString,
+        ])
+        #expect(payload?.type == .diaryOneEntryAdded)
+        #expect(payload?.type.routesInPatientMode == false)
+        #expect(
+            NotificationRouter.destination(from: payload!)
+                == .diaryOneEntry(
+                    patientId: patientID,
+                    resourceType: "diary_one_entry",
+                    resourceId: entryID.uuidString
+                )
+        )
+        #expect(
+            DiaryOneNotificationFocus.entryID(
+                resourceType: "diary_one_entry",
+                resourceId: entryID.uuidString
+            ) == entryID
+        )
+        #expect(PatientMessageRouter.destination(from: payload!) == .none)
+        #expect(PatientDiaryOneAssignedRouter.destination(from: payload!) == .none)
+        #expect(
+            NotificationInboxCopy.message(for: .diaryOneEntryAdded)
+                == L10n.notificationDiaryOneEntryAdded
+        )
+    }
+
+    @Test func invalidResourceIdDoesNotCrashAndDoesNotOpenEntry() {
+        let payload = AppNotificationPayload.from(userInfo: [
+            "type": "diary_1_entry_added",
+            "patientId": patientID,
+            "resourceType": "diary_one_entry",
+            "resourceId": "not-a-uuid",
+        ])!
+        #expect(payload.type == .diaryOneEntryAdded)
+        #expect(
+            NotificationRouter.destination(from: payload)
+                == .diaryOneEntry(
+                    patientId: patientID,
+                    resourceType: "diary_one_entry",
+                    resourceId: "not-a-uuid"
+                )
+        )
+        #expect(
+            DiaryOneNotificationFocus.entryID(
+                resourceType: "diary_one_entry",
+                resourceId: "not-a-uuid"
+            ) == nil
+        )
+    }
+
+    @Test func wrongOrMissingResourceTypeDoesNotOpenEntry() {
+        #expect(
+            DiaryOneNotificationFocus.entryID(
+                resourceType: "assignment",
+                resourceId: entryID.uuidString
+            ) == nil
+        )
+        #expect(
+            DiaryOneNotificationFocus.entryID(
+                resourceType: nil,
+                resourceId: entryID.uuidString
+            ) == nil
+        )
+        let payload = AppNotificationPayload.from(userInfo: [
+            "type": "diary_1_entry_added",
+            "patientId": patientID,
+            "assignmentId": assignmentID.uuidString,
+            "resourceType": "assignment",
+            "resourceId": assignmentID.uuidString,
+        ])!
+        let destination = NotificationRouter.destination(from: payload)
+        #expect(
+            destination == .diaryOneEntry(
+                patientId: patientID,
+                resourceType: "assignment",
+                resourceId: assignmentID.uuidString
+            )
+        )
+        if case .diaryOneEntry(_, let resourceType, let resourceId) = destination {
+            #expect(DiaryOneNotificationFocus.entryID(resourceType: resourceType, resourceId: resourceId) == nil)
+        } else {
+            Issue.record("expected diaryOneEntry destination")
+        }
+    }
+
+    @Test func entryLookupValidatesPatientOwnershipAndMissingEntry() {
+        let patient = DatabaseID.text(patientID)
+        let other = DatabaseID.text("33333333-3333-3333-3333-333333333333")
+        let owned = DiaryOneEntry(
+            id: entryID,
+            patientId: patient,
+            therapistId: UUID(),
+            createdBy: .patient,
+            event: "e",
+            thought: "t",
+            feelings: [],
+            behaviour: "b",
+            physicalSymptoms: nil,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        #expect(DiaryOneEntryLookup.accepted(owned, for: patient)?.id == entryID)
+        #expect(DiaryOneEntryLookup.accepted(owned, for: other) == nil)
+        #expect(DiaryOneEntryLookup.accepted(nil, for: patient) == nil)
+    }
+
+    @Test func missingPatientDoesNotRouteTherapistDiaryEntry() {
+        let payload = AppNotificationPayload.from(userInfo: [
+            "type": "diary_1_entry_added",
+            "resourceType": "diary_one_entry",
+            "resourceId": entryID.uuidString,
+        ])!
+        #expect(NotificationRouter.destination(from: payload) == .none)
+    }
+
+    @Test func matchingAssignmentRequiresExactOpenDiaryOne() {
+        let matching = PatientAssignment(
+            id: assignmentID,
+            patientId: UUID(uuidString: patientID)!,
+            therapistId: nil,
+            sessionId: nil,
+            typeValue: PatientAssignmentType.diaryOne.rawValue,
+            createdAt: Date(),
+            completedAt: nil,
+            cancelledAt: nil
+        )
+        let otherType = PatientAssignment(
+            id: assignmentID,
+            patientId: UUID(uuidString: patientID)!,
+            therapistId: nil,
+            sessionId: nil,
+            typeValue: PatientAssignmentType.questionnaire.rawValue,
+            createdAt: Date(),
+            completedAt: nil,
+            cancelledAt: nil
+        )
+        let cancelled = PatientAssignment(
+            id: assignmentID,
+            patientId: UUID(uuidString: patientID)!,
+            therapistId: nil,
+            sessionId: nil,
+            typeValue: PatientAssignmentType.diaryOne.rawValue,
+            createdAt: Date(),
+            completedAt: nil,
+            cancelledAt: Date()
+        )
+        let differentID = PatientAssignment(
+            id: UUID(uuidString: "cccccccc-cccc-cccc-cccc-cccccccccccc")!,
+            patientId: UUID(uuidString: patientID)!,
+            therapistId: nil,
+            sessionId: nil,
+            typeValue: PatientAssignmentType.diaryOne.rawValue,
+            createdAt: Date(),
+            completedAt: nil,
+            cancelledAt: nil
+        )
+        #expect(
+            PatientDiaryOneAssignedRouter.matchingAssignment(
+                in: [differentID, matching],
+                assignmentId: assignmentID
+            )?.id == assignmentID
+        )
+        #expect(
+            PatientDiaryOneAssignedRouter.matchingAssignment(
+                in: [otherType],
+                assignmentId: assignmentID
+            ) == nil
+        )
+        #expect(
+            PatientDiaryOneAssignedRouter.matchingAssignment(
+                in: [cancelled],
+                assignmentId: assignmentID
+            ) == nil
+        )
+        #expect(
+            PatientDiaryOneAssignedRouter.matchingAssignment(
+                in: [differentID],
+                assignmentId: assignmentID
+            ) == nil
+        )
+    }
+
+    @Test func existingQuestionnaireConnectedAndMessageRoutingUnchanged() {
+        let questionnaire = AppNotificationPayload.from(userInfo: [
+            "type": "questionnaire_completed",
+            "patientId": "patient-1",
+            "resourceType": "questionnaire",
+            "resourceId": "42",
+        ])!
+        #expect(
+            NotificationRouter.destination(from: questionnaire)
+                == .completedQuestionnaire(
+                    patientId: "patient-1",
+                    resourceType: "questionnaire",
+                    resourceId: "42"
+                )
+        )
+        #expect(questionnaire.type.routesInPatientMode == false)
+        let connected = AppNotificationPayload.from(userInfo: [
+            "type": "patient_connected",
+            "patientId": "patient-1",
+        ])!
+        #expect(
+            NotificationRouter.destination(from: connected) == .patientDetail(patientId: "patient-1")
+        )
+        let message = AppNotificationPayload.from(userInfo: [
+            "type": "message_received",
+            "patientId": patientID,
+            "resourceType": "message",
+            "resourceId": entryID.uuidString,
+        ])!
+        #expect(NotificationRouter.destination(from: message) == .none)
+        #expect(message.type.routesInPatientMode == true)
+        #expect(PatientMessageRouter.destination(from: message) == .exact(entryID))
+    }
+
+    @Test func diaryOneEntryAddedSeenReadSemanticsUnchanged() {
+        let unread = AppNotification(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            type: .diaryOneEntryAdded,
+            patientId: patientID,
+            sessionId: nil,
+            assignmentId: nil,
+            resourceType: "diary_one_entry",
+            resourceId: entryID.uuidString,
+            createdAt: Date(timeIntervalSince1970: 100),
+            seenAt: nil,
+            readAt: nil
+        )
+        #expect(unread.isUnseen)
+        #expect(unread.isUnread)
+        let seenAt = Date(timeIntervalSince1970: 150)
+        let afterSeen = NotificationSeenAcknowledgement.applying([unread], seenAt: seenAt)
+        #expect(NotificationCounts.unseen(afterSeen) == 0)
+        #expect(NotificationCounts.unread(afterSeen) == 1)
+        #expect(afterSeen[0].readAt == nil)
+        let opened = unread.opened(at: Date(timeIntervalSince1970: 200))
+        #expect(!opened.isUnread)
+        #expect(!opened.isUnseen)
+        #expect(NotificationRouter.destination(from: opened) != .none)
+        #expect(
+            NotificationInboxSeenPolicy.shouldMarkSeen(isInboxVisible: true, unseenCount: 1)
+        )
+    }
+}
+
 struct NotificationInboxSemanticsTests {
     private func item(
         id: String,

@@ -59,6 +59,30 @@ final class PatientPushPersonalizerTests: XCTestCase {
         XCTAssertEqual(PatientPushPersonalizer.sessionId(from: content.userInfo), "session-1")
     }
 
+    func testDiaryOneEntryAddedKnownIdUsesLocalNameAsTitle() {
+        let content = diaryOneEntryContent(patientId: "known-id")
+        PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
+        XCTAssertEqual(content.title, "דני")
+        XCTAssertEqual(content.body, "הוסיף/ה רשומה חדשה ליומן 1")
+    }
+
+    func testDiaryOneEntryAddedUnknownIdUsesGenericPatientTitle() {
+        let content = diaryOneEntryContent(patientId: "unknown-id")
+        PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
+        XCTAssertEqual(content.title, "מטופל/ת")
+        XCTAssertEqual(content.body, "הוסיף/ה רשומה חדשה ליומן 1")
+    }
+
+    func testDiaryOneAssignedLeavesBodyUnchanged() {
+        let content = UNMutableNotificationContent()
+        content.title = "CBTipul"
+        content.body = "server copy"
+        content.userInfo = ["type": "diary_1_assigned", "patientId": "known-id"]
+        PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
+        XCTAssertEqual(content.body, "server copy")
+        XCTAssertEqual(content.title, "CBTipul")
+    }
+
     private func connectedContent(patientId: String?) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = "CBTipul"
@@ -77,6 +101,20 @@ final class PatientPushPersonalizerTests: XCTestCase {
             "type": "questionnaire_completed",
             "assignmentId": "assign-1",
             "sessionId": "session-1",
+        ]
+        if let patientId { info["patientId"] = patientId }
+        content.userInfo = info
+        return content
+    }
+
+    private func diaryOneEntryContent(patientId: String?) -> UNMutableNotificationContent {
+        let content = UNMutableNotificationContent()
+        content.title = "CBTipul"
+        content.body = "generic"
+        var info: [AnyHashable: Any] = [
+            "type": "diary_1_entry_added",
+            "resourceType": "diary_one_entry",
+            "resourceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
         ]
         if let patientId { info["patientId"] = patientId }
         content.userInfo = info

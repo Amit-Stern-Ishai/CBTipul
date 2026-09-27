@@ -1,8 +1,10 @@
 import SwiftUI
+import OSLog
 
 /// A patient's Diary 1 entries, newest first. Therapist-only for this step.
 struct PatientDiaryOneView: View {
     let patient: Patient
+    var focusEntryID: UUID? = nil
 
     @Environment(DiaryOneStore.self) private var diary
     @Environment(AuthManager.self) private var auth
@@ -28,6 +30,9 @@ struct PatientDiaryOneView: View {
     @State private var isUpdatingAssignment = false
     @State private var assignmentError: String?
     @State private var isShowingStopConfirmation = false
+    @State private var presentedEntryID: UUID?
+    /// Notification deep-link runs once. Back must not re-open the same entry.
+    @State private var didConsumeFocus = false
 
     private var entries: [DiaryOneEntry] {
         diary.entries(for: patient.id)
@@ -62,6 +67,16 @@ struct PatientDiaryOneView: View {
             addDiaryEntryCTA
         }
         .demoModeChrome()
+        .navigationDestination(item: $presentedEntryID) { id in
+            if let entry = diary.entries(for: patient.id).first(where: { $0.id == id }) {
+                DiaryOneEntryFormView(patient: patient, mode: .edit(entry))
+                    .id(id)
+            } else {
+                ContentUnavailableView {
+                    Label(L10n.notificationTargetUnavailable, systemImage: "book.closed")
+                }
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink {
@@ -73,8 +88,11 @@ struct PatientDiaryOneView: View {
             }
         }
         .onAppear {
-            Task { await loadEntries() }
-            Task { await loadPatientModeState() }
+            Task {
+                await loadEntries()
+                await attemptFocusIfNeeded()
+                await loadPatientModeState()
+            }
         }
         .alert(L10n.diaryPatientModeStopConfirmTitle, isPresented: $isShowingStopConfirmation) {
             Button(L10n.diaryPatientModeStopConfirmAction, role: .destructive) {
@@ -243,6 +261,24 @@ struct PatientDiaryOneView: View {
             loadState = .loaded
         } catch {
             loadState = .failed
+        }
+    }
+
+    private func attemptFocusIfNeeded() async {
+        guard let focusEntryID, !didConsumeFocus else { return }
+        didConsumeFocus = true
+        if diary.entries(for: patient.id).contains(where: { $0.id == focusEntryID }) {
+            presentedEntryID = focusEntryID
+            return
+        }
+        do {
+            if let loaded = try await diary.loadEntry(id: focusEntryID, patientId: patient.id) {
+                presentedEntryID = loaded.id
+            }
+        } catch {
+            #if DEBUG
+            AppLog.store.debug("notification diary entry unavailable")
+            #endif
         }
     }
 
