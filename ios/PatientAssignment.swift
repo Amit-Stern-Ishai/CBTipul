@@ -83,13 +83,117 @@ private struct RequestPatientQuestionnaireResponse: Decodable {
     }
 }
 
+/// CamelCase body for `request-patient-diary-one`. IDs besides `patientId`
+/// are not sent; the Edge Function infers therapist and assignment state.
+private struct RequestPatientDiaryOneRequest: Encodable {
+    let patientId: UUID
+}
+
+/// Edge Function assignment object. CamelCase keys — not PostgREST rows.
+private struct RequestPatientDiaryOneAssignmentDTO: Decodable {
+    let id: UUID
+    let patientId: UUID
+    let therapistId: UUID?
+    let sessionId: UUID?
+    let typeValue: String
+    let createdAt: String
+    let completedAt: String?
+    let cancelledAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, patientId, therapistId, sessionId, createdAt, completedAt, cancelledAt
+        case typeValue = "type"
+    }
+}
+
+private struct RequestPatientDiaryOneResponse: Decodable {
+    let success: Bool
+    let assignment: RequestPatientDiaryOneAssignmentDTO
+    let createdNew: Bool
+}
+
+/// Diary 1 activation via `request-patient-diary-one`. Decode/error helpers
+/// stay off `PatientAssignment` so PostgREST snake_case decoding is unchanged.
+enum PatientDiaryOneActivation {
+    static let functionName = "request-patient-diary-one"
+
+    static func usesEdgeFunction(_ type: PatientAssignmentType) -> Bool {
+        type == .diaryOne
+    }
+
+    static func usesDirectInsert(_ type: PatientAssignmentType) -> Bool {
+        switch type {
+        case .diaryTwo:
+            true
+        case .diaryOne, .questionnaire:
+            false
+        }
+    }
+
+    static func requestJSON(patientId: UUID) throws -> Data {
+        try JSONEncoder().encode(RequestPatientDiaryOneRequest(patientId: patientId))
+    }
+
+    static func assignment(fromResponseData data: Data) throws -> PatientAssignment {
+        let response = try JSONDecoder().decode(RequestPatientDiaryOneResponse.self, from: data)
+        guard response.success else { throw PatientAssignmentError.invalidIdentifier }
+        return try assignment(from: response.assignment)
+    }
+
+    static func mapError(from data: Data, statusCode: Int) -> PatientAssignmentError {
+        let parsed = PatientAssignmentService.edgeErrorFields(from: data)
+        switch parsed.code {
+        case "patient_not_connected":
+            return .patientNotConnected
+        case "unauthorized", "therapist_mode_required":
+            return .notSignedIn
+        case "patient_not_found", "invalid_request":
+            return .invalidIdentifier
+        default:
+            if statusCode == 401 || statusCode == 403 {
+                return .notSignedIn
+            }
+            AppLog.store.error(
+                "request-patient-diary-one mapped to invalidIdentifier code=\(parsed.code, privacy: .public) message=\(parsed.message, privacy: .public)"
+            )
+            return .invalidIdentifier
+        }
+    }
+
+    fileprivate static func assignment(
+        from dto: RequestPatientDiaryOneAssignmentDTO
+    ) throws -> PatientAssignment {
+        guard let createdAt = PatientAssignmentService.parseEdgeTimestamp(dto.createdAt) else {
+            throw PatientAssignmentError.invalidIdentifier
+        }
+        return PatientAssignment(
+            id: dto.id,
+            patientId: dto.patientId,
+            therapistId: dto.therapistId,
+            sessionId: dto.sessionId,
+            typeValue: dto.typeValue,
+            createdAt: createdAt,
+            completedAt: try optionalEdgeDate(dto.completedAt),
+            cancelledAt: try optionalEdgeDate(dto.cancelledAt)
+        )
+    }
+
+    private static func optionalEdgeDate(_ raw: String?) throws -> Date? {
+        guard let raw else { return nil }
+        guard let parsed = PatientAssignmentService.parseEdgeTimestamp(raw) else {
+            throw PatientAssignmentError.invalidIdentifier
+        }
+        return parsed
+    }
+}
+
 private struct SubmitPatientQuestionnaireResponse: Decodable, Sendable {
     let success: Bool?
     let combinedMoodId: Int?
     let sessionId: UUID?
 }
 
-enum PatientAssignmentError: LocalizedError {
+enum PatientAssignmentError: LocalizedError, Equatable {
     case notConfigured
     case notSignedIn
     case invalidIdentifier
@@ -321,7 +425,9 @@ final class PatientAssignmentService {
         }
     }
 
-    /// Inserts a new ongoing assignment. Never reopens a cancelled row.
+    /// Activates an ongoing assignment. Diary 1 goes through
+    /// `request-patient-diary-one`; other ongoing types insert a row.
+    /// Never reopens a cancelled row.
     func activateOngoingAssignment(
         patientId: UUID,
         type: PatientAssignmentType
@@ -331,6 +437,45 @@ final class PatientAssignmentService {
         let connected = try await isPatientConnected(patientId: patientId)
         guard connected else { throw PatientAssignmentError.patientNotConnected }
 
+        if PatientDiaryOneActivation.usesEdgeFunction(type) {
+            return try await requestPatientDiaryOne(patientId: patientId)
+        }
+        return try await insertOngoingAssignment(patientId: patientId, type: type)
+    }
+
+    /// Creates Diary 1 via Edge Function. Reuse, connection, notification,
+    /// and push are handled on the server. `createdNew == false` is success.
+    private func requestPatientDiaryOne(patientId: UUID) async throws -> PatientAssignment {
+        do {
+            let response: RequestPatientDiaryOneResponse = try await client.functions.invoke(
+                PatientDiaryOneActivation.functionName,
+                options: FunctionInvokeOptions(
+                    body: RequestPatientDiaryOneRequest(patientId: patientId)
+                )
+            )
+            guard response.success else {
+                throw PatientAssignmentError.invalidIdentifier
+            }
+            let assignment = try PatientDiaryOneActivation.assignment(from: response.assignment)
+            AppLog.store.info("Diary 1 assignment requested")
+            return assignment
+        } catch let error as PatientAssignmentError {
+            throw error
+        } catch let FunctionsError.httpError(code, data) {
+            throw PatientDiaryOneActivation.mapError(from: data, statusCode: code)
+        } catch {
+            AppLog.store.error(
+                "request-patient-diary-one failed type=\(String(describing: type(of: error)), privacy: .public) \(error.localizedDescription, privacy: .public)"
+            )
+            throw PatientAssignmentError.invalidIdentifier
+        }
+    }
+
+    /// Direct insert for non-Diary-1 ongoing types. Never reopens a cancelled row.
+    private func insertOngoingAssignment(
+        patientId: UUID,
+        type: PatientAssignmentType
+    ) async throws -> PatientAssignment {
         if let existing = try await activeOngoingAssignment(patientId: patientId, type: type) {
             return existing
         }
@@ -524,14 +669,14 @@ final class PatientAssignmentService {
         edgeErrorFields(from: data).code
     }
 
-    private struct EdgeErrorFields {
+    struct EdgeErrorFields: Sendable {
         var code: String = ""
         var message: String = ""
         var details: String = ""
         var hint: String = ""
     }
 
-    private static func edgeErrorFields(from data: Data) -> EdgeErrorFields {
+    nonisolated static func edgeErrorFields(from data: Data) -> EdgeErrorFields {
         var fields = EdgeErrorFields()
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return fields
@@ -554,7 +699,7 @@ final class PatientAssignmentService {
         return fields
     }
 
-    private static func stringValue(_ value: Any?) -> String {
+    private nonisolated static func stringValue(_ value: Any?) -> String {
         switch value {
         case let text as String: text
         case let number as NSNumber: number.stringValue
@@ -618,7 +763,7 @@ final class PatientAssignmentService {
         return formatter.string(from: date)
     }
 
-    private static func parseEdgeTimestamp(_ raw: String) -> Date? {
+    nonisolated static func parseEdgeTimestamp(_ raw: String) -> Date? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         let withFraction = ISO8601DateFormatter()
