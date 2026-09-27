@@ -117,7 +117,7 @@ private struct NotificationInboxRow: View {
         switch item.type {
         case .questionnaireCompleted:
             L10n.notificationQuestionnaireCompleted
-        case .unknown:
+        case .questionnaireAssigned, .unknown:
             L10n.notificationGenericTitle
         }
     }

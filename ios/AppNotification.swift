@@ -3,11 +3,14 @@ import Foundation
 /// Therapist inbox event kinds. Unknown server values decode as `.unknown`
 /// so future types cannot crash the client.
 enum AppNotificationType: Hashable, Sendable {
+    case questionnaireAssigned
     case questionnaireCompleted
     case unknown(String)
 
     init(rawValue: String) {
         switch rawValue {
+        case "questionnaire_assigned":
+            self = .questionnaireAssigned
         case "questionnaire_completed":
             self = .questionnaireCompleted
         default:
@@ -17,6 +20,7 @@ enum AppNotificationType: Hashable, Sendable {
 
     var rawValue: String {
         switch self {
+        case .questionnaireAssigned: "questionnaire_assigned"
         case .questionnaireCompleted: "questionnaire_completed"
         case .unknown(let raw): raw
         }
@@ -31,6 +35,7 @@ struct AppNotification: Identifiable, Hashable, Sendable {
     let patientId: String?
     let sessionId: String?
     let assignmentId: String?
+    let resourceType: String?
     let resourceId: String?
     let createdAt: Date
     let readAt: Date?
@@ -45,6 +50,7 @@ struct AppNotificationPayload: Equatable, Sendable {
     let patientId: String?
     let sessionId: String?
     let assignmentId: String?
+    let resourceType: String?
     let resourceId: String?
 
     var type: AppNotificationType { AppNotificationType(rawValue: typeRaw) }
@@ -58,6 +64,7 @@ struct AppNotificationPayload: Equatable, Sendable {
             "type:\(typeRaw)",
             patientId ?? "",
             assignmentId ?? "",
+            resourceType ?? "",
             resourceId ?? "",
             sessionId ?? "",
         ].joined(separator: "|")
@@ -70,6 +77,7 @@ struct AppNotificationPayload: Equatable, Sendable {
             patientId: notification.patientId,
             sessionId: notification.sessionId,
             assignmentId: notification.assignmentId,
+            resourceType: notification.resourceType,
             resourceId: notification.resourceId
         )
     }
@@ -83,6 +91,7 @@ struct AppNotificationPayload: Equatable, Sendable {
             patientId: stringValue(bag["patientId"] ?? bag["patient_id"]),
             sessionId: stringValue(bag["sessionId"] ?? bag["session_id"]),
             assignmentId: stringValue(bag["assignmentId"] ?? bag["assignment_id"]),
+            resourceType: stringValue(bag["resourceType"] ?? bag["resource_type"]),
             resourceId: stringValue(bag["resourceId"] ?? bag["resource_id"])
         )
     }

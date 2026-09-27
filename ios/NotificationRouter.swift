@@ -13,8 +13,7 @@ enum NotificationDestination: Equatable {
     /// Therapist Patients tab → patient → questionnaires → optional CombinedMood.
     case completedQuestionnaire(
         patientId: String,
-        assignmentId: String?,
-        sessionId: String?,
+        resourceType: String?,
         resourceId: String?
     )
     /// Unknown, Patient Mode, or missing identifiers — do not navigate.
@@ -30,11 +29,10 @@ enum NotificationRouter {
             }
             return .completedQuestionnaire(
                 patientId: patientId,
-                assignmentId: payload.assignmentId,
-                sessionId: payload.sessionId,
+                resourceType: payload.resourceType,
                 resourceId: payload.resourceId
             )
-        case .unknown:
+        case .questionnaireAssigned, .unknown:
             return .none
         }
     }
@@ -128,7 +126,7 @@ final class TherapistNotificationCoordinator {
         case .none:
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
-        case .completedQuestionnaire(let patientId, _, _, let resourceId):
+        case .completedQuestionnaire(let patientId, let resourceType, let resourceId):
             guard let patient = patients.first(where: { $0.id.matches(patientId) }) else {
                 if waitForPatients, !patientsLoadSettled {
                     return
@@ -141,11 +139,17 @@ final class TherapistNotificationCoordinator {
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
             selectedTab = .patients
+            let focusID: DatabaseID?
+            if resourceType == "questionnaire" {
+                focusID = resourceId.flatMap(DatabaseID.parse)
+            } else {
+                focusID = nil
+            }
             pendingPatientNavigation = PendingPatientNavigation(
                 token: UUID(),
                 route: PatientQuestionnairesRoute(
                     patientID: patient.id,
-                    focusQuestionnaireID: resourceId.flatMap(DatabaseID.parse)
+                    focusQuestionnaireID: focusID
                 )
             )
         }

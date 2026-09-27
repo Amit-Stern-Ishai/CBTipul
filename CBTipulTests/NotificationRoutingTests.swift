@@ -12,6 +12,21 @@ struct NotificationRoutingTests {
         #expect(NotificationRouter.destination(from: payload!) == .none)
     }
 
+    @Test func questionnaireAssignedDoesNotUseTherapistNavigation() {
+        let payload = AppNotificationPayload.from(userInfo: [
+            "type": "questionnaire_assigned",
+            "notificationId": "11111111-1111-1111-1111-111111111111",
+            "patientId": "patient-1",
+            "assignmentId": "assign-1",
+            "resourceType": "assignment",
+            "resourceId": "assign-1",
+        ])
+        #expect(payload?.type == .questionnaireAssigned)
+        #expect(payload?.resourceType == "assignment")
+        #expect(payload?.sessionId == nil)
+        #expect(NotificationRouter.destination(from: payload!) == .none)
+    }
+
     @Test func missingTypeIsIgnored() {
         #expect(AppNotificationPayload.from(userInfo: ["patientId": "p1"]) == nil)
     }
@@ -21,6 +36,8 @@ struct NotificationRoutingTests {
             "type": "questionnaire_completed",
             "patientId": "patient-1",
             "assignmentId": "assign-1",
+            "resourceType": "questionnaire",
+            "resourceId": "42",
         ])
         #expect(payload != nil)
         #expect(payload?.sessionId == nil)
@@ -28,9 +45,8 @@ struct NotificationRoutingTests {
             NotificationRouter.destination(from: payload!)
                 == .completedQuestionnaire(
                     patientId: "patient-1",
-                    assignmentId: "assign-1",
-                    sessionId: nil,
-                    resourceId: nil
+                    resourceType: "questionnaire",
+                    resourceId: "42"
                 )
         )
     }
@@ -41,12 +57,14 @@ struct NotificationRoutingTests {
             "patient_id": "patient-1",
             "session_id": "session-1",
             "assignment_id": "assign-1",
+            "resource_type": "questionnaire",
             "resource_id": "mood-9",
             "notification_id": "11111111-1111-1111-1111-111111111111",
         ])
         #expect(payload?.patientId == "patient-1")
         #expect(payload?.sessionId == "session-1")
         #expect(payload?.assignmentId == "assign-1")
+        #expect(payload?.resourceType == "questionnaire")
         #expect(payload?.resourceId == "mood-9")
         #expect(payload?.notificationId == "11111111-1111-1111-1111-111111111111")
     }
@@ -58,7 +76,8 @@ struct NotificationRoutingTests {
             patientId: "patient-1",
             sessionId: nil,
             assignmentId: "assign-1",
-            resourceId: "mood-9",
+            resourceType: "questionnaire",
+            resourceId: "42",
             createdAt: Date(),
             readAt: nil
         )
@@ -67,12 +86,13 @@ struct NotificationRoutingTests {
             "type": "questionnaire_completed",
             "patientId": "patient-1",
             "assignmentId": "assign-1",
-            "resourceId": "mood-9",
+            "resourceType": "questionnaire",
+            "resourceId": "42",
         ])!)
         #expect(fromRecord == fromPush)
-        if case .completedQuestionnaire(_, _, let sessionId, let resourceId) = fromRecord {
-            #expect(sessionId == nil)
-            #expect(resourceId == "mood-9")
+        if case .completedQuestionnaire(_, let resourceType, let resourceId) = fromRecord {
+            #expect(resourceType == "questionnaire")
+            #expect(resourceId == "42")
         } else {
             Issue.record("expected completedQuestionnaire destination")
         }
@@ -82,6 +102,8 @@ struct NotificationRoutingTests {
         let payload = AppNotificationPayload.from(userInfo: [
             "type": "questionnaire_completed",
             "assignmentId": "assign-1",
+            "resourceType": "questionnaire",
+            "resourceId": "42",
         ])!
         #expect(NotificationRouter.destination(from: payload) == .none)
     }
@@ -92,10 +114,10 @@ struct NotificationRoutingTests {
             "patientId": "patient-1",
             "assignmentId": "assign-1",
         ])!
-        if case .completedQuestionnaire(_, let assignmentId, _, let resourceId) =
+        if case .completedQuestionnaire(_, let resourceType, let resourceId) =
             NotificationRouter.destination(from: payload)
         {
-            #expect(assignmentId == "assign-1")
+            #expect(resourceType == nil)
             #expect(resourceId == nil)
         } else {
             Issue.record("expected completedQuestionnaire destination")
@@ -107,8 +129,12 @@ struct NotificationRoutingTests {
             "data": [
                 "type": "questionnaire_completed",
                 "patientId": "patient-1",
+                "resourceType": "questionnaire",
+                "resourceId": "42",
             ],
         ])
         #expect(payload?.patientId == "patient-1")
+        #expect(payload?.resourceType == "questionnaire")
+        #expect(payload?.resourceId == "42")
     }
 }
