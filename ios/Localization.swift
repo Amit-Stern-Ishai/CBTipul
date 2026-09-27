@@ -1045,6 +1045,13 @@ amitishai@gmail.com
     static let messageUnreadStatus = "לא נקראה"
     static let messageReadStatus = "נקראה"
     static let patientMessagesEmptyTitle = "אין הודעות"
+    static let noNewMessagesTitle = "אין הודעות חדשות"
+    static func moreUnreadMessages(_ count: Int) -> String {
+        if count == 1 {
+            return "ועוד הודעה אחת שלא נקראה"
+        }
+        return "ועוד \(count) הודעות שלא נקראו"
+    }
     static let patientMessagesLoadFailedTitle = "טעינת הודעות נכשלה"
     static let patientMessagesCardBody = "הודעות מהמטפל/ת"
     static let patientMessagesOpenAction = "פתיחת הודעות"

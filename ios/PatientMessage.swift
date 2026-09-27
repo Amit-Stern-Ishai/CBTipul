@@ -194,6 +194,22 @@ enum PatientModeMessageStack {
     }
 }
 
+enum PatientModeHomeMessages {
+    static let previewLimit = 2
+
+    static func unread(in messages: [PatientMessage]) -> [PatientMessage] {
+        messages.filter(\.isUnread).sorted { $0.createdAt > $1.createdAt }
+    }
+
+    static func previews(in messages: [PatientMessage]) -> [PatientMessage] {
+        Array(unread(in: messages).prefix(previewLimit))
+    }
+
+    static func remainingUnreadCount(in messages: [PatientMessage]) -> Int {
+        max(0, unread(in: messages).count - previewLimit)
+    }
+}
+
 struct PatientMessageService {
     private let client: SupabaseClient
 

@@ -27,8 +27,12 @@ struct PatientModeView: View {
         assignments.filter(\.isOpen)
     }
 
-    private var unreadMessageCount: Int {
-        messages.reduce(0) { $0 + ($1.isUnread ? 1 : 0) }
+    private var homeMessagePreviews: [PatientMessage] {
+        PatientModeHomeMessages.previews(in: messages)
+    }
+
+    private var remainingUnreadCount: Int {
+        PatientModeHomeMessages.remainingUnreadCount(in: messages)
     }
 
     var body: some View {
@@ -171,54 +175,66 @@ struct PatientModeView: View {
         .refreshable { await refreshPatientHome() }
     }
 
-    private var latestMessage: PatientMessage? {
-        messages.first
-    }
-
     private var messagesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.messagesTitle)
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(Theme.textBright)
 
-            if let latestMessage {
-                PatientModeMessageCard(message: latestMessage, kind: .home) {
-                    openedMessageID = latestMessage.id
-                }
-
-                Button {
-                    isShowingMessages = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(
-                            unreadMessageCount > 0
-                                ? L10n.allMessagesActionWithUnreadCount(unreadMessageCount)
-                                : L10n.allMessagesAction
-                        )
-                        Image(systemName: "chevron.forward")
-                            .font(.footnote.weight(.semibold))
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.gold)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(
-                    unreadMessageCount > 0
-                        ? L10n.allMessagesActionWithUnreadCount(unreadMessageCount)
-                        : L10n.allMessagesAction
-                )
-            } else {
-                Text(L10n.patientMessagesEmptyTitle)
+            if homeMessagePreviews.isEmpty {
+                Text(messages.isEmpty ? L10n.patientMessagesEmptyTitle : L10n.noNewMessagesTitle)
                     .font(.body)
                     .foregroundStyle(Theme.textBody)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
                     .themedCard()
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(homeMessagePreviews) { message in
+                        PatientModeMessageCard(message: message, kind: .home) {
+                            openedMessageID = message.id
+                        }
+                    }
+                }
+                if remainingUnreadCount > 0 {
+                    Button {
+                        isShowingMessages = true
+                    } label: {
+                        Text(L10n.moreUnreadMessages(remainingUnreadCount))
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.textBody)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.moreUnreadMessages(remainingUnreadCount))
+                }
+            }
+
+            if !messages.isEmpty {
+                allMessagesButton
             }
         }
+    }
+
+    private var allMessagesButton: some View {
+        Button {
+            isShowingMessages = true
+        } label: {
+            HStack(spacing: 6) {
+                Text(L10n.allMessagesAction)
+                Image(systemName: "chevron.forward")
+                    .font(.footnote.weight(.semibold))
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Theme.gold)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.allMessagesAction)
     }
 
     private var emptyState: some View {
