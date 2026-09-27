@@ -95,6 +95,7 @@ enum L10n {
     }
     static let patientsSearchPrompt = "חיפוש מטופלים"
     static let patientsSearchEmpty = "לא נמצאו מטופלים"
+    static let inactivePatientsSectionTitle = "מטופלים לא פעילים"
     static let unnamedPatient = "מטופל/ת ללא שם"
     static func patientConnectedPushBody(name: String) -> String {
         PatientPushCopy.patientConnectedBody(name: name)

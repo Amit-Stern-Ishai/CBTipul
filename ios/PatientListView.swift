@@ -52,7 +52,7 @@ struct PatientListView: View {
             .demoModeChrome()
             .animation(.easeInOut(duration: 0.25), value: isLoading)
             .animation(.easeInOut(duration: 0.25), value: loadError)
-            .navigationTitle(L10n.patientsTitle)
+            .navigationTitle(L10n.therapistTabPatients)
             .navigationBarTitleDisplayMode(.large)
             .task { await load() }
             .refreshable { await load() }
@@ -171,58 +171,70 @@ struct PatientListView: View {
 
     private var patientsListContent: some View {
         List {
-            Section {
-                if visiblePatients.isEmpty {
-                    Text(L10n.patientsSearchEmpty)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                } else {
-                    ForEach(visiblePatients) { patient in
-                        let isTutorialFocus =
-                            store.isDemoMode
-                            && !onboarding.checklistDismissed
-                            && gettingStartedRouter.shouldPulse(.tutorialPatient)
-                            && patient.id == tutorialFocusPatientID
-                        NavigationLink(value: patient) {
-                            PatientRow(patient: patient)
-                                .tutorialPulse(isTutorialFocus)
-                        }
-                        .listRowBackground(groupBorderedRow(
-                            .at(visiblePatients.firstIndex(of: patient) ?? 0,
-                                of: visiblePatients.count),
-                            accent: Theme.gold))
-                        .listRowSeparatorTint(Theme.borderFaint)
+            if visibleActivePatients.isEmpty, visibleInactivePatients.isEmpty {
+                Text(L10n.patientsSearchEmpty)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            } else {
+                if !visibleActivePatients.isEmpty {
+                    Section {
+                        patientRows(visibleActivePatients)
+                    }
+                }
+                if !visibleInactivePatients.isEmpty {
+                    Section(L10n.inactivePatientsSectionTitle) {
+                        patientRows(visibleInactivePatients)
                     }
                 }
             }
         }
         .patientAtmosphere(Theme.gold)
         .themedScreen()
-        .modifier(PatientSearchModifier(
-            text: $patientSearch,
-            isEnabled: store.patients.count > 7
-        ))
+        .searchable(text: $patientSearch, prompt: L10n.patientsSearchPrompt)
     }
 
-    /// Patients with the active ones on top, alphabetical within each group,
-    /// independent of the order the database returns them in.
-    private var sortedPatients: [Patient] {
-        store.patients.sorted {
-            if ($0.status == .active) != ($1.status == .active) {
-                return $0.status == .active
+    @ViewBuilder
+    private func patientRows(_ patients: [Patient]) -> some View {
+        ForEach(patients) { patient in
+            let isTutorialFocus =
+                store.isDemoMode
+                && !onboarding.checklistDismissed
+                && gettingStartedRouter.shouldPulse(.tutorialPatient)
+                && patient.id == tutorialFocusPatientID
+            NavigationLink(value: patient) {
+                PatientRow(patient: patient)
+                    .tutorialPulse(isTutorialFocus)
             }
-            return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            .listRowBackground(groupBorderedRow(
+                .at(patients.firstIndex(of: patient) ?? 0, of: patients.count),
+                accent: Theme.gold))
+            .listRowSeparatorTint(Theme.borderFaint)
         }
     }
 
-    private var visiblePatients: [Patient] {
+    /// Alphabetical within each status group.
+    private var sortedPatients: [Patient] {
+        store.patients.sorted {
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+    }
+
+    private var matchingPatients: [Patient] {
         let query = patientSearch.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard store.patients.count > 7, !query.isEmpty else { return sortedPatients }
+        guard !query.isEmpty else { return sortedPatients }
         return sortedPatients.filter {
             $0.displayName.localizedStandardContains(query)
         }
+    }
+
+    private var visibleActivePatients: [Patient] {
+        matchingPatients.filter { $0.status == .active }
+    }
+
+    private var visibleInactivePatients: [Patient] {
+        matchingPatients.filter { $0.status == .inactive }
     }
 
     /// Fingerprint of tutorial patients so nested session/notes changes refresh progress.
@@ -295,20 +307,13 @@ struct PatientListView: View {
     }
 }
 
-/// A single row in the patient list: name and the last session's type with
-/// the session count next to the avatar, the latest questionnaire scores on
-/// the trailing edge, and a minimal status dot on the avatar (green =
-/// active, red = inactive).
+/// A single row in the patient directory: local display name and last session date.
 private struct PatientRow: View {
     let patient: Patient
-
-    @Environment(PatientStore.self) private var store
 
     var body: some View {
         HStack(spacing: 12) {
             InitialsAvatar(name: patient.displayName, size: 44, patientID: patient.id)
-                .overlay(alignment: .bottomTrailing) { statusDot }
-                .accessibilityLabel(L10n.patientStatus(patient.status))
             VStack(alignment: .leading, spacing: 3) {
                 Text(patient.displayName)
                     .font(.headline)
@@ -316,88 +321,23 @@ private struct PatientRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 8)
-            scoresLine
-                .animation(
-                    store.isDemoMode ? nil : .easeInOut(duration: 0.35),
-                    value: isLoadingScores
-                )
-                .animation(
-                    store.isDemoMode ? nil : .easeInOut(duration: 0.35),
-                    value: lastQuestionnaire?.id
-                )
+            Spacer(minLength: 0)
         }
         .padding(.vertical, 2)
-        .task {
-            guard !store.isDemoMode, !DemoData.isDemoID(patient.id) else { return }
-            // Fill the questionnaire cache lazily, once per patient.
-            if store.cachedQuestionnaires(for: patient) == nil {
-                _ = try? await store.loadQuestionnaires(for: patient)
-            }
-        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
     }
 
-    /// The minimal active/inactive indication, ringed so it reads against
-    /// the avatar.
-    private var statusDot: some View {
-        Circle()
-            .fill(patient.status == .active ? Theme.success : Theme.error)
-            .frame(width: 12, height: 12)
-            .overlay(Circle().strokeBorder(Theme.surface, lineWidth: 2))
-    }
-
-    /// The last session's type (its date when no type was picked) plus the
-    /// session count so far.
+    /// Most recent session date from in-memory session data, or an empty-state line.
     private var subtitle: String {
         guard let lastSession = patient.sessions.max(by: { $0.date < $1.date }) else {
             return L10n.noSessionsYetLabel
         }
-        let typeOrDate = lastSession.type.map(L10n.label(for:))
-            ?? L10n.hebrewDate(lastSession.date)
-        return L10n.lastSessionSummary(typeOrDate, count: patient.sessionsUpToTodayCount)
+        return L10n.hebrewDate(lastSession.date)
     }
 
-    /// The latest scores with trends; reserved placeholders while loading.
-    @ViewBuilder
-    private var scoresLine: some View {
-        if let questionnaire = lastQuestionnaire?.questionnaire {
-            VStack(alignment: .trailing, spacing: 4) {
-                ScoreCapsule.gad7(questionnaire, previous: previousQuestionnaire?.questionnaire)
-                ScoreCapsule.phq9(questionnaire, previous: previousQuestionnaire?.questionnaire)
-            }
-            .transition(.opacity)
-        } else if isLoadingScores {
-            VStack(alignment: .trailing, spacing: 4) {
-                ScoreCapsule(text: L10n.scoreBadge(name: L10n.gad7ShortName, score: 10),
-                             color: Theme.textFaint)
-                ScoreCapsule(text: L10n.scoreBadge(name: L10n.phq9ShortName, score: 10),
-                             color: Theme.textFaint)
-            }
-            .redacted(reason: .placeholder)
-            .opacity(0.4)
-            .transition(.opacity)
-        }
-    }
-
-    private var isLoadingScores: Bool {
-        // Demo clinic seeds questionnaires up front — never show placeholders
-        // that later disappear and jump the row layout.
-        if store.isDemoMode || DemoData.isDemoID(patient.id) {
-            return false
-        }
-        return store.cachedQuestionnaires(for: patient) == nil
-    }
-
-    private var lastQuestionnaire: CompletedQuestionnaire? {
-        store.cachedQuestionnaires(for: patient)?.max { $0.answeredDate < $1.answeredDate }
-    }
-
-    private var previousQuestionnaire: CompletedQuestionnaire? {
-        guard let records = store.cachedQuestionnaires(for: patient),
-              let last = lastQuestionnaire else { return nil }
-        return records
-            .filter { $0.id != last.id && $0.answeredDate <= last.answeredDate }
-            .max { $0.answeredDate < $1.answeredDate }
+    private var accessibilityLabel: String {
+        "\(patient.displayName), \(subtitle)"
     }
 }
 
@@ -429,19 +369,6 @@ struct InitialsAvatar: View {
             .foregroundStyle(foreground)
             .frame(width: size, height: size)
             .background(background, in: Circle())
-    }
-}
-
-private struct PatientSearchModifier: ViewModifier {
-    @Binding var text: String
-    let isEnabled: Bool
-
-    func body(content: Content) -> some View {
-        if isEnabled {
-            content.searchable(text: $text, prompt: L10n.patientsSearchPrompt)
-        } else {
-            content
-        }
     }
 }
 
