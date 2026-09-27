@@ -48,6 +48,7 @@ struct MyApp: App {
                 .environment(diaryOne)
                 .environment(notificationStore)
                 .environment(TherapistNotificationCoordinator.shared)
+                .environment(PatientModeMessageCoordinator.shared)
                 .onOpenURL(perform: handleIncomingURL)
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     if let url = activity.webpageURL {

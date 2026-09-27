@@ -40,7 +40,7 @@ enum NotificationRouter {
                 return .none
             }
             return .patientDetail(patientId: patientId)
-        case .questionnaireAssigned, .unknown:
+        case .questionnaireAssigned, .messageReceived, .unknown:
             return .none
         }
     }

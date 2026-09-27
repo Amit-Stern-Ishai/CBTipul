@@ -1,9 +1,12 @@
 import SwiftUI
+import OSLog
 
 /// Patient Mode home: open assignments for the connected anonymous patient.
 struct PatientModeView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(AppContextService.self) private var appContext
+    @Environment(PatientModeMessageCoordinator.self) private var messageCoordinator
+    @Environment(\.scenePhase) private var scenePhase
 
     private enum LoadState {
         case loading
@@ -13,12 +16,19 @@ struct PatientModeView: View {
 
     @State private var loadState: LoadState = .loading
     @State private var assignments: [PatientAssignment] = []
+    @State private var messages: [PatientMessage] = []
+    @State private var isShowingMessages = false
+    @State private var openedMessageID: UUID?
     @State private var didSubmitQuestionnaire = false
     @State private var didSubmitDiaryOne = false
     @State private var isShowingSettings = false
 
     private var openAssignments: [PatientAssignment] {
         assignments.filter(\.isOpen)
+    }
+
+    private var unreadMessageCount: Int {
+        messages.reduce(0) { $0 + ($1.isUnread ? 1 : 0) }
     }
 
     var body: some View {
@@ -37,6 +47,26 @@ struct PatientModeView: View {
             .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $isShowingMessages) {
+                if let patientId = appContext.current?.patientId {
+                    PatientMessagesInboxView(
+                        messages: $messages,
+                        patientId: patientId,
+                        onMarkedRead: applyRead
+                    )
+                }
+            }
+            .navigationDestination(item: $openedMessageID) { id in
+                if let message = messages.first(where: { $0.id == id }) {
+                    PatientMessageDetailView(message: message) { updated in
+                        applyRead(updated)
+                    }
+                } else {
+                    ContentUnavailableView {
+                        Label(L10n.patientMessagesEmptyTitle, systemImage: "envelope")
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -47,7 +77,7 @@ struct PatientModeView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await loadAssignments() }
+                        Task { await refreshPatientHome() }
                     } label: {
                         Label(L10n.patientTasksRefreshAction, systemImage: "arrow.clockwise")
                     }
@@ -57,7 +87,18 @@ struct PatientModeView: View {
             .sheet(isPresented: $isShowingSettings) {
                 PatientSettingsView()
             }
-            .task { await loadAssignments() }
+            .task {
+                messageCoordinator.markReady()
+                await refreshPatientHome()
+                await applyPendingMessageRoute()
+            }
+            .onChange(of: messageCoordinator.pendingRevision) { _, _ in
+                Task { await applyPendingMessageRoute() }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await refreshPatientHome() }
+            }
             .alert(L10n.patientQuestionnaireSubmittedTitle, isPresented: $didSubmitQuestionnaire) {
                 Button(L10n.ok, role: .cancel) {}
             }
@@ -82,7 +123,7 @@ struct PatientModeView: View {
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
             Button {
-                Task { await loadAssignments() }
+                Task { await refreshPatientHome() }
             } label: {
                 Text(L10n.patientActivationRetryAction)
                     .fontWeight(.semibold)
@@ -99,6 +140,8 @@ struct PatientModeView: View {
                 Text(L10n.appTitle)
                     .font(.title.bold())
                     .foregroundStyle(Theme.textBright)
+
+                messagesSection
 
                 Text(L10n.patientTasksTitle)
                     .font(.title2.weight(.semibold))
@@ -125,7 +168,57 @@ struct PatientModeView: View {
             .padding(.bottom, 28)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .refreshable { await loadAssignments() }
+        .refreshable { await refreshPatientHome() }
+    }
+
+    private var latestMessage: PatientMessage? {
+        messages.first
+    }
+
+    private var messagesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.messagesTitle)
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(Theme.textBright)
+
+            if let latestMessage {
+                PatientModeMessageCard(message: latestMessage, kind: .home) {
+                    openedMessageID = latestMessage.id
+                }
+
+                Button {
+                    isShowingMessages = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(
+                            unreadMessageCount > 0
+                                ? L10n.allMessagesActionWithUnreadCount(unreadMessageCount)
+                                : L10n.allMessagesAction
+                        )
+                        Image(systemName: "chevron.forward")
+                            .font(.footnote.weight(.semibold))
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.gold)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    unreadMessageCount > 0
+                        ? L10n.allMessagesActionWithUnreadCount(unreadMessageCount)
+                        : L10n.allMessagesAction
+                )
+            } else {
+                Text(L10n.patientMessagesEmptyTitle)
+                    .font(.body)
+                    .foregroundStyle(Theme.textBody)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .themedCard()
+            }
+        }
     }
 
     private var emptyState: some View {
@@ -191,7 +284,7 @@ struct PatientModeView: View {
                 .fixedSize(horizontal: false, vertical: true)
             Text(L10n.patientDiaryOneOngoingHint)
                 .font(.footnote)
-                .foregroundStyle(Theme.textFaint)
+                .foregroundStyle(Theme.textBody)
             NavigationLink {
                 PatientDiaryOneEntryView(
                     onSubmitted: {
@@ -238,6 +331,53 @@ struct PatientModeView: View {
             loadState = .loaded
         } catch {
             loadState = .failed
+        }
+    }
+
+    private func loadMessages() async {
+        guard let patientId = appContext.current?.patientId else { return }
+        do {
+            messages = try await PatientMessageService(client: auth.client)
+                .messages(patientId: patientId)
+        } catch {
+            #if DEBUG
+            AppLog.store.debug("patient messages refresh failed")
+            #endif
+        }
+    }
+
+    private func refreshPatientHome() async {
+        await loadAssignments()
+        await loadMessages()
+    }
+
+    private func applyRead(_ updated: PatientMessage) {
+        if let index = messages.firstIndex(where: { $0.id == updated.id }) {
+            messages[index] = updated
+        }
+    }
+
+    private func applyPendingMessageRoute() async {
+        guard let destination = messageCoordinator.consumePending() else { return }
+        await loadMessages()
+        switch destination {
+        case .none:
+            break
+        case .list:
+            openedMessageID = nil
+            isShowingMessages = true
+        case .exact(let id):
+            if messages.contains(where: { $0.id == id }) == false,
+               let fetched = try? await PatientMessageService(client: auth.client).message(id: id) {
+                messages.insert(fetched, at: 0)
+            }
+            isShowingMessages = false
+            if messages.contains(where: { $0.id == id }) {
+                openedMessageID = id
+            } else {
+                openedMessageID = nil
+                isShowingMessages = true
+            }
         }
     }
 }

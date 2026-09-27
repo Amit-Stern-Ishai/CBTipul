@@ -280,7 +280,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let userInfo = response.notification.request.content.userInfo
         if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             await MainActor.run {
-                TherapistNotificationCoordinator.shared.handlePushTap(userInfo: userInfo)
+                if AppNotificationPayload.from(userInfo: userInfo)?.type == .messageReceived {
+                    PatientModeMessageCoordinator.shared.handlePushTap(userInfo: userInfo)
+                } else {
+                    TherapistNotificationCoordinator.shared.handlePushTap(userInfo: userInfo)
+                }
             }
         }
         await NotificationStore.shared?.refresh()

@@ -6,6 +6,7 @@ enum AppNotificationType: Hashable, Sendable {
     case questionnaireAssigned
     case questionnaireCompleted
     case patientConnected
+    case messageReceived
     case unknown(String)
 
     init(rawValue: String) {
@@ -16,6 +17,8 @@ enum AppNotificationType: Hashable, Sendable {
             self = .questionnaireCompleted
         case "patient_connected":
             self = .patientConnected
+        case "message_received":
+            self = .messageReceived
         default:
             self = .unknown(rawValue)
         }
@@ -26,6 +29,7 @@ enum AppNotificationType: Hashable, Sendable {
         case .questionnaireAssigned: "questionnaire_assigned"
         case .questionnaireCompleted: "questionnaire_completed"
         case .patientConnected: "patient_connected"
+        case .messageReceived: "message_received"
         case .unknown(let raw): raw
         }
     }
@@ -166,7 +170,7 @@ enum NotificationInboxCopy {
             L10n.notificationQuestionnaireCompleted
         case .patientConnected:
             L10n.notificationPatientConnected
-        case .questionnaireAssigned, .unknown:
+        case .questionnaireAssigned, .messageReceived, .unknown:
             L10n.notificationGenericTitle
         }
     }

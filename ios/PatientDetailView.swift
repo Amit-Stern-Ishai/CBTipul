@@ -48,6 +48,7 @@ struct PatientDetailView: View {
     @State private var invitationError: String?
     @State private var invitationShare: InvitationSharePayload?
     @State private var isShowingSendMenu = false
+    @State private var isShowingMessageComposer = false
     @State private var pendingSendToPatient: SendToPatientKind?
     @State private var isSendingToPatient = false
     @State private var sendFeedbackTitle: String?
@@ -215,6 +216,13 @@ struct PatientDetailView: View {
                     PatientDiaryOneView(patient: patient)
                 } label: {
                     iconChip("book.closed", title: L10n.diariesTitle)
+                }
+                .listRowBackground(groupBorderedRow(.middle))
+
+                NavigationLink {
+                    TherapistPatientMessagesView(patient: patient)
+                } label: {
+                    iconChip("envelope", title: L10n.messagesTitle)
                 }
                 .listRowBackground(groupBorderedRow(.last))
             }
@@ -556,6 +564,9 @@ struct PatientDetailView: View {
             gettingStartedRouter.refresh(using: store)
         }
         .confirmationDialog(L10n.sendToPatientAction, isPresented: $isShowingSendMenu, titleVisibility: .visible) {
+            Button(L10n.sendPatientMessageAction) {
+                pendingSendToPatient = .message
+            }
             Button(L10n.questionnaireSectionTitle) {
                 pendingSendToPatient = .questionnaire
             }
@@ -564,10 +575,28 @@ struct PatientDetailView: View {
             }
             Button(L10n.cancel, role: .cancel) {}
         }
+        .sheet(isPresented: $isShowingMessageComposer) {
+            SendPatientMessageComposerView(patient: patient) {
+                presentSendFeedback(
+                    title: L10n.sendPatientMessageAction,
+                    message: L10n.sendPatientMessageSuccess
+                )
+            }
+            .appTextSize()
+        }
         .onChange(of: isShowingSendMenu) { _, showing in
             guard !showing, let pending = pendingSendToPatient else { return }
             pendingSendToPatient = nil
             switch pending {
+            case .message:
+                if store.isDemoMode || DemoData.isDemoID(patient.id) {
+                    presentSendFeedback(
+                        title: L10n.patientNotConnectedTitle,
+                        message: L10n.patientNotConnectedBody
+                    )
+                } else {
+                    isShowingMessageComposer = true
+                }
             case .questionnaire: sendStandaloneQuestionnaire()
             case .diaryOne: sendDiaryOne()
             }
@@ -1047,6 +1076,7 @@ struct PatientDetailView: View {
 }
 
 private enum SendToPatientKind {
+    case message
     case questionnaire
     case diaryOne
 }

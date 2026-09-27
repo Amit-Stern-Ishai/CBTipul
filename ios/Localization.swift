@@ -1027,6 +1027,34 @@ amitishai@gmail.com
 
     static let invitePatientAction = "הזמנת מטופל/ת"
     static let sendToPatientAction = "שליחה למטופל/ת"
+    static let sendPatientMessageAction = "שליחת הודעה"
+    static let sendPatientMessagePlaceholder = "כתבו הודעה למטופל/ת..."
+    static let sendMessageAction = "שליחה"
+    static let sendPatientMessageSending = "שולחים הודעה..."
+    static let sendPatientMessageSuccess = "ההודעה נשלחה"
+    static let sendPatientMessageFailed = "לא ניתן היה לשלוח את ההודעה. נסו שוב."
+    static let sendPatientMessageTooLong = "ההודעה ארוכה מדי."
+    static let sendPatientMessageEmpty = "יש לכתוב הודעה לפני השליחה."
+    static let sendPatientMessagePatientNotFound = "לא ניתן היה למצוא את המטופל/ת."
+    static let messagesTitle = "הודעות"
+    static let newMessageLabel = "הודעה חדשה"
+    static let showMessageAction = "הצגת ההודעה"
+    static let messageDetailTitle = "הודעה"
+    static let messageFromTherapist = "הודעה מהמטפל/ת"
+    static let messageNewBadge = "חדש"
+    static let messageUnreadStatus = "לא נקראה"
+    static let messageReadStatus = "נקראה"
+    static let patientMessagesEmptyTitle = "אין הודעות"
+    static let patientMessagesLoadFailedTitle = "טעינת הודעות נכשלה"
+    static let patientMessagesCardBody = "הודעות מהמטפל/ת"
+    static let patientMessagesOpenAction = "פתיחת הודעות"
+    static let allMessagesAction = "כל ההודעות"
+    static func allMessagesActionWithUnreadCount(_ count: Int) -> String {
+        "\(allMessagesAction) (\(count))"
+    }
+    static func patientMessagesUnreadCount(_ count: Int) -> String {
+        "\(count)"
+    }
     static let progressAndTrackingSection = "מעקב והתקדמות"
     static let graphsAndTrendsTitle = "גרפים ומגמות"
     static let questionnairesHistoryAction = "שאלונים"
@@ -1115,7 +1143,7 @@ amitishai@gmail.com
     static let patientModeConnectedBody =
         "כעת ניתן לקבל מהמטפל/ת שאלונים וכלים טיפוליים."
 
-    static let patientTasksTitle = "המשימות שלי"
+    static let patientTasksTitle = "משימות"
 
     static let patientTasksRefreshAction = "רענון"
 
