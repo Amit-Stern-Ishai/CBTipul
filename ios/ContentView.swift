@@ -213,18 +213,6 @@ struct ContentView: View {
                     hasAcceptedTerms = true
                 }
             }
-        } else if !onboarding.welcomeDismissed {
-            WelcomeOnboardingView(
-                onStartDemoTour: {
-                    onboarding.markDemoTourCompleted()
-                    onboarding.dismissWelcome()
-                    onboarding.showChecklistAgain()
-                    store.enterDemoMode()
-                },
-                onSkip: {
-                    onboarding.dismissWelcome()
-                }
-            )
         } else {
             TherapistRootView()
         }
@@ -271,7 +259,7 @@ struct ContentView: View {
         "\(auth.currentUserId ?? "")-\(auth.isRecoveringPassword)"
     }
 
-    /// Permission is requested only after therapist onboarding (tab shell)
+    /// Permission is requested only from the therapist tab shell
     /// or a successful Patient Mode activation — never on Auth, Terms,
     /// Welcome, invitation, or incomplete activation.
     private var pushRegistrationContext: String? {
@@ -283,7 +271,6 @@ struct ContentView: View {
         ) {
         case .therapist:
             let ready = hasAcceptedTerms
-                && onboarding.welcomeDismissed
                 && !showOptionalDisplayNamePrompt
                 && !isResolvingDisplayNameGate
                 && !auth.isRecoveringPassword

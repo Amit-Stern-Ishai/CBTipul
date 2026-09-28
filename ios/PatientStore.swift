@@ -314,8 +314,7 @@ final class PatientStore {
     /// When true, the in-memory clinic is the local demo sample — no
     /// Supabase writes, and network reloads are skipped.
     private(set) var isDemoMode = false
-    /// Bundled sample patients (`demo-1` …) are hidden until the tour ends
-    /// or the therapist taps “skip to sample data”.
+    /// Whether the bundled sample records have been installed in this demo clinic.
     private(set) var showcaseDataLoaded = false
 
     /// `anonymizeText` overrides the anonymization call, for tests only;
@@ -330,9 +329,9 @@ final class PatientStore {
         identityStore.mirrorExistingNamesToAppGroup()
     }
 
-    /// Installs local demo mode with an empty clinic — like a new signup.
-    /// Only therapist-created tutorial patients are restored from disk.
+    /// Opens the separate local sample clinic, preserving previous demo edits.
     func enterDemoMode() {
+        guard !isDemoMode else { return }
         isDemoMode = true
         AIDataSharingConsentStore.shared.setDemoBypass(true)
         showcaseDataLoaded = false
@@ -340,16 +339,14 @@ final class PatientStore {
         questionnairesByPatient = [:]
 
         if let snapshot = DemoClinicStore.loadClinic() {
-            applyTutorialOnlySnapshot(snapshot)
-            AppLog.store.notice(
-                "Restored demo tutorial with \(self.patients.count) patient(s)"
-            )
-        } else {
-            AppLog.store.notice("Entered empty demo clinic")
+            applyDemoSnapshot(snapshot)
+            showcaseDataLoaded = snapshot.includesSampleData
+                ?? snapshot.patients.contains { DemoData.isShowcaseID($0.id) }
         }
+        loadShowcaseDemoData()
     }
 
-    /// Adds bundled showcase patients for free exploration after the tour.
+    /// Installs bundled patients once, including migration from old tutorial clinics.
     func loadShowcaseDemoData() {
         guard isDemoMode, !showcaseDataLoaded else { return }
         let bundle = DemoData.makeBundle()
@@ -389,11 +386,10 @@ final class PatientStore {
         AppLog.store.notice("Loaded showcase demo patients")
     }
 
-    /// Leaves demo mode, wiping everything created during the demo, then
-    /// reloads the real clinic from cache/network.
+    /// Saves the sample clinic separately, then reloads the real clinic.
     func exitDemoMode() async {
         guard isDemoMode else { return }
-        DemoClinicStore.clearAll()
+        persistDemoClinic()
         isDemoMode = false
         AIDataSharingConsentStore.shared.setDemoBypass(false)
         showcaseDataLoaded = false
@@ -405,7 +401,7 @@ final class PatientStore {
         } catch {
             AppLog.store.error("Reload after demo exit failed: \(error.localizedDescription, privacy: .public)")
         }
-        AppLog.store.notice("Exited demo mode; wiped demo clinic")
+        AppLog.store.notice("Exited demo mode; preserved sample clinic")
     }
 
     /// Removes therapist-created tutorial patients so the checklist can run again.
@@ -450,7 +446,8 @@ final class PatientStore {
                 uniqueKeysWithValues: questionnairesByPatient.map {
                     ($0.key.queryValue, $0.value)
                 }
-            )
+            ),
+            includesSampleData: showcaseDataLoaded
         )
         DemoClinicStore.saveClinic(snapshot)
         var names = DemoClinicStore.loadNames()
@@ -466,16 +463,11 @@ final class PatientStore {
     }
 
     private func applyDemoSnapshot(_ snapshot: DemoClinicStore.Snapshot) {
-        applyTutorialOnlySnapshot(snapshot)
-    }
-
-    /// Restores only `demo-user-…` work — never pre-seeded showcase rows.
-    private func applyTutorialOnlySnapshot(_ snapshot: DemoClinicStore.Snapshot) {
         let names = DemoClinicStore.loadNames()
-        let tutorialRecords = snapshot.patients.filter {
-            DemoData.isTutorialPatientID($0.id)
+        let demoRecords = snapshot.patients.filter {
+            DemoData.isDemoID($0.id)
         }
-        patients = tutorialRecords.map { record in
+        patients = demoRecords.map { record in
             let patient = Patient(
                 id: record.id,
                 firstName: record.firstName,
@@ -505,7 +497,7 @@ final class PatientStore {
         questionnairesByPatient = Dictionary(
             uniqueKeysWithValues: snapshot.questionnairesByPatient.compactMap { key, value in
                 let id = DatabaseID.text(key)
-                guard DemoData.isTutorialPatientID(id) else { return nil }
+                guard DemoData.isDemoID(id) else { return nil }
                 return (id, value)
             }
         )
@@ -654,6 +646,10 @@ final class PatientStore {
             .select("id, patient_id, session_date, notes, type, structured_notes")
             .execute()
             .value
+
+        // Entering sample mode while a real-clinic refresh is in flight must
+        // not replace the sample records with the eventual network response.
+        guard !isDemoMode else { return }
 
         var sessionRowsByPatient: [DatabaseID: [SessionRow]] = [:]
         for row in sessionRows {

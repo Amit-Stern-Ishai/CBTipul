@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Therapist home after auth/terms/welcome gates: five persistent tabs.
+/// Therapist home after authentication and terms: four persistent tabs.
 enum TherapistRootTab: Hashable {
     case patients
     case sessions
@@ -10,13 +10,10 @@ enum TherapistRootTab: Hashable {
 
 struct TherapistRootView: View {
     @Environment(PatientStore.self) private var store
-    @Environment(OnboardingStore.self) private var onboarding
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(NotificationStore.self) private var notificationStore
     @Environment(TherapistNotificationCoordinator.self) private var coordinator
     @Environment(\.scenePhase) private var scenePhase
-
-    @State private var isShowingWelcome = false
 
     var body: some View {
         @Bindable var coordinator = coordinator
@@ -57,17 +54,8 @@ struct TherapistRootView: View {
         .tint(Theme.gold)
         .toolbarBackground(.visible, for: .tabBar)
         .accessibilityIdentifier("therapist.root")
-        .onChange(of: onboarding.wantsDemoConsent) { _, wants in
-            guard wants else { return }
-            onboarding.clearDemoConsentRequest()
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                coordinator.selectedTab = .patients
-                isShowingWelcome = true
-            }
-        }
         .onChange(of: store.isDemoMode) { _, isDemo in
+            coordinator.selectedTab = .patients
             guard isDemo else {
                 notificationStore.isDemoInbox = false
                 Task { await notificationStore.refresh() }
@@ -79,19 +67,6 @@ struct TherapistRootView: View {
             gettingStartedRouter.setPlacement(.patientList)
             gettingStartedRouter.refresh(using: store)
         }
-        .fullScreenCover(isPresented: $isShowingWelcome) {
-            WelcomeOnboardingView(
-                onStartDemoTour: {
-                    startDemoTour()
-                },
-                onSkip: {
-                    onboarding.dismissWelcome()
-                    isShowingWelcome = false
-                }
-            )
-            .appTextSize()
-        }
-        .showcaseIntroHost()
         .task {
             coordinator.markTherapistRootReady()
             store.loadCachedPatients()
@@ -132,31 +107,6 @@ struct TherapistRootView: View {
             Task {
                 await notificationStore.refresh()
                 coordinator.processPending(patients: store.patients)
-            }
-        }
-    }
-
-    private func startDemoTour() {
-        var settle = Transaction()
-        settle.disablesAnimations = true
-        withTransaction(settle) {
-            onboarding.markDemoTourCompleted()
-            onboarding.dismissWelcome()
-            onboarding.showChecklistAgain()
-            store.enterDemoMode()
-            coordinator.selectedTab = .patients
-            gettingStartedRouter.setPlacement(.patientList)
-            gettingStartedRouter.refresh(using: store)
-            gettingStartedRouter.resetShowcaseReveal()
-        }
-        DispatchQueue.main.async {
-            DispatchQueue.main.async {
-                var dismissTx = Transaction()
-                dismissTx.disablesAnimations = true
-                withTransaction(dismissTx) {
-                    isShowingWelcome = false
-                    gettingStartedRouter.syncHighlight()
-                }
             }
         }
     }

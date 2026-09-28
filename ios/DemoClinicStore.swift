@@ -27,6 +27,8 @@ enum DemoClinicStore {
     struct Snapshot: Codable {
         var patients: [PatientRecord]
         var questionnairesByPatient: [String: [CompletedQuestionnaire]]
+        /// Optional for clinics saved before sample mode replaced the tutorial.
+        var includesSampleData: Bool? = nil
     }
 
     struct PatientRecord: Codable {

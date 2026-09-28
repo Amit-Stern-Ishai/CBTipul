@@ -8,7 +8,6 @@ struct PatientDetailView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
-    @Environment(OnboardingStore.self) private var onboarding
     @Environment(TherapistProfileService.self) private var therapistProfiles
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -48,8 +47,6 @@ struct PatientDetailView: View {
     @State private var sessionsInitialAction: SessionsInitialAction?
     @State private var isShowingPreparationInsufficient = false
     @State private var preparationMissingAction: PreparationMissingAction = .addSession
-    @State private var isShowingFirstPreparationTip = false
-    @State private var pendingPreparationAfterTip = false
     @State private var isCreatingInvitation = false
     @State private var isShowingDisplayNameForInvite = false
     @State private var pendingInvitationAfterDisplayName = false
@@ -476,21 +473,6 @@ struct PatientDetailView: View {
                 isShowingPreparationInsufficient = false
                 handlePreparationMissingAction(preparationMissingAction)
             }
-            .presentationDetents([.medium])
-            .appTextSize()
-        }
-        .sheet(isPresented: $isShowingFirstPreparationTip) {
-            ContextualTipSheet(
-                message: L10n.firstPreparationTipBody,
-                onContinue: {
-                    onboarding.markFirstPreparationTipSeen()
-                    isShowingFirstPreparationTip = false
-                    if pendingPreparationAfterTip {
-                        pendingPreparationAfterTip = false
-                        prepareNextSession()
-                    }
-                }
-            )
             .presentationDetents([.medium])
             .appTextSize()
         }
@@ -1092,11 +1074,6 @@ struct PatientDetailView: View {
             ) {
                 preparationMissingAction = GettingStartedProgress.missingPreparationAction(for: patient)
                 isShowingPreparationInsufficient = true
-                return
-            }
-            if !onboarding.hasSeenFirstPreparationTip {
-                pendingPreparationAfterTip = true
-                isShowingFirstPreparationTip = true
                 return
             }
             prepareNextSession()

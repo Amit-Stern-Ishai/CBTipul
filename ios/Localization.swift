@@ -258,9 +258,16 @@ enum L10n {
     static let gettingStartedCompleteMessage = "המדריך הושלם — כל הכבוד!"
     static let gettingStartedRestartAction = "התחילו מחדש"
     static let gettingStartedDismissAccessibilityLabel = "הסתרת מדריך ההתחלה"
-    static let gettingStartedGuideSettingsTitle = "הדרכה והתנסות באפליקציה"
+    static let gettingStartedGuideSettingsTitle = "התנסות עם נתונים לדוגמה"
     static let gettingStartedGuideSettingsSubtitle =
-        "הדרכה מודרכת והתנסות עם מטופלים לדוגמה"
+        "הכירו את העבודה באפליקציה בלי להשתמש במידע של מטופלים אמיתיים."
+    static let sampleDataExploreTitle = "תיקים מוכנים להתנסות"
+    static let sampleDataExploreBody = "מטופלים בדויים עם פגישות ושאלונים לדוגמה. אפשר לעיין, לערוך ולהוסיף נתונים בחופשיות."
+    static let sampleDataSeparateTitle = "בנפרד מהתיקים שלך"
+    static let sampleDataSeparateBody = "התיקים האמיתיים נשארים ללא שינוי. לא נשלחות הודעות, שאלונים או הזמנות למטופלים."
+    static let sampleDataReturnTitle = "חזרה בכל רגע"
+    static let sampleDataReturnBody = "לחצו על ״חזרה למטופלים שלי״ בראש המסך. השינויים בנתוני הדוגמה יישמרו במכשיר להתנסות הבאה."
+    static let sampleDataStartAction = "התחלת התנסות"
 
     static let tutorialCoachHintAddPatient =
         "לחצו על ״הוספת מטופל/ת ראשון/ה״ כדי להוסיף מטופל/ת"
@@ -285,11 +292,11 @@ enum L10n {
     static let tutorialCoachHintReturnSessions = "חזרו למסך הפגישות כדי להמשיך"
     static let tutorialCoachHintFollowGlow = "עקבו אחרי הכפתור המסומן"
 
-    static let demoModeBannerTitle = "מצב הדגמה"
+    static let demoModeBannerTitle = "נתונים לדוגמה"
     static let demoModeBannerBody = "קליניקה לדוגמה — לצורך המחשה בלבד."
     static let demoModeExitShort = "חזרה למטופלים שלי"
     static let exitDemoModeAction = "חזרה למטופלים שלי"
-    static let enterDemoModeAction = "כניסה למצב הדגמה"
+    static let enterDemoModeAction = "התנסות עם נתונים לדוגמה"
 
     static let tutorialCoachSkipToShowcase = "דלגו לנתונים לדוגמה"
     static let showcaseCountdownTitle = "עוד רגע — נתונים לדוגמה"

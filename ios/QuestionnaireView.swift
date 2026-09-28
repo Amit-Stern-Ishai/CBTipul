@@ -14,7 +14,6 @@ struct CombinedMoodQuestionnaireView: View {
     var showsCancelButton = false
 
     @Environment(PatientStore.self) private var store
-    @Environment(OnboardingStore.self) private var onboarding
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(\.dismiss) private var dismiss
 
@@ -31,7 +30,6 @@ struct CombinedMoodQuestionnaireView: View {
     @State private var isShowingBackWarning = false
     @State private var isShowingIncompleteAlert = false
     @State private var marksUnanswered = false
-    @State private var isShowingFirstQuestionnaireTip = false
     /// Snapshot of the answers when the screen opened, used to detect
     /// unsaved changes and to restore them on discard (the session object
     /// is shared, so edits must not linger in memory unsaved).
@@ -191,14 +189,6 @@ struct CombinedMoodQuestionnaireView: View {
         .interactiveDismissDisabled(hasUnsavedChanges)
         .busyOverlay(isSaving, label: busyLabel)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
-        .sheet(isPresented: $isShowingFirstQuestionnaireTip) {
-            ContextualTipSheet(message: L10n.firstQuestionnaireTipBody) {
-                onboarding.markFirstQuestionnaireTipSeen()
-                isShowingFirstQuestionnaireTip = false
-            }
-            .presentationDetents([.medium])
-            .appTextSize()
-        }
         .task {
             gettingStartedRouter.setPlacement(.questionnaire, viewingPatientID: patient.id)
             gettingStartedRouter.refresh(using: store)
@@ -209,9 +199,6 @@ struct CombinedMoodQuestionnaireView: View {
             // screen is opened before the cache was ever filled.
             if store.cachedQuestionnaires(for: patient) == nil {
                 _ = try? await store.loadQuestionnaires(for: patient)
-            }
-            if !isExisting, !onboarding.hasSeenFirstQuestionnaireTip {
-                isShowingFirstQuestionnaireTip = true
             }
         }
     }
@@ -263,7 +250,6 @@ struct PatientQuestionnaireEditorView: View {
     var existing: CompletedQuestionnaire? = nil
 
     @Environment(PatientStore.self) private var store
-    @Environment(OnboardingStore.self) private var onboarding
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(\.dismiss) private var dismiss
 
@@ -279,7 +265,6 @@ struct PatientQuestionnaireEditorView: View {
     @State private var isShowingBackWarning = false
     @State private var isShowingIncompleteAlert = false
     @State private var marksUnanswered = false
-    @State private var isShowingFirstQuestionnaireTip = false
     @State private var initialQuestionnaire: CombinedMoodQuestionnaire?
     @State private var initialAnsweredDate: Date?
     @State private var initialSessionChoice: SessionChoice?
@@ -472,14 +457,6 @@ struct PatientQuestionnaireEditorView: View {
         ))
         .busyOverlay(isSaving, label: busyLabel)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
-        .sheet(isPresented: $isShowingFirstQuestionnaireTip) {
-            ContextualTipSheet(message: L10n.firstQuestionnaireTipBody) {
-                onboarding.markFirstQuestionnaireTipSeen()
-                isShowingFirstQuestionnaireTip = false
-            }
-            .presentationDetents([.medium])
-            .appTextSize()
-        }
         .task {
             if initialQuestionnaire == nil {
                 initialQuestionnaire = questionnaire
@@ -488,9 +465,6 @@ struct PatientQuestionnaireEditorView: View {
             }
             if store.cachedQuestionnaires(for: patient) == nil {
                 _ = try? await store.loadQuestionnaires(for: patient)
-            }
-            if !isExisting, !onboarding.hasSeenFirstQuestionnaireTip {
-                isShowingFirstQuestionnaireTip = true
             }
         }
     }

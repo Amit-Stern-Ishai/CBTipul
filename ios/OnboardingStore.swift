@@ -220,15 +220,9 @@ final class GettingStartedRouter {
         if highlight == value { highlight = nil }
     }
 
-    /// Whether `value` should flash right now (ignores stale highlight).
+    /// Legacy screen hooks remain, but sample mode has no guided highlights.
     func shouldPulse(_ value: TutorialHighlight) -> Bool {
-        let expected = TutorialCoach.highlight(
-            for: progress.currentStep,
-            on: placement,
-            progress: progress,
-            viewingPatientID: viewingPatientID
-        )
-        return expected == value
+        false
     }
 
     func consumeSessionsAction() -> SessionsInitialAction? {
@@ -252,12 +246,7 @@ final class GettingStartedRouter {
     }
 
     func syncHighlight() {
-        highlight = TutorialCoach.highlight(
-            for: progress.currentStep,
-            on: placement,
-            progress: progress,
-            viewingPatientID: viewingPatientID
-        )
+        highlight = nil
     }
 
     func resetShowcaseReveal() {
@@ -281,12 +270,10 @@ final class GettingStartedRouter {
         clearHighlight()
     }
 
-    /// Starts the banner countdown after the AI-summary mission finishes —
-    /// never on demo re-entry (that path shows Restart + Skip only).
+    /// Clears legacy tour state after analysis; sample mode has no countdown.
     func beginShowcaseCountdownIfNeeded(using store: PatientStore) {
-        guard progress.isComplete, !store.showcaseDataLoaded else { return }
-        guard case .idle = showcaseRevealPhase else { return }
-        startShowcaseCountdown()
+        // Sample records are available immediately; there is no guided reveal.
+        resetShowcaseReveal()
     }
 
     /// Mission banner (or drained timer) → clear stack, then show intro.

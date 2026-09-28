@@ -297,5 +297,40 @@ final class SmokeTests: XCTestCase {
             demoBanner.waitForExistence(timeout: 8),
             "Demo banner should be visible in demo mode"
         )
+        XCTAssertFalse(app.buttons["welcome.continueDemo"].exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "שלב ")).firstMatch.exists)
+        let search = app.searchFields["חיפוש מטופלים"]
+        search.tap()
+        search.typeText("ישראלה\n")
+        let sample = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "ישראלה ישראלית")).firstMatch
+        XCTAssertTrue(sample.waitForExistence(timeout: 5), "Sample patients should be available immediately")
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Sample data without onboarding"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+
+        app.buttons["חזרה למטופלים שלי"].firstMatch.tap()
+        XCTAssertTrue(demoBanner.waitForNonExistence(timeout: 10))
+        XCTAssertFalse(sample.exists, "Sample patients must not remain in the real clinic")
+        app.tabBars.buttons["הגדרות"].tap()
+        let sampleEntry = app.buttons["settings.sampleData"]
+        XCTAssertTrue(sampleEntry.waitForExistence(timeout: 5))
+        sampleEntry.tap()
+        let startSample = app.buttons["sampleData.start"]
+        XCTAssertTrue(startSample.waitForExistence(timeout: 5))
+        XCTAssertFalse(demoBanner.exists, "Opening the explanation must not start sample mode")
+        let gate = XCTAttachment(screenshot: app.screenshot())
+        gate.name = "Sample mode introduction"
+        gate.lifetime = .keepAlways
+        add(gate)
+        app.buttons["sampleData.cancel"].tap()
+        XCTAssertTrue(startSample.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(demoBanner.exists)
+        sampleEntry.tap()
+        XCTAssertTrue(startSample.waitForExistence(timeout: 5))
+        startSample.tap()
+        XCTAssertTrue(demoBanner.waitForExistence(timeout: 10))
+        XCTAssertTrue(sample.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["welcome.continueDemo"].exists)
     }
 }

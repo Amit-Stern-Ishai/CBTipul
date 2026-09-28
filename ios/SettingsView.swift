@@ -108,6 +108,8 @@ struct SettingsView: View {
     @Environment(TherapistProfileService.self) private var therapistProfiles
 
     @State private var presentedLink: OfficialLink?
+    @State private var isShowingSamplePreview = false
+    @State private var shouldStartSampleMode = false
     @State private var isShowingDeleteAccountConfirmation = false
     @State private var isShowingDeleteAccountCodeChallenge = false
     @State private var isDeletingAccount = false
@@ -160,24 +162,21 @@ struct SettingsView: View {
 
                 Section {
                     Button {
-                        // TherapistRootView presents consent over the tabs.
-                        onboarding.requestDemoConsent()
+                        isShowingSamplePreview = true
                     } label: {
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(L10n.gettingStartedGuideSettingsTitle)
-                                Text(L10n.gettingStartedGuideSettingsSubtitle)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } icon: {
-                            Image(systemName: "list.bullet.clipboard")
-                                .font(.footnote.weight(.semibold))
+                        HStack(spacing: 12) {
+                            Label(L10n.gettingStartedGuideSettingsTitle,
+                                  systemImage: "person.2.crop.square.stack")
                                 .foregroundStyle(Theme.gold)
-                                .frame(width: 28, height: 28)
-                                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.forward")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.secondary)
                         }
+                        .padding(.vertical, 4)
                     }
+                    .disabled(store.isDemoMode)
+                    .accessibilityIdentifier("settings.sampleData")
                 }
                 .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
 
@@ -342,6 +341,19 @@ struct SettingsView: View {
             .patientAtmosphere(Theme.gold)
             .themedScreen()
             .demoModeChrome()
+            .sheet(isPresented: $isShowingSamplePreview, onDismiss: {
+                guard shouldStartSampleMode else { return }
+                shouldStartSampleMode = false
+                store.enterDemoMode()
+            }) {
+                SampleDataPreviewView {
+                    shouldStartSampleMode = true
+                    isShowingSamplePreview = false
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .appTextSize()
+            }
             .navigationTitle(L10n.settingsTitle)
             .accessibilityIdentifier("settings.root")
             .task { await refreshDisplayNameRow() }
@@ -655,6 +667,77 @@ struct AppearancePickerView: View {
         .themedScreen()
         .navigationTitle(L10n.settingsAppearanceTitle)
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct SampleDataPreviewView: View {
+    let onStart: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Image(systemName: "person.2.crop.square.stack")
+                            .font(.system(size: 30))
+                            .foregroundStyle(Theme.gold)
+                            .padding(16)
+                            .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 18))
+                        Text(L10n.gettingStartedGuideSettingsTitle)
+                            .font(.title.bold())
+                        Text(L10n.gettingStartedGuideSettingsSubtitle)
+                            .foregroundStyle(.secondary)
+                    }
+                    VStack(alignment: .leading, spacing: 24) {
+                        explanation("folder", title: L10n.sampleDataExploreTitle,
+                                    body: L10n.sampleDataExploreBody)
+                        explanation("shield.lefthalf.filled", title: L10n.sampleDataSeparateTitle,
+                                    body: L10n.sampleDataSeparateBody)
+                        explanation("arrow.uturn.backward", title: L10n.sampleDataReturnTitle,
+                                    body: L10n.sampleDataReturnBody)
+                    }
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .themedScreen()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.cancel) { dismiss() }
+                        .accessibilityIdentifier("sampleData.cancel")
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Button(action: onStart) {
+                    Text(L10n.sampleDataStartAction)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                }
+                .buttonStyle(.pressableProminent)
+                .accessibilityIdentifier("sampleData.start")
+                .padding(24)
+                .background(Theme.base)
+            }
+        }
+    }
+
+    private func explanation(_ icon: String, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(Theme.gold)
+                .frame(width: 26)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.headline)
+                Text(body)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

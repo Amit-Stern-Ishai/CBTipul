@@ -335,30 +335,10 @@ struct PatientListView: View {
     }
 
     private func startDemoTour() {
-        var settle = Transaction()
-        settle.disablesAnimations = true
-        withTransaction(settle) {
-            onboarding.markDemoTourCompleted()
-            onboarding.dismissWelcome()
-            onboarding.showChecklistAgain()
-            store.enterDemoMode()
-            gettingStartedRouter.setPlacement(.patientList)
-            gettingStartedRouter.refresh(using: store)
-            // Clear any leftover countdown from a previous demo visit —
-            // re-entry with a finished tour shows Restart + Skip, no timer.
-            gettingStartedRouter.resetShowcaseReveal()
-            path = NavigationPath()
-        }
-        DispatchQueue.main.async {
-            DispatchQueue.main.async {
-                var dismissTx = Transaction()
-                dismissTx.disablesAnimations = true
-                withTransaction(dismissTx) {
-                    gettingStartedRouter.syncHighlight()
-                }
-            }
-        }
+        store.enterDemoMode()
+        path = NavigationPath()
     }
+
 }
 
 /// A single row in the patient directory: local display name and last session date.
