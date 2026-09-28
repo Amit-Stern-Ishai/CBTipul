@@ -43,14 +43,7 @@ class GettingStartedRouter(
     }
 
     fun shouldPulse(value: TutorialHighlight): Boolean {
-        val s = _state.value
-        val expected = TutorialCoach.highlight(
-            step = s.progress.currentStep,
-            placement = s.placement,
-            progress = s.progress,
-            viewingPatientId = s.viewingPatientId,
-        )
-        return expected == value
+        return false
     }
 
     fun refresh(repository: PatientRepository) {
@@ -75,17 +68,7 @@ class GettingStartedRouter(
     }
 
     fun syncHighlight() {
-        val s = _state.value
-        _state.update {
-            it.copy(
-                highlight = TutorialCoach.highlight(
-                    step = s.progress.currentStep,
-                    placement = s.placement,
-                    progress = s.progress,
-                    viewingPatientId = s.viewingPatientId,
-                ),
-            )
-        }
+        clearHighlight()
     }
 
     fun resetShowcaseReveal() {
@@ -114,10 +97,7 @@ class GettingStartedRouter(
     }
 
     fun beginShowcaseCountdownIfNeeded(repository: PatientRepository) {
-        val s = _state.value
-        if (!s.progress.isComplete || repository.showcaseDataLoaded.value) return
-        if (s.showcaseRevealPhase != ShowcaseRevealPhase.Idle) return
-        startShowcaseCountdown()
+        resetShowcaseReveal()
     }
 
     fun skipToShowcaseData(repository: PatientRepository) {

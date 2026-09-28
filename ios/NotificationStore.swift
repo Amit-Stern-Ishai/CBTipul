@@ -70,11 +70,11 @@ final class NotificationStore {
                 .order("created_at", ascending: false)
                 .execute()
                 .value
+            guard !isDemoInbox else { return }
             notifications = rows.map(\.asAppNotification)
             await synchronizeAppIconBadge()
         } catch {
             didFailLastLoad = true
-            notifications = []
             await synchronizeAppIconBadge()
             #if DEBUG
             AppLog.push.debug(

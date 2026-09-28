@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,9 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -108,6 +112,7 @@ fun PatientDetailScreen(
     isSavingGoal: Boolean,
     onOpenSessions: () -> Unit,
     onOpenQuestionnaires: () -> Unit,
+    onOpenGraphs: () -> Unit = {},
     onOpenDiaryOne: () -> Unit = {},
     onInvitePatient: () -> Unit = {},
     isCreatingInvitation: Boolean = false,
@@ -145,6 +150,9 @@ fun PatientDetailScreen(
         BoxMissing(onBack)
         return
     }
+    var showNotes by remember { mutableStateOf(false) }
+    var diariesExpanded by remember { mutableStateOf(false) }
+    var closeNotesAfterSave by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
     var goalDraft by remember { mutableStateOf("") }
@@ -154,7 +162,7 @@ fun PatientDetailScreen(
     var statusExpanded by remember { mutableStateOf(false) }
     val name = patient.displayName(unnamed)
     val treatmentGoal = patient.formulation?.treatmentGoal.orEmpty()
-    val busy = isSavingNotes || isSavingStatus || isSavingGoal || isTranscribing || isAnonymizingTranscription
+    val processing = isSavingNotes || isSavingStatus || isSavingGoal || isTranscribing || isAnonymizingTranscription
     val context = LocalContext.current
     var recorderTick by remember { mutableIntStateOf(0) }
     val recorder = remember {
@@ -164,9 +172,11 @@ fun PatientDetailScreen(
         onDispose { recorder.release() }
     }
     val permissionDenied = stringResource(R.string.mic_permission_denied)
+    var requestingRecording by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
+        requestingRecording = false
         if (granted) {
             recorder.startRecording()
         } else {
@@ -176,9 +186,16 @@ fun PatientDetailScreen(
     }
     @Suppress("UNUSED_VARIABLE")
     val observed = recorderTick
+    val busy = processing || requestingRecording || recorder.isRecording
     var notes by remember(patient.id.queryValue, patient.notes) { mutableStateOf(patient.notes) }
     var showDiscard by remember { mutableStateOf(false) }
     val hasUnsavedChanges = notes != patient.notes || recorder.recordingFile != null
+    LaunchedEffect(isSavingNotes, patient.notes) {
+        if (closeNotesAfterSave && !isSavingNotes) {
+            if (notesError == null && notes == patient.notes) showNotes = false
+            closeNotesAfterSave = false
+        }
+    }
     val notesBringIntoView = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
     var isSendingQuestionnaire by remember { mutableStateOf(false) }
@@ -193,10 +210,10 @@ fun PatientDetailScreen(
 
     fun requestBack() {
         if (busy) return
-        if (hasUnsavedChanges) showDiscard = true else onBack()
+        if (hasUnsavedChanges) showDiscard = true else if (showNotes) showNotes = false else onBack()
     }
 
-    BackHandler(enabled = !busy) { requestBack() }
+    BackHandler(enabled = true) { requestBack() }
 
     fun transcribePending() {
         val file = recorder.recordingFile ?: return
@@ -206,7 +223,10 @@ fun PatientDetailScreen(
     fun startMic() {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
-        if (granted) recorder.startRecording() else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        if (granted) recorder.startRecording() else {
+            requestingRecording = true
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -217,16 +237,16 @@ fun PatientDetailScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(name, color = colors.textBright) },
+                title = { Text(if (showNotes) stringResource(R.string.patient_notes_title) else name, color = colors.textBright) },
                 navigationIcon = {
                     IconButton(onClick = { requestBack() }) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
                 actions = {
-                    TextButton(
+                    if (showNotes) TextButton(
                         onClick = { onSaveNotes(notes, false) },
-                        enabled = !busy && hasUnsavedChanges,
+                        enabled = !busy && hasUnsavedChanges && recorder.recordingFile == null,
                     ) {
                         Text(
                             stringResource(R.string.save),
@@ -259,284 +279,99 @@ fun PatientDetailScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            val accent = PatientAvatarColor.background(patient.id)
+            if (!showNotes) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                InitialsAvatar(name = name, patientId = patient.id, size = 64.dp)
-                val chipColor = PatientAvatarColor.background(patient.id)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        name,
-                        color = colors.textBright,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Icon(
-                        Icons.Outlined.Edit,
-                        contentDescription = stringResource(R.string.edit_patient_name_action),
-                        tint = chipColor,
-                        modifier = Modifier
-                            .padding(start = 6.dp)
-                            .size(36.dp)
-                            .clickable { showRename = true }
-                            .padding(6.dp),
-                    )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.size(48.dp))
+                    Text(name, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 22.sp,
+                        textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false))
+                    IconButton(onClick = { showRename = true }, enabled = !busy, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_patient_name_action), tint = colors.gold)
+                    }
                 }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(chipColor.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
-                        .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        if (treatmentGoal.isEmpty()) {
-                            stringResource(R.string.no_treatment_goal_placeholder)
-                        } else {
-                            treatmentGoal
-                        },
-                        color = if (treatmentGoal.isEmpty()) colors.textBody else colors.textBright,
-                        fontWeight = FontWeight.SemiBold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Icon(
-                        Icons.Outlined.Edit,
-                        contentDescription = stringResource(R.string.edit_treatment_goal_action),
-                        tint = chipColor,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clickable {
-                                goalDraft = treatmentGoal
-                                showGoal = true
-                            }
-                            .padding(6.dp),
-                    )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.size(48.dp))
+                    Text(treatmentGoal.ifEmpty { stringResource(R.string.no_treatment_goal_placeholder) },
+                        color = colors.textBody, textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false))
+                    IconButton(onClick = { goalDraft = treatmentGoal; showGoal = true }, enabled = !busy, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_treatment_goal_action), tint = colors.gold)
+                    }
                 }
             }
 
-            val accent = PatientAvatarColor.background(patient.id)
-            GroupedListCard(accent = accent) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (lastQuestionnaire != null) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            GAD7ScoreCapsule(lastQuestionnaire, previousQuestionnaire)
-                            PHQ9ScoreCapsule(lastQuestionnaire, previousQuestionnaire)
-                        }
-                    }
-                    lastSessionType?.let {
-                        Text(stringResource(it.labelRes()), color = colors.textBody, fontWeight = FontWeight.SemiBold)
-                    }
-                    Text(
-                        if (patient.sessionsUpToTodayCount == 1) {
-                            stringResource(R.string.sessions_count_one)
-                        } else {
-                            stringResource(R.string.sessions_count_other, patient.sessionsUpToTodayCount)
-                        },
-                        color = colors.textBody,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TextButton(onClick = { statusExpanded = true }, enabled = !busy) {
+                    Text(stringResource(if (patient.status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive))
                 }
-            }
-
-            GroupedListCard(accent = accent) {
-            ExposedDropdownMenuBox(
-                expanded = statusExpanded,
-                onExpandedChange = { statusExpanded = it },
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                OutlinedTextField(
-                    value = stringResource(
-                        if (patient.status == PatientStatus.Active) {
-                            R.string.patient_status_active
-                        } else {
-                            R.string.patient_status_inactive
-                        },
-                    ),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.status_label)) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(),
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
-                    enabled = !busy,
-                )
-                ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
-                    PatientStatus.entries.forEach { option ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    stringResource(
-                                        if (option == PatientStatus.Active) {
-                                            R.string.patient_status_active
-                                        } else {
-                                            R.string.patient_status_inactive
-                                        },
-                                    ),
-                                )
-                            },
-                            onClick = {
-                                onStatusChange(option)
-                                statusExpanded = false
-                            },
-                        )
+                DropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
+                    PatientStatus.entries.forEach { status ->
+                        DropdownMenuItem(text = { Text(stringResource(if (status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive)) },
+                            onClick = { statusExpanded = false; onStatusChange(status) })
                     }
                 }
             }
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
-                icon = Icons.Outlined.DateRange,
-                title = stringResource(R.string.sessions_title),
-                onClick = onOpenSessions,
-                modifier = Modifier.tutorialPulse(
-                    gettingStarted?.shouldPulse(TutorialHighlight.SessionsEntry) == true,
-                ),
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
-                icon = Icons.Outlined.Description,
-                title = stringResource(R.string.view_questionnaires_action),
-                onClick = onOpenQuestionnaires,
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
-                icon = Icons.Outlined.MenuBook,
-                title = stringResource(R.string.diary_one_title),
-                onClick = onOpenDiaryOne,
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
-                icon = Icons.Outlined.Description,
-                title = stringResource(R.string.send_questionnaire_to_patient),
-                enabled = !busy && !isSendingQuestionnaire,
-                trailing = {
-                    if (isSendingQuestionnaire) {
-                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
-                    }
-                },
-                onClick = {
-                    if (isSendingQuestionnaire) return@IconChipRow
-                    if (isDemo || DemoData.isDemoId(patient.id) || assignmentRepository == null) {
-                        sendFeedbackTitle = notConnectedTitle
-                        sendFeedbackMessage = notConnectedBody
-                        return@IconChipRow
-                    }
-                    val patientUuid = PatientAssignmentRepository.uuidOrNull(patient.id)
-                    if (patientUuid == null) {
-                        sendFeedbackTitle = sendQuestionnaireTitle
-                        sendFeedbackMessage = invalidPatient
-                        return@IconChipRow
-                    }
-                    isSendingQuestionnaire = true
-                    sendFeedbackTitle = null
-                    sendFeedbackMessage = null
-                    scope.launch {
-                        delay(250)
-                        try {
-                            assignmentRepository.sendQuestionnaireAssignment(patientUuid, sessionId = null)
-                            sendFeedbackTitle = sendQuestionnaireTitle
-                            sendFeedbackMessage = questionnaireSent
-                        } catch (_: PatientAssignmentException.PatientNotConnected) {
-                            sendFeedbackTitle = notConnectedTitle
-                            sendFeedbackMessage = notConnectedBody
-                        } catch (_: Exception) {
-                            sendFeedbackTitle = sendQuestionnaireTitle
-                            sendFeedbackMessage = questionnaireSendError
-                        } finally {
-                            isSendingQuestionnaire = false
-                        }
-                    }
-                },
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
-                icon = Icons.Outlined.MailOutline,
-                title = stringResource(R.string.send_patient_message_action),
-                onClick = onSendMessage,
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
-                icon = Icons.Outlined.MailOutline,
-                title = stringResource(R.string.messages_title),
-                onClick = onOpenMessages,
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
-                icon = Icons.Outlined.Share,
-                title = stringResource(R.string.invite_patient_action),
-                enabled = !busy && !isCreatingInvitation,
-                trailing = {
-                    if (isCreatingInvitation) {
-                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
-                    }
-                },
-                onClick = onInvitePatient,
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
-                icon = Icons.Outlined.AutoAwesome,
-                title = stringResource(R.string.ai_action),
-                onClick = onOpenChat,
-            )
-            GroupedListDivider(startInset = 56.dp)
-            IconChipRow(
-                icon = Icons.Outlined.AutoFixHigh,
-                title = stringResource(R.string.prepare_next_session_action),
-                enabled = !isPreparing,
-                trailing = {
-                    if (isPreparing) CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
-                },
-                onClick = onPrepare,
-            )
-            if (savedPreparationDate != null) {
-                GroupedListDivider(startInset = 56.dp)
-                IconChipRow(
-                    icon = Icons.Outlined.Description,
-                    title = stringResource(R.string.last_preparation_action),
-                    trailing = {
+            PatientConnectionActions(patient, name, assignmentRepository, isDemo, busy || isCreatingInvitation, onInvitePatient, onSendMessage)
+            Text(stringResource(R.string.patient_records_title), color = colors.textBody)
+            GroupedListCard(accent = accent) {
+                IconChipRow(Icons.Outlined.DateRange, stringResource(R.string.sessions_title), onClick = onOpenSessions)
+                GroupedListDivider()
+                IconChipRow(Icons.Outlined.MenuBook, stringResource(R.string.patient_diaries_title),
+                    trailing = { Icon(if (diariesExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown, contentDescription = null) },
+                    onClick = { diariesExpanded = !diariesExpanded })
+                if (diariesExpanded) {
+                    IconChipRow(Icons.Outlined.MenuBook, stringResource(R.string.diary_one_title), onClick = onOpenDiaryOne)
+                    Text(stringResource(R.string.diary_two_title) + " · " + stringResource(R.string.coming_soon), color = colors.textFaint, modifier = Modifier.padding(16.dp))
+                    Text(stringResource(R.string.diary_three_title) + " · " + stringResource(R.string.coming_soon), color = colors.textFaint, modifier = Modifier.padding(16.dp))
+                }
+                GroupedListDivider()
+                IconChipRow(Icons.Outlined.Description, stringResource(R.string.questionnaire_history_title), onClick = onOpenQuestionnaires)
+                GroupedListDivider()
+                IconChipRow(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), onClick = onOpenGraphs)
+                GroupedListDivider()
+                IconChipRow(Icons.Outlined.MailOutline, stringResource(R.string.messages_title), onClick = onOpenMessages)
+                GroupedListDivider()
+                IconChipRow(Icons.Outlined.Edit, stringResource(R.string.patient_notes_title), onClick = { showNotes = true })
+            }
+            Text(stringResource(R.string.additional_assistance_title), color = colors.textBody)
+            GroupedListCard(accent = accent) {
+                IconChipRow(Icons.Outlined.AutoAwesome, stringResource(R.string.patient_ai_assistance_title), onClick = onOpenChat)
+                GroupedListDivider()
+                IconChipRow(Icons.Outlined.AutoFixHigh, stringResource(R.string.prepare_next_session_action), enabled = !isPreparing,
+                    trailing = { if (isPreparing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) }, onClick = onPrepare)
+                if (savedPreparationDate != null) {
+                    GroupedListDivider()
+                    IconChipRow(Icons.Outlined.Description, stringResource(R.string.last_preparation_action), trailing = {
                         Column(horizontalAlignment = Alignment.End) {
                             Text(savedPreparationDate, color = colors.textBody, fontSize = 12.sp)
-                            if (isPreparationOutdated) {
-                                Text(stringResource(R.string.outdated_badge), color = colors.warning, fontSize = 11.sp)
-                            }
+                            if (isPreparationOutdated) Text(stringResource(R.string.outdated_badge), color = colors.warning, fontSize = 11.sp)
                         }
-                    },
-                    onClick = onOpenLastPreparation,
-                )
+                    }, onClick = onOpenLastPreparation)
+                }
             }
+            prepareError?.let { Text(it, color = colors.error) }
             }
-
+            if (showNotes) {
             Text(stringResource(R.string.notes_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             GroupedListCard(
                 accent = accent,
                 modifier = Modifier.bringIntoViewRequester(notesBringIntoView),
             ) {
                 val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 16.dp, top = 14.dp, end = 8.dp, bottom = 14.dp),
-                    verticalAlignment = Alignment.Bottom,
                 ) {
                     NotesField(
                         value = notes,
                         onValueChange = { notes = it },
                         placeholder = stringResource(R.string.patient_notes_field_placeholder),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !busy,
                         onFocusChanged = { focused ->
                             if (focused) {
@@ -550,16 +385,16 @@ fun PatientDetailScreen(
                     if (recorder.isRecording) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
-                            IconButton(onClick = {
+                            TextButton(onClick = {
                                 recorder.stopRecording()
                                 transcribePending()
                             }) {
-                                Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.recording_label), tint = colors.error)
+                                Text(stringResource(R.string.stop_and_transcribe_action), color = colors.error)
                             }
                         }
                     } else {
-                        IconButton(onClick = { startMic() }, enabled = !busy) {
-                            Icon(Icons.Filled.Mic, contentDescription = stringResource(R.string.record_voice_note_action), tint = colors.gold)
+                        TextButton(onClick = { startMic() }, enabled = !busy && recorder.recordingFile == null) {
+                            Text(stringResource(R.string.record_patient_notes_action), color = colors.gold)
                         }
                     }
                 }
@@ -614,7 +449,7 @@ fun PatientDetailScreen(
             }
 
             notesError?.let { Text(it, color = colors.error) }
-            prepareError?.let { Text(it, color = colors.error) }
+            }
         }
     }
         BusyOverlay(
@@ -668,16 +503,17 @@ fun PatientDetailScreen(
     )
     DiscardChangesDialog(
         visible = showDiscard,
-        canSave = true,
+        canSave = !busy && recorder.recordingFile == null,
         onSave = {
             showDiscard = false
-            onSaveNotes(notes, true)
+            closeNotesAfterSave = true
+            onSaveNotes(notes, false)
         },
         onDiscard = {
             showDiscard = false
             recorder.discard()
             notes = patient.notes
-            onBack()
+            showNotes = false
         },
         onKeepEditing = { showDiscard = false },
     )

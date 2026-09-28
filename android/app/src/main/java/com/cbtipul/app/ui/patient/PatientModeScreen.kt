@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -147,6 +148,7 @@ fun PatientModeScreen(
         composable("questionnaire/{assignmentId}", arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })) { entry ->
             val assignmentId = entry.arguments?.getString("assignmentId").orEmpty()
             PatientQuestionnaireScreen(
+                assignmentId = assignmentId,
                 onSubmit = { gad7, phq9, interference ->
                     submitQuestionnaire(assignmentId, gad7, phq9, interference)
                     didSubmitQuestionnaire = true
@@ -159,6 +161,7 @@ fun PatientModeScreen(
         }
         composable("diary-one") {
             PatientDiaryOneEntryScreen(
+                draftTarget = assignments.firstOrNull { it.type == PatientAssignmentType.DiaryOne }?.patientId ?: "diary-one",
                 onSubmit = { event, thought, feelings, behaviour, physicalSymptoms ->
                     submitDiaryOne(event, thought, feelings, behaviour, physicalSymptoms)
                     didSubmitDiaryOne = true
@@ -254,34 +257,6 @@ private fun PatientHomeContent(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     Text(stringResource(R.string.app_title), color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 28.sp)
-                    Text(stringResource(R.string.patient_messages_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
-                    if (unread.isEmpty()) {
-                        GroupedListCard(accent = colors.gold) {
-                            Text(stringResource(R.string.no_new_messages), color = colors.textBody, modifier = Modifier.padding(16.dp))
-                        }
-                    } else {
-                        previews.forEach { message ->
-                            GroupedListCard(accent = colors.gold) {
-                                Column(Modifier.fillMaxWidth().clickable { onOpenMessage(message.id) }.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(message.body, color = colors.textBright, fontWeight = FontWeight.SemiBold, maxLines = 3)
-                                    Text(hebrewDateTime(message.createdAt), color = colors.textFaint, fontSize = 13.sp)
-                                }
-                            }
-                        }
-                        if (remaining > 0) {
-                            Text(
-                                if (remaining == 1) stringResource(R.string.more_unread_messages_one)
-                                else stringResource(R.string.more_unread_messages, remaining),
-                                color = colors.gold,
-                                modifier = Modifier.clickable(onClick = onOpenAllMessages),
-                            )
-                        }
-                    }
-                    GoldActionButton(
-                        if (unread.isEmpty()) stringResource(R.string.all_messages_action)
-                        else stringResource(R.string.all_messages_action_with_count, unread.size),
-                        onOpenAllMessages,
-                    )
                     Text(stringResource(R.string.patient_tasks_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
                     if (openAssignments.isEmpty()) {
                         GroupedListCard(accent = colors.gold) {
@@ -301,7 +276,7 @@ private fun PatientHomeContent(
                                 PatientAssignmentType.DiaryOne -> TaskCard(
                                     stringResource(R.string.patient_diary_one_card_title),
                                     stringResource(R.string.patient_diary_one_card_body),
-                                    stringResource(R.string.diary_one_add_entry),
+                                    stringResource(R.string.patient_diary_one_start),
                                     stringResource(R.string.patient_diary_one_ongoing_hint),
                                 ) { onOpenDiaryOne() }
                                 PatientAssignmentType.DiaryTwo, null -> TaskCard(
@@ -310,6 +285,36 @@ private fun PatientHomeContent(
                                     null,
                                 ) {}
                             }
+                        }
+                    }
+                    Text(stringResource(R.string.patient_messages_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
+                    if (unread.isEmpty()) {
+                        Text(stringResource(if (messages.isEmpty()) R.string.patient_messages_empty else R.string.no_new_messages), color = colors.textBody, fontSize = 14.sp)
+                    } else {
+                        previews.forEach { message ->
+                            GroupedListCard(accent = colors.gold) {
+                                Column(Modifier.fillMaxWidth().clickable { onOpenMessage(message.id) }.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(message.body, color = colors.textBright, fontWeight = FontWeight.SemiBold, maxLines = 3)
+                                    Text(hebrewDateTime(message.createdAt), color = colors.textFaint, fontSize = 13.sp)
+                                }
+                            }
+                        }
+                        if (remaining > 0) {
+                            Text(
+                                if (remaining == 1) stringResource(R.string.more_unread_messages_one)
+                                else stringResource(R.string.more_unread_messages, remaining),
+                                color = colors.gold,
+                                modifier = Modifier.clickable(onClick = onOpenAllMessages),
+                            )
+                        }
+                    }
+                    if (messages.isNotEmpty()) {
+                        TextButton(onClick = onOpenAllMessages) {
+                            Text(
+                                if (unread.isEmpty()) stringResource(R.string.all_messages_action)
+                                else stringResource(R.string.all_messages_action_with_count, unread.size),
+                                color = colors.gold,
+                            )
                         }
                     }
                 }

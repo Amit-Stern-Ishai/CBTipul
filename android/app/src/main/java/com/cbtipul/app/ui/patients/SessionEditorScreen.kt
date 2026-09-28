@@ -95,7 +95,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Date
 
-private enum class QuestionnaireAssignmentUi { Loading, NotConnected, Available, Pending, Failed }
+private enum class QuestionnaireAssignmentUi { Demo, Loading, NotConnected, Available, Pending, Failed }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,6 +124,13 @@ fun SessionEditorScreen(
     viewingPatientId: com.cbtipul.app.model.DatabaseId? = null,
     assignmentRepository: PatientAssignmentRepository? = null,
     isDemo: Boolean = false,
+    availablePatients: List<Patient> = emptyList(),
+    choosePatient: Boolean = false,
+    onSelectPatient: (Patient) -> Unit = {},
+    editorDraft: SessionEditorDraft,
+    onRefreshQuestionnaire: () -> Unit = {},
+    questionnaireLoading: Boolean = false,
+    questionnaireLoadError: String? = null,
 ) {
     val colors = Theme.colors
 
@@ -141,11 +148,11 @@ fun SessionEditorScreen(
         }
         return
     }
-    val initial = session ?: Session()
-    var date by remember(initial.id) { mutableStateOf(initial.date) }
-    var notes by remember(initial.id) { mutableStateOf(initial.notes) }
-    var type by remember(initial.id) { mutableStateOf(initial.type) }
-    var structuredNotes by remember(initial.id) { mutableStateOf(initial.structuredNotes) }
+    val initial = editorDraft.initial
+    var date by editorDraft::date
+    var notes by editorDraft::notes
+    var type by editorDraft::type
+    var structuredNotes by editorDraft::structuredNotes
     var showDatePicker by remember { mutableStateOf(false) }
     var typeExpanded by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
@@ -153,11 +160,13 @@ fun SessionEditorScreen(
     var showDiscard by remember { mutableStateOf(false) }
     var showAllFollowUps by remember { mutableStateOf(false) }
     var overflow by remember { mutableStateOf(false) }
-    var baselineDate by remember(initial.id) { mutableStateOf(initial.date) }
-    var baselineNotes by remember(initial.id) { mutableStateOf(initial.notes) }
-    var baselineType by remember(initial.id) { mutableStateOf(initial.type) }
+    var baselineDate by editorDraft::baselineDate
+    var baselineNotes by editorDraft::baselineNotes
+    var baselineType by editorDraft::baselineType
+    var baselineStructured by editorDraft::baselineStructured
+    var pendingSave by editorDraft::pendingSave
     val hasText = notes.trim().isNotEmpty()
-    val busy = isSaving || isTranscribing || isAnonymizingTranscription || isAnalyzing
+    val processing = isSaving || isTranscribing || isAnonymizingTranscription || isAnalyzing
     val context = LocalContext.current
     val assignmentScope = rememberCoroutineScope()
     var assignmentStatus by remember { mutableStateOf(QuestionnaireAssignmentUi.Loading) }
@@ -170,6 +179,16 @@ fun SessionEditorScreen(
         if (isNew || questionnaire != null || assignmentRepository == null) return
         assignmentStatus = QuestionnaireAssignmentUi.Loading
         assignmentError = null
+        if (questionnaireLoading) return
+        if (questionnaireLoadError != null) {
+            assignmentStatus = QuestionnaireAssignmentUi.Failed
+            assignmentError = questionnaireLoadError
+            return
+        }
+        if (isDemo || patient?.id?.let { DemoData.isDemoId(it) } == true) {
+            assignmentStatus = QuestionnaireAssignmentUi.Demo
+            return
+        }
         val sessionId = initial.databaseId?.let { PatientAssignmentRepository.uuidOrNull(it) }
         val patientId = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) }
         if (sessionId == null || patientId == null) {
@@ -177,10 +196,7 @@ fun SessionEditorScreen(
             assignmentError = connectionError
             return
         }
-        if (isDemo || patient?.id?.let { DemoData.isDemoId(it) } == true) {
-            assignmentStatus = QuestionnaireAssignmentUi.NotConnected
-            return
-        }
+
         try {
             assignmentStatus = if (!assignmentRepository.isPatientConnected(patientId)) {
                 QuestionnaireAssignmentUi.NotConnected
@@ -189,12 +205,12 @@ fun SessionEditorScreen(
             } else {
                 QuestionnaireAssignmentUi.Available
             }
-        } catch (_: Exception) {
+        } catch (error: kotlinx.coroutines.CancellationException) { throw error } catch (_: Exception) {
             assignmentStatus = QuestionnaireAssignmentUi.Failed
             assignmentError = connectionError
         }
     }
-    LaunchedEffect(initial.databaseId?.queryValue, questionnaire?.databaseId?.queryValue) {
+    LaunchedEffect(initial.databaseId?.queryValue, questionnaire?.databaseId?.queryValue, questionnaireLoading, questionnaireLoadError) {
         loadAssignment()
     }
     var recorderTick by remember { mutableIntStateOf(0) }
@@ -205,9 +221,11 @@ fun SessionEditorScreen(
         onDispose { recorder.release() }
     }
     val permissionDenied = stringResource(R.string.mic_permission_denied)
+    var requestingRecording by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
+        requestingRecording = false
         if (granted) {
             recorder.startRecording()
         } else {
@@ -217,16 +235,25 @@ fun SessionEditorScreen(
     }
     @Suppress("UNUSED_VARIABLE")
     val observed = recorderTick
+    val busy = processing || requestingRecording || recorder.isRecording || isSendingQuestionnaire
 
     fun currentSession() = initial.copy(date = date, notes = notes, type = type, structuredNotes = structuredNotes)
 
     val hasUnsavedChanges = date != baselineDate || notes != baselineNotes || type != baselineType ||
-        recorder.recordingFile != null
+        structuredNotes != baselineStructured || recorder.recordingFile != null
 
+    val canSave = patient != null && !busy && recorder.recordingFile == null && (isNew || hasUnsavedChanges)
+    LaunchedEffect(isSaving) {
+        if (!isSaving) pendingSave?.let { saved ->
+            if (errorMessage == null) {
+                baselineDate = saved.date; baselineNotes = saved.notes; baselineType = saved.type; baselineStructured = saved.structuredNotes
+            }
+            pendingSave = null
+        }
+    }
     fun persist(leave: Boolean) {
-        baselineDate = date
-        baselineNotes = notes
-        baselineType = type
+        if (!canSave) return
+        pendingSave = currentSession()
         onSave(currentSession(), leave)
     }
 
@@ -235,7 +262,7 @@ fun SessionEditorScreen(
         if (hasUnsavedChanges) showDiscard = true else onBack()
     }
 
-    BackHandler(enabled = !busy) { requestBack() }
+    BackHandler(enabled = true) { requestBack() }
 
     val displayName = patient?.displayName(unnamed) ?: unnamed
     val sessionNumber = remember(patient, initial.id, initial.databaseId, isNew) {
@@ -279,7 +306,10 @@ fun SessionEditorScreen(
     fun startMic() {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
-        if (granted) recorder.startRecording() else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        if (granted) recorder.startRecording() else {
+            requestingRecording = true
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -307,15 +337,6 @@ fun SessionEditorScreen(
                 },
                 actions = {
                     if (!isNew) {
-                        TextButton(
-                            onClick = { persist(leave = false) },
-                            enabled = !busy && hasUnsavedChanges,
-                        ) {
-                            Text(
-                                stringResource(R.string.save),
-                                color = if (!busy && hasUnsavedChanges) colors.gold else colors.textFaint,
-                            )
-                        }
                         IconButton(onClick = { overflow = true }, enabled = !busy) {
                             Icon(Icons.Filled.MoreVert, contentDescription = null, tint = colors.gold)
                         }
@@ -333,6 +354,34 @@ fun SessionEditorScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
+        bottomBar = {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                val status = when {
+                    recorder.isRecording -> R.string.session_recording_in_progress
+                    isTranscribing -> R.string.transcribing_label
+                    isAnonymizingTranscription -> R.string.anonymizing_status_label
+                    isSaving -> R.string.session_saving
+                    isAnalyzing -> R.string.analyzing_label
+                    busy -> R.string.session_processing
+                    recorder.recordingFile != null -> R.string.session_recording_needs_transcription
+                    patient == null -> R.string.session_choose_patient_help
+                    isNew -> R.string.session_not_created
+                    hasUnsavedChanges -> R.string.session_not_saved
+                    else -> R.string.session_saved
+                }
+                Text(
+                    stringResource(status),
+                    color = if (recorder.isRecording) colors.error else colors.textBody,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(onClick = { persist(leave = isNew) }, enabled = canSave, modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent)) {
+                    Text(stringResource(R.string.save_session_action), modifier = Modifier.padding(6.dp))
+                }
+            }
+        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -342,154 +391,79 @@ fun SessionEditorScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                if (isNew) {
-                    Text(stringResource(R.string.new_session_title), color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                    Text(displayName, color = colors.textBody, fontWeight = FontWeight.SemiBold)
-                } else {
-                    Text(displayName, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                    sessionNumber?.let {
-                        Text(stringResource(R.string.session_editor_title, " $it"), color = colors.textBody, fontWeight = FontWeight.SemiBold)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            type?.let { stringResource(it.labelRes()) } ?: stringResource(R.string.session_type_none),
-                            color = if (type == null) colors.textFaint else colors.gold,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        IconButton(onClick = { if (!busy) typeExpanded = true }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.session_type_label), tint = colors.gold)
-                        }
-                        DropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.session_type_none)) },
-                                onClick = {
-                                    type = null
-                                    typeExpanded = false
-                                },
-                            )
-                            SessionType.entries.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(option.labelRes())) },
-                                    onClick = {
-                                        type = option
-                                        typeExpanded = false
-                                    },
-                                )
-                            }
+            if (choosePatient) {
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(expanded, onExpandedChange = { if (!busy) expanded = it }) {
+                    OutlinedTextField(value = patient?.displayName(unnamed) ?: stringResource(R.string.session_choose_patient_placeholder),
+                        onValueChange = {}, readOnly = true, label = { Text(stringResource(R.string.choose_patient_for_session)) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(), enabled = !busy,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) })
+                    ExposedDropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+                        availablePatients.sortedWith(compareBy<Patient> { it.status != com.cbtipul.app.model.PatientStatus.Active }.thenBy { it.displayName(unnamed) }).forEach { option ->
+                            DropdownMenuItem(text = { Text(option.displayName(unnamed)) }, onClick = { expanded = false; onSelectPatient(option) })
                         }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(hebrewDate(date), color = colors.textBody)
-                        IconButton(onClick = { if (!busy) showDatePicker = true }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.edit_date_accessibility_label), tint = colors.gold)
-                        }
+                }
+                if (patient == null) Text(stringResource(R.string.session_choose_patient_help), color = colors.textBody)
+            } else Text(displayName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.textBright, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text(stringResource(R.string.session_date_title), color = colors.textBright)
+            TextButton(onClick = { showDatePicker = true }, enabled = !busy) { Text(hebrewDate(date), color = colors.gold) }
+            ExposedDropdownMenuBox(typeExpanded, onExpandedChange = { if (!busy) typeExpanded = it }) {
+                OutlinedTextField(value = type?.let { stringResource(it.labelRes()) } ?: stringResource(R.string.session_type_none),
+                    onValueChange = {}, readOnly = true, label = { Text(stringResource(R.string.session_type_label)) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(), enabled = !busy,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(typeExpanded) })
+                ExposedDropdownMenu(typeExpanded, onDismissRequest = { typeExpanded = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.session_type_none)) }, onClick = { type = null; typeExpanded = false })
+                    SessionType.entries.forEach { option ->
+                        DropdownMenuItem(text = { Text(stringResource(option.labelRes())) }, onClick = { type = option; typeExpanded = false })
                     }
                 }
             }
-
-            if (isNew) {
-                Text(stringResource(R.string.session_type_label), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                ExposedDropdownMenuBox(expanded = typeExpanded, onExpandedChange = { if (!busy) typeExpanded = it }) {
-                    OutlinedTextField(
-                        value = type?.let { stringResource(it.labelRes()) } ?: stringResource(R.string.session_type_none),
-                        onValueChange = {},
-                        readOnly = true,
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
-                    )
-                    ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.session_type_none)) },
-                            onClick = {
-                                type = null
-                                typeExpanded = false
-                            },
-                        )
-                        SessionType.entries.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(option.labelRes())) },
-                                onClick = {
-                                    type = option
-                                    typeExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-                Text(stringResource(R.string.session_date_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = { showDatePicker = true }, enabled = !busy) {
-                    Text(hebrewDate(date), color = colors.gold)
-                }
-            }
-
-            if (pendingFollowUps.isNotEmpty()) {
-                Text(stringResource(R.string.from_last_session_header), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                val first = pendingFollowUps.first()
-                previousSession?.let { source ->
-                    FollowUpEditorRow(
-                        question = first.second.question,
-                        reason = first.second.reason,
-                        enabled = !busy,
-                        onMarkDiscussed = { onMarkFollowUpDiscussed(source, first.first) },
-                    )
-                }
-                if (pendingFollowUps.size > 1) {
-                    TextButton(onClick = { showAllFollowUps = true }, enabled = !busy) {
-                        Icon(Icons.Filled.MoreHoriz, contentDescription = null, tint = colors.gold)
-                        Text(stringResource(R.string.more_follow_ups, pendingFollowUps.size - 1), color = colors.gold)
-                    }
-                }
-            }
-
             Text(stringResource(R.string.session_summary_section), color = colors.textBright, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start)
             val accent = atmosphere ?: colors.gold
             GroupedListCard(accent = accent) {
-                val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
-                Row(
+                val pending = recorder.recordingFile != null && !busy
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 16.dp, top = 14.dp, end = 8.dp, bottom = 14.dp),
-                    verticalAlignment = Alignment.Bottom,
                 ) {
                     NotesField(
                         value = notes,
                         onValueChange = { notes = it },
                         placeholder = stringResource(R.string.session_summary_field_placeholder),
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .tutorialPulse(gettingStarted?.shouldPulse(TutorialHighlight.RecordNotes) == true),
                         enabled = !busy,
                     )
                     if (recorder.isRecording) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
-                            IconButton(onClick = {
+                            TextButton(onClick = {
                                 recorder.stopRecording()
                                 transcribePending()
                             }) {
-                                Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.recording_label), tint = colors.error)
+                                Text(stringResource(R.string.stop_and_transcribe_action), color = colors.error)
                             }
                         }
                     } else {
-                        IconButton(onClick = { startMic() }, enabled = !busy) {
-                            Icon(Icons.Filled.Mic, contentDescription = stringResource(R.string.record_voice_note_action), tint = colors.gold)
+                        TextButton(onClick = { startMic() }, enabled = !busy && recorder.recordingFile == null) {
+                            Text(stringResource(R.string.record_session_notes_action), color = colors.gold)
                         }
                     }
                 }
                 if (pending) {
                     GroupedListDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
+                        Text(stringResource(R.string.session_pending_recording), color = colors.textBody, fontSize = 13.sp)
+                        TextButton(onClick = { transcribePending() }) {
+                            Text(stringResource(R.string.transcribe_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
+                        }
                         TextButton(onClick = { recorder.togglePlayback() }) {
                             Icon(
                                 if (recorder.isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
@@ -501,11 +475,9 @@ fun SessionEditorScreen(
                                 color = colors.gold,
                             )
                         }
-                        TextButton(onClick = { transcribePending() }) {
-                            Text(stringResource(R.string.transcribe_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
-                        }
-                        IconButton(onClick = { recorder.discard() }) {
-                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.discard_recording_action), tint = colors.error)
+                        TextButton(onClick = { recorder.discard() }) {
+                            Icon(Icons.Filled.Delete, contentDescription = null, tint = colors.error)
+                            Text(stringResource(R.string.discard_recording_action), color = colors.error)
                         }
                     }
                 }
@@ -529,7 +501,11 @@ fun SessionEditorScreen(
                     GroupedListDivider()
                     Text(it, color = colors.error, modifier = Modifier.padding(16.dp))
                 }
-                GroupedListDivider()
+            }
+            Text(stringResource(R.string.session_recording_help), color = colors.textBody)
+            Text(stringResource(R.string.session_optional_ai), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.session_ai_help), color = colors.textBody)
+            GroupedListCard(accent = accent) {
                 if (isAnalyzing) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -545,7 +521,7 @@ fun SessionEditorScreen(
                             .fillMaxWidth()
                             .tutorialPulse(gettingStarted?.shouldPulse(TutorialHighlight.AiSummary) == true)
                             .clickable(
-                                enabled = !busy && hasText,
+                                enabled = !busy && recorder.recordingFile == null && hasText,
                                 onClick = {
                                     onAnalyze(currentSession(), { notes = it }, { structuredNotes = it })
                                 },
@@ -564,7 +540,7 @@ fun SessionEditorScreen(
                         }
                         Text(
                             stringResource(R.string.ai_summary_action),
-                            color = if (!busy && hasText) colors.gold else colors.textFaint,
+                            color = if (!busy && recorder.recordingFile == null && hasText) colors.gold else colors.textFaint,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -609,6 +585,7 @@ fun SessionEditorScreen(
             }
 
             if (initial.databaseId != null) {
+                Text(stringResource(R.string.questionnaire_local_entry_help), color = colors.textBody)
                 Text(stringResource(R.string.questionnaire_section_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                 GroupedListCard(accent = accent) {
                     if (questionnaire != null) {
@@ -648,7 +625,7 @@ fun SessionEditorScreen(
                                 Icon(Icons.Outlined.Add, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
                             }
                             Text(
-                                stringResource(R.string.add_questionnaire_action),
+                                stringResource(R.string.fill_questionnaire_here_action),
                                 color = colors.textBright,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -660,6 +637,7 @@ fun SessionEditorScreen(
             if (initial.databaseId != null && questionnaire == null && assignmentRepository != null) {
                 GroupedListCard(accent = accent) {
                     when (assignmentStatus) {
+                        QuestionnaireAssignmentUi.Demo -> Text(stringResource(R.string.questionnaire_demo_sending_unavailable), modifier = Modifier.padding(16.dp))
                         QuestionnaireAssignmentUi.Loading -> {
                             Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator(Modifier.size(22.dp), color = colors.gold, strokeWidth = 2.dp)
@@ -672,6 +650,7 @@ fun SessionEditorScreen(
                             }
                         }
                         QuestionnaireAssignmentUi.Available -> {
+                            Text(stringResource(R.string.patient_questionnaire_request_description), modifier = Modifier.padding(16.dp))
                             Text(
                                 stringResource(R.string.send_questionnaire_to_patient),
                                 color = colors.gold,
@@ -702,6 +681,7 @@ fun SessionEditorScreen(
                             )
                         }
                         QuestionnaireAssignmentUi.Pending -> {
+                            TextButton(onClick = { onRefreshQuestionnaire() }) { Text(stringResource(R.string.questionnaire_refresh_action)) }
                             Text(
                                 stringResource(R.string.questionnaire_awaiting_patient),
                                 color = colors.textBody,
@@ -715,7 +695,7 @@ fun SessionEditorScreen(
                                     stringResource(R.string.questionnaire_assignment_retry),
                                     color = colors.gold,
                                     fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clickable { assignmentScope.launch { loadAssignment() } },
+                                    modifier = Modifier.clickable(enabled = !busy) { onRefreshQuestionnaire() },
                                 )
                             }
                         }
@@ -725,17 +705,7 @@ fun SessionEditorScreen(
 
             errorMessage?.let { Text(it, color = colors.error) }
 
-            if (isNew) {
-                Button(
-                    onClick = { persist(leave = true) },
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
-                ) {
-                    if (isSaving) CircularProgressIndicator(Modifier.size(22.dp), color = colors.textOnAccent, strokeWidth = 2.dp)
-                    else Text(stringResource(R.string.add_session_action), fontWeight = FontWeight.SemiBold)
-                }
-            }
+
         }
     }
         BusyOverlay(
@@ -787,7 +757,7 @@ fun SessionEditorScreen(
 
     DiscardChangesDialog(
         visible = showDiscard,
-        canSave = true,
+        canSave = canSave,
         onSave = {
             showDiscard = false
             persist(leave = true)
@@ -798,6 +768,7 @@ fun SessionEditorScreen(
             date = baselineDate
             notes = baselineNotes
             type = baselineType
+            structuredNotes = baselineStructured
             onBack()
         },
         onKeepEditing = { showDiscard = false },

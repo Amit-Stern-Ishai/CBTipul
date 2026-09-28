@@ -1,5 +1,11 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.material3.Button
+import com.cbtipul.app.ui.forms.RequiredQuestion
+import com.cbtipul.app.ui.forms.QuestionnaireProgress
+import com.cbtipul.app.model.missingRequiredAnswers
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,6 +44,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,7 +71,7 @@ import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.themedScreen
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun QuestionnaireScreen(
     session: Session?,
@@ -87,17 +95,18 @@ fun QuestionnaireScreen(
         )
     }
 
-    if (existing == null && session?.databaseId == null) {
-        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-            Text(stringResource(R.string.session_not_saved_error), color = colors.textBright)
-            TextButton(onClick = onBack) { Text(stringResource(R.string.back), color = colors.gold) }
-        }
-        return
-    }
-    val canMutate = session?.databaseId != null
+    val canMutate = session != null
     val isExisting = existing != null
     var draft by remember { mutableStateOf(existing ?: CombinedMoodQuestionnaire()) }
     var isEditing by remember { mutableStateOf(!isExisting) }
+    val questionTargets = remember { List(16) { BringIntoViewRequester() } }
+    val missingAnswers = draft.missingRequiredAnswers(requireInterference = false)
+    var highlightMissing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    fun showMissingAnswers() {
+        highlightMissing = true
+        missingAnswers.firstOrNull()?.let { scope.launch { questionTargets[it].bringIntoView() } }
+    }
     var showIncomplete by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showDeleteCode by remember { mutableStateOf(false) }
@@ -117,7 +126,7 @@ fun QuestionnaireScreen(
         if (hasUnsavedChanges) showDiscard = true else onBack()
     }
 
-    BackHandler(enabled = !isSaving) { requestBack() }
+    BackHandler { requestBack() }
 
     Box(Modifier.fillMaxSize()) {
     Scaffold(
@@ -139,14 +148,6 @@ fun QuestionnaireScreen(
                     }
                 },
                 actions = {
-                    if (isEditing && canMutate) {
-                        TextButton(
-                            onClick = {
-                                if (draft.isComplete) onSave(draft) else showIncomplete = true
-                            },
-                            enabled = !isSaving,
-                        ) { Text(stringResource(R.string.save), color = colors.gold) }
-                    }
                     if (canMutate && (!isEditing || isExisting)) {
                         IconButton(onClick = { menu = true }, enabled = !isSaving) {
                             Icon(Icons.Filled.MoreVert, contentDescription = null, tint = colors.gold)
@@ -175,6 +176,14 @@ fun QuestionnaireScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
+        },
+        bottomBar = {
+            if (isEditing && canMutate) Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                QuestionnaireProgress(16 - missingAnswers.size, 16, !isSaving, ::showMissingAnswers)
+                Button(onClick = { if (missingAnswers.isEmpty()) onSave(draft) else showMissingAnswers() }, enabled = !isSaving, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.save))
+                }
+            }
         },
     ) { padding ->
         Column(
@@ -206,7 +215,8 @@ fun QuestionnaireScreen(
                 )
                 gad7.forEachIndexed { index, question ->
                     GroupedListDivider()
-                    QuestionBlock(
+                    RequiredQuestion(questionTargets[index + 0], highlightMissing && (index + 0) in missingAnswers) {
+                        QuestionBlock(
                         text = question,
                         selection = draft.gad7Answers.getOrNull(index),
                         note = draft.gad7Notes.getOrNull(index).orEmpty(),
@@ -220,6 +230,7 @@ fun QuestionnaireScreen(
                             draft = draft.copy(gad7Notes = draft.gad7Notes.toMutableList().also { it[index] = value })
                         },
                     )
+                    }
                 }
                 GroupedListDivider()
                 ScoreBlock(
@@ -239,7 +250,8 @@ fun QuestionnaireScreen(
                 )
                 phq9.forEachIndexed { index, question ->
                     GroupedListDivider()
-                    QuestionBlock(
+                    RequiredQuestion(questionTargets[index + 7], highlightMissing && (index + 7) in missingAnswers) {
+                        QuestionBlock(
                         text = question,
                         selection = draft.phq9Answers.getOrNull(index),
                         note = draft.phq9Notes.getOrNull(index).orEmpty(),
@@ -253,6 +265,7 @@ fun QuestionnaireScreen(
                             draft = draft.copy(phq9Notes = draft.phq9Notes.toMutableList().also { it[index] = value })
                         },
                     )
+                    }
                 }
                 GroupedListDivider()
                 InterferenceBlock(
@@ -294,7 +307,7 @@ fun QuestionnaireScreen(
             visible = true,
             title = stringResource(R.string.questionnaire_incomplete_title),
             message = stringResource(R.string.questionnaire_incomplete_message),
-            onDismiss = { showIncomplete = false },
+            onDismiss = { showIncomplete = false; showMissingAnswers() },
         )
     }
     if (showDeleteConfirm) {

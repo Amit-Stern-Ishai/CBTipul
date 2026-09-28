@@ -55,7 +55,7 @@ enum class TherapistRootTab {
     }
 
     companion object {
-        val ordered = listOf(Patients, Sessions, Notifications, Library, Settings)
+        val ordered = listOf(Patients, Sessions, Notifications, Settings)
         fun fromId(id: String) = entries.find { it.id == id } ?: Patients
     }
 }
@@ -77,6 +77,7 @@ fun TherapistRootScreen(
     val colors = Theme.colors
 
     LaunchedEffect(isDemoMode) {
+        tab = TherapistRootTab.Patients
         app.notifications.isDemoInbox = isDemoMode
         if (isDemoMode) app.notifications.clear() else app.notifications.refresh()
     }
@@ -115,13 +116,9 @@ fun TherapistRootScreen(
                         }
                         patientsNav.navigate("patient/$patientId/session/$sessionId")
                     },
-                    onCreateSession = { patientId ->
+                    onCreateSession = {
                         tab = TherapistRootTab.Patients
-                        patientsNav.navigate("patient/$patientId") {
-                            popUpTo("list") { inclusive = false }
-                            launchSingleTop = true
-                        }
-                        patientsNav.navigate("patient/$patientId/session/new")
+                        patientsNav.navigate("patient/_/session/new")
                     },
                 )
                 TherapistRootTab.Notifications -> NotificationsInboxScreen(

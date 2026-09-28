@@ -81,6 +81,8 @@ import java.util.Date
 @Composable
 fun PatientQuestionnairesScreen(
     records: List<CompletedQuestionnaire>,
+    graphsMode: Boolean = false,
+    onAdd: () -> Unit = {},
     patientName: String = "",
     atmosphere: Color?,
     isLoading: Boolean,
@@ -90,7 +92,6 @@ fun PatientQuestionnairesScreen(
     onOpen: (CompletedQuestionnaire) -> Unit,
 ) {
     val colors = Theme.colors
-    var graphsMode by remember { mutableStateOf(false) }
     val newestFirst = remember(records) { records.sortedByDescending { it.answeredDate.time } }
     val oldestFirst = remember(records) { records.sortedBy { it.answeredDate.time } }
 
@@ -101,7 +102,7 @@ fun PatientQuestionnairesScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(stringResource(R.string.questionnaires_title), color = colors.textBright)
+                        Text(stringResource(if (graphsMode) R.string.graphs_and_trends_title else R.string.questionnaire_history_title), color = colors.textBright)
                         if (patientName.isNotBlank()) {
                             Text(patientName, color = colors.textBody, fontSize = 13.sp)
                         }
@@ -114,6 +115,14 @@ fun PatientQuestionnairesScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
+        },
+        bottomBar = {
+            if (!graphsMode) Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(stringResource(R.string.questionnaire_local_entry_help), color = colors.textBody, fontSize = 13.sp)
+                Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.fill_questionnaire_here_action))
+                }
+            }
         },
     ) { padding ->
         when {
@@ -147,14 +156,14 @@ fun PatientQuestionnairesScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        stringResource(R.string.empty_questionnaires_title),
+                        stringResource(if (graphsMode) R.string.empty_questionnaire_graphs_title else R.string.empty_questionnaires_title),
                         color = colors.textBright,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 20.sp,
                         textAlign = TextAlign.Center,
                     )
                     Text(
-                        stringResource(R.string.empty_questionnaires_body),
+                        stringResource(if (graphsMode) R.string.empty_questionnaire_graphs_body else R.string.empty_questionnaires_body),
                         color = colors.textBody,
                         modifier = Modifier.padding(top = 12.dp),
                         textAlign = TextAlign.Center,
@@ -167,27 +176,14 @@ fun PatientQuestionnairesScreen(
             contentPadding = PaddingValues(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item {
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    listOf(false, true).forEachIndexed { index, graphs ->
-                        SegmentedButton(
-                            selected = graphsMode == graphs,
-                            onClick = { graphsMode = graphs },
-                            shape = SegmentedButtonDefaults.itemShape(index, 2),
-                            colors = SegmentedButtonDefaults.colors(
-                                activeContainerColor = colors.gold,
-                                activeContentColor = colors.textOnAccent,
-                                inactiveContainerColor = colors.surface,
-                                inactiveContentColor = colors.textBright,
-                            ),
-                            label = {
-                                Text(stringResource(if (graphs) R.string.graphs_mode_title else R.string.list_mode_title))
-                            },
-                        )
-                    }
-                }
+            if (loadError != null) item {
+                Text(loadError, color = colors.error)
+                TextButton(onClick = onRetry) { Text(stringResource(R.string.retry_action)) }
             }
             if (graphsMode) {
+            item {
+                Text(stringResource(R.string.questionnaire_graph_help), color = colors.textBody, fontSize = 13.sp)
+            }
             item {
                 val theme = Theme.colors
                 QuestionnaireScoreChart(
@@ -318,33 +314,16 @@ private fun QuestionnaireScoreChart(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        name,
-                        color = colors.textBright,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (metric < 0 && points.isNotEmpty()) {
-                        val latest = points.last().second
-                        ScoreCapsule(
-                            text = latest.toString(),
-                            color = totalColor(latest),
-                            delta = if (points.size >= 2) latest - points[points.size - 2].second else null,
-                        )
-                    }
-                }
+                Text(
+                    name,
+                    color = colors.textBright,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
+                )
                 Text(
                     subtitle,
                     color = colors.textBody,
                     fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -394,6 +373,32 @@ private fun QuestionnaireScoreChart(
                 }
             }
         }
+        if (points.isEmpty()) {
+            Text(stringResource(R.string.questionnaire_graph_no_answers), color = colors.textBody)
+        } else {
+            val latest = points.last()
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    stringResource(R.string.questionnaire_graph_latest, latest.second, maxScore),
+                    color = pointColors.last(),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                )
+                Text(hebrewDate(latest.first), color = colors.textBody, fontSize = 12.sp)
+                val change = if (points.size < 2) {
+                    stringResource(R.string.questionnaire_graph_single_response)
+                } else {
+                    val difference = latest.second - points[points.lastIndex - 1].second
+                    when {
+                        difference > 0 -> stringResource(R.string.questionnaire_graph_increased, difference)
+                        difference < 0 -> stringResource(R.string.questionnaire_graph_decreased, -difference)
+                        else -> stringResource(R.string.questionnaire_graph_unchanged)
+                    }
+                }
+                Text(change, color = colors.textBody, fontSize = 13.sp)
+            }
+        }
+        if (points.isNotEmpty()) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             Canvas(modifier = Modifier.fillMaxWidth().height(220.dp)) {
                 val labelPad = 8.dp.toPx()
@@ -470,6 +475,7 @@ private fun QuestionnaireScoreChart(
                     }
                 }
             }
+        }
         }
     }
 }

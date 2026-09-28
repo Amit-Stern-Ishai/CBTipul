@@ -59,73 +59,11 @@ fun DemoModeBanner(
     modifier: Modifier = Modifier,
 ) {
     val colors = Theme.colors
-    val shimmer = rememberInfiniteTransition(label = "demoBanner")
-    val travel by shimmer.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "bannerShimmer",
-    )
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(colors.warning)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.White.copy(alpha = 0.22f),
-                        Color.White.copy(alpha = 0.34f),
-                        Color.White.copy(alpha = 0.22f),
-                        Color.Transparent,
-                    ),
-                    start = Offset(travel * 800f - 200f, 0f),
-                    end = Offset(travel * 800f + 200f, 0f),
-                ),
-            )
-            // Below status bar so title/exit stay clear and tappable with edge-to-edge.
-            .statusBarsPadding(),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Icon(
-                Icons.Outlined.Science,
-                contentDescription = null,
-                tint = colors.textOnAccent,
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.demo_mode_banner_title),
-                    color = colors.textOnAccent,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                )
-                Text(
-                    stringResource(R.string.demo_mode_banner_body),
-                    color = colors.textOnAccent.copy(alpha = 0.9f),
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Button(
-                onClick = onExit,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.surface.copy(alpha = 0.92f),
-                    contentColor = colors.warning,
-                ),
-            ) {
-                Text(stringResource(R.string.demo_mode_exit_short), fontWeight = FontWeight.Bold)
-            }
-        }
+    Row(modifier.fillMaxWidth().background(colors.surface).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.demo_mode_banner_title), color = colors.gold,
+            fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        TextButton(onClick = onExit) { Text(stringResource(R.string.demo_mode_exit_short), color = colors.gold) }
     }
 }
 
@@ -340,24 +278,13 @@ fun DemoModeChrome(
     onSkipToShowcase: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    Column {
+    Column(Modifier.then(if (isDemoMode) Modifier.statusBarsPadding() else Modifier)) {
         if (isDemoMode) {
             DemoModeBanner(onExit = onExitDemo)
         }
         Box(modifier = Modifier.weight(1f, fill = true)) {
             content()
         }
-        if (isDemoMode && !checklistDismissed) {
-            TutorialCoachCard(
-                progress = routerState.progress,
-                placement = routerState.placement,
-                viewingPatientId = routerState.viewingPatientId,
-                showcaseLoaded = showcaseLoaded,
-                countdownEndsAtMillis = routerState.showcaseCountdownEndsAtMillis,
-                onRestart = onRestart,
-                onDismiss = onDismissCoach,
-                onSkipToShowcase = onSkipToShowcase,
-            )
-        }
+
     }
 }

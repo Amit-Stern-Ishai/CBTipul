@@ -23,7 +23,9 @@ struct NotificationsInboxView: View {
                     }
                 } else if notifications.notifications.isEmpty {
                     ContentUnavailableView {
-                        Label(L10n.notificationsEmptyTitle, systemImage: "bell")
+                        Label(L10n.notificationsEmptyTitle, systemImage: "bell.badge")
+                    } description: {
+                        Text(store.isDemoMode ? L10n.notificationsDemoBody : L10n.notificationsEmptyBody)
                     }
                 } else {
                     inboxList
@@ -55,14 +57,27 @@ struct NotificationsInboxView: View {
         let unread = NotificationInboxSections.unread(notifications.notifications)
         let read = NotificationInboxSections.read(notifications.notifications)
         return List {
+            if notifications.didFailLastLoad {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(L10n.notificationsRefreshFailed).font(.subheadline)
+                        Button(L10n.retry) { Task { await notifications.refresh() } }
+                    }
+                    .listRowBackground(Theme.surface)
+                }
+            }
             if !unread.isEmpty {
-                Section(L10n.notificationsUnreadSection) {
+                Section {
                     inboxRows(unread)
+                } header: {
+                    sectionHeader(L10n.notificationsUnreadSection, count: unread.count, highlighted: true)
                 }
             }
             if !read.isEmpty {
-                Section(L10n.notificationsReadSection) {
+                Section {
                     inboxRows(read)
+                } header: {
+                    sectionHeader(L10n.notificationsReadSection, count: read.count, highlighted: false)
                 }
             }
         }
@@ -86,13 +101,23 @@ struct NotificationsInboxView: View {
                 )
             }
             .buttonStyle(.plain)
-            .listRowBackground(groupBorderedRow(
-                .at(items.firstIndex(where: { $0.id == item.id }) ?? 0,
-                    of: items.count),
-                accent: Theme.gold
-            ))
-            .listRowSeparatorTint(Theme.borderFaint)
+            .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
+    }
+
+    private func sectionHeader(_ title: String, count: Int, highlighted: Bool) -> some View {
+        HStack(spacing: 8) {
+            Text(title).font(.subheadline.weight(.semibold))
+            Text(count, format: .number)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(highlighted ? Theme.goldGhost : Theme.surface, in: Capsule())
+        }
+        .foregroundStyle(highlighted ? Theme.gold : Theme.textBody)
+        .textCase(nil)
+        .padding(.vertical, 4)
     }
 
     private func open(_ item: AppNotification) async {
@@ -107,31 +132,89 @@ private struct NotificationInboxRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(patientName)
-                    .font(item.isUnread ? .headline : .body)
-                    .foregroundStyle(.primary)
-                Text(title)
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(eventColor)
+                .frame(width: 42, height: 42)
+                .background(eventColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(patientName)
+                        .font(.headline)
+                        .foregroundStyle(Theme.textBright)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if item.isUnread {
+                        Circle().fill(Theme.gold).frame(width: 7, height: 7)
+                            .accessibilityLabel(L10n.notificationUnreadAccessibility)
+                    }
+                }
+                Text(NotificationInboxCopy.message(for: item.type))
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(L10n.notificationTimestamp(item.createdAt))
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-            }
-            Spacer(minLength: 8)
-            if item.isUnseen {
-                Circle()
-                    .fill(Theme.gold)
-                    .frame(width: 8, height: 8)
-                    .padding(.top, 6)
-                    .accessibilityLabel(L10n.notificationUnreadAccessibility)
+                    .foregroundStyle(Theme.textBody)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        timestamp
+                        Spacer(minLength: 8)
+                        destinationLabel
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        timestamp
+                        destinationLabel
+                    }
+                }
+                .padding(.top, 3)
             }
         }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
+        .padding(16)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .strokeBorder(item.isUnread ? Theme.gold.opacity(0.4) : Theme.borderFaint, lineWidth: 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 18))
     }
 
-    private var title: String {
-        NotificationInboxCopy.message(for: item.type)
+    private var timestamp: some View {
+        Text(L10n.notificationTimestamp(item.createdAt))
+            .font(.caption).foregroundStyle(Theme.textFaint)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    @ViewBuilder private var destinationLabel: some View {
+        if let actionTitle {
+            HStack(spacing: 4) {
+                Text(actionTitle)
+                Image(systemName: "chevron.forward").font(.system(size: 9, weight: .semibold))
+            }
+            .font(.caption.weight(.semibold)).foregroundStyle(Theme.gold)
+            .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
+    private var actionTitle: String? {
+        switch NotificationRouter.destination(from: item) {
+        case .completedQuestionnaire: L10n.notificationOpenQuestionnaires
+        case .diaryOneEntry: L10n.notificationOpenDiary
+        case .patientDetail: L10n.notificationOpenPatient
+        case .none: nil
+        }
+    }
+
+    private var symbol: String {
+        switch item.type {
+        case .questionnaireCompleted: "checklist"
+        case .patientConnected: "person.crop.circle.badge.checkmark"
+        case .diaryOneEntryAdded: "book.closed"
+        default: "bell"
+        }
+    }
+
+    private var eventColor: Color {
+        switch item.type {
+        case .patientConnected: Theme.success
+        case .diaryOneEntryAdded: Theme.accentFill
+        default: Theme.gold
+        }
     }
 }

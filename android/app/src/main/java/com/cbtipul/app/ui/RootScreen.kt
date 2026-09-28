@@ -166,7 +166,7 @@ fun RootScreen() {
     val resentMessage = stringResource(R.string.verification_resent_message)
     val diarySubmitFallback = stringResource(R.string.patient_diary_one_submit_error)
     val leaveFailed = stringResource(R.string.patient_leave_mode_failed)
-    val activity = LocalContext.current as? Activity
+    val activity = androidx.activity.compose.LocalActivity.current
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted -> app.pushManager.onNotificationPermissionResult(granted) }
@@ -174,8 +174,7 @@ fun RootScreen() {
         recovering || invitationActive -> null
         isTherapist &&
             termsAccepted.value == true &&
-            onboardingHydrated &&
-            welcomeDismissed -> signedIn?.userId?.let { "therapist-$it" }
+            onboardingHydrated -> signedIn?.userId?.let { "therapist-$it" }
         rootDestination == AppRootDestination.AnonymousPatient &&
             anonymousDestination == AnonymousPatientDestination.PatientMode ->
             signedIn?.userId?.let { "patient-$it" }
@@ -342,17 +341,6 @@ fun RootScreen() {
                         ) {
                             CircularProgressIndicator(color = Theme.colors.gold)
                         }
-                    }
-                    // After terms: blocking welcome until Start or Skip (same as terms gate).
-                    !welcomeDismissed -> {
-                        WelcomeOnboardingScreen(
-                            onStartDemoTour = {
-                                listVm.startDemoTour()
-                            },
-                            onSkip = {
-                                listVm.skipWelcome()
-                            },
-                        )
                     }
                     else -> {
                         TherapistRootScreen(
@@ -555,10 +543,7 @@ fun RootScreen() {
                     vm?.startDemoTour()
                     showWelcome = false
                 },
-                onSkip = {
-                    vm?.skipWelcome()
-                    showWelcome = false
-                },
+                onSkip = { showWelcome = false },
             )
         }
     }

@@ -209,12 +209,12 @@ struct PatientListView: View {
                     .listRowSeparator(.hidden)
             } else {
                 if !visibleActivePatients.isEmpty {
-                    Section {
+                    Section(L10n.patientListSection(L10n.activePatientsSectionTitle, count: visibleActivePatients.count)) {
                         patientRows(visibleActivePatients)
                     }
                 }
                 if !visibleInactivePatients.isEmpty {
-                    Section(L10n.inactivePatientsSectionTitle) {
+                    Section(L10n.patientListSection(L10n.inactivePatientsSectionTitle, count: visibleInactivePatients.count)) {
                         patientRows(visibleInactivePatients)
                     }
                 }
@@ -222,7 +222,7 @@ struct PatientListView: View {
         }
         .patientAtmosphere(Theme.gold)
         .themedScreen()
-        .searchable(text: $patientSearch, prompt: L10n.patientsSearchPrompt)
+        .searchable(text: $patientSearch, placement: .navigationBarDrawer(displayMode: .always), prompt: L10n.patientsSearchPrompt)
     }
 
     @ViewBuilder
@@ -362,16 +362,20 @@ private struct PatientRow: View {
         .accessibilityLabel(accessibilityLabel)
     }
 
-    /// Most recent session date from in-memory session data, or an empty-state line.
+    /// Match the date-only split used by the sessions list: today is upcoming.
     private var subtitle: String {
-        guard let lastSession = patient.sessions.max(by: { $0.date < $1.date }) else {
+        let today = Calendar.current.startOfDay(for: .now)
+        if let next = patient.sessions.filter({ $0.date >= today }).min(by: { $0.date < $1.date }) {
+            return L10n.patientListNextSession(next.date)
+        }
+        guard let last = patient.sessions.max(by: { $0.date < $1.date }) else {
             return L10n.noSessionsYetLabel
         }
-        return L10n.hebrewDate(lastSession.date)
+        return L10n.patientListLastSession(last.date)
     }
 
     private var accessibilityLabel: String {
-        "\(patient.displayName), \(subtitle)"
+        "\(patient.displayName), \(L10n.patientStatus(patient.status)), \(subtitle)"
     }
 }
 

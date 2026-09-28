@@ -33,6 +33,23 @@ class GlobalSessionsTest {
     }
 
     @Test
+    fun todayIsUpcomingAndSearchKeepsOriginalSessionNumbers() {
+        val noon = java.util.Calendar.getInstance().apply {
+            set(2026, java.util.Calendar.SEPTEMBER, 28, 12, 0, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.time
+        fun at(offsetHours: Int) = Session(date = Date(noon.time + offsetHours * 3_600_000L))
+        val patient = Patient(id = DatabaseId.Text("p"), localName = "דני", sessions = listOf(at(24), at(-10), at(-24), at(-48)))
+        val other = Patient(id = DatabaseId.Text("q"), localName = "אחר", sessions = listOf(at(1)))
+        val upcoming = GlobalSessions.timeline(listOf(patient, other), "", "דני", true, noon).flatMap { it.items }
+        val past = GlobalSessions.timeline(listOf(patient, other), "", "דני", false, noon).flatMap { it.items }
+        assertEquals(listOf(3, 4), upcoming.map { it.number })
+        assertEquals(listOf(2, 1), past.map { it.number })
+        assertTrue(upcoming.all { it.patient.id == patient.id })
+        assertTrue(GlobalSessions.timeline(listOf(patient), "", "missing", true, noon).isEmpty())
+    }
+
+    @Test
     fun pickerSeparatesActiveAndInactive() {
         val active = Patient(id = DatabaseId.Text("a"), status = PatientStatus.Active)
         val inactive = Patient(id = DatabaseId.Text("i"), status = PatientStatus.Inactive)
@@ -67,9 +84,9 @@ class PendingDestinationStoreTest {
 
 class TherapistRootTabsTest {
     @Test
-    fun fiveDestinationsWithoutHome() {
+    fun fourUsefulDestinations() {
         assertEquals(
-            listOf("patients", "sessions", "notifications", "library", "settings"),
+            listOf("patients", "sessions", "notifications", "settings"),
             TherapistRootTabs.ordered,
         )
         assertEquals("patients", TherapistRootTabs.DEFAULT)

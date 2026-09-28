@@ -1,5 +1,32 @@
 package com.cbtipul.app.ui.notifications
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.PersonAddAlt1
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.cbtipul.app.data.AppDestination
+import com.cbtipul.app.data.NotificationPayload
+import java.time.LocalDate
+import java.time.ZoneId
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +48,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -39,8 +65,6 @@ import com.cbtipul.app.data.NotificationInbox
 import com.cbtipul.app.data.NotificationRepository
 import com.cbtipul.app.data.NotificationRouting
 import com.cbtipul.app.model.Patient
-import com.cbtipul.app.ui.theme.GroupedListCard
-import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.hebrewDateTime
 import com.cbtipul.app.ui.theme.themedScreen
@@ -64,10 +88,10 @@ fun NotificationsInboxScreen(
 
     suspend fun loadAndMarkSeen() {
         repository.refresh()
-        repository.markInboxSeen()
+        if (!repository.failed.value) repository.markInboxSeen()
     }
 
-    LaunchedEffect(Unit) { loadAndMarkSeen() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { scope.launch { loadAndMarkSeen() } }
 
     Scaffold(
         modifier = Modifier.themedScreen(colors.gold),
@@ -93,37 +117,40 @@ fun NotificationsInboxScreen(
                     Text(stringResource(R.string.retry), color = colors.gold)
                 }
             }
-            items.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.notifications_empty), color = colors.textBody)
+            items.isEmpty() -> Column(
+                Modifier.fillMaxSize().padding(padding).padding(32.dp),
+                verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(Icons.Outlined.NotificationsNone, contentDescription = null,
+                    tint = colors.gold, modifier = Modifier.size(56.dp).padding(bottom = 8.dp))
+                Text(stringResource(R.string.notifications_empty), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(if (repository.isDemoInbox) R.string.notifications_demo_body else R.string.notifications_empty_body),
+                    color = colors.textBody, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp))
             }
             else -> PullToRefreshBox(
                 isRefreshing = loading && items.isNotEmpty(),
                 onRefresh = { scope.launch { loadAndMarkSeen() } },
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
-                LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-                    if (unread.isNotEmpty()) {
-                        item {
-                            Text(stringResource(R.string.notifications_unread_section), color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 12.dp))
+                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (failed) item(key = "refresh-error") {
+                        Column {
+                            Text(stringResource(R.string.notifications_refresh_failed), color = colors.textBody)
+                            TextButton(onClick = { scope.launch { loadAndMarkSeen() } }) { Text(stringResource(R.string.retry)) }
                         }
-                        item {
-                            GroupedListCard(accent = colors.gold) {
-                                unread.forEachIndexed { index, item ->
-                                    InboxRow(item, resolveName(item.patientId, patients, unnamed), { onOpen(item) }, index < unread.lastIndex)
-                                }
-                            }
+                    }
+                    if (unread.isNotEmpty()) {
+                        item(key = "unread-header") { InboxSectionHeader(stringResource(R.string.notifications_unread_section), unread.size, true) }
+                        items(unread, key = { it.id }) { item ->
+                            InboxRow(item, resolveName(item.patientId, patients, unnamed), { onOpen(item) })
                         }
                     }
                     if (read.isNotEmpty()) {
-                        item {
-                            Text(stringResource(R.string.notifications_read_section), color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 20.dp, bottom = 12.dp))
-                        }
-                        item {
-                            GroupedListCard(accent = colors.gold) {
-                                read.forEachIndexed { index, item ->
-                                    InboxRow(item, resolveName(item.patientId, patients, unnamed), { onOpen(item) }, index < read.lastIndex)
-                                }
-                            }
+                        item(key = "read-header") { InboxSectionHeader(stringResource(R.string.notifications_read_section), read.size, false) }
+                        items(read, key = { it.id }) { item ->
+                            InboxRow(item, resolveName(item.patientId, patients, unnamed), { onOpen(item) })
                         }
                     }
                 }
@@ -133,20 +160,76 @@ fun NotificationsInboxScreen(
 }
 
 @Composable
-private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> Unit, showDivider: Boolean) {
+private fun InboxSectionHeader(title: String, count: Int, highlighted: Boolean) {
     val colors = Theme.colors
-    Column {
-        Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(patientName, color = colors.textBright, fontWeight = if (item.isUnread) FontWeight.SemiBold else FontWeight.Normal)
-                Text(inboxMessage(item.type), color = colors.textBody, fontSize = 14.sp)
-                Text(hebrewDateTime(item.createdAt), color = colors.textFaint, fontSize = 13.sp)
+    Row(Modifier.padding(top = 8.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = if (highlighted) colors.gold else colors.textBody, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Text("$count", fontSize = 12.sp, color = if (highlighted) colors.gold else colors.textBody,
+            modifier = Modifier.background(if (highlighted) colors.goldGhost else colors.surface, RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 3.dp))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> Unit) {
+    val colors = Theme.colors
+    val kind = NotificationRouting.inboxCopy(item.type)
+    val eventColor = when (kind) {
+        InboxCopyKind.PatientConnected -> colors.success
+        InboxCopyKind.DiaryOneEntryAdded -> colors.accentFill
+        else -> colors.gold
+    }
+    val icon = when (kind) {
+        InboxCopyKind.QuestionnaireCompleted -> Icons.Outlined.Checklist
+        InboxCopyKind.PatientConnected -> Icons.Outlined.PersonAddAlt1
+        InboxCopyKind.DiaryOneEntryAdded -> Icons.AutoMirrored.Outlined.MenuBook
+        InboxCopyKind.Generic -> Icons.Outlined.NotificationsNone
+    }
+    val action = when (NotificationRouting.destination(NotificationPayload.from(item))) {
+        is AppDestination.PatientDetail -> R.string.notification_open_patient
+        is AppDestination.QuestionnaireResult -> R.string.notification_open_questionnaires
+        is AppDestination.DiaryOneEntry -> R.string.notification_open_diary
+        else -> null
+    }
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
+        border = BorderStroke(1.dp, if (item.isUnread) colors.gold.copy(alpha = 0.4f) else colors.borderFaint)) {
+        Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(42.dp).background(eventColor.copy(alpha = 0.12f), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = eventColor, modifier = Modifier.size(22.dp))
             }
-            if (item.isUnseen) {
-                Box(Modifier.padding(top = 6.dp).size(8.dp).background(colors.gold, CircleShape))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(patientName, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    if (item.isUnread) {
+                        val unreadLabel = stringResource(R.string.notification_unread_accessibility)
+                        Box(Modifier.size(7.dp).background(colors.gold, CircleShape).semantics { contentDescription = unreadLabel })
+                    }
+                }
+                Text(inboxMessage(item.type), color = colors.textBody, fontSize = 14.sp)
+                FlowRow(modifier = Modifier.fillMaxWidth().padding(top = 3.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(inboxTimestamp(item.createdAt), color = colors.textFaint, fontSize = 12.sp, modifier = Modifier.padding(end = 12.dp))
+                    if (action != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(action), color = colors.gold, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = colors.gold, modifier = Modifier.size(14.dp))
+                    }
+                }
             }
         }
-        if (showDivider) GroupedListDivider()
+    }
+}
+
+@Composable
+private fun inboxTimestamp(date: Date): String {
+    val zone = ZoneId.systemDefault()
+    val day = date.toInstant().atZone(zone).toLocalDate()
+    val today = LocalDate.now(zone)
+    val time = SimpleDateFormat("HH:mm", Locale("he", "IL")).format(date)
+    return when (day) {
+        today -> stringResource(R.string.notification_today, time)
+        today.minusDays(1) -> stringResource(R.string.notification_yesterday, time)
+        else -> hebrewDateTime(date)
     }
 }
 

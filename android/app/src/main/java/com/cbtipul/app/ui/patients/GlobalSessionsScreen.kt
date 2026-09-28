@@ -19,6 +19,7 @@ import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -62,14 +63,16 @@ fun GlobalSessionsScreen(
     viewModel: PatientListViewModel,
     unnamed: String,
     onOpenSession: (patientId: String, sessionId: String) -> Unit,
-    onCreateSession: (patientId: String) -> Unit,
+    onCreateSession: () -> Unit,
 ) {
     val colors = Theme.colors
     val patients by viewModel.patients.collectAsStateWithLifecycle()
     val questionnaires by viewModel.questionnaires.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
-    val groups = remember(patients, unnamed) { GlobalSessions.grouped(patients, unnamed) }
-    var pickingPatient by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    val upcoming = GlobalSessions.timeline(patients, unnamed, query, true)
+    val past = GlobalSessions.timeline(patients, unnamed, query, false)
+    val groups = upcoming + past
     val notConfigured = stringResource(R.string.supabase_not_configured_error)
     val rejected = stringResource(R.string.update_rejected_error)
 
@@ -88,7 +91,7 @@ fun GlobalSessionsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.therapist_tab_sessions), color = colors.textBright) },
                 actions = {
-                    IconButton(onClick = { pickingPatient = true }) {
+                    IconButton(onClick = onCreateSession) {
                         Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_session_action), tint = colors.gold)
                     }
                 },
@@ -97,22 +100,31 @@ fun GlobalSessionsScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            OutlinedTextField(value = query, onValueChange = { query = it }, singleLine = true,
+                label = { Text(stringResource(R.string.sessions_search_prompt)) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             when {
-                patients.isEmpty() && ui.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                patients.isEmpty() && ui.isLoading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = colors.gold)
                 }
                 groups.isEmpty() -> Column(
-                    Modifier.fillMaxSize().padding(32.dp),
+                    Modifier.weight(1f).fillMaxWidth().padding(32.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(stringResource(R.string.empty_sessions_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    Text(stringResource(if (query.isBlank()) R.string.empty_sessions_title else R.string.sessions_search_empty), color = colors.textBright, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(8.dp))
                     Text(stringResource(R.string.empty_sessions_body), color = colors.textBody, textAlign = TextAlign.Center)
                 }
                 else -> LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)) {
-                    groups.forEach { group ->
-                        item(key = "month-${group.month.time}") {
+                    listOf(true to upcoming, false to past).forEach { (isUpcoming, section) ->
+                    item(key = "section-$isUpcoming") {
+                        Text(stringResource(if (isUpcoming) R.string.upcoming_sessions_section else R.string.past_sessions_section),
+                            fontWeight = FontWeight.Bold, color = colors.textBright, modifier = Modifier.padding(top = 24.dp))
+                        if (isUpcoming && section.isEmpty()) Text(stringResource(R.string.no_upcoming_sessions_body), color = colors.textBody)
+                    }
+                    section.forEach { group ->
+                        item(key = "month-$isUpcoming-${group.month.time}") {
                             Text(
                                 hebrewMonthYear(group.month),
                                 color = colors.gold,
@@ -120,7 +132,7 @@ fun GlobalSessionsScreen(
                                 modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
                             )
                         }
-                        item(key = "group-${group.month.time}") {
+                        item(key = "group-$isUpcoming-${group.month.time}") {
                             GroupedListCard(accent = colors.gold) {
                                 group.items.forEachIndexed { row, item ->
                                     val sessionKey = item.session.databaseId?.queryValue ?: item.session.id.toString()
@@ -159,8 +171,9 @@ fun GlobalSessionsScreen(
                     }
                 }
             }
+            }
             Button(
-                onClick = { pickingPatient = true },
+                onClick = onCreateSession,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
             ) {
@@ -169,47 +182,6 @@ fun GlobalSessionsScreen(
         }
     }
 
-    if (pickingPatient) {
-        AlertDialog(
-            onDismissRequest = { pickingPatient = false },
-            title = { Text(stringResource(R.string.choose_patient_for_session)) },
-            text = {
-                LazyColumn {
-                    val active = GlobalSessions.activePatients(patients)
-                    val inactive = GlobalSessions.inactivePatients(patients)
-                    if (active.isNotEmpty()) {
-                        item { Text(stringResource(R.string.patient_status_active), fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 8.dp)) }
-                        items(active, key = { it.id.queryValue }) { patient ->
-                            PatientPickRow(patient, unnamed) {
-                                pickingPatient = false
-                                onCreateSession(patient.id.queryValue)
-                            }
-                        }
-                    }
-                    if (inactive.isNotEmpty()) {
-                        item { Text(stringResource(R.string.patient_status_inactive), fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 8.dp)) }
-                        items(inactive, key = { it.id.queryValue }) { patient ->
-                            PatientPickRow(patient, unnamed) {
-                                pickingPatient = false
-                                onCreateSession(patient.id.queryValue)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { pickingPatient = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
-    }
-}
-
-@Composable
-private fun PatientPickRow(patient: Patient, unnamed: String, onClick: () -> Unit) {
-    Text(
-        patient.displayName(unnamed),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

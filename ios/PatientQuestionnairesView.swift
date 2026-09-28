@@ -205,6 +205,10 @@ struct PatientQuestionnairesView: View {
     private var graphs: some View {
         ScrollView {
             VStack(spacing: 16) {
+                Text(L10n.questionnaireGraphHelp)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 QuestionnaireChart(
                     name: L10n.gad7ShortName,
                     subtitle: L10n.gad7Title,
@@ -345,28 +349,16 @@ private struct QuestionnaireChart: View {
                     .frame(width: 28, height: 28)
                     .background(tint, in: RoundedRectangle(cornerRadius: 7))
                 VStack(alignment: .leading, spacing: 1) {
-                    HStack(spacing: 8) {
-                        Text(name)
-                            .font(.headline)
-                        // The latest total, color coded with its trend, so
-                        // the current level reads without decoding the chart.
-                        if metric == .total, let latest = points.last {
-                            ScoreCapsule(
-                                text: "\(Int(latest.value))",
-                                color: totalScoreColor(Int(latest.value)),
-                                delta: points.count >= 2
-                                    ? Int(latest.value) - Int(points[points.count - 2].value)
-                                    : nil
-                            )
-                        }
-                    }
+                    Text(name)
+                        .font(.headline)
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
                 }
-                Spacer()
-                Picker(L10n.metricPickerTitle, selection: $metric) {
+                Spacer(minLength: 0)
+            }
+
+            Picker(L10n.metricPickerTitle, selection: $metric) {
                     Text(L10n.totalOptionLabel).tag(Metric.total)
                     ForEach(questionShortNames.indices, id: \.self) { index in
                         Text(questionShortNames[index]).tag(Metric.question(index))
@@ -374,8 +366,29 @@ private struct QuestionnaireChart: View {
                 }
                 .pickerStyle(.menu)
                 .tint(tint)
+
+            if let latest = points.last {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.questionnaireGraphLatest(score: Int(latest.value), maximum: yDomain.upperBound))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(pointColor(for: latest.value))
+                    Text(L10n.hebrewDate(latest.date))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(points.count > 1
+                         ? L10n.questionnaireGraphChange(Int(latest.value - points[points.count - 2].value))
+                         : L10n.questionnaireGraphSingleResponse)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+            } else {
+                Text(L10n.questionnaireGraphNoAnswers)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
 
+            if !points.isEmpty {
             Chart(Array(points.enumerated()), id: \.offset) { item in
                 AreaMark(
                     x: .value(L10n.chartDateLabel, item.element.date),
@@ -398,10 +411,19 @@ private struct QuestionnaireChart: View {
                 .foregroundStyle(pointColor(for: item.element.value))
             }
             .chartYScale(domain: yDomain)
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                    AxisGridLine()
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.day().month(.twoDigits))
+                }
+            }
+            .environment(\.locale, Locale(identifier: "he_IL"))
             .frame(height: 220)
             // Time series keep the conventional left-to-right time axis
             // even though the app's layout is right-to-left.
             .environment(\.layoutDirection, .leftToRight)
+            }
         }
         .padding(16)
         .themedCard()

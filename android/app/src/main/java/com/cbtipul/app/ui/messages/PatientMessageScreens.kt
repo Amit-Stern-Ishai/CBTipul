@@ -1,5 +1,10 @@
 package com.cbtipul.app.ui.messages
 
+import androidx.activity.compose.BackHandler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.builtins.serializer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,13 +61,35 @@ import java.util.Date
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TherapistMessageComposeScreen(
+    recipient: String,
+    draftTarget: String,
     isSending: Boolean,
     errorMessage: String?,
-    onSend: (String) -> Unit,
+    onSend: suspend (String) -> Boolean,
     onBack: () -> Unit,
 ) {
     val colors = Theme.colors
-    var draft by remember { mutableStateOf("") }
+    val savedDraft = com.cbtipul.app.ui.forms.rememberDeviceFormDraft("message", draftTarget, String.serializer(), "")
+    val draft = savedDraft.value
+    var didSubmit by remember { mutableStateOf(false) }
+    var leavingDraft by remember { mutableStateOf(false) }
+    val cleanupFailed = stringResource(R.string.submitted_draft_cleanup)
+
+    val scope = rememberCoroutineScope()
+    fun finish() {
+        didSubmit = true
+        if (savedDraft.clear()) onBack()
+    }
+    fun requestBack() {
+        if (isSending) return
+        if (didSubmit) finish() else if (draft.isNotBlank()) leavingDraft = true else onBack()
+    }
+    BackHandler { requestBack() }
+    if (leavingDraft) com.cbtipul.app.ui.forms.DraftLeaveDialog(
+        onKeep = { leavingDraft = false; if (savedDraft.persist()) onBack() },
+        onDiscard = { leavingDraft = false; if (savedDraft.clear()) onBack() },
+        onCancel = { leavingDraft = false },
+    )
     Scaffold(
         modifier = Modifier.themedScreen(colors.gold).imePadding(),
         containerColor = Color.Transparent,
@@ -70,34 +97,44 @@ fun TherapistMessageComposeScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.send_patient_message_action), color = colors.textBright) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isSending) {
+                    IconButton(onClick = { requestBack() }, enabled = !isSending) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = { if (it.length <= PatientMessageDraft.MAX_LENGTH) draft = it },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp),
-                enabled = !isSending,
-                placeholder = { Text(stringResource(R.string.send_patient_message_placeholder)) },
-            )
-            if (errorMessage != null) Text(errorMessage, color = colors.error)
+        bottomBar = {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(stringResource(R.string.message_send_explanation), color = colors.textBody)
             Button(
-                onClick = { onSend(draft) },
+                onClick = { if (didSubmit) finish() else scope.launch { if (onSend(draft)) finish() } },
                 enabled = !isSending && PatientMessageDraft.canSend(draft),
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
             ) {
                 Text(
-                    if (isSending) stringResource(R.string.send_patient_message_sending) else stringResource(R.string.send_message_action),
+                    if (didSubmit) stringResource(R.string.done) else if (isSending) stringResource(R.string.send_patient_message_sending) else stringResource(R.string.send_message_action),
                     fontWeight = FontWeight.SemiBold,
                 )
             }
+            }
+        },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(stringResource(R.string.message_recipient, recipient), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.therapist_message_delivery_explanation), color = colors.textBody)
+            com.cbtipul.app.ui.forms.DraftStatus(savedDraft.failed, savedDraft.hasSaved)
+            OutlinedTextField(
+                value = draft,
+                onValueChange = { if (it.length <= PatientMessageDraft.MAX_LENGTH) savedDraft.value = it },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp),
+                enabled = !isSending && !didSubmit,
+                placeholder = { Text(stringResource(R.string.send_patient_message_placeholder)) },
+            )
+            if (didSubmit && savedDraft.failed) Text(cleanupFailed, color = colors.error)
+            if (errorMessage != null) Text(errorMessage, color = colors.error)
+
         }
     }
 }
@@ -111,6 +148,7 @@ fun MessageListScreen(
     showReadState: Boolean,
     onBack: () -> Unit,
     onOpen: (PatientMessage) -> Unit,
+    header: @Composable () -> Unit = {},
 ) {
     val colors = Theme.colors
     var items by remember { mutableStateOf<List<PatientMessage>>(emptyList()) }
@@ -122,13 +160,13 @@ fun MessageListScreen(
         try {
             items = load()
             failed = false
-        } catch (_: Exception) {
+        } catch (error: CancellationException) { throw error } catch (_: Exception) {
             failed = true
         } finally {
             loading = false
         }
     }
-    LaunchedEffect(Unit) { reload() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { scope.launch { reload() } }
     Scaffold(
         modifier = Modifier.themedScreen(colors.gold),
         containerColor = Color.Transparent,
@@ -143,6 +181,7 @@ fun MessageListScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
+        bottomBar = { Column(Modifier.fillMaxWidth().padding(16.dp)) { header() } },
     ) { padding ->
         when {
             loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
@@ -156,6 +195,10 @@ fun MessageListScreen(
                 Text(emptyText, color = colors.textBody)
             }
             else -> LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp)) {
+                if (failed) item {
+                    Text(stringResource(R.string.patient_messages_load_failed), color = colors.error)
+                    TextButton(onClick = { scope.launch { reload() } }) { Text(stringResource(R.string.retry_action)) }
+                }
                 itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
                     GroupedListCard(accent = colors.gold) {
                         Column {
@@ -165,7 +208,7 @@ fun MessageListScreen(
                                     Text(hebrewDateTime(item.createdAt), color = colors.textFaint, fontSize = 13.sp)
                                     if (showReadState) {
                                         Text(
-                                            stringResource(if (item.isUnread) R.string.message_unread_status else R.string.message_read_status),
+                                            stringResource(if (item.isUnread) R.string.sent_message_unread_status else R.string.sent_message_read_status),
                                             color = colors.textBody,
                                             fontSize = 13.sp,
                                         )
@@ -187,6 +230,7 @@ fun PatientMessageDetailScreen(
     load: suspend () -> PatientMessage?,
     markRead: suspend (PatientMessage) -> Unit = {},
     showNoReply: Boolean = true,
+    recipient: String = "",
     onBack: () -> Unit,
 ) {
     val colors = Theme.colors
@@ -198,11 +242,14 @@ fun PatientMessageDetailScreen(
             val loaded = load()
             message = loaded
             missing = loaded == null
-            if (loaded != null && loaded.isUnread) {
-                runCatching { markRead(loaded) }
-                message = loaded.markedRead(Date())
+            if (showNoReply && loaded != null && loaded.isUnread) {
+                try {
+                    markRead(loaded)
+                    message = loaded.markedRead(Date())
+                } catch (error: CancellationException) { throw error }
+                catch (_: Exception) { /* Keep the server's read state if acknowledgement fails. */ }
             }
-        } catch (_: Exception) {
+        } catch (error: CancellationException) { throw error } catch (_: Exception) {
             missing = true
         } finally {
             loading = false
@@ -213,7 +260,7 @@ fun PatientMessageDetailScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.message_detail_title), color = colors.textBright) },
+                title = { Text(stringResource(if (showNoReply) R.string.message_detail_title else R.string.sent_message_title), color = colors.textBright) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
@@ -236,7 +283,8 @@ fun PatientMessageDetailScreen(
                     Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Text(stringResource(R.string.message_from_therapist), color = colors.textBody)
+                    Text(if (showNoReply) stringResource(R.string.message_from_therapist) else stringResource(R.string.message_recipient, recipient), color = colors.textBody)
+                    if (!showNoReply) Text(stringResource(if (item.isUnread) R.string.sent_message_unread_status else R.string.sent_message_read_status), color = colors.textBody)
                     Text(hebrewDateTime(item.createdAt), color = colors.textFaint, fontSize = 13.sp)
                     Text(item.body, color = colors.textBright, fontSize = 18.sp)
                     if (showNoReply) {

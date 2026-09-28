@@ -9,6 +9,7 @@ data class DiaryFeeling(
     val intensity: Int,
 )
 
+@Serializable
 data class DiaryFeelingDraft(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -49,6 +50,7 @@ object DiaryFeelingVocabulary {
     }
 }
 
+@Serializable
 data class DiaryOneEntryDraft(
     val event: String = "",
     val thought: String = "",

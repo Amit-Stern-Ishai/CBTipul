@@ -120,32 +120,42 @@ struct PatientDetailView: View {
         List {
             Section {
                 VStack(spacing: 12) {
-                    VStack(spacing: 4) {
+                    HStack(spacing: 8) {
+                        Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
                         Text(patient.displayName)
                             .font(.title2.bold())
-                            .frame(maxWidth: .infinity)
-                        Button(L10n.editPatientDetailsAction) {
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button {
                             startEditingName()
+                        } label: {
+                            Image(systemName: "pencil")
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
-                        .font(.subheadline)
+                        .accessibilityLabel(L10n.editPatientDetailsAction)
                         .buttonStyle(.borderless)
                     }
-                    VStack(spacing: 4) {
+                    .frame(maxWidth: .infinity)
+                    HStack(spacing: 8) {
+                        Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
                         Text(treatmentGoal.wrappedValue.isEmpty
                              ? L10n.noTreatmentGoalPlaceholder
                              : treatmentGoal.wrappedValue)
                             .font(.subheadline)
                             .foregroundStyle(treatmentGoal.wrappedValue.isEmpty ? .secondary : .primary)
-                            .frame(maxWidth: .infinity)
+                            .fixedSize(horizontal: false, vertical: true)
                         Button {
                             goalDraft = treatmentGoal.wrappedValue
                             isEditingGoal = true
                         } label: {
-                            Label(L10n.editTreatmentGoalAction, systemImage: "pencil")
-                                .font(.caption)
+                            Image(systemName: "pencil")
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
+                        .accessibilityLabel(L10n.editTreatmentGoalAction)
                         .buttonStyle(.borderless)
                     }
+                    .frame(maxWidth: .infinity)
                     StatusBadge(status: patient.status)
                 }
                 .multilineTextAlignment(.center)

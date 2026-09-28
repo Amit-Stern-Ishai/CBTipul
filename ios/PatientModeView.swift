@@ -157,8 +157,6 @@ struct PatientModeView: View {
                     .font(.title.bold())
                     .foregroundStyle(Theme.textBright)
 
-                messagesSection
-
                 Text(L10n.patientTasksTitle)
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(Theme.textBright)
@@ -172,6 +170,8 @@ struct PatientModeView: View {
                         }
                     }
                 }
+
+                messagesSection
 
                 if case .failed = loadState {
                     Text(L10n.patientTasksLoadError)
@@ -195,11 +195,9 @@ struct PatientModeView: View {
 
             if homeMessagePreviews.isEmpty {
                 Text(messages.isEmpty ? L10n.patientMessagesEmptyTitle : L10n.noNewMessagesTitle)
-                    .font(.body)
+                    .font(.subheadline)
                     .foregroundStyle(Theme.textBody)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .themedCard()
             } else {
                 VStack(spacing: 12) {
                     ForEach(homeMessagePreviews) { message in
@@ -293,6 +291,7 @@ struct PatientModeView: View {
             } label: {
                 Text(L10n.patientQuestionnaireStartAction)
                     .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity, minHeight: 24)
             }
             .buttonStyle(.pressableProminent)
         }
@@ -324,8 +323,9 @@ struct PatientModeView: View {
                     }
                 )
             } label: {
-                Text(L10n.diaryOneAddEntryAction)
+                Text(L10n.patientDiaryOneStartAction)
                     .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity, minHeight: 24)
             }
             .buttonStyle(.pressableProminent)
         }

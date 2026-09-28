@@ -14,6 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -99,11 +102,11 @@ fun PatientsNavHost(
     }
 
     LaunchedEffect(isDemoMode) {
+        navController.popBackStack(route = "list", inclusive = false)
         if (isDemoMode) {
             onCloseSettings?.invoke()
             viewModel.refreshGettingStartedProgress()
         } else {
-            navController.popBackStack(route = "list", inclusive = false)
             viewModel.gettingStarted.clearHighlight()
             viewModel.refreshGettingStartedProgress()
         }
@@ -193,6 +196,7 @@ fun PatientsNavHost(
                 isSavingGoal = ui.isSavingFormulation,
                 onOpenSessions = { navController.navigate("patient/$id/sessions") },
                 onOpenQuestionnaires = { navController.navigate("patient/$id/questionnaires") },
+                onOpenGraphs = { navController.navigate("patient/$id/questionnaires?graphs=true") },
                 onOpenDiaryOne = { navController.navigate("patient/$id/diary-one") },
                 onSendMessage = { navController.navigate("patient/$id/message-compose") },
                 onOpenMessages = { navController.navigate("patient/$id/messages") },
@@ -397,13 +401,15 @@ fun PatientsNavHost(
             )
         }
         composable(
-            "patient/{id}/questionnaires",
-            arguments = listOf(navArgument("id") { type = NavType.StringType }),
+            "patient/{id}/questionnaires?graphs={graphs}",
+            arguments = listOf(navArgument("id") { type = NavType.StringType }, navArgument("graphs") { type = NavType.BoolType; defaultValue = false }),
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
-            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             PatientQuestionnairesScreen(
+                graphsMode = entry.arguments?.getBoolean("graphs") == true,
+                onAdd = { navController.navigate("patient/$id/questionnaire-result/new") },
                 records = questionnaires[id].orEmpty(),
                 patientName = patient?.displayName(unnamed).orEmpty(),
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
@@ -447,18 +453,27 @@ fun PatientsNavHost(
                 navArgument("sessionId") { type = NavType.StringType },
             ),
         ) { entry ->
-            val id = entry.arguments?.getString("id").orEmpty()
+            val routeId = entry.arguments?.getString("id").orEmpty()
             val sessionId = entry.arguments?.getString("sessionId").orEmpty()
             val isNew = sessionId == "new"
+            val draftOwner: SessionEditorViewModel = viewModel(viewModelStoreOwner = entry)
+            val draft = draftOwner.getOrCreate(if (isNew) Session() else viewModel.session(routeId, sessionId) ?: Session())
+            val id = if (routeId == "_") draft.selectedPatientId.orEmpty() else routeId
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
-            val draft = remember { Session() }
-            val session: Session? = if (isNew) draft else viewModel.session(id, sessionId)
+            val session: Session? = if (isNew) draft.initial else viewModel.session(id, sessionId)
             val records = questionnaires[id].orEmpty()
             val currentQuestionnaire = session?.databaseId?.let { db ->
                 records.firstOrNull { it.sessionId?.queryValue == db.queryValue }
             }
-            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             SessionEditorScreen(
+                choosePatient = routeId == "_",
+                availablePatients = patients,
+                onSelectPatient = { draft.selectedPatientId = it.id.queryValue },
+                editorDraft = draft,
+                onRefreshQuestionnaire = { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } },
+                questionnaireLoading = ui.isLoadingQuestionnaires,
+                questionnaireLoadError = ui.questionnairesError,
                 session = session,
                 patient = patient,
                 unnamed = unnamed,
@@ -573,7 +588,14 @@ fun PatientsNavHost(
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
             val sessionId = entry.arguments?.getString("sessionId").orEmpty()
-            val session = viewModel.session(id, sessionId)
+            val editorEntry = navController.previousBackStackEntry?.takeIf {
+                it.destination.route == "patient/{id}/session/{sessionId}"
+            }
+            val editorOwner: SessionEditorViewModel? = editorEntry?.let { viewModel(viewModelStoreOwner = it) }
+            val editorDraft = editorOwner?.draft?.takeIf {
+                it.initial.id.toString() == sessionId || it.initial.databaseId?.queryValue == sessionId
+            }
+            val session = editorDraft?.snapshot() ?: viewModel.session(id, sessionId)
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             SessionAnalysisScreen(
                 analysis = session?.structuredNotes ?: ui.pendingAnalysis,
@@ -596,16 +618,21 @@ fun PatientsNavHost(
                             sessionNotSaved,
                             anonymizationFailed,
                         ) {
+                            editorDraft?.structuredNotes = analysis
                             viewModel.clearSessionError()
                             navController.popBackStack()
                         }
                     } else {
+                        editorDraft?.structuredNotes = analysis
                         viewModel.clearSessionError()
                         navController.popBackStack()
                     }
                 },
                 onDiscard = {
-                    if (session?.databaseId == null) viewModel.clearPendingAnalysis()
+                    if (session?.databaseId == null) {
+                        editorDraft?.structuredNotes = null
+                        viewModel.clearPendingAnalysis()
+                    }
                     viewModel.clearSessionError()
                     navController.popBackStack()
                 },
@@ -633,7 +660,7 @@ fun PatientsNavHost(
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
-            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             PatientAIScreen(
                 patient = patient,
                 unnamed = unnamed,
@@ -676,7 +703,7 @@ fun PatientsNavHost(
                     Session(databaseId = it.sessionId, date = it.answeredDate)
                 }
             val existing = records.firstOrNull { it.sessionId?.queryValue == sessionId }?.questionnaire
-            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             QuestionnaireScreen(
                 session = session,
                 existing = existing,
@@ -734,11 +761,11 @@ fun PatientsNavHost(
             val moodId = entry.arguments?.getString("moodId").orEmpty()
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             val records = questionnaires[id].orEmpty()
-            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             val record = records.firstOrNull { it.databaseId.matches(moodId) }
             val session = record?.sessionId?.let { sid ->
                 viewModel.session(id, sid.queryValue) ?: Session(databaseId = sid, date = record.answeredDate)
-            } ?: record?.let { Session(date = it.answeredDate) }
+            } ?: record?.let { Session(date = it.answeredDate) } ?: if (moodId == "new") remember { Session() } else null
             QuestionnaireScreen(
                 session = session,
                 existing = record?.questionnaire,
@@ -754,7 +781,7 @@ fun PatientsNavHost(
                     val patientId = patient?.id ?: return@QuestionnaireScreen
                     val target = session ?: return@QuestionnaireScreen
                     viewModel.saveQuestionnaire(
-                        filled, patientId, target, notConfigured, rejected, sessionNotSaved, anonymizationFailed,
+                        filled, patientId, target, notConfigured, rejected, sessionNotSaved, anonymizationFailed, recordId = record?.databaseId,
                     ) {
                         viewModel.clearSessionError()
                         navController.popBackStack()
@@ -764,7 +791,7 @@ fun PatientsNavHost(
                     val patientId = patient?.id ?: return@QuestionnaireScreen
                     val target = session ?: return@QuestionnaireScreen
                     viewModel.deleteQuestionnaire(
-                        patientId, target, notConfigured, rejected, sessionNotSaved, anonymizationFailed,
+                        patientId, target, notConfigured, rejected, sessionNotSaved, anonymizationFailed, recordId = record?.databaseId,
                     ) {
                         viewModel.clearSessionError()
                         navController.popBackStack()
@@ -787,16 +814,22 @@ fun PatientsNavHost(
             val tooLong = stringResource(R.string.send_patient_message_too_long)
             val notConnected = stringResource(R.string.patient_not_connected_title)
             TherapistMessageComposeScreen(
+                recipient = patient?.displayName(unnamed).orEmpty(),
+                draftTarget = id,
                 isSending = sending,
                 errorMessage = sendError,
                 onSend = { body ->
-                    val uuid = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) } ?: return@TherapistMessageComposeScreen
-                    inviteScope.launch {
+                    val uuid = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) }
+                    if (uuid == null) {
+                        sendError = notConnected
+                        false
+                    } else {
                         sending = true
                         sendError = null
                         try {
                             app.messages.send(uuid, body)
-                            navController.popBackStack()
+                            true
+                        } catch (error: kotlinx.coroutines.CancellationException) { throw error
                         } catch (error: com.cbtipul.app.data.PatientMessageSendError) {
                             sendError = when (error) {
                                 com.cbtipul.app.data.PatientMessageSendError.Empty -> empty
@@ -804,11 +837,11 @@ fun PatientsNavHost(
                                 com.cbtipul.app.data.PatientMessageSendError.PatientNotConnected -> notConnected
                                 else -> failed
                             }
+                            false
                         } catch (_: Exception) {
                             sendError = failed
-                        } finally {
-                            sending = false
-                        }
+                            false
+                        } finally { sending = false }
                     }
                 },
                 onBack = { if (!sending) navController.popBackStack() },
@@ -820,14 +853,27 @@ fun PatientsNavHost(
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
+            val (connection, refreshConnection) = rememberPatientConnection(patient, app.assignments, isDemoMode)
             MessageListScreen(
-                title = stringResource(R.string.messages_title),
+                title = stringResource(R.string.sent_messages_title),
                 load = {
                     val uuid = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) } ?: return@MessageListScreen emptyList()
                     app.messages.messages(uuid)
                 },
                 emptyText = stringResource(R.string.patient_messages_empty),
                 showReadState = true,
+                header = {
+                    Text(patient?.displayName(unnamed).orEmpty())
+                    Text(stringResource(R.string.therapist_message_delivery_explanation))
+                    when (connection) {
+                        ConnectionUi.Connected -> androidx.compose.material3.Button(
+                            onClick = { navController.navigate("patient/$id/message-compose") }, modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.send_patient_message_action)) }
+                        ConnectionUi.Checking -> Text(stringResource(R.string.patient_connection_checking))
+                        ConnectionUi.Failed -> androidx.compose.material3.TextButton(onClick = refreshConnection) { Text(stringResource(R.string.retry_action)) }
+                        else -> Text(stringResource(if (isDemoMode) R.string.messages_demo_unavailable else R.string.messages_require_connection))
+                    }
+                },
                 onBack = { navController.popBackStack() },
                 onOpen = { navController.navigate("patient/$id/messages/${it.id}") },
             )
@@ -840,16 +886,15 @@ fun PatientsNavHost(
             ),
         ) { entry ->
             val messageId = entry.arguments?.getString("messageId").orEmpty()
+            val patientId = entry.arguments?.getString("id").orEmpty()
             PatientMessageDetailScreen(
+                recipient = viewModel.patient(patientId)?.displayName(unnamed).orEmpty(),
                 load = { app.messages.message(messageId) },
                 showNoReply = false,
                 onBack = { navController.popBackStack() },
             )
         }
             }
-        }
-        if (atList && routerState.showcaseRevealPhase == ShowcaseRevealPhase.Intro) {
-            DemoShowcaseIntroScreen(onExplore = { viewModel.finishShowcaseIntro() })
         }
         MessageOverlay(
             visible = invitationError != null,

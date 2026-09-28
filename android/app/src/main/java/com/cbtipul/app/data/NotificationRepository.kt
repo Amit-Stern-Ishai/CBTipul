@@ -5,6 +5,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,12 +62,13 @@ class NotificationRepository(private val client: SupabaseClient) {
             val rows = client.from("notifications")
                 .select(columns) { order("created_at", Order.DESCENDING) }
                 .decodeList<NotificationRow>()
+            if (isDemoInbox) { clear(); return }
             _items.value = rows.map { it.toDomain() }
             _unseenCount.value = fetchUnseenCount() ?: NotificationInbox.unseenCount(_items.value)
+        } catch (error: CancellationException) {
+            throw error
         } catch (_: Exception) {
             _failed.value = true
-            _items.value = emptyList()
-            _unseenCount.value = 0
         } finally {
             _isLoading.value = false
         }

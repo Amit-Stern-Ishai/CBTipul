@@ -127,6 +127,7 @@ enum class PHQ9Severity {
     }
 }
 
+@Serializable
 data class CombinedMoodQuestionnaire(
     val gad7Answers: List<Int?> = List(GAD7_COUNT) { null },
     val phq9Answers: List<Int?> = List(PHQ9_COUNT) { null },

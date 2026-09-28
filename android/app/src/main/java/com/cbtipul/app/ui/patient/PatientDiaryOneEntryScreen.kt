@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PatientDiaryOneEntryScreen(
+    draftTarget: String,
     onSubmit: suspend (
         event: String,
         thought: String,
@@ -64,7 +65,12 @@ fun PatientDiaryOneEntryScreen(
     val colors = Theme.colors
     val scope = rememberCoroutineScope()
     val initial = remember { DiaryOneEntryDraft() }
-    var draft by remember { mutableStateOf(initial) }
+    val savedDraft = com.cbtipul.app.ui.forms.rememberDeviceFormDraft("diary-one", draftTarget, DiaryOneEntryDraft.serializer(), initial)
+    val draft = savedDraft.value
+    var didSubmit by remember { mutableStateOf(false) }
+    var leavingDraft by remember { mutableStateOf(false) }
+    val cleanupFailed = stringResource(R.string.submitted_draft_cleanup)
+
     var didAttemptSave by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var showValidation by remember { mutableStateOf(false) }
@@ -84,6 +90,16 @@ fun PatientDiaryOneEntryScreen(
     val defaultSubmitError = stringResource(R.string.patient_diary_one_submit_error)
     val hasUnsavedChanges = draft.comparableSnapshot != initial.comparableSnapshot
 
+    fun finish() {
+        didSubmit = true
+        if (savedDraft.clear()) onBack() else { errorMessage = cleanupFailed; isSaving = false }
+    }
+    if (leavingDraft) com.cbtipul.app.ui.forms.DraftLeaveDialog(
+        onKeep = { leavingDraft = false; if (savedDraft.persist()) onBack() },
+        onDiscard = { leavingDraft = false; if (savedDraft.clear()) onBack() },
+        onCancel = { leavingDraft = false },
+    )
+
     fun currentValidation(): String? = draft.validationMessage(
         eventMissing = eventMissing,
         thoughtMissing = thoughtMissing,
@@ -97,11 +113,12 @@ fun PatientDiaryOneEntryScreen(
 
     fun requestBack() {
         if (isSaving) return
-        if (hasUnsavedChanges) showDiscard = true else onBack()
+        if (didSubmit) finish() else if (hasUnsavedChanges) leavingDraft = true else onBack()
     }
 
     fun submit() {
         if (isSaving) return
+        if (didSubmit) { finish(); return }
         didAttemptSave = true
         val message = currentValidation()
         val feelings = draft.persistedFeelings()
@@ -121,7 +138,7 @@ fun PatientDiaryOneEntryScreen(
                     draft.behaviour.trim(),
                     draft.physicalSymptoms.trim().ifEmpty { null },
                 )
-                onBack()
+                finish()
             } catch (error: PatientDiaryOneSubmitError.NotActive) {
                 isSaving = false
                 inactiveMessage = error.userMessage.ifBlank { defaultInactive }
@@ -136,7 +153,7 @@ fun PatientDiaryOneEntryScreen(
         }
     }
 
-    BackHandler(enabled = !isSaving) { requestBack() }
+    BackHandler { requestBack() }
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
@@ -175,7 +192,7 @@ fun PatientDiaryOneEntryScreen(
                     ),
                     shape = RoundedCornerShape(14.dp),
                 ) {
-                    Text(stringResource(R.string.patient_diary_one_save_action), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(if (didSubmit) R.string.done else R.string.patient_diary_one_save_action), fontWeight = FontWeight.SemiBold)
                 }
             },
         ) { padding ->
@@ -187,11 +204,12 @@ fun PatientDiaryOneEntryScreen(
                     .padding(horizontal = 20.dp)
                     .padding(top = 12.dp, bottom = 28.dp),
             ) {
+                com.cbtipul.app.ui.forms.DraftStatus(savedDraft.failed, savedDraft.hasSaved)
                 DiaryOneDraftFields(
                     draft = draft,
                     didAttemptSave = didAttemptSave,
                     errorMessage = errorMessage,
-                    onChange = { draft = it },
+                    onChange = { if (!isSaving && !didSubmit) savedDraft.value = it },
                 )
             }
         }

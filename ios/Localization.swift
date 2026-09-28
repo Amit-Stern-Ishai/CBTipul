@@ -145,7 +145,13 @@ enum L10n {
     static let notificationsPlaceholderTitle = "התראות"
     static let notificationsPlaceholderBody =
         "אין התראות כרגע."
-    static let notificationsEmptyTitle = "אין התראות"
+    static let notificationsEmptyTitle = "אין התראות כרגע"
+    static let notificationsEmptyBody = "עדכונים על שאלונים, יומנים וחיבור מטופלים יופיעו כאן."
+    static let notificationsDemoBody = "במצב הדגמה לא מתקבלות התראות ממטופלים."
+    static let notificationsRefreshFailed = "לא ניתן לעדכן כרגע. מוצגות ההתראות שנטענו קודם."
+    static let notificationOpenQuestionnaires = "לשאלונים"
+    static let notificationOpenDiary = "ליומן 1"
+    static let notificationOpenPatient = "לתיק המטופל/ת"
     static let notificationQuestionnaireCompleted = "השאלון הושלם"
     static let notificationPatientConnected = "התחבר/ה ל-CBTipul"
     static let notificationDiaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן 1"
@@ -192,6 +198,10 @@ enum L10n {
     }
     static let patientsSearchPrompt = "חיפוש מטופלים"
     static let patientsSearchEmpty = "לא נמצאו מטופלים"
+    static let activePatientsSectionTitle = "מטופלים פעילים"
+    static func patientListSection(_ title: String, count: Int) -> String { "\(title) (\(count))" }
+    static func patientListNextSession(_ date: Date) -> String { "הפגישה הבאה: \(hebrewDate(date))" }
+    static func patientListLastSession(_ date: Date) -> String { "פגישה אחרונה: \(hebrewDate(date))" }
     static let inactivePatientsSectionTitle = "מטופלים לא פעילים"
     static let unnamedPatient = "מטופל/ת ללא שם"
     static func patientConnectedPushBody(name: String) -> String {
@@ -215,6 +225,8 @@ enum L10n {
     static let sessionNotSaved = "יש שינויים שטרם נשמרו"
     static let sessionSaved = "כל השינויים נשמרו"
     static let sessionRecordingInProgress = "מקליט… בסיום לחצו על ״עצירה ותמלול״"
+    static let sessionSaving = "שומר את הפגישה…"
+    static let sessionRecordingNeedsTranscription = "יש לתמלל או למחוק את ההקלטה לפני השמירה"
     static let sessionProcessing = "מעבד את הפגישה… יש להמתין לסיום"
     
     static let optionalNotesPlaceholder = "הערות (לא חובה)"
@@ -1263,32 +1275,33 @@ amitishai@gmail.com
     static let patientModeConnectedBody =
         "כעת ניתן לקבל מהמטפל/ת שאלונים וכלים טיפוליים."
 
-    static let patientTasksTitle = "משימות"
+    static let patientTasksTitle = "למילוי ולתרגול"
 
     static let patientTasksRefreshAction = "רענון"
 
-    static let patientTasksEmptyTitle = "אין משימות חדשות כרגע"
+    static let patientTasksEmptyTitle = "אין כרגע שאלונים או יומנים למילוי"
 
     static let patientTasksEmptyBody =
-        "משימות חדשות מהמטפל/ת שלך יופיעו כאן."
+        "שאלונים ויומנים מהמטפל/ת שלך יופיעו כאן כשיהיו זמינים."
 
-    static let patientQuestionnaireCardTitle = "שאלון GAD-7 ו-PHQ-9"
+    static let patientQuestionnaireCardTitle = "שאלון על ההרגשה שלך"
 
     static let patientQuestionnaireCardBody =
-        "המטפל/ת ביקש/ה ממך למלא שאלון."
+        "בקשה חד־פעמית מהמטפל/ת. התשובות יישלחו לאחר לחיצה על ״שליחה״."
 
-    static let patientQuestionnaireStartAction = "התחלת שאלון"
+    static let patientQuestionnaireStartAction = "מילוי השאלון"
 
     static let patientUpcomingTaskTitle = "משימה מהמטפל/ת"
 
     static let patientUpcomingTaskBody = "משימה זו תהיה זמינה בקרוב."
 
     static let patientDiaryOneCardTitle = "יומן 1"
+    static let patientDiaryOneStartAction = "כתיבת אירוע ביומן"
 
     static let patientDiaryOneCardBody =
-        "רישום של אירוע, מחשבה, רגשות והתגובה שלך."
+        "אפשר לתאר אירוע, את המחשבות והרגשות שעלו ואת התגובה שלך."
 
-    static let patientDiaryOneOngoingHint = "אפשר להוסיף רשומות בכל עת."
+    static let patientDiaryOneOngoingHint = "היומן נשאר זמין. בכל פעם אפשר להוסיף אירוע חדש."
 
     static let patientDiaryOneSaveAction = "שמירת הרשומה"
 
@@ -1532,6 +1545,19 @@ amitishai@gmail.com
     
     static let totalOptionLabel = "ציון כולל"
     
+    static let questionnaireGraphHelp = "כל נקודה מייצגת מילוי שאלון. התאריכים מתקדמים משמאל לימין."
+    static let questionnaireGraphSingleResponse = "מוצג מילוי אחד. לאחר מילוי נוסף יהיה אפשר לראות שינוי לאורך זמן."
+    static let questionnaireGraphNoAnswers = "אין תשובות להצגה עבור הבחירה הזו."
+    static func questionnaireGraphLatest(score: Int, maximum: Int) -> String {
+        "ציון אחרון: \(score) מתוך \(maximum)"
+    }
+    static func questionnaireGraphChange(_ difference: Int) -> String {
+        if difference == 0 { return "ללא שינוי לעומת המילוי הקודם" }
+        return difference > 0
+            ? "עלייה של \(difference) לעומת המילוי הקודם"
+            : "ירידה של \(-difference) לעומת המילוי הקודם"
+    }
+
     static let chartDateLabel = "תאריך"
     
     static let chartScoreLabel = "ציון"

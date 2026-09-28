@@ -1,5 +1,11 @@
 package com.cbtipul.app.ui.patient
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.material3.Button
+import com.cbtipul.app.ui.forms.RequiredQuestion
+import com.cbtipul.app.ui.forms.QuestionnaireProgress
+import com.cbtipul.app.model.missingRequiredAnswers
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,16 +61,29 @@ import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.themedScreen
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PatientQuestionnaireScreen(
+    assignmentId: String,
     onSubmit: suspend (gad7Answers: List<Int>, phq9Answers: List<Int>, interferenceLevel: Int) -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = Theme.colors
     val scope = rememberCoroutineScope()
-    var draft by remember { mutableStateOf(CombinedMoodQuestionnaire()) }
+    val savedDraft = com.cbtipul.app.ui.forms.rememberDeviceFormDraft("questionnaire", assignmentId, CombinedMoodQuestionnaire.serializer(), CombinedMoodQuestionnaire())
+    val draft = savedDraft.value
+    var didSubmit by remember { mutableStateOf(false) }
+    var leavingDraft by remember { mutableStateOf(false) }
+    val cleanupFailed = stringResource(R.string.submitted_draft_cleanup)
+
     var isSubmitting by remember { mutableStateOf(false) }
+    val questionTargets = remember { List(17) { BringIntoViewRequester() } }
+    val missingAnswers = draft.missingRequiredAnswers(requireInterference = true)
+    var highlightMissing by remember { mutableStateOf(false) }
+    fun showMissingAnswers() {
+        highlightMissing = true
+        missingAnswers.firstOrNull()?.let { scope.launch { questionTargets[it].bringIntoView() } }
+    }
     var showIncomplete by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val gad7 = stringArrayResource(R.array.gad7_questions)
@@ -85,10 +104,25 @@ fun PatientQuestionnaireScreen(
         interferenceLevel != null &&
         interferenceLevel in valid
 
+    fun finish() {
+        didSubmit = true
+        if (savedDraft.clear()) onBack() else { errorMessage = cleanupFailed; isSubmitting = false }
+    }
+    fun requestBack() {
+        if (isSubmitting) return
+        if (didSubmit) finish() else if (!draft.isEmpty) leavingDraft = true else onBack()
+    }
+    if (leavingDraft) com.cbtipul.app.ui.forms.DraftLeaveDialog(
+        onKeep = { leavingDraft = false; if (savedDraft.persist()) onBack() },
+        onDiscard = { leavingDraft = false; if (savedDraft.clear()) onBack() },
+        onCancel = { leavingDraft = false },
+    )
+
     fun attemptSubmit() {
         if (isSubmitting) return
-        if (!isReady || interferenceLevel == null) {
-            showIncomplete = true
+        if (didSubmit) { finish(); return }
+        if (!isReady) {
+            showMissingAnswers()
             return
         }
         isSubmitting = true
@@ -96,9 +130,9 @@ fun PatientQuestionnaireScreen(
         scope.launch {
             try {
                 onSubmit(gad7Ready, phq9Ready, interferenceLevel)
-                onBack()
+                finish()
             } catch (_: PatientQuestionnaireSubmitError.AlreadyCompleted) {
-                onBack()
+                finish()
             } catch (_: PatientQuestionnaireSubmitError.Cancelled) {
                 errorMessage = cancelledError
                 isSubmitting = false
@@ -115,7 +149,7 @@ fun PatientQuestionnaireScreen(
         }
     }
 
-    BackHandler(enabled = !isSubmitting) { onBack() }
+    BackHandler { requestBack() }
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
@@ -127,7 +161,7 @@ fun PatientQuestionnaireScreen(
                         Text(stringResource(R.string.patient_questionnaire_card_title), color = colors.textBright)
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack, enabled = !isSubmitting) {
+                        IconButton(onClick = { requestBack() }, enabled = !isSubmitting) {
                             Icon(
                                 Icons.AutoMirrored.Outlined.ArrowBack,
                                 contentDescription = stringResource(R.string.back),
@@ -135,14 +169,17 @@ fun PatientQuestionnaireScreen(
                             )
                         }
                     },
-                    actions = {
-                        TextButton(onClick = { attemptSubmit() }, enabled = !isSubmitting) {
-                            Text(stringResource(R.string.patient_questionnaire_submit), color = colors.gold)
-                        }
-                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 )
             },
+        bottomBar = {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                QuestionnaireProgress(17 - missingAnswers.size, 17, !isSubmitting, ::showMissingAnswers)
+                Button(onClick = { attemptSubmit() }, enabled = !isSubmitting, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(if (didSubmit) R.string.done else R.string.patient_questionnaire_submit))
+                }
+            }
+        },
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -152,6 +189,7 @@ fun PatientQuestionnaireScreen(
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
+                com.cbtipul.app.ui.forms.DraftStatus(savedDraft.failed, savedDraft.hasSaved)
                 Text(stringResource(R.string.gad7_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                 GroupedListCard(accent = colors.gold) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -171,17 +209,19 @@ fun PatientQuestionnaireScreen(
                     )
                     gad7.forEachIndexed { index, question ->
                         GroupedListDivider()
-                        PatientQuestionBlock(
+                        RequiredQuestion(questionTargets[index + 0], highlightMissing && (index + 0) in missingAnswers) {
+                            PatientQuestionBlock(
                             text = question,
                             selection = draft.gad7Answers.getOrNull(index),
                             accent = colors.gold,
-                            editable = !isSubmitting,
+                            editable = !isSubmitting && !didSubmit,
                             onSelect = { value ->
-                                draft = draft.copy(
+                                savedDraft.value = draft.copy(
                                     gad7Answers = draft.gad7Answers.toMutableList().also { it[index] = value },
                                 )
                             },
                         )
+                    }
                     }
                     GroupedListDivider()
                     PatientScoreBlock(score = draft.gad7Score, classification = gad7SeverityLabel(draft.gad7Severity))
@@ -196,25 +236,29 @@ fun PatientQuestionnaireScreen(
                     )
                     phq9.forEachIndexed { index, question ->
                         GroupedListDivider()
-                        PatientQuestionBlock(
+                        RequiredQuestion(questionTargets[index + 7], highlightMissing && (index + 7) in missingAnswers) {
+                            PatientQuestionBlock(
                             text = question,
                             selection = draft.phq9Answers.getOrNull(index),
                             accent = colors.gold,
-                            editable = !isSubmitting,
+                            editable = !isSubmitting && !didSubmit,
                             onSelect = { value ->
-                                draft = draft.copy(
+                                savedDraft.value = draft.copy(
                                     phq9Answers = draft.phq9Answers.toMutableList().also { it[index] = value },
                                 )
                             },
                         )
                     }
+                    }
                     GroupedListDivider()
-                    PatientInterferenceBlock(
+                    RequiredQuestion(questionTargets[16], highlightMissing && 16 in missingAnswers) {
+                        PatientInterferenceBlock(
                         options = interference,
                         selection = draft.interferenceLevel,
-                        editable = !isSubmitting,
-                        onSelect = { draft = draft.copy(interferenceLevel = it) },
+                        editable = !isSubmitting && !didSubmit,
+                        onSelect = { savedDraft.value = draft.copy(interferenceLevel = it) },
                     )
+                    }
                     GroupedListDivider()
                     PatientScoreBlock(score = draft.phq9Score, classification = phq9SeverityLabel(draft.phq9Severity))
                     GroupedListDivider()
@@ -239,7 +283,7 @@ fun PatientQuestionnaireScreen(
         visible = showIncomplete,
         title = stringResource(R.string.questionnaire_incomplete_title),
         message = stringResource(R.string.questionnaire_incomplete_message),
-        onDismiss = { showIncomplete = false },
+        onDismiss = { showIncomplete = false; showMissingAnswers() },
     )
 }
 

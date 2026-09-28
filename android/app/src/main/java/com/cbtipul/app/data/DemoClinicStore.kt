@@ -29,9 +29,13 @@ class DemoClinicStore(context: Context) {
 
     @Serializable
     data class Snapshot(
+        val includesSampleData: Boolean? = null,
         val patients: List<PatientRecord> = emptyList(),
         val questionnairesByPatient: Map<String, List<QuestionnaireRecord>> = emptyMap(),
-    )
+    ) {
+        val hasLoadedSampleData: Boolean
+            get() = includesSampleData ?: patients.any { DemoData.isShowcaseId(it.id) }
+    }
 
     @Serializable
     data class PatientRecord(

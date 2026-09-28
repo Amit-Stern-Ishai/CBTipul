@@ -71,6 +71,19 @@ struct SessionEditorView: View {
         storePatient != nil && !isWorking && voiceRecorder.recordingURL == nil && (isNew || hasUnsavedChanges)
     }
 
+    private var saveStatus: String {
+        if voiceRecorder.isRecording { return L10n.sessionRecordingInProgress }
+        if isTranscribing { return L10n.transcribingLabel }
+        if isAnonymizingTranscription { return L10n.anonymizingStatusLabel }
+        if isSaving { return L10n.sessionSaving }
+        if isAnalyzing { return L10n.analyzingLabel }
+        if isWorking { return L10n.sessionProcessing }
+        if voiceRecorder.recordingURL != nil { return L10n.sessionRecordingNeedsTranscription }
+        if storePatient == nil { return L10n.sessionChoosePatientHelp }
+        if isNew { return L10n.sessionNotCreated }
+        return hasUnsavedChanges ? L10n.sessionNotSaved : L10n.sessionSaved
+    }
+
     /// This session's saved questionnaire, read live from the store's cache
     /// so the section updates right after one is filled in and saved.
     private var questionnaire: CompletedQuestionnaire? {
@@ -353,17 +366,14 @@ struct SessionEditorView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
-                    if isWorking {
-                        Text(voiceRecorder.isRecording ? L10n.sessionRecordingInProgress : L10n.sessionProcessing)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Label(isNew ? L10n.sessionNotCreated : (hasUnsavedChanges ? L10n.sessionNotSaved : L10n.sessionSaved),
-                              systemImage: isNew || hasUnsavedChanges ? "pencil.circle" : "checkmark.circle.fill")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("session.saveStatus")
-                    }
+                    Label(saveStatus,
+                          systemImage: voiceRecorder.isRecording ? "mic.fill"
+                            : (isWorking ? "hourglass"
+                               : (!isNew && !hasUnsavedChanges ? "checkmark.circle.fill" : "pencil.circle")))
+                        .font(.footnote)
+                        .foregroundStyle(voiceRecorder.isRecording ? Theme.error : Theme.textBody)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("session.saveStatus")
                     Button(action: { save() }) {
                         Text(L10n.saveSessionAction)
                             .fontWeight(.semibold)

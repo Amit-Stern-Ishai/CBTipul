@@ -50,6 +50,22 @@ object GlobalSessions {
             }
     }
 
+    fun timeline(patients: List<Patient>, unnamed: String, query: String, upcoming: Boolean, now: Date = Date()): List<GlobalSessionMonthGroup> {
+        val day = Calendar.getInstance().apply {
+            time = now
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.time
+        return grouped(patients, unnamed).mapNotNull { group ->
+            val filtered = group.items.filter {
+                (it.session.date >= day) == upcoming && it.patient.displayName(unnamed).contains(query.trim(), ignoreCase = true)
+            }
+            if (filtered.isEmpty()) null else group.copy(items = if (upcoming) filtered.sortedBy { it.session.date } else filtered)
+        }.let { if (upcoming) it.reversed() else it }
+    }
+
     fun activePatients(patients: List<Patient>) =
         patients.filter { it.status == PatientStatus.Active }
 

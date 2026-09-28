@@ -127,7 +127,7 @@ class PatientListViewModel(
         viewModelScope.launch {
             onboardingStore.markDemoTourCompleted()
             onboardingStore.dismissWelcome()
-            onboardingStore.showChecklistAgain()
+            onboardingStore.dismissChecklist()
             repository.enterDemoMode()
             gettingStartedRouter.setPlacement(
                 com.cbtipul.app.ui.onboarding.TutorialCoachPlacement.PatientList,
@@ -369,9 +369,7 @@ class PatientListViewModel(
     fun loadQuestionnaires(patientId: DatabaseId, notConfigured: String, rejected: String) {
         viewModelScope.launch {
             val hasCache = repository.cachedQuestionnaires(patientId.queryValue) != null
-            if (!hasCache) {
-                _ui.update { it.copy(isLoadingQuestionnaires = true, questionnairesError = null) }
-            }
+            _ui.update { it.copy(isLoadingQuestionnaires = true, questionnairesError = null) }
             try {
                 repository.loadQuestionnaires(patientId)
                 _ui.update { it.copy(isLoadingQuestionnaires = false, questionnairesError = null) }
@@ -379,7 +377,7 @@ class PatientListViewModel(
                 _ui.update {
                     it.copy(
                         isLoadingQuestionnaires = false,
-                        questionnairesError = if (hasCache) null else mapError(error, notConfigured, rejected),
+                        questionnairesError = mapError(error, notConfigured, rejected),
                     )
                 }
             }
@@ -398,12 +396,13 @@ class PatientListViewModel(
         rejected: String,
         sessionNotSaved: String,
         anonymizationFailed: String,
+        recordId: DatabaseId? = null,
         onDone: () -> Unit,
     ) {
         viewModelScope.launch {
             _ui.update { it.copy(isSavingQuestionnaire = true, sessionError = null) }
             try {
-                repository.saveQuestionnaire(questionnaire, patientId, session)
+                repository.saveQuestionnaire(questionnaire, patientId, session, recordId)
                 refreshGettingStartedProgress()
                 _ui.update { it.copy(isSavingQuestionnaire = false) }
                 onDone()
@@ -425,12 +424,13 @@ class PatientListViewModel(
         rejected: String,
         sessionNotSaved: String,
         anonymizationFailed: String,
+        recordId: DatabaseId? = null,
         onDone: () -> Unit,
     ) {
         viewModelScope.launch {
             _ui.update { it.copy(isSavingQuestionnaire = true, sessionError = null) }
             try {
-                repository.deleteQuestionnaire(patientId, session)
+                repository.deleteQuestionnaire(patientId, session, recordId)
                 _ui.update { it.copy(isSavingQuestionnaire = false) }
                 onDone()
             } catch (error: Exception) {

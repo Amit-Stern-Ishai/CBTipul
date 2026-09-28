@@ -171,7 +171,7 @@ fun SettingsScreen(
                     GroupedListCard(accent = colors.gold) {
                         SettingsRow(
                             title = stringResource(R.string.getting_started_guide_settings_title),
-                            subtitle = stringResource(R.string.getting_started_guide_settings_subtitle),
+                            subtitle = null,
                             icon = Icons.Outlined.Assignment,
                             onClick = onGettingStartedGuide,
                         )

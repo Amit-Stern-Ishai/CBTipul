@@ -1,7 +1,5 @@
 package com.cbtipul.app.ui.patients
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,11 +12,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,28 +35,32 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import java.util.Calendar
+import java.text.Collator
+import java.util.Locale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cbtipul.app.R
 import com.cbtipul.app.data.DemoData
-import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.PatientStatus
 import com.cbtipul.app.model.SessionType
 import com.cbtipul.app.ui.onboarding.TutorialCoachPlacement
 import com.cbtipul.app.ui.onboarding.TutorialHighlight
 import com.cbtipul.app.ui.onboarding.tutorialPulse
-import com.cbtipul.app.ui.theme.GroupedListDivider
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.groupedListCard
 import com.cbtipul.app.ui.theme.hebrewDate
@@ -72,20 +76,19 @@ fun PatientListScreen(
     onAddPatient: () -> Unit,
 ) {
     val patients by viewModel.patients.collectAsStateWithLifecycle()
-    val questionnaires by viewModel.questionnaires.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
     val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
     val colors = Theme.colors
-    var patientSearch by remember { mutableStateOf("") }
-    val visiblePatients = remember(patients, patientSearch) {
+    var patientSearch by rememberSaveable { mutableStateOf("") }
+    val visiblePatients = remember(patients, patientSearch, unnamed) {
         val query = patientSearch.trim()
-        if (patients.size > 7 && query.isNotEmpty()) {
-            patients.filter { it.displayName(unnamed).contains(query, ignoreCase = true) }
-        } else {
-            patients
-        }
+        val collator = Collator.getInstance(Locale("he", "IL"))
+        patients.filter { query.isEmpty() || it.displayName(unnamed).contains(query, ignoreCase = true) }
+            .sortedWith { first, second -> collator.compare(first.displayName(unnamed), second.displayName(unnamed)) }
     }
+    val activePatients = visiblePatients.filter { it.status == PatientStatus.Active }
+    val inactivePatients = visiblePatients.filter { it.status != PatientStatus.Active }
 
     LaunchedEffect(Unit) {
         viewModel.gettingStarted.setPlacement(TutorialCoachPlacement.PatientList)
@@ -124,7 +127,7 @@ fun PatientListScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            if (patients.size > 7) {
+            if (patients.isNotEmpty()) {
                 OutlinedTextField(
                     value = patientSearch,
                     onValueChange = { patientSearch = it },
@@ -133,6 +136,14 @@ fun PatientListScreen(
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 8.dp),
                     singleLine = true,
+                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (patientSearch.isNotEmpty()) {
+                            IconButton(onClick = { patientSearch = "" }) {
+                                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.patients_clear_search))
+                            }
+                        }
+                    },
                     label = { Text(stringResource(R.string.patients_search_prompt)) },
                 )
             }
@@ -175,27 +186,37 @@ fun PatientListScreen(
                             }
                         } else {
                         LazyColumn(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                .groupedListCard(colors.gold),
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            itemsIndexed(visiblePatients, key = { _, it -> it.id.queryValue }) { index, patient ->
-                                val pulse = isDemoMode &&
-                                    DemoData.isTutorialPatientId(patient.id) &&
-                                    patient.id.queryValue == focusId &&
-                                    viewModel.gettingStarted.shouldPulse(TutorialHighlight.TutorialPatient)
-                                PatientRow(
-                                    patient = patient,
-                                    unnamed = unnamed,
-                                    records = questionnaires[patient.id.queryValue],
-                                    onClick = { onOpenPatient(patient.id.queryValue) },
-                                    onLoadScores = { viewModel.ensureQuestionnaires(patient.id) },
-                                    pulse = pulse,
-                                )
-                                if (index < visiblePatients.lastIndex) {
-                                    GroupedListDivider(startInset = 72.dp)
+                            listOf(
+                                R.string.patient_list_active_section to activePatients,
+                                R.string.patient_list_inactive_section to inactivePatients,
+                            ).forEach { (title, group) ->
+                                if (group.isNotEmpty()) {
+                                    item(key = title) {
+                                        Text(
+                                            stringResource(title, group.size),
+                                            color = colors.textBody,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+                                        )
+                                    }
+                                    items(group, key = { it.id.queryValue }) { patient ->
+                                        val pulse = isDemoMode &&
+                                            DemoData.isTutorialPatientId(patient.id) &&
+                                            patient.id.queryValue == focusId &&
+                                            viewModel.gettingStarted.shouldPulse(TutorialHighlight.TutorialPatient)
+                                        PatientRow(
+                                            patient = patient,
+                                            unnamed = unnamed,
+                                            onClick = { onOpenPatient(patient.id.queryValue) },
+                                            pulse = pulse,
+                                        )
+                                    }
                                 }
                             }
+                            item { Spacer(Modifier.height(8.dp)) }
                         }
                         }
                     }
@@ -230,84 +251,47 @@ fun PatientListScreen(
 private fun PatientRow(
     patient: Patient,
     unnamed: String,
-    records: List<CompletedQuestionnaire>?,
     onClick: () -> Unit,
-    onLoadScores: () -> Unit,
     pulse: Boolean = false,
 ) {
     val colors = Theme.colors
-    LaunchedEffect(patient.id.queryValue) { onLoadScores() }
-    val last = records?.maxByOrNull { it.answeredDate.time }
-    val previous = last?.let { latest ->
-        records
-            .filter { it.databaseId != latest.databaseId && !it.answeredDate.after(latest.answeredDate) }
-            .maxByOrNull { it.answeredDate.time }
-    }
+    val status = stringResource(
+        if (patient.status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive,
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .groupedListCard(colors.gold)
             .tutorialPulse(pulse)
-            .clickable(onClick = onClick)
+            .semantics { stateDescription = status }
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box {
-            InitialsAvatar(name = patient.displayName(unnamed), patientId = patient.id)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(12.dp)
-                    .background(
-                        if (patient.status == PatientStatus.Active) colors.success else colors.error,
-                        CircleShape,
-                    )
-                    .border(2.dp, colors.surface, CircleShape),
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
+        InitialsAvatar(name = patient.displayName(unnamed), patientId = patient.id)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(patient.displayName(unnamed), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             Text(patientSubtitle(patient), color = colors.textBody, fontSize = 13.sp)
         }
-        when {
-            last != null -> {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
-                    GAD7ScoreCapsule(last.questionnaire, previous?.questionnaire)
-                    PHQ9ScoreCapsule(last.questionnaire, previous?.questionnaire)
-                }
-            }
-            records == null -> {
-                Column(
-                    modifier = Modifier.alpha(0.4f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    horizontalAlignment = Alignment.End,
-                ) {
-                    ScoreCapsule(
-                        text = stringResource(R.string.score_badge, stringResource(R.string.gad7_short_name), 10),
-                        color = colors.textFaint,
-                    )
-                    ScoreCapsule(
-                        text = stringResource(R.string.score_badge, stringResource(R.string.phq9_short_name), 10),
-                        color = colors.textFaint,
-                    )
-                }
-            }
-        }
+        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
     }
 }
 
 @Composable
 private fun patientSubtitle(patient: Patient): String {
+    // Match the date-only split used by the sessions list: today is upcoming.
+    val today = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.time
+    val next = patient.sessions.filter { it.date >= today }.minByOrNull { it.date.time }
+    if (next != null) return stringResource(R.string.patient_list_next_session, hebrewDate(next.date))
     val last = patient.sessions.maxByOrNull { it.date.time }
         ?: return stringResource(R.string.no_sessions_yet_label)
-    val typeOrDate = last.type?.let { stringResource(it.labelRes()) }
-        ?: hebrewDate(last.date)
-    val count = if (patient.sessionsUpToTodayCount == 1) {
-        stringResource(R.string.sessions_count_one)
-    } else {
-        stringResource(R.string.sessions_count_other, patient.sessionsUpToTodayCount)
-    }
-    return stringResource(R.string.last_session_summary, typeOrDate, count)
+    return stringResource(R.string.patient_list_last_session, hebrewDate(last.date))
 }
 
 fun SessionType.labelRes(): Int = when (this) {

@@ -31,6 +31,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class CbTipulApp : Application() {
+    val formDrafts by lazy { com.cbtipul.app.data.DeviceFormDraftStore(this) }
     lateinit var preferences: AppPreferences
         private set
     lateinit var authRepository: AuthRepository
