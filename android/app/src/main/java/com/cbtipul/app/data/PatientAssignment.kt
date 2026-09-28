@@ -1,5 +1,6 @@
 package com.cbtipul.app.data
 
+import com.cbtipul.app.debug.InviteDebugLog
 import com.cbtipul.app.model.DatabaseId
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -8,16 +9,22 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.ktor.client.request.header
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.content.TextContent
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.text.SimpleDateFormat
@@ -68,7 +75,31 @@ private data class PatientAssignmentRow(
 @Serializable
 internal data class RequestPatientQuestionnaireRequest(
     val patientId: String,
-    val sessionId: String,
+    val sessionId: String? = null,
+)
+
+@Serializable
+internal data class RequestPatientDiaryOneRequest(
+    val patientId: String,
+)
+
+@Serializable
+internal data class RequestPatientDiaryOneAssignmentDto(
+    val id: String,
+    val patientId: String,
+    val therapistId: String? = null,
+    val sessionId: String? = null,
+    val type: String,
+    val createdAt: String,
+    val completedAt: String? = null,
+    val cancelledAt: String? = null,
+)
+
+@Serializable
+internal data class RequestPatientDiaryOneResponse(
+    val success: Boolean = true,
+    val assignment: RequestPatientDiaryOneAssignmentDto,
+    val createdNew: Boolean = true,
 )
 
 @Serializable
@@ -127,23 +158,26 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         return rows.firstOrNull()?.toDomain()
     }
 
-    suspend fun sendQuestionnaireAssignment(patientId: String, sessionId: String): PatientAssignment {
+    suspend fun sendQuestionnaireAssignment(patientId: String, sessionId: String? = null): PatientAssignment {
         ensureConfigured()
+        val payload = encodeQuestionnaireRequest(patientId, sessionId)
+        InviteDebugLog.d("request-patient-questionnaire sessionIdPresent=${sessionId != null}")
         return try {
-            val http = client.functions.invoke(
-                function = "request-patient-questionnaire",
-                body = RequestPatientQuestionnaireRequest(
-                    patientId = patientId,
-                    sessionId = sessionId,
-                ),
-                headers = Headers.build {
-                    append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                },
-            )
-            assignmentFromEdgeJson(http.bodyAsText())
+            val http = client.functions.invoke("request-patient-questionnaire") {
+                header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                setBody(TextContent(payload, ContentType.Application.Json))
+            }
+            val body = http.bodyAsText()
+            try {
+                assignmentFromEdgeJson(body)
+            } catch (error: Exception) {
+                InviteDebugLog.e("request-patient-questionnaire-parse", error)
+                throw PatientAssignmentException.InvalidIdentifier
+            }
         } catch (error: PatientAssignmentException) {
             throw error
         } catch (error: Exception) {
+            InviteDebugLog.e("request-patient-questionnaire", error)
             throw mapRequestQuestionnaireError(error)
         }
     }
@@ -168,6 +202,9 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         ensureConfigured()
         requireOngoing(type)
         if (!isPatientConnected(patientId)) throw PatientAssignmentException.PatientNotConnected
+        if (type == PatientAssignmentType.DiaryOne) {
+            return requestPatientDiaryOne(patientId)
+        }
         activeOngoingAssignment(patientId, type)?.let { return it }
         val therapistId = requireTherapistId()
         val body = buildJsonObject {
@@ -188,6 +225,23 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
                 activeOngoingAssignment(patientId, type)?.let { return it }
             }
             throw error
+        }
+    }
+
+    private suspend fun requestPatientDiaryOne(patientId: String): PatientAssignment {
+        return try {
+            val http = client.functions.invoke(
+                function = FUNCTION_REQUEST_DIARY_ONE,
+                body = RequestPatientDiaryOneRequest(patientId = patientId),
+                headers = Headers.build {
+                    append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                },
+            )
+            assignmentFromDiaryOneResponse(http.bodyAsText())
+        } catch (error: PatientAssignmentException) {
+            throw error
+        } catch (error: Exception) {
+            throw mapRequestDiaryOneError(error)
         }
     }
 
@@ -284,6 +338,13 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         return mapRequestQuestionnaireCode(code, status)
     }
 
+    private suspend fun mapRequestDiaryOneError(error: Exception): PatientAssignmentException {
+        val body = EdgePayload.responseBody(error)
+        val (code, _) = EdgePayload.codeAndMessage(body)
+        val status = EdgePayload.httpStatus(error)
+        return mapRequestDiaryOneCode(code, status)
+    }
+
     private suspend fun requireTherapistId(): String {
         return client.auth.currentSessionOrNull()?.user?.id
             ?: throw PatientAssignmentException.NotSignedIn
@@ -314,20 +375,52 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
             "id, patient_id, therapist_id, session_id, type, created_at, completed_at, cancelled_at",
         )
 
+        internal const val FUNCTION_REQUEST_DIARY_ONE = "request-patient-diary-one"
+
+        fun usesDiaryOneEdgeFunction(type: PatientAssignmentType): Boolean =
+            type == PatientAssignmentType.DiaryOne
+
+        fun usesDirectInsert(type: PatientAssignmentType): Boolean =
+            type == PatientAssignmentType.DiaryTwo
+
         fun uuidOrNull(id: DatabaseId): String? =
             runCatching { UUID.fromString(id.queryValue).toString() }.getOrNull()
 
-        internal fun encodeQuestionnaireRequest(patientId: String, sessionId: String): String =
+        internal fun encodeQuestionnaireRequest(patientId: String, sessionId: String?): String =
             EdgePayload.json.encodeToString(
                 RequestPatientQuestionnaireRequest.serializer(),
                 RequestPatientQuestionnaireRequest(patientId = patientId, sessionId = sessionId),
             )
 
-        internal fun assignmentFromEdgeJson(json: String): PatientAssignment =
-            EdgePayload.json.decodeFromString(PatientAssignmentRow.serializer(), json).toDomain()
+        internal fun assignmentFromEdgeJson(json: String): PatientAssignment {
+            val root = EdgePayload.json.parseToJsonElement(json)
+            val obj = root as? JsonObject ?: throw PatientAssignmentException.InvalidIdentifier
+            val assignment = obj["assignment"] as? JsonObject ?: obj
+            fun field(vararg keys: String): String? =
+                keys.firstNotNullOfOrNull { key ->
+                    (assignment[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+                }
+            val id = field("id") ?: throw PatientAssignmentException.InvalidIdentifier
+            val patientId = field("patientId", "patient_id")
+                ?: throw PatientAssignmentException.InvalidIdentifier
+            val typeValue = field("type", "typeValue")
+                ?: throw PatientAssignmentException.InvalidIdentifier
+            val createdAt = field("createdAt", "created_at")
+                ?: throw PatientAssignmentException.InvalidIdentifier
+            return PatientAssignment(
+                id = id,
+                patientId = patientId,
+                therapistId = field("therapistId", "therapist_id"),
+                sessionId = field("sessionId", "session_id"),
+                typeValue = typeValue,
+                createdAt = parseAssignmentTimestamp(createdAt),
+                completedAt = field("completedAt", "completed_at")?.let(::parseAssignmentTimestamp),
+                cancelledAt = field("cancelledAt", "cancelled_at")?.let(::parseAssignmentTimestamp),
+            )
+        }
 
         internal fun mapRequestQuestionnaireCode(code: String, status: Int?): PatientAssignmentException {
-            return when (code) {
+            return when (code.lowercase()) {
                 "patient_not_connected" -> PatientAssignmentException.PatientNotConnected
                 "unauthorized" -> PatientAssignmentException.NotSignedIn
                 else -> if (status == 401 || status == 403) {
@@ -336,6 +429,44 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
                     PatientAssignmentException.InvalidIdentifier
                 }
             }
+        }
+
+        internal fun mapRequestDiaryOneCode(code: String, status: Int?): PatientAssignmentException {
+            return when (code) {
+                "patient_not_connected" -> PatientAssignmentException.PatientNotConnected
+                "unauthorized", "therapist_mode_required" -> PatientAssignmentException.NotSignedIn
+                "patient_not_found", "invalid_request" -> PatientAssignmentException.InvalidIdentifier
+                else -> if (status == 401 || status == 403) {
+                    PatientAssignmentException.NotSignedIn
+                } else {
+                    PatientAssignmentException.InvalidIdentifier
+                }
+            }
+        }
+
+        internal fun encodeDiaryOneRequest(patientId: String): String =
+            EdgePayload.json.encodeToString(
+                RequestPatientDiaryOneRequest.serializer(),
+                RequestPatientDiaryOneRequest(patientId),
+            )
+
+        internal fun assignmentFromDiaryOneResponse(json: String): PatientAssignment {
+            val response = EdgePayload.json.decodeFromString(
+                RequestPatientDiaryOneResponse.serializer(),
+                json,
+            )
+            if (!response.success) throw PatientAssignmentException.InvalidIdentifier
+            val dto = response.assignment
+            return PatientAssignment(
+                id = dto.id,
+                patientId = dto.patientId,
+                therapistId = dto.therapistId,
+                sessionId = dto.sessionId,
+                typeValue = dto.type,
+                createdAt = parseAssignmentTimestamp(dto.createdAt),
+                completedAt = dto.completedAt?.let(::parseAssignmentTimestamp),
+                cancelledAt = dto.cancelledAt?.let(::parseAssignmentTimestamp),
+            )
         }
 
         internal fun parseAssignmentTimestamp(raw: String): Date {

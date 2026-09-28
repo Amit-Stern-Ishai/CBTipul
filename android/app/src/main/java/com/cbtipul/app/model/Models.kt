@@ -27,6 +27,18 @@ sealed class DatabaseId {
     data class Text(val value: String) : DatabaseId() {
         override val queryValue: String get() = value
     }
+
+    fun matches(raw: String): Boolean =
+        queryValue.equals(raw.trim(), ignoreCase = true)
+
+    companion object {
+        fun parse(raw: String): DatabaseId? {
+            val trimmed = raw.trim()
+            if (trimmed.isEmpty()) return null
+            trimmed.toIntOrNull()?.takeIf { it.toString() == trimmed }?.let { return Integer(it) }
+            return Text(trimmed)
+        }
+    }
 }
 
 object DatabaseIdSerializer : KSerializer<DatabaseId> {

@@ -9,8 +9,11 @@ import com.cbtipul.app.data.ClinicalTextAnonymizer
 import com.cbtipul.app.data.ClinicalTextGate
 import com.cbtipul.app.data.DemoClinicStore
 import com.cbtipul.app.data.DiaryOneRepository
+import com.cbtipul.app.data.NotificationRepository
 import com.cbtipul.app.data.OnboardingStore
 import com.cbtipul.app.data.PatientAssignmentRepository
+import com.cbtipul.app.data.PatientMessageRepository
+import com.cbtipul.app.data.PendingDestinationStore
 import com.cbtipul.app.data.PatientCache
 import com.cbtipul.app.data.PatientDiaryOneService
 import com.cbtipul.app.data.PatientIdentityStore
@@ -25,6 +28,7 @@ import com.cbtipul.app.settings.AppPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class CbTipulApp : Application() {
     lateinit var preferences: AppPreferences
@@ -55,6 +59,12 @@ class CbTipulApp : Application() {
         private set
     lateinit var pushManager: PushNotificationManager
         private set
+    lateinit var notifications: NotificationRepository
+        private set
+    lateinit var messages: PatientMessageRepository
+        private set
+    lateinit var pendingDestinations: PendingDestinationStore
+        private set
 
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -66,12 +76,16 @@ class CbTipulApp : Application() {
         authRepository = AuthRepository(client) {
             if (::pushManager.isInitialized) pushManager.unregisterCurrentToken()
         }
+        notifications = NotificationRepository(client)
+        messages = PatientMessageRepository(client)
+        pendingDestinations = PendingDestinationStore()
         pushManager = PushNotificationManager(
             appContext = this,
             client = client,
             auth = authRepository,
             identityStore = identityStore,
             scope = applicationScope,
+            onPushReceived = { applicationScope.launch { notifications.refresh() } },
         )
         pushManager.start()
         aiConsentStore = AiConsentStore(preferences)

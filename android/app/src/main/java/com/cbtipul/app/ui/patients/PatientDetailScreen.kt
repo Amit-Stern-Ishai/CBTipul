@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.filled.MoreVert
@@ -73,6 +74,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.cbtipul.app.R
+import com.cbtipul.app.data.DemoData
+import com.cbtipul.app.data.PatientAssignmentException
+import com.cbtipul.app.data.PatientAssignmentRepository
 import com.cbtipul.app.model.CombinedMoodQuestionnaire
 import com.cbtipul.app.model.Patient
 import com.cbtipul.app.model.PatientStatus
@@ -107,6 +111,10 @@ fun PatientDetailScreen(
     onOpenDiaryOne: () -> Unit = {},
     onInvitePatient: () -> Unit = {},
     isCreatingInvitation: Boolean = false,
+    onSendMessage: () -> Unit = {},
+    onOpenMessages: () -> Unit = {},
+    assignmentRepository: PatientAssignmentRepository? = null,
+    isDemo: Boolean = false,
     onOpenChat: () -> Unit,
     isPreparing: Boolean,
     savedPreparationDate: String?,
@@ -173,6 +181,15 @@ fun PatientDetailScreen(
     val hasUnsavedChanges = notes != patient.notes || recorder.recordingFile != null
     val notesBringIntoView = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
+    var isSendingQuestionnaire by remember { mutableStateOf(false) }
+    var sendFeedbackTitle by remember { mutableStateOf<String?>(null) }
+    var sendFeedbackMessage by remember { mutableStateOf<String?>(null) }
+    val sendQuestionnaireTitle = stringResource(R.string.send_questionnaire_to_patient)
+    val questionnaireSent = stringResource(R.string.questionnaire_sent_to_patient)
+    val questionnaireSendError = stringResource(R.string.questionnaire_assignment_send_error)
+    val notConnectedTitle = stringResource(R.string.patient_not_connected_title)
+    val notConnectedBody = stringResource(R.string.patient_not_connected_body)
+    val invalidPatient = stringResource(R.string.patient_invitation_invalid_patient)
 
     fun requestBack() {
         if (busy) return
@@ -403,6 +420,62 @@ fun PatientDetailScreen(
             )
             GroupedListDivider(startInset = 56.dp)
             IconChipRow(
+                icon = Icons.Outlined.Description,
+                title = stringResource(R.string.send_questionnaire_to_patient),
+                enabled = !busy && !isSendingQuestionnaire,
+                trailing = {
+                    if (isSendingQuestionnaire) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
+                    }
+                },
+                onClick = {
+                    if (isSendingQuestionnaire) return@IconChipRow
+                    if (isDemo || DemoData.isDemoId(patient.id) || assignmentRepository == null) {
+                        sendFeedbackTitle = notConnectedTitle
+                        sendFeedbackMessage = notConnectedBody
+                        return@IconChipRow
+                    }
+                    val patientUuid = PatientAssignmentRepository.uuidOrNull(patient.id)
+                    if (patientUuid == null) {
+                        sendFeedbackTitle = sendQuestionnaireTitle
+                        sendFeedbackMessage = invalidPatient
+                        return@IconChipRow
+                    }
+                    isSendingQuestionnaire = true
+                    sendFeedbackTitle = null
+                    sendFeedbackMessage = null
+                    scope.launch {
+                        delay(250)
+                        try {
+                            assignmentRepository.sendQuestionnaireAssignment(patientUuid, sessionId = null)
+                            sendFeedbackTitle = sendQuestionnaireTitle
+                            sendFeedbackMessage = questionnaireSent
+                        } catch (_: PatientAssignmentException.PatientNotConnected) {
+                            sendFeedbackTitle = notConnectedTitle
+                            sendFeedbackMessage = notConnectedBody
+                        } catch (_: Exception) {
+                            sendFeedbackTitle = sendQuestionnaireTitle
+                            sendFeedbackMessage = questionnaireSendError
+                        } finally {
+                            isSendingQuestionnaire = false
+                        }
+                    }
+                },
+            )
+            GroupedListDivider(startInset = 56.dp)
+            IconChipRow(
+                icon = Icons.Outlined.MailOutline,
+                title = stringResource(R.string.send_patient_message_action),
+                onClick = onSendMessage,
+            )
+            GroupedListDivider(startInset = 56.dp)
+            IconChipRow(
+                icon = Icons.Outlined.MailOutline,
+                title = stringResource(R.string.messages_title),
+                onClick = onOpenMessages,
+            )
+            GroupedListDivider(startInset = 56.dp)
+            IconChipRow(
                 icon = Icons.Outlined.Share,
                 title = stringResource(R.string.invite_patient_action),
                 enabled = !busy && !isCreatingInvitation,
@@ -607,6 +680,15 @@ fun PatientDetailScreen(
             onBack()
         },
         onKeepEditing = { showDiscard = false },
+    )
+    MessageOverlay(
+        visible = sendFeedbackTitle != null,
+        title = sendFeedbackTitle.orEmpty(),
+        message = sendFeedbackMessage.orEmpty(),
+        onDismiss = {
+            sendFeedbackTitle = null
+            sendFeedbackMessage = null
+        },
     )
 }
 

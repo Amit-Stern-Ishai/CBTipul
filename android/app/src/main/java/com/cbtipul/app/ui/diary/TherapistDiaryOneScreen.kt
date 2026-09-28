@@ -75,6 +75,7 @@ fun TherapistDiaryOneScreen(
     diary: DiaryOneRepository,
     assignments: PatientAssignmentRepository,
     isDemo: Boolean = false,
+    focusEntryId: String? = null,
     onBack: () -> Unit,
 ) {
     val colors = Theme.colors
@@ -89,6 +90,7 @@ fun TherapistDiaryOneScreen(
     var assignmentError by remember { mutableStateOf<String?>(null) }
     var showStopConfirm by remember { mutableStateOf(false) }
     var editor by remember { mutableStateOf<DiaryOneEntry?>(null) }
+    var consumedFocus by remember { mutableStateOf(false) }
     var isCreating by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var editorError by remember { mutableStateOf<String?>(null) }
@@ -145,6 +147,14 @@ fun TherapistDiaryOneScreen(
     LaunchedEffect(patientId.queryValue) {
         loadEntries()
         loadPatientMode()
+    }
+
+    LaunchedEffect(focusEntryId, loadState) {
+        val id = focusEntryId ?: return@LaunchedEffect
+        if (consumedFocus || loadState == DiaryLoadState.Loading) return@LaunchedEffect
+        consumedFocus = true
+        val loaded = runCatching { diary.loadEntry(id, patientId) }.getOrNull()
+        if (loaded != null) editor = loaded
     }
 
     if (isCreating || editor != null) {

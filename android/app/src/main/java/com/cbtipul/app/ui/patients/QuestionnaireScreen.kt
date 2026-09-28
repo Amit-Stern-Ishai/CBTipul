@@ -87,13 +87,14 @@ fun QuestionnaireScreen(
         )
     }
 
-    if (session?.databaseId == null) {
+    if (existing == null && session?.databaseId == null) {
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
             Text(stringResource(R.string.session_not_saved_error), color = colors.textBright)
             TextButton(onClick = onBack) { Text(stringResource(R.string.back), color = colors.gold) }
         }
         return
     }
+    val canMutate = session?.databaseId != null
     val isExisting = existing != null
     var draft by remember { mutableStateOf(existing ?: CombinedMoodQuestionnaire()) }
     var isEditing by remember { mutableStateOf(!isExisting) }
@@ -129,7 +130,7 @@ fun QuestionnaireScreen(
                 title = {
                     Column {
                         Text(stringResource(R.string.questionnaire_section_title), color = colors.textBright)
-                        Text(hebrewDate(session.date), color = colors.textBody, fontSize = 13.sp)
+                        Text(hebrewDate(session?.date ?: java.util.Date()), color = colors.textBody, fontSize = 13.sp)
                     }
                 },
                 navigationIcon = {
@@ -138,7 +139,7 @@ fun QuestionnaireScreen(
                     }
                 },
                 actions = {
-                    if (isEditing) {
+                    if (isEditing && canMutate) {
                         TextButton(
                             onClick = {
                                 if (draft.isComplete) onSave(draft) else showIncomplete = true
@@ -146,7 +147,7 @@ fun QuestionnaireScreen(
                             enabled = !isSaving,
                         ) { Text(stringResource(R.string.save), color = colors.gold) }
                     }
-                    if (!isEditing || isExisting) {
+                    if (canMutate && (!isEditing || isExisting)) {
                         IconButton(onClick = { menu = true }, enabled = !isSaving) {
                             Icon(Icons.Filled.MoreVert, contentDescription = null, tint = colors.gold)
                         }

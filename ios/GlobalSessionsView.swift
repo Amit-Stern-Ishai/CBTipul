@@ -9,6 +9,7 @@ struct GlobalSessionsView: View {
     @State private var isChoosingPatient = false
     @State private var pendingNewPatient: Patient?
     @State private var editor: SessionEditorRoute?
+    @State private var patientSearch = ""
 
     var body: some View {
         NavigationStack {
@@ -32,6 +33,10 @@ struct GlobalSessionsView: View {
                     } description: {
                         Text(L10n.emptySessionsBody)
                     }
+                } else if visibleItems.isEmpty {
+                    ContentUnavailableView {
+                        Label(L10n.sessionsSearchEmpty, systemImage: "magnifyingglass")
+                    }
                 } else {
                     sessionsList
                 }
@@ -47,6 +52,7 @@ struct GlobalSessionsView: View {
             .demoModeChrome()
             .navigationTitle(L10n.therapistTabSessions)
             .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $patientSearch, prompt: L10n.sessionsSearchPrompt)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -97,9 +103,32 @@ struct GlobalSessionsView: View {
 
     private var sessionsList: some View {
         List {
-            ForEach(sessionsByMonth, id: \.month) { group in
-                Section(header: Text(L10n.hebrewMonth(group.month))) {
-                    sessionRows(group.items)
+            if upcomingItems.isEmpty {
+                Section(L10n.upcomingSessionsSection) {
+                    Text(L10n.noUpcomingSessionsBody)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                }
+            } else {
+                ForEach(months(upcomingItems), id: \.month) { group in
+                    Section(header: Text(L10n.sessionsMonthSection(
+                        L10n.upcomingSessionsSection, month: L10n.hebrewMonth(group.month)))) {
+                        sessionRows(group.items)
+                    }
+                }
+            }
+            if pastItems.isEmpty {
+                Section(L10n.pastSessionsSection) {
+                    Text(L10n.noPastSessionsBody)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                }
+            } else {
+                ForEach(months(pastItems), id: \.month) { group in
+                    Section(header: Text(L10n.sessionsMonthSection(
+                        L10n.pastSessionsSection, month: L10n.hebrewMonth(group.month)))) {
+                        sessionRows(group.items)
+                    }
                 }
             }
         }
@@ -137,25 +166,52 @@ struct GlobalSessionsView: View {
         }
     }
 
-    /// Newest-first across the clinic, then grouped by calendar month like
-    /// Patient → Sessions. Patient-relative numbers stay on each item.
-    private var sessionsByMonth: [(month: Date, items: [GlobalSessionItem])] {
+    /// Search patient names across the clinic while retaining session context.
+    private var visibleItems: [GlobalSessionItem] {
+        let query = patientSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return allItems }
+        return allItems.filter { $0.patient.displayName.localizedStandardContains(query) }
+    }
+
+    /// Date-only sessions for today and later are upcoming; closest first.
+    /// The editor has no time-of-day field, so today's sessions stay here all day.
+    private var upcomingItems: [GlobalSessionItem] {
+        let today = Calendar.current.startOfDay(for: .now)
+        return visibleItems
+            .filter { $0.session.date >= today }
+            .sorted {
+                if $0.session.date != $1.session.date { return $0.session.date < $1.session.date }
+                return $0.patient.displayName.localizedCaseInsensitiveCompare($1.patient.displayName) == .orderedAscending
+            }
+    }
+
+    /// Earlier sessions are grouped by month, newest first.
+    private var pastItems: [GlobalSessionItem] {
+        let today = Calendar.current.startOfDay(for: .now)
+        return visibleItems
+            .filter { $0.session.date < today }
+            .sorted {
+                if $0.session.date != $1.session.date { return $0.session.date > $1.session.date }
+                return $0.patient.displayName.localizedCaseInsensitiveCompare($1.patient.displayName) == .orderedAscending
+            }
+    }
+
+    private func months(_ items: [GlobalSessionItem]) -> [(month: Date, items: [GlobalSessionItem])] {
         let calendar = Calendar.current
-        let grouped = Dictionary(grouping: allItems) { item in
+        let grouped = Dictionary(grouping: items) { item in
             calendar.dateInterval(of: .month, for: item.session.date)?.start ?? item.session.date
         }
-        return grouped
-            .sorted { $0.key > $1.key }
-            .map { month, items in
-                let ordered = items.sorted {
-                    if $0.session.date != $1.session.date {
-                        return $0.session.date > $1.session.date
-                    }
-                    return $0.patient.displayName.localizedCaseInsensitiveCompare($1.patient.displayName)
-                        == .orderedAscending
-                }
-                return (month: month, items: ordered)
+        var orderedMonths: [Date] = []
+        var seenMonths = Set<Date>()
+        for item in items {
+            let month = calendar.dateInterval(of: .month, for: item.session.date)?.start ?? item.session.date
+            if seenMonths.insert(month).inserted {
+                orderedMonths.append(month)
             }
+        }
+        return orderedMonths.compactMap { month in
+            grouped[month].map { (month: month, items: $0) }
+        }
     }
 
     private func load() async {

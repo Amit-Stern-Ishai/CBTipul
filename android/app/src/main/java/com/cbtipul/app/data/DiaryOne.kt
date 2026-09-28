@@ -91,6 +91,33 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         return loaded
     }
 
+    suspend fun loadEntry(id: String, patientId: DatabaseId): DiaryOneEntry? {
+        if (DemoData.isDemoId(patientId)) {
+            return NotificationRouting.acceptedDiaryEntry(
+                entriesFor(patientId).firstOrNull { it.id.equals(id, ignoreCase = true) },
+                patientId,
+            )
+        }
+        if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
+        val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
+            ?: throw IllegalStateException("not_configured")
+        val rows = client.from("diary_one_entries")
+            .select(columns) {
+                filter {
+                    eq("id", id)
+                    eq("patient_id", patientUuid)
+                }
+                limit(1)
+            }
+            .decodeList<DiaryOneEntryRow>()
+        val entry = NotificationRouting.acceptedDiaryEntry(
+            rows.firstOrNull()?.toDomain(patientId),
+            patientId,
+        ) ?: return null
+        upsert(entry)
+        return entry
+    }
+
     suspend fun createEntry(
         patientId: DatabaseId,
         event: String,

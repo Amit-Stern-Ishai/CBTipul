@@ -10,11 +10,14 @@ struct SendPatientMessageComposerView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var bodyText = ""
+    @State private var deviceDraft = DeviceFormDraft<String>()
+    @State private var isShowingLeaveWarning = false
+    @State private var didSend = false
     @State private var isSending = false
     @State private var errorMessage: String?
 
     private var canSend: Bool {
-        PatientMessageDraft.canSend(bodyText) && !isSending
+        PatientMessageDraft.canSend(bodyText) && !isSending && !didSend
     }
 
     var body: some View {
@@ -30,7 +33,8 @@ struct SendPatientMessageComposerView: View {
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: $bodyText)
                             .frame(minHeight: 180)
-                            .disabled(isSending)
+                            .disabled(isSending || didSend)
+                            .accessibilityIdentifier("message.draft")
                         if bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             Text(L10n.sendPatientMessagePlaceholder)
                                 .foregroundStyle(.tertiary)
@@ -39,6 +43,16 @@ struct SendPatientMessageComposerView: View {
                                 .allowsHitTesting(false)
                         }
                     }
+                }
+
+                Section {
+                    Text(L10n.messageCharacterCount(bodyText.count, maximum: PatientMessageDraft.maxLength))
+                        .font(.footnote)
+                        .foregroundStyle(bodyText.count > PatientMessageDraft.maxLength ? Theme.error : Theme.textBody)
+                    if bodyText.count > PatientMessageDraft.maxLength {
+                        Text(L10n.sendPatientMessageTooLong).foregroundStyle(Theme.error)
+                    }
+                    DeviceDraftFeedback(message: deviceDraft.feedback, isError: deviceDraft.hasError)
                 }
 
                 if let errorMessage {
@@ -52,31 +66,60 @@ struct SendPatientMessageComposerView: View {
             .themedScreen()
             .navigationTitle(L10n.sendPatientMessageAction)
             .navigationBarTitleDisplayMode(.inline)
-            .interactiveDismissDisabled(isSending)
+            .interactiveDismissDisabled(isSending || !bodyText.isEmpty)
             .busyOverlay(isSending, label: L10n.sendPatientMessageSending)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.cancel) { dismiss() }
+                    Button(L10n.cancel) {
+                        if didSend { finishSentMessage() }
+                        else if bodyText.isEmpty { dismiss() }
+                        else { isShowingLeaveWarning = true }
+                    }
                         .disabled(isSending)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.sendMessageAction) {
-                        Task { await send() }
+                    Button(didSend ? L10n.done : L10n.sendMessageAction) {
+                        if didSend { finishSentMessage() }
+                        else { Task { await send() } }
                     }
-                    .disabled(!canSend)
+                    .disabled(isSending || (!didSend && !canSend))
                 }
             }
-            .onChange(of: bodyText) { _, newValue in
-                if newValue.count > PatientMessageDraft.maxLength {
-                    bodyText = String(newValue.prefix(PatientMessageDraft.maxLength))
+            .onAppear {
+                if let saved = deviceDraft.restore(userID: auth.currentUserId, kind: "therapist-message", target: patient.id.queryValue) {
+                    bodyText = saved
                 }
+            }
+            .onChange(of: bodyText) { _, _ in
+                if deviceDraft.hasLoaded, !didSend { persistDraft() }
+            }
+            .alert(L10n.leaveDraftTitle, isPresented: $isShowingLeaveWarning) {
+                Button(L10n.keepDraftAndLeave) { if persistDraft() { dismiss() } }
+                Button(L10n.discardDraftAction, role: .destructive) { if deviceDraft.discard() { dismiss() } }
+                Button(L10n.keepEditingAction, role: .cancel) {}
             }
         }
         .appTextSize()
     }
 
+    @discardableResult
+    private func persistDraft() -> Bool {
+        deviceDraft.save(bodyText, isEmpty: bodyText.isEmpty)
+    }
+
+    private func finishSentMessage() {
+        didSend = true
+        isSending = false
+        guard deviceDraft.discard() else {
+            errorMessage = L10n.messageSentDraftCleanup
+            return
+        }
+        onSent()
+        dismiss()
+    }
+
     private func send() async {
-        guard !isSending else { return }
+        guard !isSending, !didSend else { return }
         guard let patientId = patient.id.uuidValue else {
             errorMessage = L10n.patientInvitationInvalidPatientError
             return
@@ -96,8 +139,7 @@ struct SendPatientMessageComposerView: View {
         do {
             try await PatientMessageService(client: auth.client)
                 .send(patientId: patientId, rawBody: bodyText)
-            onSent()
-            dismiss()
+            finishSentMessage()
         } catch let error as PatientMessageSendError {
             errorMessage = error.errorDescription ?? L10n.sendPatientMessageFailed
             isSending = false

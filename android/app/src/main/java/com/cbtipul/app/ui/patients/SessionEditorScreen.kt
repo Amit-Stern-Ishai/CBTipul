@@ -170,7 +170,7 @@ fun SessionEditorScreen(
         if (isNew || questionnaire != null || assignmentRepository == null) return
         assignmentStatus = QuestionnaireAssignmentUi.Loading
         assignmentError = null
-        val sessionId = initial.databaseId?.queryValue
+        val sessionId = initial.databaseId?.let { PatientAssignmentRepository.uuidOrNull(it) }
         val patientId = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) }
         if (sessionId == null || patientId == null) {
             assignmentStatus = QuestionnaireAssignmentUi.Failed
@@ -680,7 +680,9 @@ fun SessionEditorScreen(
                                     .fillMaxWidth()
                                     .clickable(enabled = !isSendingQuestionnaire && !busy) {
                                         assignmentScope.launch {
-                                            val sessionId = initial.databaseId?.queryValue ?: return@launch
+                                            val sessionId = initial.databaseId?.let {
+                                                PatientAssignmentRepository.uuidOrNull(it)
+                                            } ?: return@launch
                                             val patientId = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) } ?: return@launch
                                             isSendingQuestionnaire = true
                                             try {

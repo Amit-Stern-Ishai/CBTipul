@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import android.app.Activity
 import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,8 +33,12 @@ import com.cbtipul.app.R
 import com.cbtipul.app.data.DemoData
 import com.cbtipul.app.data.PatientAssignmentRepository
 import com.cbtipul.app.data.TherapistProfile
+import com.cbtipul.app.debug.InviteDebugLog
 import com.cbtipul.app.model.CompletedQuestionnaire
 import com.cbtipul.app.ui.diary.TherapistDiaryOneScreen
+import com.cbtipul.app.ui.messages.MessageListScreen
+import com.cbtipul.app.ui.messages.PatientMessageDetailScreen
+import com.cbtipul.app.ui.messages.TherapistMessageComposeScreen
 import com.cbtipul.app.model.DatabaseId
 import com.cbtipul.app.model.PatientFormulation
 import com.cbtipul.app.model.Session
@@ -48,7 +53,7 @@ import java.util.Date
 @Composable
 fun PatientsNavHost(
     viewModel: PatientListViewModel,
-    onOpenSettings: () -> Unit,
+    onOpenSettings: (() -> Unit)? = null,
     onCloseSettings: (() -> Unit)? = null,
     navController: NavHostController = rememberNavController(),
 ) {
@@ -121,7 +126,7 @@ fun PatientsNavHost(
                 viewModel = viewModel,
                 unnamed = unnamed,
                 onOpenPatient = { navController.navigate("patient/$it") },
-                onOpenSettings = onOpenSettings,
+                onOpenSettings = null,
                 onAddPatient = { navController.navigate("add") },
             )
         }
@@ -189,6 +194,10 @@ fun PatientsNavHost(
                 onOpenSessions = { navController.navigate("patient/$id/sessions") },
                 onOpenQuestionnaires = { navController.navigate("patient/$id/questionnaires") },
                 onOpenDiaryOne = { navController.navigate("patient/$id/diary-one") },
+                onSendMessage = { navController.navigate("patient/$id/message-compose") },
+                onOpenMessages = { navController.navigate("patient/$id/messages") },
+                assignmentRepository = app.assignments,
+                isDemo = isDemoMode || patient?.id?.let { DemoData.isDemoId(it) } == true,
                 onInvitePatient = {
                     inviteScope.launch {
                         createAndShareInvitation(
@@ -403,16 +412,19 @@ fun PatientsNavHost(
                 onRetry = { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } },
                 onBack = { navController.popBackStack() },
                 onOpen = { record ->
-                    val sessionKey = record.sessionId?.queryValue ?: return@PatientQuestionnairesScreen
-                    navController.navigate("patient/$id/session/$sessionKey/questionnaire")
+                    navController.navigate("patient/$id/questionnaire-result/${record.databaseId.queryValue}")
                 },
             )
         }
         composable(
-            "patient/{id}/diary-one",
-            arguments = listOf(navArgument("id") { type = NavType.StringType }),
+            "patient/{id}/diary-one?entry={entry}",
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+                navArgument("entry") { type = NavType.StringType; defaultValue = ""; nullable = true },
+            ),
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
+            val focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() }
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             if (patient == null) {
                 return@composable
@@ -424,6 +436,7 @@ fun PatientsNavHost(
                 diary = app.diaryOne,
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
+                focusEntryId = focusEntryId,
                 onBack = { navController.popBackStack() },
             )
         }
@@ -710,6 +723,129 @@ fun PatientsNavHost(
                 viewingPatientId = patient?.id,
             )
         }
+        composable(
+            "patient/{id}/questionnaire-result/{moodId}",
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+                navArgument("moodId") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            val moodId = entry.arguments?.getString("moodId").orEmpty()
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
+            val records = questionnaires[id].orEmpty()
+            LaunchedEffect(id) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
+            val record = records.firstOrNull { it.databaseId.matches(moodId) }
+            val session = record?.sessionId?.let { sid ->
+                viewModel.session(id, sid.queryValue) ?: Session(databaseId = sid, date = record.answeredDate)
+            } ?: record?.let { Session(date = it.answeredDate) }
+            QuestionnaireScreen(
+                session = session,
+                existing = record?.questionnaire,
+                previous = previousQuestionnaire(records, session),
+                atmosphere = patient?.id?.let(PatientAvatarColor::background),
+                isSaving = ui.isSavingQuestionnaire,
+                errorMessage = ui.sessionError,
+                onBack = {
+                    viewModel.clearSessionError()
+                    navController.popBackStack()
+                },
+                onSave = { filled ->
+                    val patientId = patient?.id ?: return@QuestionnaireScreen
+                    val target = session ?: return@QuestionnaireScreen
+                    viewModel.saveQuestionnaire(
+                        filled, patientId, target, notConfigured, rejected, sessionNotSaved, anonymizationFailed,
+                    ) {
+                        viewModel.clearSessionError()
+                        navController.popBackStack()
+                    }
+                },
+                onDelete = {
+                    val patientId = patient?.id ?: return@QuestionnaireScreen
+                    val target = session ?: return@QuestionnaireScreen
+                    viewModel.deleteQuestionnaire(
+                        patientId, target, notConfigured, rejected, sessionNotSaved, anonymizationFailed,
+                    ) {
+                        viewModel.clearSessionError()
+                        navController.popBackStack()
+                    }
+                },
+                gettingStarted = viewModel.gettingStarted,
+                viewingPatientId = patient?.id,
+            )
+        }
+        composable(
+            "patient/{id}/message-compose",
+            arguments = listOf(navArgument("id") { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
+            var sending by remember { mutableStateOf(false) }
+            var sendError by remember { mutableStateOf<String?>(null) }
+            val failed = stringResource(R.string.send_patient_message_failed)
+            val empty = stringResource(R.string.send_patient_message_empty)
+            val tooLong = stringResource(R.string.send_patient_message_too_long)
+            val notConnected = stringResource(R.string.patient_not_connected_title)
+            TherapistMessageComposeScreen(
+                isSending = sending,
+                errorMessage = sendError,
+                onSend = { body ->
+                    val uuid = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) } ?: return@TherapistMessageComposeScreen
+                    inviteScope.launch {
+                        sending = true
+                        sendError = null
+                        try {
+                            app.messages.send(uuid, body)
+                            navController.popBackStack()
+                        } catch (error: com.cbtipul.app.data.PatientMessageSendError) {
+                            sendError = when (error) {
+                                com.cbtipul.app.data.PatientMessageSendError.Empty -> empty
+                                com.cbtipul.app.data.PatientMessageSendError.TooLong -> tooLong
+                                com.cbtipul.app.data.PatientMessageSendError.PatientNotConnected -> notConnected
+                                else -> failed
+                            }
+                        } catch (_: Exception) {
+                            sendError = failed
+                        } finally {
+                            sending = false
+                        }
+                    }
+                },
+                onBack = { if (!sending) navController.popBackStack() },
+            )
+        }
+        composable(
+            "patient/{id}/messages",
+            arguments = listOf(navArgument("id") { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
+            MessageListScreen(
+                title = stringResource(R.string.messages_title),
+                load = {
+                    val uuid = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) } ?: return@MessageListScreen emptyList()
+                    app.messages.messages(uuid)
+                },
+                emptyText = stringResource(R.string.patient_messages_empty),
+                showReadState = true,
+                onBack = { navController.popBackStack() },
+                onOpen = { navController.navigate("patient/$id/messages/${it.id}") },
+            )
+        }
+        composable(
+            "patient/{id}/messages/{messageId}",
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+                navArgument("messageId") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val messageId = entry.arguments?.getString("messageId").orEmpty()
+            PatientMessageDetailScreen(
+                load = { app.messages.message(messageId) },
+                showNoReply = false,
+                onBack = { navController.popBackStack() },
+            )
+        }
             }
         }
         if (atList && routerState.showcaseRevealPhase == ShowcaseRevealPhase.Intro) {
@@ -866,10 +1002,13 @@ private suspend fun createAndShareInvitation(
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, message)
         }
-        context.startActivity(
-            Intent.createChooser(share, context.getString(R.string.invite_patient_action)),
-        )
-    } catch (_: Exception) {
+        val chooser = Intent.createChooser(share, context.getString(R.string.invite_patient_action))
+        if (context !is Activity) {
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
+    } catch (error: Exception) {
+        InviteDebugLog.e("create-and-share-invitation", error)
         setError(inviteFailed)
     } finally {
         setCreating(false)

@@ -1,13 +1,13 @@
 package com.cbtipul.app.push
 
-/**
- * Device-only patient-name substitution for push notifications.
- * Does not talk to the network. Callers must never log names or id/name pairs.
- */
 object PatientPushCopy {
     const val APP_TITLE = "CBTipul"
     const val GENERIC_PATIENT_CONNECTED = "המטופל/ת התחבר/ה בהצלחה ל-CBTipul"
     const val GENERIC_QUESTIONNAIRE_COMPLETED = "מטופל/ת מילא/ה שאלון חדש"
+    const val GENERIC_DIARY_ONE_ENTRY = "הוסיף/ה רשומה חדשה ליומן 1"
+    const val GENERIC_DIARY_ONE_ASSIGNED = "הופעל יומן 1"
+    const val GENERIC_MESSAGE_RECEIVED = "הודעה חדשה מהמטפל/ת"
+    const val GENERIC_QUESTIONNAIRE_ASSIGNED = "שאלון חדש למילוי"
 
     fun patientConnectedBody(name: String): String = "$name התחבר/ה בהצלחה ל-CBTipul"
 
@@ -17,10 +17,17 @@ object PatientPushCopy {
 object PatientPushPersonalizer {
     const val TYPE_PATIENT_CONNECTED = "patient_connected"
     const val TYPE_QUESTIONNAIRE_COMPLETED = "questionnaire_completed"
+    const val TYPE_QUESTIONNAIRE_ASSIGNED = "questionnaire_assigned"
+    const val TYPE_MESSAGE_RECEIVED = "message_received"
+    const val TYPE_DIARY_ONE_ASSIGNED = "diary_1_assigned"
+    const val TYPE_DIARY_ONE_ENTRY_ADDED = "diary_1_entry_added"
     const val EXTRA_TYPE = "cbtipul.push.type"
     const val EXTRA_PATIENT_ID = "cbtipul.push.patientId"
     const val EXTRA_ASSIGNMENT_ID = "cbtipul.push.assignmentId"
     const val EXTRA_SESSION_ID = "cbtipul.push.sessionId"
+    const val EXTRA_RESOURCE_TYPE = "cbtipul.push.resourceType"
+    const val EXTRA_RESOURCE_ID = "cbtipul.push.resourceId"
+    const val EXTRA_NOTIFICATION_ID = "cbtipul.push.notificationId"
 
     data class Result(
         val title: String,
@@ -29,6 +36,9 @@ object PatientPushPersonalizer {
         val patientId: String?,
         val assignmentId: String? = null,
         val sessionId: String? = null,
+        val resourceType: String? = null,
+        val resourceId: String? = null,
+        val notificationId: String? = null,
     )
 
     fun personalize(
@@ -38,53 +48,45 @@ object PatientPushPersonalizer {
         fallbackBody: String?,
         assignmentId: String? = null,
         sessionId: String? = null,
+        resourceType: String? = null,
+        resourceId: String? = null,
+        notificationId: String? = null,
         nameForPatientId: (String) -> String?,
     ): Result {
         val resolvedType = type?.trim()?.takeIf { it.isNotEmpty() }
         val resolvedId = patientId?.trim()?.takeIf { it.isNotEmpty() }
-        val resolvedAssignment = assignmentId?.trim()?.takeIf { it.isNotEmpty() }
-        val resolvedSession = sessionId?.trim()?.takeIf { it.isNotEmpty() }
-        val title = fallbackTitle?.trim()?.takeIf { it.isNotEmpty() } ?: PatientPushCopy.APP_TITLE
         val name = resolvedId?.let { id ->
-            runCatching { nameForPatientId(id) }.getOrNull()
-                ?.trim()
-                ?.takeIf { it.isNotEmpty() }
+            runCatching { nameForPatientId(id) }.getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
         }
+        val title = fallbackTitle?.trim()?.takeIf { it.isNotEmpty() } ?: PatientPushCopy.APP_TITLE
+        val meta = Result(
+            title = title,
+            body = "",
+            type = resolvedType,
+            patientId = resolvedId,
+            assignmentId = assignmentId?.trim()?.takeIf { it.isNotEmpty() },
+            sessionId = sessionId?.trim()?.takeIf { it.isNotEmpty() },
+            resourceType = resourceType?.trim()?.takeIf { it.isNotEmpty() },
+            resourceId = resourceId?.trim()?.takeIf { it.isNotEmpty() },
+            notificationId = notificationId?.trim()?.takeIf { it.isNotEmpty() },
+        )
         return when (resolvedType) {
-            TYPE_PATIENT_CONNECTED -> Result(
-                title = title,
-                body = namedOrFallback(
-                    name = name,
-                    namedBody = PatientPushCopy::patientConnectedBody,
-                    fallbackBody = fallbackBody,
-                    generic = PatientPushCopy.GENERIC_PATIENT_CONNECTED,
-                ),
-                type = resolvedType,
-                patientId = resolvedId,
-                assignmentId = resolvedAssignment,
-                sessionId = resolvedSession,
+            TYPE_PATIENT_CONNECTED -> meta.copy(
+                body = namedOrFallback(name, PatientPushCopy::patientConnectedBody, fallbackBody, PatientPushCopy.GENERIC_PATIENT_CONNECTED),
             )
-            TYPE_QUESTIONNAIRE_COMPLETED -> Result(
-                title = title,
-                body = namedOrFallback(
-                    name = name,
-                    namedBody = PatientPushCopy::questionnaireCompletedBody,
-                    fallbackBody = fallbackBody,
-                    generic = PatientPushCopy.GENERIC_QUESTIONNAIRE_COMPLETED,
-                ),
-                type = resolvedType,
-                patientId = resolvedId,
-                assignmentId = resolvedAssignment,
-                sessionId = resolvedSession,
+            TYPE_QUESTIONNAIRE_COMPLETED -> meta.copy(
+                body = namedOrFallback(name, PatientPushCopy::questionnaireCompletedBody, fallbackBody, PatientPushCopy.GENERIC_QUESTIONNAIRE_COMPLETED),
             )
-            else -> Result(
-                title = title,
-                body = fallbackBody.orEmpty(),
-                type = resolvedType,
-                patientId = resolvedId,
-                assignmentId = resolvedAssignment,
-                sessionId = resolvedSession,
+            TYPE_DIARY_ONE_ENTRY_ADDED -> meta.copy(
+                title = name ?: title,
+                body = PatientPushCopy.GENERIC_DIARY_ONE_ENTRY,
             )
+            TYPE_DIARY_ONE_ASSIGNED -> meta.copy(body = PatientPushCopy.GENERIC_DIARY_ONE_ASSIGNED)
+            TYPE_MESSAGE_RECEIVED -> meta.copy(body = PatientPushCopy.GENERIC_MESSAGE_RECEIVED)
+            TYPE_QUESTIONNAIRE_ASSIGNED -> meta.copy(
+                body = fallbackBody?.trim()?.takeIf { it.isNotEmpty() } ?: PatientPushCopy.GENERIC_QUESTIONNAIRE_ASSIGNED,
+            )
+            else -> meta.copy(body = fallbackBody.orEmpty())
         }
     }
 

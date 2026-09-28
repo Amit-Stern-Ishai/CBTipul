@@ -450,74 +450,106 @@ struct PatientQuestionnaireView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var questionnaire = CombinedMoodQuestionnaire()
+    @State private var deviceDraft = DeviceFormDraft<CombinedMoodQuestionnaire>()
     @State private var isSubmitting = false
-    @State private var isShowingIncompleteAlert = false
+    @State private var didSubmit = false
+    @State private var didAttemptSubmit = false
+    @State private var isShowingLeaveWarning = false
     @State private var errorMessage: String?
 
-    private var isReadyToSubmit: Bool {
-        guard questionnaire.isComplete,
-              let interference = questionnaire.interferenceLevel else { return false }
-        let gad7 = questionnaire.gad7Answers.compactMap { $0 }
-        let phq9 = questionnaire.phq9Answers.compactMap { $0 }
-        let valid = CombinedMoodQuestionnaire.answerValues
-        return gad7.count == L10n.gad7Questions.count
-            && phq9.count == L10n.phq9Questions.count
-            && gad7.allSatisfy { valid.contains($0) }
-            && phq9.allSatisfy { valid.contains($0) }
-            && valid.contains(interference)
-    }
+    private var completion: QuestionnaireCompletion { QuestionnaireCompletion(questionnaire) }
 
     var body: some View {
-        Form {
-            QuestionnaireSections(
-                questionnaire: $questionnaire,
-                isEditable: !isSubmitting,
-                previous: nil,
-                accent: Theme.gold,
-                showsTherapistNotes: false
-            )
-
-            if let errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(Theme.error)
-                }
+        ScrollViewReader { proxy in
+            Form {
+                QuestionnaireSections(
+                    questionnaire: $questionnaire,
+                    isEditable: !isSubmitting && !didSubmit,
+                    previous: nil,
+                    accent: Theme.gold,
+                    showsTherapistNotes: false,
+                    marksUnanswered: didAttemptSubmit,
+                    requiresInterferenceAnswer: true
+                )
             }
-        }
-        .patientAtmosphere(Theme.gold)
-        .themedScreen()
-        .navigationTitle(L10n.patientQuestionnaireCardTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(isSubmitting)
-        .interactiveDismissDisabled(isSubmitting)
-        .busyOverlay(isSubmitting, label: L10n.patientQuestionnaireSubmitting)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button(L10n.patientQuestionnaireSubmitAction) {
-                    if isReadyToSubmit {
-                        Task { await submit() }
-                    } else {
-                        isShowingIncompleteAlert = true
+            .patientAtmosphere(Theme.gold)
+            .themedScreen()
+            .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n.questionnaireCompletion(completion.answered, total: completion.total))
+                        .font(.subheadline.weight(.semibold))
+                        .accessibilityIdentifier("questionnaire.progress")
+                    ProgressView(value: Double(completion.answered), total: Double(completion.total))
+                        .accessibilityLabel(L10n.questionnaireCompletion(completion.answered, total: completion.total))
+                    if completion.firstUnanswered != nil {
+                        Button(L10n.nextUnansweredAction) { revealUnanswered(using: proxy) }
+                            .font(.subheadline)
+                            .accessibilityIdentifier("questionnaire.nextUnanswered")
+                    } else if !didSubmit {
+                        Text(L10n.questionnaireReadyToSend).font(.footnote)
+                    }
+                    DeviceDraftFeedback(message: deviceDraft.feedback, isError: deviceDraft.hasError)
+                    if let errorMessage {
+                        Text(errorMessage).font(.footnote).foregroundStyle(Theme.error)
                     }
                 }
-                .disabled(isSubmitting)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.base)
+            }
+            .navigationTitle(L10n.patientQuestionnaireCardTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .interactiveDismissDisabled(!questionnaire.isEmpty || isSubmitting)
+            .busyOverlay(isSubmitting, label: L10n.patientQuestionnaireSubmitting)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.back) {
+                        if didSubmit { Task { await finishSuccessfully() } }
+                        else if questionnaire.isEmpty { dismiss() }
+                        else { isShowingLeaveWarning = true }
+                    }
+                    .disabled(isSubmitting)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(didSubmit ? L10n.done : L10n.patientQuestionnaireSubmitAction) {
+                        if didSubmit { Task { await finishSuccessfully() } }
+                        else if completion.firstUnanswered == nil { Task { await submit() } }
+                        else { revealUnanswered(using: proxy) }
+                    }
+                    .disabled(isSubmitting)
+                }
             }
         }
-        .alert(L10n.questionnaireIncompleteTitle, isPresented: $isShowingIncompleteAlert) {
-            Button(L10n.ok, role: .cancel) {}
-        } message: {
-            Text(L10n.questionnaireIncompleteMessage)
+        .onAppear {
+            if let saved = deviceDraft.restore(userID: auth.currentUserId, kind: "patient-questionnaire", target: assignmentId.uuidString) {
+                questionnaire = saved.normalizedPatientDraft
+            }
         }
+        .onChange(of: questionnaire) { _, _ in
+            if deviceDraft.hasLoaded, !didSubmit { persistDraft() }
+        }
+        .alert(L10n.leaveDraftTitle, isPresented: $isShowingLeaveWarning) {
+            Button(L10n.keepDraftAndLeave) { if persistDraft() { dismiss() } }
+            Button(L10n.discardDraftAction, role: .destructive) { if deviceDraft.discard() { dismiss() } }
+            Button(L10n.keepEditingAction, role: .cancel) {}
+        }
+    }
+
+    private func revealUnanswered(using proxy: ScrollViewProxy) {
+        didAttemptSubmit = true
+        guard let item = completion.firstUnanswered else { return }
+        withAnimation { proxy.scrollTo(item, anchor: .top) }
+    }
+
+    @discardableResult
+    private func persistDraft() -> Bool {
+        deviceDraft.save(questionnaire, isEmpty: questionnaire.isEmpty)
     }
 
     private func submit() async {
-        guard !isSubmitting else { return }
-        guard isReadyToSubmit,
-              let interference = questionnaire.interferenceLevel else {
-            isShowingIncompleteAlert = true
-            return
-        }
+        guard !isSubmitting, !didSubmit, completion.firstUnanswered == nil,
+              let interference = questionnaire.interferenceLevel else { return }
         isSubmitting = true
         errorMessage = nil
         do {
@@ -541,6 +573,12 @@ struct PatientQuestionnaireView: View {
     }
 
     private func finishSuccessfully() async {
+        didSubmit = true
+        guard deviceDraft.discard() else {
+            errorMessage = L10n.submittedDraftCleanup
+            isSubmitting = false
+            return
+        }
         await onSubmitted()
         dismiss()
     }

@@ -30,6 +30,7 @@ struct CombinedMoodQuestionnaireView: View {
     @State private var isShowingDeleteCodeChallenge = false
     @State private var isShowingBackWarning = false
     @State private var isShowingIncompleteAlert = false
+    @State private var marksUnanswered = false
     @State private var isShowingFirstQuestionnaireTip = false
     /// Snapshot of the answers when the screen opened, used to detect
     /// unsaved changes and to restore them on discard (the session object
@@ -81,7 +82,8 @@ struct CombinedMoodQuestionnaireView: View {
                 questionnaire: $session.questionnaire,
                 isEditable: isEditing,
                 previous: previousQuestionnaire,
-                accent: PatientAvatarColor.background(for: patient.id)
+                accent: PatientAvatarColor.background(for: patient.id),
+                marksUnanswered: marksUnanswered
             )
 
             if let errorMessage {
@@ -180,12 +182,12 @@ struct CombinedMoodQuestionnaireView: View {
             }
             Button(L10n.keepEditingAction, role: .cancel) {}
         }
-        .alert(L10n.questionnaireIncompleteTitle,
-               isPresented: $isShowingIncompleteAlert) {
-            Button(L10n.ok, role: .cancel) {}
-        } message: {
-            Text(L10n.questionnaireIncompleteMessage)
-        }
+        .modifier(TherapistQuestionnaireCompletionGuide(
+            questionnaire: session.questionnaire,
+            isEditing: isEditing,
+            revealMissing: $isShowingIncompleteAlert,
+            marksUnanswered: $marksUnanswered
+        ))
         .interactiveDismissDisabled(hasUnsavedChanges)
         .busyOverlay(isSaving, label: busyLabel)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
@@ -276,6 +278,7 @@ struct PatientQuestionnaireEditorView: View {
     @State private var isShowingDeleteCodeChallenge = false
     @State private var isShowingBackWarning = false
     @State private var isShowingIncompleteAlert = false
+    @State private var marksUnanswered = false
     @State private var isShowingFirstQuestionnaireTip = false
     @State private var initialQuestionnaire: CombinedMoodQuestionnaire?
     @State private var initialAnsweredDate: Date?
@@ -379,7 +382,8 @@ struct PatientQuestionnaireEditorView: View {
                 questionnaire: $questionnaire,
                 isEditable: isEditing,
                 previous: previousQuestionnaire,
-                accent: patientColor
+                accent: patientColor,
+                marksUnanswered: marksUnanswered
             )
 
             if let errorMessage {
@@ -460,12 +464,12 @@ struct PatientQuestionnaireEditorView: View {
             Button(L10n.discardChangesAction, role: .destructive) { dismiss() }
             Button(L10n.keepEditingAction, role: .cancel) {}
         }
-        .alert(L10n.questionnaireIncompleteTitle,
-               isPresented: $isShowingIncompleteAlert) {
-            Button(L10n.ok, role: .cancel) {}
-        } message: {
-            Text(L10n.questionnaireIncompleteMessage)
-        }
+        .modifier(TherapistQuestionnaireCompletionGuide(
+            questionnaire: questionnaire,
+            isEditing: isEditing,
+            revealMissing: $isShowingIncompleteAlert,
+            marksUnanswered: $marksUnanswered
+        ))
         .busyOverlay(isSaving, label: busyLabel)
         .animation(.easeInOut(duration: 0.2), value: errorMessage)
         .sheet(isPresented: $isShowingFirstQuestionnaireTip) {
@@ -608,6 +612,9 @@ struct QuestionnaireSections: View {
     /// Therapist-only per-question notes. Patient Mode never shows these.
     var showsTherapistNotes: Bool = true
 
+    var marksUnanswered = false
+    var requiresInterferenceAnswer = false
+
     private func previousAnswer(_ answers: [Int?]?, at index: Int) -> Int? {
         guard let answers, answers.indices.contains(index) else { return nil }
         return answers[index]
@@ -630,15 +637,24 @@ struct QuestionnaireSections: View {
                 .listRowBackground(rowBackground(.middle))
 
             ForEach(L10n.gad7Questions.indices, id: \.self) { index in
-                QuestionRow(
-                    text: L10n.gad7Questions[index],
-                    selection: $questionnaire.gad7Answers[index],
-                    note: $questionnaire.gad7Notes[index],
-                    isEditable: isEditable,
-                    previousAnswer: previousAnswer(previous?.questionnaire.gad7Answers, at: index),
-                    accent: accent,
-                    showsTherapistNotes: showsTherapistNotes
-                )
+                VStack(alignment: .leading, spacing: 8) {
+                    QuestionRow(
+                        text: L10n.gad7Questions[index],
+                        selection: $questionnaire.gad7Answers[index],
+                        note: $questionnaire.gad7Notes[index],
+                        isEditable: isEditable,
+                        previousAnswer: previousAnswer(previous?.questionnaire.gad7Answers, at: index),
+                        accent: accent,
+                        showsTherapistNotes: showsTherapistNotes
+                    )
+                    if marksUnanswered, questionnaire.gad7Answers[index] == nil {
+                        Text(L10n.unansweredQuestionLabel)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Theme.error)
+                    }
+                }
+                .id(QuestionnaireItem.gad7(index))
+                .accessibilityIdentifier("questionnaire.gad7.\(index)")
                 .listRowBackground(rowBackground(.middle))
             }
 
@@ -658,25 +674,43 @@ struct QuestionnaireSections: View {
                 .listRowBackground(rowBackground(.first))
             
             ForEach(L10n.phq9Questions.indices, id: \.self) { index in
-                QuestionRow(
-                    text: L10n.phq9Questions[index],
-                    selection: $questionnaire.phq9Answers[index],
-                    note: $questionnaire.phq9Notes[index],
-                    isEditable: isEditable,
-                    previousAnswer: previousAnswer(previous?.questionnaire.phq9Answers, at: index),
-                    accent: accent,
-                    showsTherapistNotes: showsTherapistNotes
-                )
+                VStack(alignment: .leading, spacing: 8) {
+                    QuestionRow(
+                        text: L10n.phq9Questions[index],
+                        selection: $questionnaire.phq9Answers[index],
+                        note: $questionnaire.phq9Notes[index],
+                        isEditable: isEditable,
+                        previousAnswer: previousAnswer(previous?.questionnaire.phq9Answers, at: index),
+                        accent: accent,
+                        showsTherapistNotes: showsTherapistNotes
+                    )
+                    if marksUnanswered, questionnaire.phq9Answers[index] == nil {
+                        Text(L10n.unansweredQuestionLabel)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Theme.error)
+                    }
+                }
+                .id(QuestionnaireItem.phq9(index))
+                .accessibilityIdentifier("questionnaire.phq9.\(index)")
                 .listRowBackground(rowBackground(.middle))
             }
 
-            InterferencePicker(
-                selection: $questionnaire.interferenceLevel,
-                note: $questionnaire.interferenceNote,
-                isEditable: isEditable,
-                previousSelection: previous?.questionnaire.interferenceLevel,
-                showsTherapistNotes: showsTherapistNotes
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                InterferencePicker(
+                    selection: $questionnaire.interferenceLevel,
+                    note: $questionnaire.interferenceNote,
+                    isEditable: isEditable,
+                    previousSelection: previous?.questionnaire.interferenceLevel,
+                    showsTherapistNotes: showsTherapistNotes
+                )
+                if marksUnanswered, requiresInterferenceAnswer, questionnaire.interferenceLevel == nil {
+                    Text(L10n.unansweredQuestionLabel)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Theme.error)
+                }
+            }
+            .id(QuestionnaireItem.interference)
+            .accessibilityIdentifier("questionnaire.interference")
             .listRowBackground(rowBackground(.middle))
 
             ScoreRow(

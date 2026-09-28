@@ -7,6 +7,65 @@ import Foundation
 /// constants and never hard-codes user-facing wording.
 enum L10n {
     
+    // MARK: - Sessions workspace
+
+    static let pastSessionsSection = "פגישות קודמות"
+    static let noUpcomingSessionsBody = "אין פגישות מתוכננות להיום או להמשך. אפשר לתאם פגישה חדשה באמצעות הכפתור למטה."
+    static let noPastSessionsBody = "עדיין לא תועדו פגישות קודמות."
+    static let sessionsSearchPrompt = "חיפוש לפי שם מטופל/ת"
+    static let sessionsSearchEmpty = "לא נמצאו פגישות למטופל/ת בשם הזה"
+    static func sessionsMonthSection(_ section: String, month: String) -> String {
+        "\(section) · \(month)"
+    }
+
+    // MARK: - Drafts and form completion
+
+    static let deviceDraftSaved = "טיוטה נשמרה במכשיר הזה בלבד. היא עדיין לא נשלחה."
+    static let deviceDraftRestored = "הטיוטה הקודמת שוחזרה מהמכשיר הזה. היא עדיין לא נשלחה."
+    static let deviceDraftSaveFailed = "הטיוטה לא נשמרה במכשיר. התוכן עדיין כאן — אפשר לנסות שוב לפני היציאה."
+    static let deviceDraftRestoreFailed = "לא ניתן לשחזר את הטיוטה מהמכשיר כרגע."
+    static let deviceDraftRemoveFailed = "לא ניתן למחוק את הטיוטה מהמכשיר כרגע. אפשר לנסות שוב."
+    static let leaveDraftTitle = "לשמור את הטיוטה להמשך?"
+    static let keepDraftAndLeave = "שמירת טיוטה ויציאה"
+    static let discardDraftAction = "מחיקת הטיוטה ויציאה"
+    static let unansweredQuestionLabel = "עדיין לא נענתה"
+    static let nextUnansweredAction = "מעבר לשאלה הבאה שלא נענתה"
+    static let questionnaireReadyToSend = "כל השאלות נענו. אפשר לבדוק את התשובות ולשלוח."
+    static func questionnaireCompletion(_ answered: Int, total: Int) -> String {
+        "נענו \(answered) מתוך \(total) שאלות"
+    }
+    static func messageCharacterCount(_ count: Int, maximum: Int) -> String {
+        "\(count) מתוך \(maximum) תווים"
+    }
+    static let submittedDraftCleanup = "התוכן נשלח. יש למחוק את הטיוטה המקומית כדי לסיים. לחיצה על סיום לא תשלח שוב."
+    static let messageSentDraftCleanup = "ההודעה נשלחה. יש למחוק את הטיוטה המקומית כדי לסיים. לחיצה על סיום לא תשלח שוב."
+
+    // MARK: - Patient workspace
+
+    static let enablePatientDiaryAction = "הפעלת יומן תרגול למטופל/ת"
+    static let documentSessionAction = "תיעוד פגישה"
+    static let editPatientDetailsAction = "עריכת פרטים"
+    static let patientRecordsTitle = "התיק הטיפולי"
+    static let patientSessionsDescription = "תיעוד ועיון בפגישות הטיפול"
+    static func patientLatestSession(_ date: String) -> String { "פגישה אחרונה: \(date)" }
+    static let patientQuestionnairesDescription = "מילוי שאלונים, תשובות קודמות וגרפים לאורך זמן"
+    static let patientPracticeDiaryTitle = "יומן תרגול"
+    static let patientDiaryDescription = "עיון ותיעוד של אירועים, מחשבות ורגשות"
+    static let patientMessagesDescription = "הודעות שנשלחו למטופל/ת ומצב הקריאה שלהן"
+    static let patientNotesTitle = "הערות על המטופל/ת"
+    static let patientNotesDescription = "רקע והערות כלליות שאינן שייכות לפגישה מסוימת"
+    static let additionalAssistanceTitle = "כלים נוספים — לפי הצורך"
+    static let patientAIAssistanceTitle = "חשיבה על הטיפול בעזרת AI"
+    static let patientAIAssistanceDescription = "שיחה עם עוזר בינה מלאכותית והמשגת המקרה"
+    static let patientConnectTitle = "חיבור המטופל/ת לאפליקציה"
+    static let patientConnectDescription = "שליחת קישור הזמנה אישי מאפשרת למטופל/ת לקבל ממך הודעות ושאלונים ולמלא יומן תרגול שהפעלת."
+    static let patientShareInvitationAction = "שיתוף קישור הזמנה"
+    static let patientShareInvitationExplanation = "בלחיצה ייפתחו אפשרויות שיתוף, למשל WhatsApp או דוא״ל. יש לבחור איך לשלוח את הקישור. החיבור יושלם רק לאחר שהמטופל/ת יפתחו אותו ויאשרו את ההצטרפות."
+    static let patientConnectionOptionalExplanation = "ההזמנה אינה חובה. אפשר לתעד פגישות גם בלי לחבר את המטופל/ת לאפליקציה."
+    static let patientConnectionReadyDescription = "אפשר לשלוח הודעה או שאלון ולהפעיל יומן תרגול."
+    static let patientInvitationUnavailableExplanation = "הזמנה זמינה בתיק של מטופל/ת אמיתי/ת. במצב הדגמה לא נשלחות הזמנות."
+    static let stopPatientNotesRecording = "עצירה ותמלול"
+
     // MARK: - Common
     
     static let save = "שמירה"
@@ -61,7 +120,6 @@ enum L10n {
     static let therapistTabPatients = "מטופלים"
     static let therapistTabSessions = "פגישות"
     static let therapistTabNotifications = "התראות"
-    static let therapistTabLibrary = "ספרייה"
     static let therapistTabSettings = "הגדרות"
 
     static let globalSessionsPlaceholderTitle = "פגישות"
@@ -95,9 +153,6 @@ enum L10n {
         }
         return hebrewDateTime(date)
     }
-    static let libraryPlaceholderTitle = "ספרייה"
-    static let libraryPlaceholderBody =
-        "הספרייה תתווסף בהמשך."
     static let loadingPatientsLabel = "טעינת מטופלים..."
     static let couldntLoadPatientsTitle = "טעינת מטופלים נכשלה"
     static let noPatientsTitle = "עדיין אין מטופלים"
@@ -246,7 +301,7 @@ enum L10n {
     
     static let newSessionTitle = "פגישה חדשה"
     static let selectPatientTitle = "בחירת מטופל/ת"
-    static let upcomingSessionsSection = "קרובות"
+    static let upcomingSessionsSection = "פגישות היום והבאות"
     static let recentSessionsSection = "אחרונות"
     static let createSessionAction = "יצירת פגישה"
     static let noUpcomingSessionsLabel = "אין פגישות קרובות"

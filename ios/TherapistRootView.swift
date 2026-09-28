@@ -5,7 +5,6 @@ enum TherapistRootTab: Hashable {
     case patients
     case sessions
     case notifications
-    case library
     case settings
 }
 
@@ -45,13 +44,6 @@ struct TherapistRootView: View {
                 .tag(TherapistRootTab.notifications)
                 .badge(notificationStore.unseenCount)
                 .accessibilityIdentifier("therapist.tab.notifications")
-
-            LibraryPlaceholderView()
-                .tabItem {
-                    Label(L10n.therapistTabLibrary, systemImage: "books.vertical.fill")
-                }
-                .tag(TherapistRootTab.library)
-                .accessibilityIdentifier("therapist.tab.library")
 
             NavigationStack {
                 SettingsView()

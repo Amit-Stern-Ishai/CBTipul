@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Shows a patient's status, links to their sessions, questionnaires, and
-/// AI assistant, and the patient's own notes (with voice transcription,
-/// same behavior as session notes).
+/// Patient workspace with a primary documentation action, explicit connection
+/// guidance, and a separate notes editor that retains voice transcription.
 struct PatientDetailView: View {
     @Bindable var patient: Patient
 
@@ -12,8 +11,11 @@ struct PatientDetailView: View {
     @Environment(OnboardingStore.self) private var onboarding
     @Environment(TherapistProfileService.self) private var therapistProfiles
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var isSaving = false
+    @State private var isShowingNotes = false
+    @State private var isShowingNotesBackWarning = false
     /// Status line under the busy spinner; the anonymization notice during
     /// saves, nothing during deletes.
     @State private var busyLabel: String?
@@ -27,6 +29,7 @@ struct PatientDetailView: View {
     @State private var isEditingName = false
     @State private var firstNameDraft = ""
     @State private var lastNameDraft = ""
+    @State private var statusDraft: PatientStatus = .active
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
     /// True while a fresh transcript is being anonymized, before it may
@@ -47,9 +50,7 @@ struct PatientDetailView: View {
     @State private var pendingInvitationAfterDisplayName = false
     @State private var invitationError: String?
     @State private var invitationShare: InvitationSharePayload?
-    @State private var isShowingSendMenu = false
     @State private var isShowingMessageComposer = false
-    @State private var pendingSendToPatient: SendToPatientKind?
     @State private var isSendingToPatient = false
     @State private var sendFeedbackTitle: String?
     @State private var sendFeedbackMessage: String?
@@ -123,12 +124,12 @@ struct PatientDetailView: View {
                         Button {
                             startEditingName()
                         } label: {
-                            Image(systemName: "pencil")
-                                .font(.body.weight(.semibold))
+                            Text(L10n.editPatientDetailsAction)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel(L10n.editPatientNameAction)
+                        .accessibilityLabel(L10n.editPatientDetailsAction)
                     }
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(treatmentGoal.wrappedValue.isEmpty
@@ -147,64 +148,35 @@ struct PatientDetailView: View {
                         .buttonStyle(.borderless)
                         .accessibilityLabel(L10n.editTreatmentGoalAction)
                     }
-                    HStack(spacing: 10) {
-                        StatusBadge(status: patient.status)
-                        Text(connectionStatusText)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+                    StatusBadge(status: patient.status)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+
+                Button {
+                    sessionsInitialAction = .addSession
+                    isShowingSessions = true
+                } label: {
+                    Label(L10n.documentSessionAction, systemImage: "square.and.pencil")
+                        .font(.headline)
+                }
+                .buttonStyle(.pressableProminent)
+                .accessibilityIdentifier("patient.documentSession")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
 
             Section {
-                Button {
-                    sessionsInitialAction = .addSession
-                    isShowingSessions = true
-                } label: {
-                    iconChip("calendar.badge.plus", title: L10n.newSessionTitle)
-                }
-                .listRowBackground(groupBorderedRow(.first))
-
-                Button {
-                    resignCurrentKeyboard()
-                    isShowingSendMenu = true
-                } label: {
-                    HStack {
-                        iconChip("paperplane", title: L10n.sendToPatientAction)
-                        if isSendingToPatient {
-                            Spacer()
-                            ProgressView()
-                        }
-                    }
-                }
-                .disabled(isSendingToPatient || isSaving)
-                .listRowBackground(groupBorderedRow(.last))
+                connectionCard
+                    .listRowBackground(groupBorderedRow(.only))
             }
 
-            Section(L10n.progressAndTrackingSection) {
-                NavigationLink {
-                    PatientQuestionnairesView(patient: patient, startsOnGraphs: true)
-                } label: {
-                    iconChip("chart.xyaxis.line", title: L10n.graphsAndTrendsTitle)
-                }
-                .listRowBackground(groupBorderedRow(.first))
-
-                NavigationLink {
-                    PatientQuestionnairesView(patient: patient)
-                } label: {
-                    iconChip("list.clipboard", title: L10n.questionnairesHistoryAction)
-                }
-                .listRowBackground(groupBorderedRow(.last))
-            }
-
-            Section(L10n.treatmentCourseSection) {
+            Section(L10n.patientRecordsTitle) {
                 NavigationLink {
                     PatientSessionsView(patient: patient)
                 } label: {
-                    iconChip("calendar", title: L10n.sessionsTitle)
+                    workspaceRow("calendar", title: L10n.sessionsTitle, detail: sessionSummary)
                         .tutorialPulse(
                             gettingStartedRouter.shouldPulse(.sessionsEntry)
                                 && patient.id == gettingStartedRouter.progress.focusPatientID
@@ -213,25 +185,48 @@ struct PatientDetailView: View {
                 .listRowBackground(groupBorderedRow(.first))
 
                 NavigationLink {
+                    PatientQuestionnairesView(patient: patient)
+                } label: {
+                    workspaceRow("list.clipboard", title: L10n.questionnairesTitle,
+                                 detail: L10n.patientQuestionnairesDescription)
+                }
+                .listRowBackground(groupBorderedRow(.middle))
+
+                NavigationLink {
                     PatientDiaryOneView(patient: patient)
                 } label: {
-                    iconChip("book.closed", title: L10n.diariesTitle)
+                    workspaceRow("book.closed", title: L10n.patientPracticeDiaryTitle,
+                                 detail: L10n.patientDiaryDescription)
                 }
                 .listRowBackground(groupBorderedRow(.middle))
 
                 NavigationLink {
                     TherapistPatientMessagesView(patient: patient)
                 } label: {
-                    iconChip("envelope", title: L10n.messagesTitle)
+                    workspaceRow("envelope", title: L10n.messagesTitle,
+                                 detail: L10n.patientMessagesDescription)
                 }
+                .listRowBackground(groupBorderedRow(.middle))
+
+                Button {
+                    errorMessage = nil
+                    isShowingNotes = true
+                } label: {
+                    workspaceRow("note.text", title: L10n.patientNotesTitle,
+                                 detail: patient.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    ? L10n.patientNotesDescription : patient.notes)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("patient.notes")
                 .listRowBackground(groupBorderedRow(.last))
             }
 
-            Section(L10n.clinicalToolsSection) {
+            Section(L10n.additionalAssistanceTitle) {
                 NavigationLink {
                     PatientAIView(patient: patient)
                 } label: {
-                    iconChip("sparkles", title: L10n.aiAction)
+                    workspaceRow("sparkles", title: L10n.patientAIAssistanceTitle,
+                                 detail: L10n.patientAIAssistanceDescription)
                 }
                 .listRowBackground(groupBorderedRow(.first))
 
@@ -278,79 +273,6 @@ struct PatientDetailView: View {
                 }
             }
 
-            Section {
-                Picker(selection: $patient.status) {
-                    ForEach(PatientStatus.allCases) { Text(L10n.patientStatus($0)).tag($0) }
-                } label: {
-                    iconChip("person.crop.circle.badge.checkmark", title: L10n.statusLabel)
-                }
-                .disabled(isSaving)
-                .onChange(of: patient.status) { previous, current in
-                    guard previous != current else { return }
-                    persistStatus(revertingTo: previous)
-                }
-                .listRowBackground(groupBorderedRow(.only))
-            }
-
-            Section(L10n.notesSection) {
-                HStack(alignment: .bottom) {
-                    NotesField(text: $patient.notes, placeholder: L10n.patientNotesFieldPlaceholder,
-                               minLines: 3, maxLines: 8)
-                    recordControl
-                }
-                .listRowBackground(groupBorderedRow(
-                    isRecordingRetryRowVisible || isTranscribeSpinnerVisible
-                        || voiceRecorder.errorMessage != nil ? .first : .only))
-                // Transcription starts automatically when recording stops,
-                // so this row only ever appears after a failed transcription
-                // — the recording survives for a retry.
-                if voiceRecorder.recordingURL != nil, !isTranscribing, !isAnonymizingTranscription {
-                    HStack(spacing: 16) {
-                        Button {
-                            voiceRecorder.togglePlayback()
-                        } label: {
-                            Label(voiceRecorder.isPlaying
-                                  ? L10n.stopPlaybackAction
-                                  : L10n.playRecordingAction,
-                                  systemImage: voiceRecorder.isPlaying
-                                  ? "stop.circle"
-                                  : "play.circle")
-                        }
-                        Spacer()
-                        Button(L10n.transcribeAction) { transcribe() }
-                            .fontWeight(.semibold)
-                        Button(role: .destructive) {
-                            voiceRecorder.discard()
-                        } label: {
-                            Label(L10n.discardRecordingAction, systemImage: "trash")
-                                .labelStyle(.iconOnly)
-                        }
-                        .accessibilityLabel(L10n.discardRecordingAction)
-                    }
-                    .font(.subheadline)
-                    .buttonStyle(.borderless)
-                    .listRowBackground(groupBorderedRow(
-                        voiceRecorder.errorMessage != nil ? .middle : .last))
-                }
-
-                if isTranscribing || isAnonymizingTranscription {
-                    HStack {
-                        ProgressView()
-                        Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
-                            .foregroundStyle(.secondary)
-                    }
-                    .listRowBackground(groupBorderedRow(
-                        voiceRecorder.errorMessage != nil ? .middle : .last))
-                }
-
-                if let recorderError = voiceRecorder.errorMessage {
-                    Text(recorderError)
-                        .font(.footnote)
-                        .foregroundStyle(Theme.error)
-                        .listRowBackground(groupBorderedRow(.last))
-                }
-            }
-
             if let errorMessage {
                 Section {
                     Text(errorMessage)
@@ -362,6 +284,8 @@ struct PatientDetailView: View {
         }
         .patientAtmosphere(patientColor)
         .themedScreen()
+        .listSectionSpacing(16)
+        .contentMargins(.top, 12, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
         .dismissesKeyboardOnTap()
         .demoModeChrome()
@@ -383,15 +307,7 @@ struct PatientDetailView: View {
                 .disabled(isSaving)
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button(L10n.save) { save() }
-                    .fontWeight(.semibold)
-                    .disabled(isSaving || !hasUnsavedChanges)
                 Menu {
-                    Button {
-                        startPatientInvitation()
-                    } label: {
-                        Label(L10n.invitePatientAction, systemImage: "square.and.arrow.up")
-                    }
                     Button(L10n.deletePatientAction, role: .destructive) {
                         isShowingDeleteConfirmation = true
                     }
@@ -428,24 +344,38 @@ struct PatientDetailView: View {
                             .stablePlaceholder(L10n.lastNamePlaceholder, isShown: lastNameDraft.isEmpty)
                     }
                     .listRowBackground(Theme.surface)
+                    Section {
+                        Picker(L10n.statusLabel, selection: $statusDraft) {
+                            ForEach(PatientStatus.allCases) { Text(L10n.patientStatus($0)).tag($0) }
+                        }
+                    }
+                    .listRowBackground(Theme.surface)
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .foregroundStyle(Theme.error)
+                    }
+
                 }
                 .themedScreen()
                 .demoModeChrome()
-                .navigationTitle(L10n.editPatientNameTitle)
+                .navigationTitle(L10n.editPatientDetailsAction)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button(L10n.cancel) { isEditingName = false }
+                            .disabled(isSaving)
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button(L10n.save) { saveEditedName() }
-                            .disabled(firstNameDraft.trimmingCharacters(in: .whitespaces).isEmpty
-                                      && lastNameDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                            .disabled(isSaving || (firstNameDraft.trimmingCharacters(in: .whitespaces).isEmpty
+                                      && lastNameDraft.trimmingCharacters(in: .whitespaces).isEmpty))
                     }
                 }
             }
+            .disabled(isSaving)
+            .interactiveDismissDisabled(isSaving)
             .appTextSize()
-            .presentationDetents([.medium])
+            .presentationDetents([.medium, .large])
         }
         // An alert, not a confirmation dialog: iPad popover dialogs hide
         // cancel-role buttons, and Keep Editing must always be offered.
@@ -506,7 +436,9 @@ struct PatientDetailView: View {
         }) {
             TherapistDisplayNameEditorView(requirement: .required)
         }
-        .sheet(item: $invitationShare) { payload in
+        .sheet(item: $invitationShare, onDismiss: {
+            Task { await refreshConnectionState() }
+        }) { payload in
             ActivityShareSheet(items: [payload.text])
                 .presentationDetents([.medium])
         }
@@ -563,18 +495,6 @@ struct PatientDetailView: View {
         .onChange(of: patient.sessions.count) { _, _ in
             gettingStartedRouter.refresh(using: store)
         }
-        .confirmationDialog(L10n.sendToPatientAction, isPresented: $isShowingSendMenu, titleVisibility: .visible) {
-            Button(L10n.sendPatientMessageAction) {
-                pendingSendToPatient = .message
-            }
-            Button(L10n.questionnaireSectionTitle) {
-                pendingSendToPatient = .questionnaire
-            }
-            Button(L10n.diaryOneTitle) {
-                pendingSendToPatient = .diaryOne
-            }
-            Button(L10n.cancel, role: .cancel) {}
-        }
         .sheet(isPresented: $isShowingMessageComposer) {
             SendPatientMessageComposerView(patient: patient) {
                 presentSendFeedback(
@@ -583,23 +503,6 @@ struct PatientDetailView: View {
                 )
             }
             .appTextSize()
-        }
-        .onChange(of: isShowingSendMenu) { _, showing in
-            guard !showing, let pending = pendingSendToPatient else { return }
-            pendingSendToPatient = nil
-            switch pending {
-            case .message:
-                if store.isDemoMode || DemoData.isDemoID(patient.id) {
-                    presentSendFeedback(
-                        title: L10n.patientNotConnectedTitle,
-                        message: L10n.patientNotConnectedBody
-                    )
-                } else {
-                    isShowingMessageComposer = true
-                }
-            case .questionnaire: sendStandaloneQuestionnaire()
-            case .diaryOne: sendDiaryOne()
-            }
         }
         .alert(
             sendFeedbackTitle ?? "",
@@ -614,6 +517,15 @@ struct PatientDetailView: View {
                 Text(sendFeedbackMessage)
             }
         }
+        .sheet(isPresented: $isShowingNotes) {
+            notesEditor
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await refreshConnectionState() }
+            }
+        }
+        .refreshable { await refreshConnectionState() }
         .task {
             await refreshConnectionState()
             if store.cachedQuestionnaires(for: patient) == nil {
@@ -622,20 +534,219 @@ struct PatientDetailView: View {
         }
     }
 
+    private var notesBusy: Bool {
+        isSaving || voiceRecorder.isRecording || isTranscribing || isAnonymizingTranscription
+    }
+
+    private var notesEditor: some View {
+        NavigationStack {
+            List {
+                notesSection
+                if let errorMessage {
+                    Text(errorMessage)
+                        .foregroundStyle(Theme.error)
+                }
+            }
+            .themedScreen()
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(L10n.patientNotesTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.back) {
+                        if hasUnsavedChanges {
+                            isShowingNotesBackWarning = true
+                        } else {
+                            isShowingNotes = false
+                        }
+                    }
+                    .disabled(notesBusy)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.save) { save(closeNotes: true) }
+                        .disabled(notesBusy || !hasUnsavedChanges || voiceRecorder.recordingURL != nil)
+                }
+            }
+            .alert(L10n.discardChangesTitle, isPresented: $isShowingNotesBackWarning) {
+                if voiceRecorder.recordingURL == nil {
+                    Button(L10n.saveChangesAction) { save(closeNotes: true) }
+                }
+                Button(L10n.discardChangesAction, role: .destructive) {
+                    if let initialNotes { patient.notes = initialNotes }
+                    voiceRecorder.discard()
+                    isShowingNotes = false
+                }
+                Button(L10n.keepEditingAction, role: .cancel) {}
+            }
+            .busyOverlay(isSaving, label: busyLabel)
+        }
+        .interactiveDismissDisabled(hasUnsavedChanges || notesBusy)
+        .appTextSize()
+    }
+
+    private var notesSection: some View {
+        Section(L10n.notesSection) {
+            VStack(alignment: .leading, spacing: 16) {
+                NotesField(text: $patient.notes, placeholder: L10n.patientNotesFieldPlaceholder,
+                           minLines: 5, maxLines: 12,
+                           isEditable: !notesBusy)
+                recordControl
+                    .disabled(isSaving)
+            }
+            .listRowBackground(groupBorderedRow(
+                isRecordingRetryRowVisible || isTranscribeSpinnerVisible
+                    || voiceRecorder.errorMessage != nil ? .first : .only))
+            // Transcription starts automatically when recording stops,
+            // so this row only ever appears after a failed transcription
+            // — the recording survives for a retry.
+            if voiceRecorder.recordingURL != nil, !isTranscribing, !isAnonymizingTranscription {
+                HStack(spacing: 16) {
+                    Button {
+                        voiceRecorder.togglePlayback()
+                    } label: {
+                        Label(voiceRecorder.isPlaying
+                              ? L10n.stopPlaybackAction
+                              : L10n.playRecordingAction,
+                              systemImage: voiceRecorder.isPlaying
+                              ? "stop.circle"
+                              : "play.circle")
+                    }
+                    Spacer()
+                    Button(L10n.transcribeAction) { transcribe() }
+                        .fontWeight(.semibold)
+                    Button(role: .destructive) {
+                        voiceRecorder.discard()
+                    } label: {
+                        Label(L10n.discardRecordingAction, systemImage: "trash")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel(L10n.discardRecordingAction)
+                }
+                .font(.subheadline)
+                .buttonStyle(.borderless)
+                .listRowBackground(groupBorderedRow(
+                    voiceRecorder.errorMessage != nil ? .middle : .last))
+            }
+
+            if isTranscribing || isAnonymizingTranscription {
+                HStack {
+                    ProgressView()
+                    Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
+                        .foregroundStyle(.secondary)
+                }
+                .listRowBackground(groupBorderedRow(
+                    voiceRecorder.errorMessage != nil ? .middle : .last))
+            }
+
+            if let recorderError = voiceRecorder.errorMessage {
+                Text(recorderError)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.error)
+                    .listRowBackground(groupBorderedRow(.last))
+            }
+        }
+    }
+
+    private var sessionSummary: String {
+        let calendar = Calendar.current
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now)) ?? .now
+        guard let latest = patient.sessions.filter({ $0.date < tomorrow }).max(by: { $0.date < $1.date }) else {
+            return L10n.patientSessionsDescription
+        }
+        return L10n.patientLatestSession(L10n.hebrewDate(latest.date))
+    }
+
+    private func workspaceRow(_ icon: String, title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            iconChip(icon, title: title)
+                .foregroundStyle(Theme.textBright)
+            Text(detail)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var connectionCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            switch connectionState {
+            case .checking:
+                ProgressView(L10n.patientConnectionChecking)
+            case .connected:
+                Label(L10n.patientConnectedStatus, systemImage: "checkmark.circle.fill")
+                    .font(.headline)
+                Text(L10n.patientConnectionReadyDescription)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Button {
+                        isShowingMessageComposer = true
+                    } label: {
+                        Label(L10n.sendPatientMessageAction, systemImage: "envelope")
+                    }
+                    Button {
+                        sendStandaloneQuestionnaire()
+                    } label: {
+                        Label(L10n.sendQuestionnaireToPatientAction, systemImage: "list.clipboard")
+                    }
+                    Button {
+                        sendDiaryOne()
+                    } label: {
+                        Label(L10n.enablePatientDiaryAction, systemImage: "book.closed")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isSendingToPatient || isSaving)
+            case .notConnected:
+                Text(L10n.patientConnectTitle)
+                    .font(.headline)
+                Text(L10n.patientConnectDescription)
+                    .font(.subheadline)
+                Button {
+                    startPatientInvitation()
+                } label: {
+                    Label(L10n.patientShareInvitationAction, systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.bordered)
+                .disabled(isCreatingInvitation || isSaving)
+                .accessibilityIdentifier("patient.shareInvitation")
+                Text(L10n.patientShareInvitationExplanation)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            case .failed:
+                Text(L10n.patientConnectionCheckError)
+                    .font(.subheadline)
+                Button(L10n.retry) {
+                    Task { await refreshConnectionState() }
+                }
+                .buttonStyle(.bordered)
+            case .unavailable:
+                Text(L10n.patientConnectTitle)
+                    .font(.headline)
+                Text(L10n.patientConnectDescription)
+                    .font(.subheadline)
+                Text(L10n.patientInvitationUnavailableExplanation)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            if connectionState != .connected {
+                Text(L10n.patientConnectionOptionalExplanation)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, 6)
+        .accessibilityIdentifier("patient.connection")
+    }
+
     /// Consumes a one-shot Getting Started request into sessions.
     private func applyGettingStartedFocusIfNeeded() {
         guard let action = gettingStartedRouter.consumeSessionsAction() else { return }
         sessionsInitialAction = action
         isShowingSessions = true
-    }
-
-    private var connectionStatusText: String {
-        switch connectionState {
-        case .checking: L10n.patientConnectionChecking
-        case .connected: L10n.patientConnectedStatus
-        case .notConnected, .unavailable: L10n.patientNotConnectedStatus
-        case .failed: L10n.patientConnectionCheckError
-        }
     }
 
     private func assignmentService() -> PatientAssignmentService {
@@ -807,7 +918,7 @@ struct PatientDetailView: View {
                     // starts immediately — no intermediate controls.
                     transcribe()
                 } label: {
-                    Image(systemName: "stop.circle.fill")
+                    Label(L10n.stopPatientNotesRecording, systemImage: "stop.circle.fill")
                         .font(.title2)
                         .foregroundStyle(Theme.error)
                 }
@@ -817,12 +928,12 @@ struct PatientDetailView: View {
             Button {
                 Task { await voiceRecorder.startRecording() }
             } label: {
-                Image(systemName: "mic.fill")
+                Label(L10n.recordVoiceNoteAction, systemImage: "mic.fill")
                     .font(.title3)
                     .foregroundStyle(.tint)
             }
             .buttonStyle(.plain)
-            .disabled(isTranscribing || isAnonymizingTranscription)
+            .disabled(isTranscribing || isAnonymizingTranscription || voiceRecorder.recordingURL != nil)
         }
     }
 
@@ -854,12 +965,14 @@ struct PatientDetailView: View {
                 isAnonymizingTranscription = false
                 // Silently persist the transcription; the silent save is the
                 // new baseline, so leaving afterwards doesn't warn.
+                isSaving = true
                 do {
                     try await store.updatePatientNotes(patient)
                     initialNotes = patient.notes
                 } catch {
                     errorMessage = error.localizedDescription
                 }
+                isSaving = false
             } catch {
                 voiceRecorder.errorMessage = error.userFacingMessage
                 isTranscribing = false
@@ -917,18 +1030,31 @@ struct PatientDetailView: View {
         let parts = (patient.localName ?? "")
             .split(separator: " ", maxSplits: 1)
             .map(String.init)
+        errorMessage = nil
+        statusDraft = patient.status
         firstNameDraft = parts.first ?? ""
         lastNameDraft = parts.count > 1 ? parts[1] : ""
         isEditingName = true
     }
 
     private func saveEditedName() {
-        do {
-            try store.renamePatient(patient, firstName: firstNameDraft, lastName: lastNameDraft)
-            isEditingName = false
-        } catch {
-            errorMessage = error.localizedDescription
-            isEditingName = false
+        guard !isSaving else { return }
+        errorMessage = nil
+        isSaving = true
+        let previousStatus = patient.status
+        Task {
+            defer { isSaving = false }
+            do {
+                try store.renamePatient(patient, firstName: firstNameDraft, lastName: lastNameDraft)
+                if statusDraft != previousStatus {
+                    patient.status = statusDraft
+                    try await store.updatePatientStatus(patient)
+                }
+                isEditingName = false
+            } catch {
+                patient.status = previousStatus
+                errorMessage = error.userFacingMessage
+            }
         }
     }
 
@@ -971,22 +1097,7 @@ struct PatientDetailView: View {
         }
     }
 
-    private func persistStatus(revertingTo previous: PatientStatus) {
-        errorMessage = nil
-        busyLabel = nil
-        isSaving = true
-        Task {
-            do {
-                try await store.updatePatientStatus(patient)
-            } catch {
-                patient.status = previous
-                errorMessage = error.userFacingMessage
-            }
-            isSaving = false
-        }
-    }
-
-    private func save(thenDismiss: Bool = false) {
+    private func save(thenDismiss: Bool = false, closeNotes: Bool = false) {
         errorMessage = nil
         // Only promise anonymization when there are notes that may actually
         // be sent to the anonymizer; otherwise show a plain spinner.
@@ -997,6 +1108,7 @@ struct PatientDetailView: View {
             do {
                 try await store.updatePatientNotes(patient)
                 initialNotes = patient.notes
+                if closeNotes { isShowingNotes = false }
                 if thenDismiss { dismiss() }
             } catch {
                 errorMessage = error.userFacingMessage
@@ -1073,12 +1185,6 @@ struct PatientDetailView: View {
                 .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
         }
     }
-}
-
-private enum SendToPatientKind {
-    case message
-    case questionnaire
-    case diaryOne
 }
 
 private enum PatientConnectionState {

@@ -107,6 +107,7 @@ fun SettingsScreen(
     onSaveDisplayName: suspend (String) -> Unit,
     onGettingStartedGuide: () -> Unit = {},
     onDone: () -> Unit,
+    showCloseButton: Boolean = true,
 ) {
     val colors = Theme.colors
     var page by remember { mutableStateOf<SettingsPage>(SettingsPage.Main) }
@@ -145,12 +146,14 @@ fun SettingsScreen(
                 TopAppBar(
                     title = { Text(stringResource(R.string.settings_title), color = colors.textBright) },
                     navigationIcon = {
-                        IconButton(onClick = onDone, enabled = !isDeleting) {
-                            Icon(
-                                Icons.AutoMirrored.Outlined.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                                tint = colors.gold,
-                            )
+                        if (showCloseButton) {
+                            IconButton(onClick = onDone, enabled = !isDeleting) {
+                                Icon(
+                                    Icons.AutoMirrored.Outlined.ArrowBack,
+                                    contentDescription = stringResource(R.string.back),
+                                    tint = colors.gold,
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),

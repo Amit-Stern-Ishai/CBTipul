@@ -9,3 +9,13 @@ fun hebrewDate(date: Date): String =
 
 fun hebrewShortDate(date: Date): String =
     DateFormat.getDateInstance(DateFormat.SHORT, Locale.forLanguageTag("he-IL")).format(date)
+
+fun hebrewDateTime(date: Date): String =
+    DateFormat.getDateTimeInstance(
+        DateFormat.MEDIUM,
+        DateFormat.SHORT,
+        Locale.forLanguageTag("he-IL"),
+    ).format(date)
+
+fun hebrewMonthYear(date: Date): String =
+    java.text.SimpleDateFormat("LLLL yyyy", Locale.forLanguageTag("he-IL")).format(date)

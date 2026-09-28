@@ -44,6 +44,7 @@ class PushNotificationManager(
     private val auth: AuthRepository,
     private val identityStore: PatientIdentityStore,
     private val scope: CoroutineScope,
+    private val onPushReceived: () -> Unit = {},
 ) {
     private val prefs: SharedPreferences =
         appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -125,10 +126,7 @@ class PushNotificationManager(
     }
 
     fun onMessageReceived(message: RemoteMessage) {
-        val type = message.data["type"]
-        val patientId = message.data["patientId"] ?: message.data["patient_id"]
-        val assignmentId = message.data["assignmentId"] ?: message.data["assignment_id"]
-        val sessionId = message.data["sessionId"] ?: message.data["session_id"]
+        val payload = com.cbtipul.app.data.NotificationPayload.from(message.data.mapValues { it.value })
         val fallbackTitle = message.notification?.title ?: message.data["title"]
         val fallbackBody = message.notification?.body ?: message.data["body"]
         debug {
@@ -136,14 +134,18 @@ class PushNotificationManager(
                 "hasNotification=${message.notification != null} dataKeys=${message.data.keys}"
         }
         val personalized = PatientPushPersonalizer.personalize(
-            type = type,
-            patientId = patientId,
+            type = payload?.type ?: message.data["type"],
+            patientId = payload?.patientId,
             fallbackTitle = fallbackTitle,
             fallbackBody = fallbackBody,
-            assignmentId = assignmentId,
-            sessionId = sessionId,
+            assignmentId = payload?.assignmentId,
+            sessionId = payload?.sessionId,
+            resourceType = payload?.resourceType,
+            resourceId = payload?.resourceId,
+            notificationId = payload?.notificationId,
             nameForPatientId = ::localNameForPatientId,
         )
+        onPushReceived()
         if (personalized.title.isBlank() && personalized.body.isBlank()) return
         showVisibleNotification(personalized, message.messageId)
     }
@@ -244,11 +246,16 @@ class PushNotificationManager(
     ) {
         ensureChannel()
         val launch = Intent(appContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP
             personalized.type?.let { putExtra(PatientPushPersonalizer.EXTRA_TYPE, it) }
             personalized.patientId?.let { putExtra(PatientPushPersonalizer.EXTRA_PATIENT_ID, it) }
             personalized.assignmentId?.let { putExtra(PatientPushPersonalizer.EXTRA_ASSIGNMENT_ID, it) }
             personalized.sessionId?.let { putExtra(PatientPushPersonalizer.EXTRA_SESSION_ID, it) }
+            personalized.resourceType?.let { putExtra(PatientPushPersonalizer.EXTRA_RESOURCE_TYPE, it) }
+            personalized.resourceId?.let { putExtra(PatientPushPersonalizer.EXTRA_RESOURCE_ID, it) }
+            personalized.notificationId?.let { putExtra(PatientPushPersonalizer.EXTRA_NOTIFICATION_ID, it) }
         }
         val requestCode = (messageId?.hashCode() ?: System.currentTimeMillis().toInt()) and 0x7fffffff
         val pending = PendingIntent.getActivity(

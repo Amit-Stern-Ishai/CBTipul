@@ -5,6 +5,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
 import java.util.TimeZone
@@ -22,6 +23,29 @@ class PatientAssignmentRequestTest {
         assertFalse(obj.containsKey("therapistId"))
         assertFalse(obj.containsKey("therapist_id"))
         assertEquals(setOf("patientId", "sessionId"), obj.keys)
+    }
+
+    @Test
+    fun standaloneQuestionnaireRequestSendsSessionIdNull() {
+        val json = PatientAssignmentRepository.encodeQuestionnaireRequest(
+            patientId = "patient-1",
+            sessionId = null,
+        )
+        val obj = EdgePayload.json.parseToJsonElement(json) as JsonObject
+        assertEquals("patient-1", obj.getValue("patientId").jsonPrimitive.content)
+        assertTrue(obj.getValue("sessionId") is kotlinx.serialization.json.JsonNull)
+        assertEquals(setOf("patientId", "sessionId"), obj.keys)
+    }
+
+    @Test
+    fun edgeErrorJsonIsExtractedFromRestExceptionStyleMessage() {
+        val wrapped = """
+            {"error":"patient_not_connected","message":"not connected"}
+            URL: https://example.supabase.co/functions/v1/request-patient-questionnaire
+        """.trimIndent()
+        val (code, message) = EdgePayload.codeAndMessage(wrapped)
+        assertEquals("patient_not_connected", code)
+        assertEquals("not connected", message)
     }
 
     @Test
@@ -56,6 +80,30 @@ class PatientAssignmentRequestTest {
         assertEquals(12, calendar.get(Calendar.HOUR_OF_DAY))
         assertEquals(34, calendar.get(Calendar.MINUTE))
         assertEquals(56, calendar.get(Calendar.SECOND))
+    }
+
+    @Test
+    fun edgeFunctionCamelCaseAndWrappedAssignmentMapsToModel() {
+        val assignment = PatientAssignmentRepository.assignmentFromEdgeJson(
+            """
+            {
+              "success": true,
+              "assignment": {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "patientId": "22222222-2222-2222-2222-222222222222",
+                "therapistId": "33333333-3333-3333-3333-333333333333",
+                "sessionId": null,
+                "type": "questionnaire",
+                "createdAt": "2026-09-22T12:34:56Z",
+                "completedAt": null,
+                "cancelledAt": null
+              }
+            }
+            """.trimIndent(),
+        )
+        assertEquals("questionnaire", assignment.typeValue)
+        assertNull(assignment.sessionId)
+        assertTrue(assignment.isOpen)
     }
 
     @Test
@@ -99,6 +147,50 @@ class PatientAssignmentRequestTest {
         assertEquals(
             PatientAssignmentException.InvalidIdentifier,
             PatientAssignmentRepository.mapRequestQuestionnaireCode("assignment_failed", 500),
+        )
+    }
+
+    @Test
+    fun diaryOneUsesEdgeFunctionNotDirectInsert() {
+        assertTrue(PatientAssignmentRepository.usesDiaryOneEdgeFunction(PatientAssignmentType.DiaryOne))
+        assertFalse(PatientAssignmentRepository.usesDirectInsert(PatientAssignmentType.DiaryOne))
+        assertTrue(PatientAssignmentRepository.usesDirectInsert(PatientAssignmentType.DiaryTwo))
+        val json = PatientAssignmentRepository.encodeDiaryOneRequest("patient-1")
+        val obj = EdgePayload.json.parseToJsonElement(json) as JsonObject
+        assertEquals("patient-1", obj.getValue("patientId").jsonPrimitive.content)
+        assertEquals(setOf("patientId"), obj.keys)
+    }
+
+    @Test
+    fun diaryOneCreatedNewFalseIsStillSuccess() {
+        val assignment = PatientAssignmentRepository.assignmentFromDiaryOneResponse(
+            """
+            {
+              "success": true,
+              "createdNew": false,
+              "assignment": {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "patientId": "22222222-2222-2222-2222-222222222222",
+                "therapistId": "33333333-3333-3333-3333-333333333333",
+                "sessionId": null,
+                "type": "diary_one",
+                "createdAt": "2026-09-27T12:00:00Z",
+                "completedAt": null,
+                "cancelledAt": null
+              }
+            }
+            """.trimIndent(),
+        )
+        assertEquals("diary_one", assignment.typeValue)
+        assertNull(assignment.completedAt)
+        assertTrue(assignment.isOpen)
+    }
+
+    @Test
+    fun diaryOnePatientNotConnectedMapsToDomainError() {
+        assertEquals(
+            PatientAssignmentException.PatientNotConnected,
+            PatientAssignmentRepository.mapRequestDiaryOneCode("patient_not_connected", 400),
         )
     }
 }

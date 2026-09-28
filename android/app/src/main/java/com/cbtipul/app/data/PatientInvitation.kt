@@ -3,11 +3,17 @@ package com.cbtipul.app.data
 import com.cbtipul.app.debug.InviteDebugLog
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
+import io.ktor.client.request.header
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.content.TextContent
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 @Serializable
 enum class InvitationKind {
@@ -44,9 +50,9 @@ data class ClaimedPatientInvitation(
 )
 
 @Serializable
-private data class CreatePatientInvitationRequest(
+internal data class CreatePatientInvitationRequest(
     val patientId: String,
-    val kind: InvitationKind = InvitationKind.Initial,
+    val kind: InvitationKind,
 )
 
 @Serializable
@@ -62,12 +68,17 @@ sealed class PatientInvitationClaimError : Exception() {
 class PatientInvitationService(private val client: SupabaseClient) {
     suspend fun createPatientInvitation(patientId: String): PatientInvitation {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-        val http = client.functions.invoke(
-            function = "create-patient-invitation",
-            body = CreatePatientInvitationRequest(patientId = patientId),
-            headers = jsonHeaders(),
-        )
-        return EdgePayload.json.decodeFromString(PatientInvitation.serializer(), http.bodyAsText())
+        val payload = encodeCreateRequest(patientId)
+        try {
+            val http = client.functions.invoke("create-patient-invitation") {
+                header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                setBody(TextContent(payload, ContentType.Application.Json))
+            }
+            return invitationFromEdgeJson(http.bodyAsText())
+        } catch (error: Exception) {
+            InviteDebugLog.e("create-patient-invitation", error)
+            throw error
+        }
     }
 
     suspend fun getPatientInvitation(token: String): PatientInvitationPreview {
@@ -117,5 +128,35 @@ class PatientInvitationService(private val client: SupabaseClient) {
 
     private fun jsonHeaders() = Headers.build {
         append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+    }
+
+    companion object {
+        internal fun encodeCreateRequest(patientId: String): String =
+            EdgePayload.json.encodeToString(
+                CreatePatientInvitationRequest.serializer(),
+                CreatePatientInvitationRequest(
+                    patientId = patientId,
+                    kind = InvitationKind.Initial,
+                ),
+            )
+
+        internal fun invitationFromEdgeJson(json: String): PatientInvitation {
+            val root = EdgePayload.json.parseToJsonElement(json)
+            val obj = root as? JsonObject ?: throw IllegalStateException("invalid_invitation")
+            val invitation = obj["invitation"] as? JsonObject ?: obj
+            fun field(vararg keys: String): String? =
+                keys.firstNotNullOfOrNull { key ->
+                    (invitation[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+                }
+            val invitationId = field("invitationId", "invitation_id")
+                ?: throw IllegalStateException("invalid_invitation")
+            val invitationUrl = field("invitationUrl", "invitation_url")
+                ?: throw IllegalStateException("invalid_invitation")
+            return PatientInvitation(
+                invitationId = invitationId,
+                invitationUrl = invitationUrl,
+                expiresAt = field("expiresAt", "expires_at").orEmpty(),
+            )
+        }
     }
 }

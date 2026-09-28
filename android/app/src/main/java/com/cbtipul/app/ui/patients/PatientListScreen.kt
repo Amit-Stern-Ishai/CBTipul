@@ -68,7 +68,7 @@ fun PatientListScreen(
     viewModel: PatientListViewModel,
     unnamed: String,
     onOpenPatient: (String) -> Unit,
-    onOpenSettings: () -> Unit,
+    onOpenSettings: (() -> Unit)? = null,
     onAddPatient: () -> Unit,
 ) {
     val patients by viewModel.patients.collectAsStateWithLifecycle()
@@ -99,8 +99,10 @@ fun PatientListScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.patients_title), color = colors.textBright) },
                 navigationIcon = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings_title), tint = colors.gold)
+                    if (onOpenSettings != null) {
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings_title), tint = colors.gold)
+                        }
                     }
                 },
                 actions = {

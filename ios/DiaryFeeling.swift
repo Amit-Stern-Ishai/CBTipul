@@ -9,7 +9,7 @@ nonisolated struct DiaryFeeling: Codable, Equatable, Hashable, Sendable {
 
 /// Editor row. A newly added feeling has no intensity until the therapist
 /// moves the slider. A persisted feeling keeps its saved intensity.
-struct DiaryFeelingDraft: Identifiable, Equatable {
+struct DiaryFeelingDraft: Identifiable, Equatable, Codable {
     let id: UUID
     var name: String
     var intensity: Int?
@@ -52,7 +52,7 @@ enum DiaryOneEditorMode: Equatable {
 }
 
 /// Single editable source of truth for create and edit.
-struct DiaryOneEntryDraft: Equatable {
+struct DiaryOneEntryDraft: Equatable, Codable {
     var event: String
     var thought: String
     var feelings: [DiaryFeelingDraft]

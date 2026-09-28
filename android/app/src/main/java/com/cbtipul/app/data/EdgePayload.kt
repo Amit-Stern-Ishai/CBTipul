@@ -1,5 +1,6 @@
 package com.cbtipul.app.data
 
+import io.github.jan.supabase.exceptions.RestException
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.json.Json
@@ -17,12 +18,13 @@ object EdgePayload {
     }
 
     fun codeAndMessage(body: String): Pair<String, String> {
-        val root = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val root = runCatching { json.parseToJsonElement(extractJsonObject(body)).jsonObject }.getOrNull()
             ?: return "" to ""
         val code = when (val error = root["error"]) {
             is JsonPrimitive -> error.content
             is JsonObject -> error["code"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            else -> root["code"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            else -> root["code"]?.jsonPrimitive?.contentOrNull
+                ?: root["status"]?.jsonPrimitive?.contentOrNull.orEmpty()
         }
         val message = root["message"]?.jsonPrimitive?.contentOrNull
             ?: (root["error"] as? JsonObject)?.get("message")?.jsonPrimitive?.contentOrNull
@@ -32,6 +34,7 @@ object EdgePayload {
 
     fun httpStatus(error: Throwable): Int? {
         generateSequence(error) { it.cause }.forEach { current ->
+            (current as? RestException)?.statusCode?.let { return it }
             (current as? ResponseException)?.response?.status?.value?.let { return it }
         }
         return null
@@ -39,6 +42,12 @@ object EdgePayload {
 
     suspend fun responseBody(error: Throwable): String {
         generateSequence(error) { it.cause }.forEach { current ->
+            if (current is RestException) {
+                val fromError = current.error.trim()
+                if (fromError.isNotBlank()) return fromError
+                val fromDescription = current.description.orEmpty().trim()
+                if (fromDescription.isNotBlank()) return fromDescription
+            }
             val response = (current as? ResponseException)?.response ?: return@forEach
             val body = runCatching { response.bodyAsText() }.getOrNull().orEmpty()
             if (body.isNotBlank()) return body
@@ -49,6 +58,7 @@ object EdgePayload {
     /** Best-effort, non-suspending body for DEBUG logs when the coroutine already left the catch. */
     fun responseBodyBlocking(error: Throwable): String {
         generateSequence(error) { it.cause }.forEach { current ->
+            if (current is RestException && current.error.isNotBlank()) return current.error
             val fromRest = current.javaClass.methods
                 .firstOrNull { it.name == "getErrorDescription" && it.parameterCount == 0 }
                 ?.let { runCatching { it.invoke(current) as? String }.getOrNull() }
@@ -58,5 +68,12 @@ object EdgePayload {
             if (message.isNotBlank()) return message
         }
         return ""
+    }
+
+    internal fun extractJsonObject(raw: String): String {
+        val start = raw.indexOf('{')
+        val end = raw.lastIndexOf('}')
+        if (start >= 0 && end > start) return raw.substring(start, end + 1)
+        return raw
     }
 }

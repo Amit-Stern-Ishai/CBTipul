@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.cbtipul.app.data.NotificationIntent
 import com.cbtipul.app.invite.InvitationLink
 import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
@@ -43,6 +44,13 @@ class MainActivity : ComponentActivity() {
     private fun handleIncomingIntent(intent: Intent?) {
         handleAuthIntent(intent)
         handleInvitationIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        val payload = NotificationIntent.payload(intent) ?: return
+        NotificationIntent.clear(intent)
+        (application as CbTipulApp).pendingDestinations.offer(payload)
     }
 
     private fun handleAuthIntent(intent: Intent?) {

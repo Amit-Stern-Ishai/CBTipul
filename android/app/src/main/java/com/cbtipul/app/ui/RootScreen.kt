@@ -40,9 +40,10 @@ import com.cbtipul.app.ui.patient.PatientActivationIncompleteScreen
 import com.cbtipul.app.ui.patient.PatientContextRetryScreen
 import com.cbtipul.app.ui.patient.PatientModeScreen
 import com.cbtipul.app.ui.patient.PatientSettingsScreen
+import com.cbtipul.app.ui.patients.MessageOverlay
 import com.cbtipul.app.ui.patients.PatientListViewModel
-import com.cbtipul.app.ui.patients.PatientsNavHost
 import com.cbtipul.app.ui.settings.SettingsScreen
+import com.cbtipul.app.ui.therapist.TherapistRootScreen
 import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.theme.Theme
@@ -131,8 +132,8 @@ fun RootScreen() {
     var therapistDisplayName by remember { mutableStateOf<String?>(null) }
     var therapistDisplayNameLoadFailed by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showSettings, signedIn?.userId, isAnonymous) {
-        if (!showSettings || signedIn == null || isAnonymous) return@LaunchedEffect
+    LaunchedEffect(signedIn?.userId, isAnonymous) {
+        if (signedIn == null || isAnonymous) return@LaunchedEffect
         therapistDisplayNameLoadFailed = false
         try {
             therapistDisplayName = app.therapistProfiles.getCurrentProfile()?.displayName
@@ -219,7 +220,9 @@ fun RootScreen() {
             }
             rootDestination == AppRootDestination.AnonymousPatient -> {
                 when (anonymousDestination) {
-                    AnonymousPatientDestination.PatientMode -> PatientModeScreen(
+                    AnonymousPatientDestination.PatientMode -> {
+                        val pending by app.pendingDestinations.pending.collectAsStateWithLifecycle()
+                        PatientModeScreen(
                         loadAssignments = {
                             app.assignments.patientAssignments(appContext?.patientId)
                         },
@@ -246,11 +249,35 @@ fun RootScreen() {
                                 throw error
                             }
                         },
+                        loadMessages = {
+                            val patientId = appContext?.patientId
+                            if (patientId == null) emptyList() else app.messages.messages(patientId)
+                        },
+                        loadMessage = { id -> app.messages.message(id) },
+                        markMessageRead = { id -> app.messages.markRead(id) },
+                        pendingDestination = pending,
+                        onConsumePending = { app.pendingDestinations.consume() },
                         onOpenSettings = { showPatientSettings = true },
                     )
-                    AnonymousPatientDestination.Incomplete -> PatientActivationIncompleteScreen {
-                        scope.launch { runCatching { app.appContext.getCurrentAppContext() } }
                     }
+                    AnonymousPatientDestination.Incomplete -> PatientActivationIncompleteScreen(
+                        onRetry = { scope.launch { runCatching { app.appContext.getCurrentAppContext() } } },
+                        onLeaveToTherapistSignIn = {
+                            isLeavingPatientMode = true
+                            leavePatientError = null
+                            scope.launch {
+                                try {
+                                    app.authRepository.signOutPatientMode()
+                                    app.appContext.clear()
+                                } catch (_: Exception) {
+                                    leavePatientError = leaveFailed
+                                } finally {
+                                    isLeavingPatientMode = false
+                                }
+                            }
+                        },
+                        isLeaving = isLeavingPatientMode,
+                    )
                     AnonymousPatientDestination.Loading -> {
                         Box(
                             modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
@@ -259,9 +286,24 @@ fun RootScreen() {
                             CircularProgressIndicator(color = Theme.colors.gold)
                         }
                     }
-                    AnonymousPatientDestination.Retry -> PatientContextRetryScreen {
-                        scope.launch { runCatching { app.appContext.getCurrentAppContext() } }
-                    }
+                    AnonymousPatientDestination.Retry -> PatientContextRetryScreen(
+                        onRetry = { scope.launch { runCatching { app.appContext.getCurrentAppContext() } } },
+                        onLeaveToTherapistSignIn = {
+                            isLeavingPatientMode = true
+                            leavePatientError = null
+                            scope.launch {
+                                try {
+                                    app.authRepository.signOutPatientMode()
+                                    app.appContext.clear()
+                                } catch (_: Exception) {
+                                    leavePatientError = leaveFailed
+                                } finally {
+                                    isLeavingPatientMode = false
+                                }
+                            }
+                        },
+                        isLeaving = isLeavingPatientMode,
+                    )
                 }
             }
             isTherapist && termsAccepted.value == null -> {
@@ -313,10 +355,63 @@ fun RootScreen() {
                         )
                     }
                     else -> {
-                        PatientsNavHost(
+                        TherapistRootScreen(
                             viewModel = listVm,
-                            onOpenSettings = { showSettings = true },
-                            onCloseSettings = { showSettings = false },
+                            onCloseSettingsOverlay = { showSettings = false },
+                            settingsContent = {
+                                SettingsScreen(
+                                    email = signedIn?.email,
+                                    textSize = textSize,
+                                    aiConsentAccepted = aiConsentAccepted,
+                                    displayName = therapistDisplayName,
+                                    displayNameLoadFailed = therapistDisplayNameLoadFailed,
+                                    isDeleting = isDeletingAccount,
+                                    deleteError = deleteAccountError,
+                                    onTextSize = { value -> scope.launch { app.preferences.setTextSize(value) } },
+                                    onSignOut = {
+                                        authViewModel.signOut()
+                                        showSettings = false
+                                    },
+                                    onLoadDisplayName = {
+                                        try {
+                                            val loaded = app.therapistProfiles.getCurrentProfile()?.displayName
+                                            therapistDisplayName = loaded
+                                            therapistDisplayNameLoadFailed = false
+                                            loaded
+                                        } catch (_: Exception) {
+                                            therapistDisplayNameLoadFailed = true
+                                            throw IllegalStateException("display_name_load_failed")
+                                        }
+                                    },
+                                    onSaveDisplayName = { name ->
+                                        therapistDisplayName = app.therapistProfiles.saveDisplayName(name).displayName
+                                        therapistDisplayNameLoadFailed = false
+                                    },
+                                    onDeleteAccount = {
+                                        isDeletingAccount = true
+                                        deleteAccountError = null
+                                        authViewModel.deleteAccount(
+                                            notConfigured,
+                                            emailNotConfirmed,
+                                            tooManyRequests,
+                                            onSuccess = {
+                                                isDeletingAccount = false
+                                                showSettings = false
+                                            },
+                                            onError = { message ->
+                                                isDeletingAccount = false
+                                                deleteAccountError = message
+                                            },
+                                        )
+                                    },
+                                    onClearDeleteError = { deleteAccountError = null },
+                                    onGettingStartedGuide = {
+                                        app.onboardingStore.requestDemoConsent()
+                                    },
+                                    onDone = {},
+                                    showCloseButton = false,
+                                )
+                            },
                         )
                     }
                 }
@@ -358,6 +453,15 @@ fun RootScreen() {
             AiConsentDialog(
                 onAccept = { scope.launch { app.aiConsentStore.accept() } },
                 onDecline = { scope.launch { app.aiConsentStore.decline() } },
+            )
+        }
+
+        if (leavePatientError != null && !showPatientSettings) {
+            MessageOverlay(
+                visible = true,
+                title = leaveFailed,
+                message = leavePatientError.orEmpty(),
+                onDismiss = { leavePatientError = null },
             )
         }
 

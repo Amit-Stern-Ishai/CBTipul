@@ -112,6 +112,29 @@ class PatientPushPersonalizerTest {
         assertEquals(connectedGeneric, result.body)
     }
 
+    @Test
+    fun diaryOneEntryAddedUsesLocalNameAsTitleAndGenericBody() {
+        val result = personalize(
+            type = "diary_1_entry_added",
+            patientId = "known-id",
+            fallback = "ignored",
+        )
+        assertEquals("דני", result.title)
+        assertEquals("הוסיף/ה רשומה חדשה ליומן 1", result.body)
+    }
+
+    @Test
+    fun messageReceivedNeverUsesFallbackBody() {
+        val result = PatientPushPersonalizer.personalize(
+            type = "message_received",
+            patientId = "known-id",
+            fallbackTitle = "CBTipul",
+            fallbackBody = "secret message",
+            nameForPatientId = { names[it] },
+        )
+        assertEquals("הודעה חדשה מהמטפל/ת", result.body)
+    }
+
     private fun personalize(
         type: String?,
         patientId: String?,
