@@ -23,10 +23,13 @@ struct SendPatientMessageComposerView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
+                Section(L10n.messageRecipientLabel) {
                     Text(patient.displayName)
                         .font(.headline)
                         .foregroundStyle(.primary)
+                    Text(L10n.therapistMessageDeliveryExplanation)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section {
@@ -63,7 +66,9 @@ struct SendPatientMessageComposerView: View {
                     }
                 }
             }
+            .listSectionSpacing(.compact)
             .themedScreen()
+            .dismissesKeyboardOnTap()
             .navigationTitle(L10n.sendPatientMessageAction)
             .navigationBarTitleDisplayMode(.inline)
             .interactiveDismissDisabled(isSending || !bodyText.isEmpty)
@@ -77,13 +82,27 @@ struct SendPatientMessageComposerView: View {
                     }
                         .disabled(isSending)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(didSend ? L10n.done : L10n.sendMessageAction) {
+            }
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 8) {
+                    Text(didSend ? L10n.sendPatientMessageSuccess : L10n.messageSendExplanation)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button {
                         if didSend { finishSentMessage() }
                         else { Task { await send() } }
+                    } label: {
+                        Text(didSend ? L10n.done : L10n.sendMessageAction)
+                            .frame(maxWidth: .infinity, minHeight: 30)
                     }
+                    .buttonStyle(.pressableProminent)
+                    .accessibilityIdentifier("message.send")
                     .disabled(isSending || (!didSend && !canSend))
                 }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(.regularMaterial)
             }
             .onAppear {
                 if let saved = deviceDraft.restore(userID: auth.currentUserId, kind: "therapist-message", target: patient.id.queryValue) {
@@ -141,7 +160,11 @@ struct SendPatientMessageComposerView: View {
                 .send(patientId: patientId, rawBody: bodyText)
             finishSentMessage()
         } catch let error as PatientMessageSendError {
-            errorMessage = error.errorDescription ?? L10n.sendPatientMessageFailed
+            if case .patientNotConnected = error {
+                errorMessage = L10n.messagesRequireConnection
+            } else {
+                errorMessage = error.errorDescription ?? L10n.sendPatientMessageFailed
+            }
             isSending = false
         } catch {
             errorMessage = L10n.sendPatientMessageFailed
@@ -150,66 +173,169 @@ struct SendPatientMessageComposerView: View {
     }
 }
 
-/// Therapist sent-message history for one patient. Not a chat.
+/// Therapist sent-message history. Reading a sent message never marks it read for the patient.
 struct TherapistPatientMessagesView: View {
     let patient: Patient
 
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
-    @State private var messages: [PatientMessage] = []
-    @State private var isLoading = false
-    @State private var didFail = false
-
-    var body: some View {
-        Group {
-            if isLoading && messages.isEmpty {
-                ProgressView()
-            } else if didFail && messages.isEmpty {
-                ContentUnavailableView {
-                    Label(L10n.patientMessagesLoadFailedTitle, systemImage: "exclamationmark.triangle")
-                } actions: {
-                    Button(L10n.retry) {
-                        Task { await load() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            } else if messages.isEmpty {
-                ContentUnavailableView {
-                    Label(L10n.patientMessagesEmptyTitle, systemImage: "envelope")
-                }
-            } else {
-                List {
-                    ForEach(messages) { message in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(PatientMessage.preview(message.body))
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(L10n.notificationTimestamp(message.createdAt))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                            Text(message.isUnread ? L10n.messageUnreadStatus : L10n.messageReadStatus)
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(message.isUnread ? Theme.gold : .secondary)
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-                .listStyle(.insetGrouped)
-                .scrollContentBackground(.hidden)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .patientAtmosphere(Theme.gold)
-        .themedScreen()
-        .navigationTitle(L10n.messagesTitle)
-        .navigationBarTitleDisplayMode(.large)
-        .task { await load() }
-        .refreshable { await load() }
+    private enum ConnectionState {
+        case checking, connected, notConnected, demo, unavailable, failed
     }
 
-    private func load() async {
+    @State private var messages: [PatientMessage] = []
+    @State private var isLoading = true
+    @State private var isRefreshing = false
+    @State private var didFail = false
+    @State private var connectionState: ConnectionState = .checking
+    @State private var isShowingComposer = false
+    @State private var didSend = false
+
+    var body: some View {
+        List {
+            Section {
+                Text(patient.displayName)
+                    .font(.headline)
+                Text(L10n.therapistMessageDeliveryExplanation)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            if didSend {
+                Section {
+                    Label(L10n.messageSentInApp, systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(Theme.success)
+                        .accessibilityIdentifier("messages.sent")
+                }
+            }
+
+            if isLoading && messages.isEmpty {
+                ProgressView(L10n.messagesLoading)
+            } else if messages.isEmpty && !didFail {
+                ContentUnavailableView {
+                    Label(L10n.therapistMessagesEmptyTitle, systemImage: "envelope")
+                } description: {
+                    Text(L10n.therapistMessagesEmptyBody)
+                }
+                .listRowBackground(Color.clear)
+            }
+
+            if didFail {
+                Section {
+                    Text(L10n.patientMessagesLoadFailedTitle)
+                        .foregroundStyle(Theme.error)
+                    Button(L10n.retry) { Task { await refresh() } }
+                }
+            }
+
+            ForEach(messages) { message in
+                NavigationLink {
+                    TherapistSentMessageView(patient: patient, message: message)
+                } label: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(PatientMessage.preview(message.body))
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(L10n.messageSentAt(message.createdAt))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Text(message.isUnread ? L10n.sentMessageUnreadStatus : L10n.sentMessageReadStatus)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(message.isUnread ? Theme.gold : .secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .accessibilityIdentifier("messages.history")
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 10) {
+                switch connectionState {
+                case .checking:
+                    ProgressView(L10n.patientConnectionChecking)
+                case .connected:
+                    Button {
+                        didSend = false
+                        isShowingComposer = true
+                    } label: {
+                        Label(L10n.writePatientMessageAction, systemImage: "square.and.pencil")
+                            .frame(maxWidth: .infinity, minHeight: 30)
+                    }
+                    .buttonStyle(.pressableProminent)
+                    .accessibilityIdentifier("messages.compose")
+                case .notConnected:
+                    Text(L10n.messagesRequireConnection)
+                    Button(L10n.messagesReturnToPatient) { dismiss() }
+                        .buttonStyle(.bordered)
+                case .demo:
+                    Text(L10n.messagesDemoUnavailable)
+                case .unavailable:
+                    Text(L10n.messagesUnavailable)
+                case .failed:
+                    Text(L10n.patientConnectionCheckError)
+                    Button(L10n.retry) { Task { await refresh() } }
+                        .buttonStyle(.bordered)
+                }
+            }
+            .font(.subheadline)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(.regularMaterial)
+        }
+        .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
+        .themedScreen()
+        .navigationTitle(L10n.sentMessagesTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await refresh() }
+        .refreshable { await refresh() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await refresh() } }
+        }
+        .sheet(isPresented: $isShowingComposer) {
+            SendPatientMessageComposerView(patient: patient) {
+                didSend = true
+                Task { await refresh() }
+            }
+        }
+    }
+
+    private func refresh() async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        async let history: Void = loadMessages()
+        async let connection: Void = loadConnection()
+        _ = await (history, connection)
+    }
+
+    private func loadConnection() async {
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            connectionState = .demo
+            return
+        }
+        guard let patientId = patient.id.uuidValue else {
+            connectionState = .unavailable
+            return
+        }
+        connectionState = .checking
+        do {
+            let connected = try await PatientAssignmentService(client: auth.client)
+                .isPatientConnected(patientId: patientId)
+            connectionState = connected ? .connected : .notConnected
+        } catch {
+            connectionState = .failed
+        }
+    }
+
+    private func loadMessages() async {
         if store.isDemoMode || DemoData.isDemoID(patient.id) {
             messages = []
             didFail = false
@@ -219,6 +345,7 @@ struct TherapistPatientMessagesView: View {
         guard let patientId = patient.id.uuidValue else {
             messages = []
             didFail = true
+            isLoading = false
             return
         }
         if messages.isEmpty { isLoading = true }
@@ -229,8 +356,38 @@ struct TherapistPatientMessagesView: View {
                 .messages(patientId: patientId)
         } catch {
             didFail = true
-            if messages.isEmpty { messages = [] }
         }
+    }
+}
+
+/// A read-only copy for the sender; only PatientMessageDetailView updates read receipts.
+private struct TherapistSentMessageView: View {
+    let patient: Patient
+    let message: PatientMessage
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(L10n.messageRecipient(patient.displayName))
+                    .font(.headline)
+                Text(L10n.messageSentAt(message.createdAt))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Label(message.isUnread ? L10n.sentMessageUnreadStatus : L10n.sentMessageReadStatus,
+                      systemImage: message.isUnread ? "envelope" : "envelope.open")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Divider()
+                Text(message.body)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(24)
+        }
+        .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
+        .themedScreen()
+        .navigationTitle(L10n.sentMessageTitle)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

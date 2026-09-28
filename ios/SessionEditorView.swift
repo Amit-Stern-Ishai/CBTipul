@@ -8,7 +8,7 @@ import SwiftUI
 /// opens the full read-only questionnaire.
 struct SessionEditorView: View {
     @Bindable var session: Session
-    let patient: Patient
+    let patient: Patient?
     var isNew: Bool
     /// The session's 1-based number in the patient's history, shown in the
     /// title when editing an existing session.
@@ -18,8 +18,10 @@ struct SessionEditorView: View {
     @Environment(PatientStore.self) private var store
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var isSaving = false
+    @State private var selectedPatientID: DatabaseID?
     /// Status line under the busy spinner; the anonymization notice during
     /// saves, nothing during deletes.
     @State private var busyLabel: String?
@@ -30,7 +32,10 @@ struct SessionEditorView: View {
     @State private var initialDate: Date?
     @State private var initialNotes: String?
     @State private var initialType: SessionType?
+    @State private var initialStructuredNotes: WhisperService.CBTSessionAnalysis?
+    @State private var isRequestingRecording = false
     @State private var isLoadingQuestionnaire = false
+    @State private var isRefreshingQuestionnaire = false
     @State private var assignmentStatus: QuestionnaireAssignmentStatus = .loading
     @State private var isSendingQuestionnaire = false
     @State private var didSendQuestionnaire = false
@@ -42,25 +47,34 @@ struct SessionEditorView: View {
     @State private var isAnalyzing = false
     @State private var analysisResult: SessionAnalysisResult?
     @State private var isShowingAllFollowUps = false
-    @State private var isEditingDate = false
 
     /// Whether anything would be lost by dismissing without saving: an edited
     /// date or notes, or a voice note that hasn't been transcribed into the
     /// notes yet.
     private var hasUnsavedChanges: Bool {
+        if selectedPatientID != nil { return true }
         if let initialDate, let initialNotes,
            initialDate != session.date || initialNotes != session.notes
-            || initialType != session.type {
+            || initialType != session.type || initialStructuredNotes != session.structuredNotes {
             return true
         }
         if voiceRecorder.recordingURL != nil { return true }
         return false
     }
 
+    private var isWorking: Bool {
+        isSaving || isRequestingRecording || voiceRecorder.isRecording
+            || isTranscribing || isAnonymizingTranscription || isAnalyzing || isSendingQuestionnaire
+    }
+
+    private var canSave: Bool {
+        storePatient != nil && !isWorking && voiceRecorder.recordingURL == nil && (isNew || hasUnsavedChanges)
+    }
+
     /// This session's saved questionnaire, read live from the store's cache
     /// so the section updates right after one is filled in and saved.
     private var questionnaire: CompletedQuestionnaire? {
-        guard let sessionID = session.databaseID else { return nil }
+        guard let patient = storePatient, let sessionID = session.databaseID else { return nil }
         return store.cachedQuestionnaires(for: patient)?.first { $0.sessionID == sessionID }
     }
 
@@ -68,8 +82,15 @@ struct SessionEditorView: View {
     /// store's patient objects, so a view that was navigated to before a
     /// reload may hold a stale instance whose sessions miss recent data
     /// (e.g. structured notes); previous-session lookups must use the fresh one.
-    private var storePatient: Patient {
-        store.patients.first { $0.id == patient.id } ?? patient
+    private var storePatient: Patient? {
+        guard let patient else {
+            return store.patients.first { $0.id == selectedPatientID }
+        }
+        return store.patients.first { $0.id == patient.id } ?? patient
+    }
+
+    private var patientAccent: Color {
+        storePatient.map { PatientAvatarColor.background(for: $0.id) } ?? Theme.gold
     }
 
     /// A follow-up question still marked "Follow up" in an earlier session's
@@ -83,12 +104,12 @@ struct SessionEditorView: View {
 
     /// This screen's group outlines, in the patient's identity color.
     private func groupBorderedRow(_ position: GroupRowPosition) -> some View {
-        CBTipul.groupBorderedRow(position, accent: PatientAvatarColor.background(for: patient.id))
+        CBTipul.groupBorderedRow(position, accent: patientAccent)
     }
 
     /// The patient's session immediately before this one, by date.
     private var previousSession: Session? {
-        storePatient.sessions
+        storePatient?.sessions
             .filter { $0.id != session.id && $0.date <= session.date }
             .sorted { $0.date > $1.date }
             .first
@@ -113,71 +134,47 @@ struct SessionEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    if isNew {
-                        VStack(spacing: 6) {
-                            Text(L10n.addSessionAction)
-                                .font(.title2.bold())
-                            Text(patient.displayName)
-                                .font(.headline)
-                                .foregroundStyle(.secondary)
+                if isNew && patient == nil {
+                    Section {
+                        patientPicker
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .disabled(isWorking)
+                            .listRowBackground(groupBorderedRow(.only))
+                    } header: {
+                        Text(L10n.patientSectionTitle)
+                    } footer: {
+                        if storePatient == nil {
+                            Text(store.patients.isEmpty ? L10n.noPatientsTitle : L10n.sessionChoosePatientHelp)
                         }
-                        .frame(maxWidth: .infinity)
-                        .multilineTextAlignment(.center)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                    } else {
+                    }
+                } else if let patient = storePatient {
+                    Section {
                         VStack(spacing: 6) {
                             Text(patient.displayName)
                                 .font(.title2.bold())
                             if let sessionNumber {
                                 Text(L10n.session(sessionNumber))
-                                    .font(.headline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            HStack(spacing: 6) {
-                                Text(session.type.map(L10n.label(for:)) ?? L10n.sessionTypeNone)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(session.type == nil ? Theme.textFaint : Theme.gold)
-                                Menu {
-                                    typePicker
-                                } label: {
-                                    Image(systemName: "pencil.circle.fill")
-                                        .font(.subheadline)
-                                }
-                                .accessibilityLabel(L10n.sessionTypeLabel)
-                            }
-                            HStack(spacing: 6) {
-                                Text(L10n.hebrewDate(session.date))
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
-                                Button {
-                                    isEditingDate = true
-                                } label: {
-                                    Image(systemName: "calendar")
-                                        .font(.subheadline)
-                                }
-                                .buttonStyle(.borderless)
-                                .accessibilityLabel(L10n.editDateAccessibilityLabel)
                             }
                         }
                         .frame(maxWidth: .infinity)
                         .multilineTextAlignment(.center)
                         .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                     }
                 }
 
-                // New sessions get explicit pickers instead of the compact
-                // header lines: pick a type, pick a date (defaults to today).
-                if isNew {
-                    Section {
-                        typePicker
-                            .listRowBackground(groupBorderedRow(.first))
-                        DatePicker(L10n.dateLabel, selection: $session.date, displayedComponents: [.date])
-                            .environment(\.locale, Locale(identifier: "he_IL"))
-                            .listRowBackground(groupBorderedRow(.last))
-                    }
+                Section {
+                    DatePicker(L10n.sessionDateTitle, selection: $session.date, displayedComponents: [.date])
+                        .environment(\.locale, Locale(identifier: "he_IL"))
+                        .disabled(isWorking)
+                        .accessibilityIdentifier("session.date")
+                        .listRowBackground(groupBorderedRow(.first))
+                    typePicker
+                        .disabled(isWorking)
+                        .accessibilityIdentifier("session.type")
+                        .listRowBackground(groupBorderedRow(.last))
                 }
 
 //                if let firstFollowUp = pendingFollowUps.first {
@@ -197,19 +194,23 @@ struct SessionEditorView: View {
 //                }
 
                 Section(L10n.sessionSummarySection) {
-                    HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 16) {
                         NotesField(text: $session.notes, placeholder: L10n.sessionSummaryFieldPlaceholder,
-                                   minLines: 3, maxLines: 8)
+                                   minLines: 4, maxLines: 10, isEditable: !isWorking)
+                            .accessibilityIdentifier("session.notes")
                         recordControl
+                        Text(L10n.sessionRecordingHelp)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
-                    // The AI-summary row below always closes this group, so
-                    // every other row is a first/middle slice of the outline.
                     .listRowBackground(groupBorderedRow(.first))
                     // Transcription starts automatically when recording
                     // stops, so this row only ever appears after a failed
                     // transcription — the recording survives for a retry.
-                    if voiceRecorder.recordingURL != nil, !isTranscribing, !isAnonymizingTranscription {
-                        HStack(spacing: 16) {
+                    if voiceRecorder.recordingURL != nil, !isWorking {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(L10n.sessionPendingRecording)
+                                .foregroundStyle(.secondary)
                             Button {
                                 voiceRecorder.togglePlayback()
                             } label: {
@@ -220,14 +221,12 @@ struct SessionEditorView: View {
                                       ? "stop.circle"
                                       : "play.circle")
                             }
-                            Spacer()
                             Button(L10n.transcribeAction) { transcribe() }
                                 .fontWeight(.semibold)
                             Button(role: .destructive) {
                                 voiceRecorder.discard()
                             } label: {
                                 Label(L10n.discardRecordingAction, systemImage: "trash")
-                                    .labelStyle(.iconOnly)
                             }
                             .accessibilityLabel(L10n.discardRecordingAction)
                         }
@@ -252,6 +251,17 @@ struct SessionEditorView: View {
                             .listRowBackground(groupBorderedRow(.middle))
                     }
 
+                    Text(L10n.sessionNotesSaveHelp)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(groupBorderedRow(.last))
+                }
+
+                Section(L10n.sessionOptionalAI) {
+                    Text(L10n.sessionAIHelp)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(groupBorderedRow(.first))
                     if isAnalyzing {
                         HStack {
                             ProgressView()
@@ -266,7 +276,7 @@ struct SessionEditorView: View {
                             Label(L10n.aiSummaryAction, systemImage: "sparkles")
                         }
                         .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                  || isAnonymizingTranscription)
+                                  || isWorking || voiceRecorder.recordingURL != nil)
                         .tutorialPulse(gettingStartedRouter.shouldPulse(.aiSummary))
                         .listRowBackground(groupBorderedRow(.last))
                     }
@@ -286,12 +296,14 @@ struct SessionEditorView: View {
                         } label: {
                             Label(L10n.showStructuredSummaryAction, systemImage: "doc.text.magnifyingglass")
                         }
+                        .disabled(isWorking)
                         .listRowBackground(groupBorderedRow(.last))
                     }
                 }
 
                 if !isNew {
                     questionnaireSection
+                        .disabled(isWorking)
                 }
 
                 if let errorMessage {
@@ -303,7 +315,8 @@ struct SessionEditorView: View {
                     .listRowBackground(groupBorderedRow(.only))
                 }
             }
-            .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
+            .listSectionSpacing(.compact)
+            .patientAtmosphere(patientAccent)
             .themedScreen()
             .dismissesKeyboardOnTap()
             .navigationTitle(isNew
@@ -322,16 +335,10 @@ struct SessionEditorView: View {
                         Label(L10n.back, systemImage: "chevron.backward")
                             .labelStyle(.titleAndIcon)
                     }
-                    .disabled(isSaving)
+                    .disabled(isWorking)
                 }
                 if !isNew {
-                    // Save sits next to the menu (first in the group, so it
-                    // lands on the menu's reading-direction side), enabled
-                    // only once something actually changed.
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        Button(L10n.save) { save() }
-                            .fontWeight(.semibold)
-                            .disabled(isSaving || !hasUnsavedChanges)
                         Menu {
                             Button(L10n.deleteSessionAction, role: .destructive) {
                                 isShowingDeleteConfirmation = true
@@ -340,28 +347,35 @@ struct SessionEditorView: View {
                             Image(systemName: "ellipsis")
                                 .rotationEffect(.degrees(90))
                         }
-                        .disabled(isSaving)
+                        .disabled(isWorking)
                     }
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if isNew {
-                    Button(action: { save() }) {
-                        Group {
-                            if isSaving {
-                                ProgressView()
-                                    .tint(Theme.textOnAccent)
-                            } else {
-                                Text(L10n.addSessionAction)
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 30)
+                VStack(spacing: 8) {
+                    if isWorking {
+                        Text(voiceRecorder.isRecording ? L10n.sessionRecordingInProgress : L10n.sessionProcessing)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Label(isNew ? L10n.sessionNotCreated : (hasUnsavedChanges ? L10n.sessionNotSaved : L10n.sessionSaved),
+                              systemImage: isNew || hasUnsavedChanges ? "pencil.circle" : "checkmark.circle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("session.saveStatus")
                     }
+                    Button(action: { save() }) {
+                        Text(L10n.saveSessionAction)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity, minHeight: 30)
+                    }
+                    .accessibilityIdentifier("session.save")
                     .buttonStyle(.pressableProminent)
-                    .disabled(isSaving)
-                    .padding(24)
+                    .disabled(!canSave)
                 }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(.regularMaterial)
             }
             // Mission dock must be the outermost bottom inset so it sits at
             // the physical bottom of the screen.
@@ -380,18 +394,22 @@ struct SessionEditorView: View {
             // cancel-role buttons, and Keep Editing must always be offered.
             .alert(L10n.discardChangesTitle,
                    isPresented: $isShowingCancelWarning) {
-                Button(L10n.saveChangesAction) { save(thenDismiss: true) }
+                if canSave {
+                    Button(L10n.saveChangesAction) { save(thenDismiss: true) }
+                }
                 Button(L10n.discardChangesAction, role: .destructive) {
                     // The session object is shared, so revert the edits
                     // instead of leaving them in memory unsaved.
                     if let initialDate { session.date = initialDate }
                     if let initialNotes { session.notes = initialNotes }
                     session.type = initialType
+                    session.structuredNotes = initialStructuredNotes
+                    voiceRecorder.discard()
                     dismiss()
                 }
                 Button(L10n.keepEditingAction, role: .cancel) {}
             }
-            .interactiveDismissDisabled(hasUnsavedChanges)
+            .interactiveDismissDisabled(hasUnsavedChanges || isWorking)
             .busyOverlay(isSaving, label: busyLabel)
             .animation(.easeInOut(duration: 0.2), value: errorMessage)
             .animation(.easeInOut(duration: 0.2), value: isTranscribing)
@@ -401,31 +419,17 @@ struct SessionEditorView: View {
                     initialDate = session.date
                     initialNotes = session.notes
                     initialType = session.type
+                    initialStructuredNotes = session.structuredNotes
                 }
-                gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: patient.id)
+                gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: storePatient?.id)
                 gettingStartedRouter.refresh(using: store)
             }
-            .task { await loadQuestionnaire() }
-            .task { await loadQuestionnaireAssignment() }
+            .task { await refreshQuestionnaireState() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await refreshQuestionnaireState() } }
+            }
             .alert(L10n.questionnaireSentToPatient, isPresented: $didSendQuestionnaire) {
                 Button(L10n.ok, role: .cancel) {}
-            }
-            .sheet(isPresented: $isEditingDate) {
-                NavigationStack {
-                    DatePicker(L10n.dateLabel, selection: $session.date, displayedComponents: [.date])
-                        .datePickerStyle(.graphical)
-                        .environment(\.locale, Locale(identifier: "he_IL"))
-                        .padding()
-                        .navigationTitle(L10n.sessionDateTitle)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button(L10n.done) { isEditingDate = false }
-                            }
-                        }
-                }
-                .presentationDetents([.medium])
-                .appTextSize()
             }
             .sheet(isPresented: $isShowingAllFollowUps) {
                 NavigationStack {
@@ -451,14 +455,39 @@ struct SessionEditorView: View {
                 SessionAnalysisView(analysis: result.analysis,
                                     requiresSaveDecision: result.requiresSaveDecision,
                                     onSave: { saveStructuredNotes($0) },
-                                    accent: PatientAvatarColor.background(for: patient.id))
+                                    accent: patientAccent)
             }
         }
         .appTextSize()
     }
 
-    /// The session-type options, shared by the new-session picker row and
-    /// the edit-mode pencil menu.
+    private var patientPicker: some View {
+        Picker(L10n.patientSectionTitle, selection: $selectedPatientID) {
+            Text(L10n.sessionChoosePatientPlaceholder).tag(DatabaseID?.none)
+            ForEach(store.patients.filter { $0.status == .active }.sorted {
+                $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            }) { patient in
+                Text(patient.displayName).tag(DatabaseID?.some(patient.id))
+            }
+            let inactive = store.patients.filter { $0.status == .inactive }.sorted {
+                $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            }
+            if !inactive.isEmpty {
+                Section(L10n.inactivePatientsSectionTitle) {
+                    ForEach(inactive) { patient in
+                        Text(patient.displayName).tag(DatabaseID?.some(patient.id))
+                    }
+                }
+            }
+        }
+        .pickerStyle(.menu)
+        .accessibilityIdentifier("session.patient")
+        .onChange(of: selectedPatientID) { _, _ in
+            gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: storePatient?.id)
+        }
+    }
+
+    /// Optional protocol stage directly below the date.
     private var typePicker: some View {
         Picker(L10n.sessionTypeLabel, selection: $session.type) {
             Text(L10n.sessionTypeNone).tag(SessionType?.none)
@@ -466,11 +495,10 @@ struct SessionEditorView: View {
                 Text(L10n.label(for: type)).tag(SessionType?.some(type))
             }
         }
+        .pickerStyle(.menu)
     }
 
-    /// Mic button living at the edge of the notes text box. While recording it
-    /// turns into a stop button with the elapsed time; stopping asks whether
-    /// to transcribe into the notes or discard.
+    /// Recording is explicitly labelled; stopping starts transcription automatically.
     @ViewBuilder
     private var recordControl: some View {
         if voiceRecorder.isRecording {
@@ -485,22 +513,25 @@ struct SessionEditorView: View {
                     // starts immediately — no intermediate controls.
                     transcribe()
                 } label: {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.title2)
+                    Label(L10n.stopPatientNotesRecording, systemImage: "stop.circle.fill")
+                        .frame(minHeight: 44)
                         .foregroundStyle(Theme.error)
                 }
                 .buttonStyle(.plain)
             }
         } else {
             Button {
-                Task { await voiceRecorder.startRecording() }
+                isRequestingRecording = true
+                Task {
+                    await voiceRecorder.startRecording()
+                    isRequestingRecording = false
+                }
             } label: {
-                Image(systemName: "mic.fill")
-                    .font(.title3)
-                    .foregroundStyle(.tint)
+                Label(L10n.recordSessionNotesAction, systemImage: "mic.fill")
+                    .frame(minHeight: 44)
             }
             .buttonStyle(.plain)
-            .disabled(isTranscribing || isAnonymizingTranscription)
+            .disabled(isWorking || voiceRecorder.recordingURL != nil)
             .tutorialPulse(gettingStartedRouter.shouldPulse(.recordNotes))
         }
     }
@@ -513,7 +544,7 @@ struct SessionEditorView: View {
     /// Sends the recorded voice note to Whisper and appends the resulting
     /// text to the notes field, wrapped in marker lines.
     private func transcribe() {
-        guard let fileURL = voiceRecorder.recordingURL else { return }
+        guard !isWorking, let fileURL = voiceRecorder.recordingURL else { return }
         let whisperService = WhisperService(client: auth.client)
         voiceRecorder.errorMessage = nil
         isTranscribing = true
@@ -531,7 +562,10 @@ struct SessionEditorView: View {
                 session.notes = anonymized
                 voiceRecorder.discard()
                 isAnonymizingTranscription = false
-                await autosaveSession()
+                if session.databaseID != nil {
+                    isSaving = true
+                    await autosaveSession()
+                }
             } catch {
                 voiceRecorder.errorMessage = error.userFacingMessage
                 isTranscribing = false
@@ -545,6 +579,8 @@ struct SessionEditorView: View {
     /// Sends the notes text to the AI analysis Edge Function and presents
     /// the full response in a sheet.
     private func analyze() {
+        guard !isWorking, voiceRecorder.recordingURL == nil else { return }
+        isAnalyzing = true
         let whisperService = WhisperService(client: auth.client)
         errorMessage = nil
         Task {
@@ -564,9 +600,13 @@ struct SessionEditorView: View {
                 // unedited skips anonymization; only fields the therapist
                 // edits afterwards go through the Edge Function.
                 store.registerAIAnalysis(analysis)
-                // Saved silently the moment it arrives; the sheet opens for
-                // review without asking to keep it.
-                saveStructuredNotes(analysis)
+                // Finish persistence before opening the editable review, so
+                // a second save cannot race the generated summary's save.
+                session.structuredNotes = analysis
+                if session.databaseID != nil {
+                    isSaving = true
+                    await autosaveSession()
+                }
                 analysisResult = SessionAnalysisResult(analysis: analysis,
                                                        requiresSaveDecision: false)
                 gettingStartedRouter.refresh(using: store)
@@ -584,7 +624,9 @@ struct SessionEditorView: View {
     /// without saving. New sessions are skipped — they have no row until
     /// the first explicit save.
     private func autosaveSession() async {
-        guard session.databaseID != nil else { return }
+        defer { isSaving = false }
+        errorMessage = nil
+        busyLabel = L10n.anonymizingStatusLabel
         do {
             try await store.updateSession(session)
             // The silent save is the new baseline, so backing out without
@@ -592,6 +634,7 @@ struct SessionEditorView: View {
             initialDate = session.date
             initialNotes = session.notes
             initialType = session.type
+            initialStructuredNotes = session.structuredNotes
         } catch {
             errorMessage = error.userFacingMessage
         }
@@ -599,6 +642,7 @@ struct SessionEditorView: View {
 
     /// Deletes the session (after the confirmation alert) and closes the editor.
     private func deleteSession() {
+        guard let storePatient else { return }
         errorMessage = nil
         busyLabel = nil
         isSaving = true
@@ -668,13 +712,8 @@ struct SessionEditorView: View {
     private func saveStructuredNotes(_ analysis: WhisperService.CBTSessionAnalysis) {
         session.structuredNotes = analysis
         guard session.databaseID != nil else { return }
-        Task {
-            do {
-                try await store.updateSession(session)
-            } catch {
-                errorMessage = error.userFacingMessage
-            }
-        }
+        isSaving = true
+        Task { await autosaveSession() }
     }
 
     private func appendNotesBlock(_ block: String) {
@@ -688,7 +727,7 @@ struct SessionEditorView: View {
     /// The questionnaire answered most recently before this session's, for
     /// the score chips' trend arrows.
     private var previousQuestionnaireRecord: CompletedQuestionnaire? {
-        guard let current = questionnaire,
+        guard let patient = storePatient, let current = questionnaire,
               let records = store.cachedQuestionnaires(for: patient) else { return nil }
         return records
             .filter { $0.id != current.id && $0.answeredDate <= current.answeredDate }
@@ -697,6 +736,7 @@ struct SessionEditorView: View {
 
     private enum QuestionnaireAssignmentStatus: Equatable {
         case loading
+        case demo
         case notConnected
         case available
         case pending
@@ -705,7 +745,7 @@ struct SessionEditorView: View {
 
     private var questionnaireSection: some View {
         Section(L10n.questionnaireSectionTitle) {
-            if let questionnaire {
+            if let patient = storePatient, let questionnaire {
                 // Opens the questionnaire pre-filled with the saved answers,
                 // read-only until Edit is chosen; saving upserts the same row.
                 NavigationLink {
@@ -713,6 +753,8 @@ struct SessionEditorView: View {
                                                   isExisting: true)
                 } label: {
                     VStack(alignment: .leading, spacing: 6) {
+                        Label(L10n.questionnaireCompletedLabel, systemImage: "checkmark.circle")
+                            .font(.subheadline)
                         Text(L10n.hebrewDate(questionnaire.answeredDate))
                             .font(.headline)
                         HStack(spacing: 8) {
@@ -737,11 +779,16 @@ struct SessionEditorView: View {
     private var therapistQuestionnaireEntryRow: some View {
         if isLoadingQuestionnaire {
             ProgressView()
-        } else {
+        } else if let patient = storePatient {
             NavigationLink {
                 CombinedMoodQuestionnaireView(patient: patient, session: session)
             } label: {
-                Label(L10n.addQuestionnaireAction, systemImage: "plus")
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(L10n.fillQuestionnaireHereAction, systemImage: "square.and.pencil")
+                    Text(L10n.questionnaireSessionEntryHelp)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
             .tutorialPulse(gettingStartedRouter.shouldPulse(.fillQuestionnaire))
         }
@@ -752,6 +799,10 @@ struct SessionEditorView: View {
         switch assignmentStatus {
         case .loading:
             ProgressView()
+        case .demo:
+            Text(L10n.questionnaireDemoSendingUnavailable)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         case .notConnected:
             VStack(alignment: .leading, spacing: 6) {
                 Text(L10n.patientNotConnectedTitle)
@@ -762,15 +813,33 @@ struct SessionEditorView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         case .available:
-            Button {
-                Task { await sendQuestionnaireToPatient() }
-            } label: {
-                Text(L10n.sendQuestionnaireToPatientAction)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L10n.questionnairePatientEntryHelp)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button {
+                    Task { await sendQuestionnaireToPatient() }
+                } label: {
+                    if isSendingQuestionnaire {
+                        ProgressView(L10n.questionnaireSendingLabel)
+                    } else {
+                        Label(L10n.sendQuestionnaireToPatientAction, systemImage: "paperplane")
+                    }
+                }
+                .disabled(isSendingQuestionnaire || isRefreshingQuestionnaire)
             }
-            .disabled(isSendingQuestionnaire)
         case .pending:
-            Text(L10n.questionnaireAwaitingPatient)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Label(L10n.questionnaireAwaitingPatient, systemImage: "clock")
+                    .font(.subheadline.weight(.semibold))
+                Text(L10n.questionnairePendingExplanation)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button(L10n.questionnaireRefreshAction) {
+                    Task { await refreshQuestionnaireState() }
+                }
+                .disabled(isRefreshingQuestionnaire)
+            }
         case .failed(let message):
             VStack(alignment: .leading, spacing: 8) {
                 Text(message)
@@ -778,7 +847,7 @@ struct SessionEditorView: View {
                     .foregroundStyle(Theme.error)
                     .fixedSize(horizontal: false, vertical: true)
                 Button(L10n.questionnaireAssignmentRetryAction) {
-                    Task { await loadQuestionnaireAssignment() }
+                    Task { await refreshQuestionnaireState() }
                 }
             }
         }
@@ -788,20 +857,31 @@ struct SessionEditorView: View {
         PatientAssignmentService(client: auth.client)
     }
 
+    private func refreshQuestionnaireState() async {
+        guard !isNew, !isRefreshingQuestionnaire, !isSendingQuestionnaire else { return }
+        isRefreshingQuestionnaire = true
+        defer { isRefreshingQuestionnaire = false }
+        guard await loadQuestionnaire() else {
+            assignmentStatus = .failed(L10n.questionnaireStatusRefreshFailed)
+            return
+        }
+        await loadQuestionnaireAssignment()
+    }
+
     /// Connection and open-assignment state for sending a questionnaire.
     /// Starts in loading so "not connected" is never shown speculatively.
     private func loadQuestionnaireAssignment() async {
-        guard !isNew else { return }
+        guard !isNew, let patient = storePatient else { return }
         assignmentStatus = .loading
         guard questionnaire == nil else { return }
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            assignmentStatus = .demo
+            return
+        }
         guard let sessionId = session.databaseID?.uuidValue,
               let patientId = patient.id.uuidValue
         else {
             assignmentStatus = .failed(L10n.patientConnectionCheckError)
-            return
-        }
-        if store.isDemoMode || DemoData.isDemoID(patient.id) {
-            assignmentStatus = .notConnected
             return
         }
         do {
@@ -821,7 +901,7 @@ struct SessionEditorView: View {
     }
 
     private func sendQuestionnaireToPatient() async {
-        guard questionnaire == nil, !isSendingQuestionnaire else { return }
+        guard let patient = storePatient, questionnaire == nil, !isSendingQuestionnaire else { return }
         guard case .available = assignmentStatus else { return }
         guard let sessionId = session.databaseID?.uuidValue,
               let patientId = patient.id.uuidValue
@@ -847,21 +927,23 @@ struct SessionEditorView: View {
 
     /// Refreshes the patient's questionnaire cache from the server; the
     /// cached value is already shown while this runs.
-    private func loadQuestionnaire() async {
-        guard !isNew, session.databaseID != nil else { return }
+    private func loadQuestionnaire() async -> Bool {
+        guard let patient = storePatient, !isNew, session.databaseID != nil else { return false }
 
         syncSessionQuestionnaire()
+        defer { isLoadingQuestionnaire = false }
         if store.cachedQuestionnaires(for: patient) == nil {
             isLoadingQuestionnaire = true
         }
         do {
             _ = try await store.loadQuestionnaires(for: patient)
         } catch {
-            // Keep whatever the cache had; the section shows the add button
-            // rather than blocking the editor on a failed refresh.
+            // Preserve cached answers, but don't infer that another request
+            // can be sent until both completion and assignment state are known.
+            return false
         }
-        isLoadingQuestionnaire = false
         syncSessionQuestionnaire()
+        return true
     }
 
     /// Copies the saved answers onto the session's in-memory questionnaire so
@@ -878,6 +960,7 @@ struct SessionEditorView: View {
     /// the leave-without-saving warning (`thenDismiss`), which continues
     /// backing out after a successful save.
     private func save(thenDismiss: Bool = false) {
+        guard canSave, let patient = storePatient else { return }
         errorMessage = nil
         // Only promise anonymization when there is text that may actually be
         // sent to the anonymizer; otherwise show a plain spinner.
@@ -898,6 +981,7 @@ struct SessionEditorView: View {
                     initialDate = session.date
                     initialNotes = session.notes
                     initialType = session.type
+                    initialStructuredNotes = session.structuredNotes
                     gettingStartedRouter.refresh(using: store)
                     if thenDismiss { dismiss() }
                 }

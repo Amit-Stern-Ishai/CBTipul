@@ -6,8 +6,6 @@ struct GlobalSessionsView: View {
 
     @State private var isLoading = false
     @State private var loadError: String?
-    @State private var isChoosingPatient = false
-    @State private var pendingNewPatient: Patient?
     @State private var editor: SessionEditorRoute?
     @State private var patientSearch = ""
 
@@ -56,20 +54,10 @@ struct GlobalSessionsView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        isChoosingPatient = true
+                        editor = SessionEditorRoute(patient: nil, session: Session(), isNew: true)
                     } label: {
                         Label(L10n.newSessionTitle, systemImage: "plus")
                     }
-                }
-            }
-            .sheet(isPresented: $isChoosingPatient, onDismiss: {
-                guard let patient = pendingNewPatient else { return }
-                pendingNewPatient = nil
-                editor = SessionEditorRoute(patient: patient, session: Session(), isNew: true)
-            }) {
-                GlobalSessionPatientPicker { patient in
-                    pendingNewPatient = patient
-                    isChoosingPatient = false
                 }
             }
             .sheet(item: $editor) { route in
@@ -90,7 +78,7 @@ struct GlobalSessionsView: View {
 
     private var addSessionCTA: some View {
         Button(allItems.isEmpty ? L10n.createSessionAction : L10n.addSessionAction) {
-            isChoosingPatient = true
+            editor = SessionEditorRoute(patient: nil, session: Session(), isNew: true)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
@@ -271,14 +259,14 @@ private struct GlobalSessionItem: Identifiable, Equatable {
 }
 
 private struct SessionEditorRoute: Identifiable {
-    let patient: Patient
+    let patient: Patient?
     let session: Session
     let isNew: Bool
 
     var id: UUID { session.id }
 
     var sessionNumber: Int? {
-        guard !isNew else { return nil }
+        guard !isNew, let patient else { return nil }
         let chronological = patient.sessions.sorted { $0.date < $1.date }
         return (chronological.firstIndex { $0.id == session.id } ?? 0) + 1
     }
@@ -319,78 +307,5 @@ private struct GlobalSessionRow: View {
             return "\(L10n.session(item.number)) · \(L10n.label(for: type))"
         }
         return L10n.session(item.number)
-    }
-}
-
-private struct GlobalSessionPatientPicker: View {
-    let onSelect: (Patient) -> Void
-
-    @Environment(PatientStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
-
-    private var sortedPatients: [Patient] {
-        store.patients.sorted {
-            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
-        }
-    }
-
-    private var activePatients: [Patient] {
-        sortedPatients.filter { $0.status == .active }
-    }
-
-    private var inactivePatients: [Patient] {
-        sortedPatients.filter { $0.status == .inactive }
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                if store.patients.isEmpty {
-                    Text(L10n.noPatientsTitle)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .listRowBackground(Color.clear)
-                } else {
-                    if !activePatients.isEmpty {
-                        Section {
-                            patientRows(activePatients)
-                        }
-                    }
-                    if !inactivePatients.isEmpty {
-                        Section(L10n.inactivePatientsSectionTitle) {
-                            patientRows(inactivePatients)
-                        }
-                    }
-                }
-            }
-            .patientAtmosphere(Theme.gold)
-            .themedScreen()
-            .navigationTitle(L10n.selectPatientTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.cancel) { dismiss() }
-                }
-            }
-        }
-        .appTextSize()
-    }
-
-    @ViewBuilder
-    private func patientRows(_ patients: [Patient]) -> some View {
-        ForEach(patients) { patient in
-            Button {
-                onSelect(patient)
-            } label: {
-                Text(patient.displayName)
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.plain)
-            .listRowBackground(groupBorderedRow(
-                .at(patients.firstIndex(of: patient) ?? 0, of: patients.count),
-                accent: Theme.gold))
-            .listRowSeparatorTint(Theme.borderFaint)
-        }
     }
 }

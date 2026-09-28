@@ -62,6 +62,10 @@ struct NotesField: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
+        if uiView.isEditable != isEditable {
+            if !isEditable { uiView.resignFirstResponder() }
+            uiView.isEditable = isEditable
+        }
         let label = context.coordinator.placeholderLabel
         if uiView.font != font {
             uiView.font = font

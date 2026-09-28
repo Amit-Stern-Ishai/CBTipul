@@ -17,10 +17,17 @@ final class SmokeTests: XCTestCase {
         app.textFields.firstMatch.tap()
         app.textFields.firstMatch.typeText(name)
         app.buttons.matching(identifier: "הוספת מטופל/ת").firstMatch.tap()
+        // The demo clinic persists across runs; filter before locating its new row.
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(name + "\n")
         let patient = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
         XCTAssertTrue(patient.waitForExistence(timeout: 5))
+        reveal(patient, in: app)
         patient.tap()
-        XCTAssertTrue(app.buttons["patient.documentSession"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["עריכת פרטים"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["patient.documentSession"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["patient.connection"].exists)
         // A local demo must explain connection without sending a real invitation.
         XCTAssertFalse(app.buttons["patient.shareInvitation"].exists)
@@ -29,8 +36,71 @@ final class SmokeTests: XCTestCase {
         overview.lifetime = .keepAlways
         add(overview)
 
+        // Connection guidance stays behind one compact invitation action.
+        XCTAssertFalse(app.buttons["patient.sending"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["patient.sendingUnavailable"].exists)
+        let connectionInfo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "הזמנה לאפליקציה")).firstMatch
+        reveal(connectionInfo, in: app)
+        XCTAssertTrue(connectionInfo.exists)
+        let explanation = app.staticTexts["שליחת קישור הזמנה אישי מאפשרת למטופל/ת לקבל ממך הודעות ושאלונים ולמלא יומנים שהפעלת."]
+        XCTAssertFalse(explanation.exists)
+        let compactConnection = XCTAttachment(screenshot: app.screenshot())
+        compactConnection.name = "Compact invitation action"
+        compactConnection.lifetime = .keepAlways
+        add(compactConnection)
+        connectionInfo.tap()
+        XCTAssertTrue(explanation.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["patient.shareInvitation"].exists, "Demo must not create real invitations")
+        app.buttons["patient.connectionInfo.done"].tap()
+        XCTAssertTrue(explanation.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["patient.sendMessage"].exists)
+        XCTAssertFalse(app.buttons["patient.sendQuestionnaire"].exists)
+
+        let diaries = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "יומנים")).firstMatch
+        reveal(diaries, in: app)
+        XCTAssertTrue(diaries.isHittable)
+        diaries.tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "יומן 1")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "יומן 2")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "יומן 3")).firstMatch.exists)
+        let diaryChoices = XCTAttachment(screenshot: app.screenshot())
+        diaryChoices.name = "Expanded diaries"
+        diaryChoices.lifetime = .keepAlways
+        add(diaryChoices)
+        diaries.tap()
+
+        let questionnaireHistory = app.buttons["patient.questionnaireHistory"]
+        reveal(questionnaireHistory, in: app)
+        questionnaireHistory.tap()
+        XCTAssertTrue(app.buttons["מילוי שאלון כאן"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.segmentedControls.firstMatch.exists)
+        app.navigationBars.buttons.firstMatch.tap()
+
+        let graphs = app.buttons["patient.questionnaireGraphs"]
+        reveal(graphs, in: app)
+        graphs.tap()
+        XCTAssertTrue(app.staticTexts["עדיין אין נתונים לגרפים"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["מילוי שאלון כאן"].exists)
+        XCTAssertFalse(app.segmentedControls.firstMatch.exists)
+        app.navigationBars.buttons.firstMatch.tap()
+
+        let messages = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "הודעות")).firstMatch
+        reveal(messages, in: app)
+        XCTAssertTrue(messages.isHittable)
+        messages.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["messages.history"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[name].exists)
+        XCTAssertTrue(app.staticTexts["עדיין לא נשלחו הודעות"].exists)
+        XCTAssertTrue(app.staticTexts["במצב הדגמה לא נשלחות הודעות למטופלים."].exists)
+        XCTAssertFalse(app.buttons["messages.compose"].exists)
+        let history = XCTAttachment(screenshot: app.screenshot())
+        history.name = "Messages history in demo"
+        history.lifetime = .keepAlways
+        add(history)
+        app.navigationBars["הודעות שנשלחו"].buttons.firstMatch.tap()
+
         let notes = app.buttons["patient.notes"]
-        for _ in 0..<5 where !notes.isHittable { app.swipeUp() }
+        reveal(notes, in: app)
         XCTAssertTrue(notes.isHittable)
         notes.tap()
         let field = app.textViews.firstMatch
@@ -48,6 +118,146 @@ final class SmokeTests: XCTestCase {
         notes.tap()
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertEqual(field.value as? String, original)
+    }
+
+    @MainActor
+    func testGlobalSessionChoosesPatientInForm() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["patients.root"].waitForExistence(timeout: 20))
+
+        let name = "000Session" + UUID().uuidString.prefix(6)
+        app.navigationBars.buttons["הוספת מטופל/ת"].tap()
+        XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5))
+        app.textFields.firstMatch.tap()
+        app.textFields.firstMatch.typeText(name)
+        app.buttons.matching(identifier: "הוספת מטופל/ת").firstMatch.tap()
+        XCTAssertTrue(app.searchFields["חיפוש מטופלים"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["פגישות"].tap()
+        app.navigationBars.buttons["פגישה חדשה"].tap()
+
+        let save = app.buttons["session.save"]
+        let picker = app.buttons["session.patient"]
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        XCTAssertTrue(picker.exists)
+        XCTAssertFalse(save.isEnabled, "A session must have an explicitly selected patient")
+        let date = app.datePickers["session.date"]
+        let type = app.buttons["session.type"]
+        XCTAssertTrue(date.exists)
+        XCTAssertTrue(type.exists)
+        XCTAssertLessThan(date.frame.midY, type.frame.midY)
+        XCTAssertLessThan(type.frame.midY, app.textViews.firstMatch.frame.minY)
+        picker.tap()
+        let choice = app.buttons[name]
+        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        choice.tap()
+        XCTAssertTrue(save.isEnabled)
+        let selected = XCTAttachment(screenshot: app.screenshot())
+        selected.name = "New session with patient dropdown"
+        selected.lifetime = .keepAlways
+        add(selected)
+        save.tap()
+        XCTAssertTrue(save.waitForNonExistence(timeout: 10))
+
+        let search = app.searchFields.firstMatch
+        search.tap()
+        search.typeText(name + "\n")
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[name].exists)
+        XCTAssertFalse(picker.exists, "Saved sessions keep their original patient")
+    }
+
+    @MainActor
+    func testSessionEditorSaveAndDiscard() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["patients.root"].waitForExistence(timeout: 20))
+
+        let name = "SessionUX" + UUID().uuidString.prefix(6)
+        app.navigationBars.buttons["הוספת מטופל/ת"].tap()
+        XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5))
+        app.textFields.firstMatch.tap()
+        app.textFields.firstMatch.typeText(name)
+        app.buttons.matching(identifier: "הוספת מטופל/ת").firstMatch.tap()
+        // The demo clinic persists across runs; filter before locating its new row.
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(name + "\n")
+        let patient = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+        XCTAssertTrue(patient.waitForExistence(timeout: 5))
+        reveal(patient, in: app)
+        patient.tap()
+        let sessions = app.buttons["patient.sessions"]
+        XCTAssertTrue(sessions.waitForExistence(timeout: 5))
+        reveal(sessions, in: app)
+        sessions.tap()
+        let addSession = app.navigationBars.buttons["הוספת פגישה"]
+        XCTAssertTrue(addSession.waitForExistence(timeout: 5))
+        addSession.tap()
+
+        let save = app.buttons["session.save"]
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["session.patient"].exists, "Patient detail already supplies the patient")
+        XCTAssertTrue(app.buttons["הקלטת סיכום הפגישה"].exists)
+        XCTAssertTrue(save.isEnabled, "A date-only session should not require optional details or AI")
+        let initial = XCTAttachment(screenshot: app.screenshot())
+        initial.name = "Clear session editor"
+        initial.lifetime = .keepAlways
+        add(initial)
+        // Start with an empty local session to avoid the live anonymization service.
+        save.tap()
+        XCTAssertTrue(save.waitForNonExistence(timeout: 10))
+        let row = app.cells.containing(.staticText, identifier: "1").firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        XCTAssertFalse(save.isEnabled)
+        XCTAssertTrue(app.staticTexts["כל השינויים נשמרו"].exists)
+
+        let notes = app.textViews.firstMatch
+        notes.tap()
+        notes.typeText("Session notes for UX verification")
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        XCTAssertTrue(app.staticTexts["כל השינויים נשמרו"].waitForExistence(timeout: 10))
+        XCTAssertFalse(save.isEnabled)
+        app.navigationBars.buttons["חזרה"].firstMatch.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(notes.waitForExistence(timeout: 5))
+        XCTAssertEqual(notes.value as? String, "Session notes for UX verification")
+        notes.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        notes.typeText(" discarded edit")
+        app.navigationBars.buttons["חזרה"].firstMatch.tap()
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 3))
+        app.alerts.buttons["מחיקת השינויים"].tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(notes.waitForExistence(timeout: 5))
+        XCTAssertEqual(notes.value as? String, "Session notes for UX verification")
+        XCTAssertFalse(save.isEnabled)
+    }
+
+    /// Fixed tutorial docks can overlap cells that XCTest still calls hittable.
+    /// Scroll in small steps to keep each target between the header and dock.
+    @MainActor
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
+        let height = app.frame.height
+        for _ in 0..<15 {
+            let y = element.exists ? element.frame.midY : height
+            if element.exists && element.isHittable && y > height * 0.25 && y < height * 0.55 { return }
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: y < height * 0.25 && element.exists ? 0.68 : 0.32))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        XCTAssertTrue(element.isHittable)
     }
 
     override func setUpWithError() throws {

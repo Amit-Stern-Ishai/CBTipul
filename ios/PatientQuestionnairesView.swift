@@ -2,28 +2,22 @@ import SwiftUI
 import Charts
 import OSLog
 
-/// A patient's saved questionnaires, shown either as a list (newest first,
-/// tap to view read-only) or as score-over-time graphs for GAD-7 and PHQ-9.
+/// Separate history and graph destinations sharing the same questionnaire data.
+/// The destination is fixed when opened; there is no in-screen mode switch.
 struct PatientQuestionnairesView: View {
     let patient: Patient
 
     @Environment(PatientStore.self) private var store
 
-    private enum Mode: Hashable {
-        case list
-        case graphs
-    }
-
-    @State private var mode: Mode = .list
     @State private var questionnaires: [CompletedQuestionnaire]
     @State private var isLoading = false
     @State private var loadError: String?
-    /// Graphs are shown one beat after switching to them, so the charts'
+    /// Graphs are shown one beat after opening, so the charts'
     /// expensive first layout doesn't happen mid-transition and jitter.
     @State private var isPreparingGraphs = true
     @State private var presentedQuestionnaireID: DatabaseID?
 
-    /// When true, this screen opens on graphs and hides the list/graph picker.
+    /// Selects the graph destination instead of questionnaire history.
     private let startsOnGraphs: Bool
     /// CombinedMood id to open after load, from notification routing.
     private let focusQuestionnaireID: DatabaseID?
@@ -40,24 +34,25 @@ struct PatientQuestionnairesView: View {
         self.startsOnGraphs = startsOnGraphs
         self.focusQuestionnaireID = focusQuestionnaireID
         _questionnaires = State(initialValue: previewQuestionnaires)
-        _mode = State(initialValue: startsOnGraphs ? .graphs : .list)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            if !questionnaires.isEmpty, !startsOnGraphs {
-                Picker(L10n.modePickerTitle, selection: $mode) {
-                    Text(L10n.listModeTitle).tag(Mode.list)
-                    Text(L10n.graphsModeTitle).tag(Mode.graphs)
+            if let loadError, !questionnaires.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.questionnaireRefreshFailed)
+                        .font(.subheadline.weight(.semibold))
+                    Text(loadError)
+                        .font(.footnote)
+                    Button(L10n.retry) { Task { await load() } }
                 }
-                .pickerStyle(.segmented)
-                .padding([.horizontal, .top])
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
             }
 
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .animation(.easeInOut(duration: 0.25), value: isLoading)
-                .animation(.easeInOut(duration: 0.25), value: mode)
                 .animation(.easeInOut(duration: 0.25), value: isPreparingGraphs)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -69,28 +64,17 @@ struct PatientQuestionnairesView: View {
         .background(Theme.base.ignoresSafeArea())
         .demoModeChrome()
         .navigationTitleWithSubtitle(
-            startsOnGraphs ? L10n.graphsAndTrendsTitle : L10n.questionnairesTitle,
+            startsOnGraphs ? L10n.graphsAndTrendsTitle : L10n.questionnaireHistoryTitle,
             subtitle: patient.displayName
         )
-        .toolbar {
-            if !startsOnGraphs {
-                ToolbarItem(placement: .primaryAction) {
-                    NavigationLink {
-                        PatientQuestionnaireEditorView(patient: patient)
-                    } label: {
-                        Label(L10n.emptyQuestionnairesPrimaryAction, systemImage: "plus")
-                    }
-                }
-            }
-        }
         .onAppear {
             if let cached = store.cachedQuestionnaires(for: patient) {
                 questionnaires = cached
             }
             attemptFocusIfNeeded()
         }
-        .task(id: mode) {
-            guard mode == .graphs else { return }
+        .task {
+            guard startsOnGraphs else { return }
             isPreparingGraphs = true
             try? await Task.sleep(for: .milliseconds(300))
             isPreparingGraphs = false
@@ -132,21 +116,19 @@ struct PatientQuestionnairesView: View {
             }
         } else if questionnaires.isEmpty {
             ContentUnavailableView {
-                Label(L10n.emptyQuestionnairesTitle, systemImage: "list.clipboard")
+                Label(startsOnGraphs ? L10n.emptyQuestionnaireGraphsTitle : L10n.emptyQuestionnairesTitle,
+                      systemImage: startsOnGraphs ? "chart.xyaxis.line" : "list.clipboard")
             } description: {
-                Text(L10n.emptyQuestionnairesBody)
+                Text(startsOnGraphs ? L10n.emptyQuestionnaireGraphsBody : L10n.emptyQuestionnairesBody)
+            }
+        } else if startsOnGraphs {
+            if isPreparingGraphs {
+                ProgressView()
+            } else {
+                graphs
             }
         } else {
-            switch mode {
-            case .list:
-                questionnaireList
-            case .graphs:
-                if isPreparingGraphs {
-                    ProgressView()
-                } else {
-                    graphs
-                }
-            }
+            questionnaireList
         }
     }
 
@@ -161,14 +143,20 @@ struct PatientQuestionnairesView: View {
     }
 
     private var addQuestionnaireCTA: some View {
-        NavigationLink {
-            PatientQuestionnaireEditorView(patient: patient)
-        } label: {
-            Text(L10n.emptyQuestionnairesPrimaryAction)
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 8) {
+            Text(L10n.questionnaireLocalEntryHelp)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            NavigationLink {
+                PatientQuestionnaireEditorView(patient: patient)
+            } label: {
+                Label(L10n.fillQuestionnaireHereAction, systemImage: "square.and.pencil")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
         .padding(.horizontal, 24)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity)

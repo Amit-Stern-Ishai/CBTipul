@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Patient workspace with a primary documentation action, explicit connection
-/// guidance, and a separate notes editor that retains voice transcription.
+/// Patient workspace with grouped sending actions, explicit connection guidance,
+/// and a separate notes editor that retains voice transcription.
 struct PatientDetailView: View {
     @Bindable var patient: Patient
 
@@ -15,6 +15,11 @@ struct PatientDetailView: View {
 
     @State private var isSaving = false
     @State private var isShowingNotes = false
+    @State private var areDiariesExpanded = false
+    @State private var isShowingSendOptions = false
+    @State private var isShowingConnectionInfo = false
+    @State private var pendingInvitationFromInfo = false
+    @State private var pendingSendAction: PatientSendAction?
     @State private var isShowingNotesBackWarning = false
     /// Status line under the busy spinner; the anonymization notice during
     /// saves, nothing during deletes.
@@ -117,59 +122,49 @@ struct PatientDetailView: View {
     var body: some View {
         List {
             Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                VStack(spacing: 12) {
+                    VStack(spacing: 4) {
                         Text(patient.displayName)
                             .font(.title2.bold())
-                        Button {
+                            .frame(maxWidth: .infinity)
+                        Button(L10n.editPatientDetailsAction) {
                             startEditingName()
-                        } label: {
-                            Text(L10n.editPatientDetailsAction)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
                         }
+                        .font(.subheadline)
                         .buttonStyle(.borderless)
-                        .accessibilityLabel(L10n.editPatientDetailsAction)
                     }
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    VStack(spacing: 4) {
                         Text(treatmentGoal.wrappedValue.isEmpty
                              ? L10n.noTreatmentGoalPlaceholder
                              : treatmentGoal.wrappedValue)
                             .font(.subheadline)
                             .foregroundStyle(treatmentGoal.wrappedValue.isEmpty ? .secondary : .primary)
+                            .frame(maxWidth: .infinity)
                         Button {
                             goalDraft = treatmentGoal.wrappedValue
                             isEditingGoal = true
                         } label: {
-                            Image(systemName: "pencil")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.secondary)
+                            Label(L10n.editTreatmentGoalAction, systemImage: "pencil")
+                                .font(.caption)
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel(L10n.editTreatmentGoalAction)
                     }
                     StatusBadge(status: patient.status)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-
-                Button {
-                    sessionsInitialAction = .addSession
-                    isShowingSessions = true
-                } label: {
-                    Label(L10n.documentSessionAction, systemImage: "square.and.pencil")
-                        .font(.headline)
-                }
-                .buttonStyle(.pressableProminent)
-                .accessibilityIdentifier("patient.documentSession")
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("patient.header")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
 
             Section {
                 connectionCard
-                    .listRowBackground(groupBorderedRow(.only))
+                    .listRowBackground(groupBorderedRow(connectionState == .connected ? .first : .only))
+                if connectionState == .connected {
+                    sendingActions
+                        .listRowBackground(groupBorderedRow(.last))
+                }
             }
 
             Section(L10n.patientRecordsTitle) {
@@ -182,22 +177,42 @@ struct PatientDetailView: View {
                                 && patient.id == gettingStartedRouter.progress.focusPatientID
                         )
                 }
+                .accessibilityIdentifier("patient.sessions")
                 .listRowBackground(groupBorderedRow(.first))
+
+                DisclosureGroup(isExpanded: $areDiariesExpanded) {
+                    NavigationLink {
+                        PatientDiaryOneView(patient: patient)
+                    } label: {
+                        workspaceRow("book.closed", title: L10n.diaryOneTitle,
+                                     detail: L10n.patientDiaryDescription)
+                    }
+                    .accessibilityIdentifier("patient.diaryOne")
+                    diaryPlaceholder(L10n.diaryTwoTitle)
+                    diaryPlaceholder(L10n.diaryThreeTitle)
+                } label: {
+                    workspaceRow("books.vertical", title: L10n.patientDiariesTitle,
+                                 detail: L10n.patientDiariesDescription)
+                }
+                .accessibilityIdentifier("patient.diaries")
+                .listRowBackground(groupBorderedRow(.middle))
 
                 NavigationLink {
                     PatientQuestionnairesView(patient: patient)
                 } label: {
-                    workspaceRow("list.clipboard", title: L10n.questionnairesTitle,
+                    workspaceRow("list.clipboard", title: L10n.questionnaireHistoryTitle,
                                  detail: L10n.patientQuestionnairesDescription)
                 }
+                .accessibilityIdentifier("patient.questionnaireHistory")
                 .listRowBackground(groupBorderedRow(.middle))
 
                 NavigationLink {
-                    PatientDiaryOneView(patient: patient)
+                    PatientQuestionnairesView(patient: patient, startsOnGraphs: true)
                 } label: {
-                    workspaceRow("book.closed", title: L10n.patientPracticeDiaryTitle,
-                                 detail: L10n.patientDiaryDescription)
+                    workspaceRow("chart.xyaxis.line", title: L10n.graphsAndTrendsTitle,
+                                 detail: L10n.patientGraphsDescription)
                 }
+                .accessibilityIdentifier("patient.questionnaireGraphs")
                 .listRowBackground(groupBorderedRow(.middle))
 
                 NavigationLink {
@@ -431,6 +446,14 @@ struct PatientDetailView: View {
         } message: {
             Text(invitationError ?? "")
         }
+        .sheet(isPresented: $isShowingConnectionInfo, onDismiss: {
+            guard pendingInvitationFromInfo else { return }
+            pendingInvitationFromInfo = false
+            guard connectionState == .notConnected else { return }
+            startPatientInvitation()
+        }) {
+            connectionInfoSheet
+        }
         .sheet(isPresented: $isShowingDisplayNameForInvite, onDismiss: {
             resumeInvitationAfterDisplayNameIfNeeded()
         }) {
@@ -494,6 +517,9 @@ struct PatientDetailView: View {
         }
         .onChange(of: patient.sessions.count) { _, _ in
             gettingStartedRouter.refresh(using: store)
+        }
+        .sheet(isPresented: $isShowingSendOptions, onDismiss: performPendingSendAction) {
+            sendOptionsSheet
         }
         .sheet(isPresented: $isShowingMessageComposer) {
             SendPatientMessageComposerView(patient: patient) {
@@ -680,41 +706,30 @@ struct PatientDetailView: View {
                 Text(L10n.patientConnectionReadyDescription)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 8) {
-                    Button {
-                        isShowingMessageComposer = true
-                    } label: {
-                        Label(L10n.sendPatientMessageAction, systemImage: "envelope")
-                    }
-                    Button {
-                        sendStandaloneQuestionnaire()
-                    } label: {
-                        Label(L10n.sendQuestionnaireToPatientAction, systemImage: "list.clipboard")
-                    }
-                    Button {
-                        sendDiaryOne()
-                    } label: {
-                        Label(L10n.enablePatientDiaryAction, systemImage: "book.closed")
-                    }
-                }
-                .buttonStyle(.bordered)
-                .disabled(isSendingToPatient || isSaving)
-            case .notConnected:
-                Text(L10n.patientConnectTitle)
-                    .font(.headline)
-                Text(L10n.patientConnectDescription)
-                    .font(.subheadline)
+            case .notConnected, .unavailable:
                 Button {
-                    startPatientInvitation()
+                    isShowingConnectionInfo = true
                 } label: {
-                    Label(L10n.patientShareInvitationAction, systemImage: "square.and.arrow.up")
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label(L10n.patientInviteToAppAction, systemImage: "person.crop.circle.badge.plus")
+                                .font(.headline)
+                                .foregroundStyle(Theme.gold)
+                            Text(connectionState == .notConnected
+                                 ? L10n.patientNotConnectedStatus : L10n.patientInvitationDemoStatus)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.forward")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
                 .disabled(isCreatingInvitation || isSaving)
-                .accessibilityIdentifier("patient.shareInvitation")
-                Text(L10n.patientShareInvitationExplanation)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                .accessibilityIdentifier("patient.connectionInfo")
             case .failed:
                 Text(L10n.patientConnectionCheckError)
                     .font(.subheadline)
@@ -722,24 +737,222 @@ struct PatientDetailView: View {
                     Task { await refreshConnectionState() }
                 }
                 .buttonStyle(.bordered)
-            case .unavailable:
-                Text(L10n.patientConnectTitle)
-                    .font(.headline)
-                Text(L10n.patientConnectDescription)
-                    .font(.subheadline)
-                Text(L10n.patientInvitationUnavailableExplanation)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            if connectionState != .connected {
-                Text(L10n.patientConnectionOptionalExplanation)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(.vertical, 6)
         .accessibilityIdentifier("patient.connection")
+    }
+
+    private var connectionInfoSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text(patient.displayName)
+                        .font(.title2.bold())
+                    Text(L10n.patientConnectDescription)
+                    switch connectionState {
+                    case .notConnected:
+                        Text(L10n.patientShareInvitationExplanation)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            pendingInvitationFromInfo = true
+                            isShowingConnectionInfo = false
+                        } label: {
+                            Label(L10n.patientShareInvitationAction, systemImage: "square.and.arrow.up")
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("patient.shareInvitation")
+                    case .unavailable:
+                        Text(L10n.patientInvitationUnavailableExplanation)
+                            .foregroundStyle(.secondary)
+                    case .connected:
+                        Label(L10n.patientConnectedStatus, systemImage: "checkmark.circle.fill")
+                    case .checking:
+                        ProgressView(L10n.patientConnectionChecking)
+                    case .failed:
+                        Text(L10n.patientConnectionCheckError)
+                        Button(L10n.retry) { Task { await refreshConnectionState() } }
+                    }
+                    Text(L10n.patientConnectionOptionalExplanation)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(24)
+            }
+            .themedScreen()
+            .navigationTitle(L10n.patientInviteToAppAction)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.done) { isShowingConnectionInfo = false }
+                        .accessibilityIdentifier("patient.connectionInfo.done")
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .appTextSize()
+    }
+
+    private enum PatientSendAction {
+        case message, questionnaire, diaryOne
+    }
+
+    @ViewBuilder
+    private var sendingActions: some View {
+        if connectionState == .connected {
+            Button {
+                pendingSendAction = nil
+                isShowingSendOptions = true
+            } label: {
+                HStack(spacing: 12) {
+                    workspaceRow("paperplane", title: L10n.sendToPatientAction,
+                                 detail: L10n.patientSendingDescription)
+                    Image(systemName: "chevron.forward")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isSendingToPatient || isSaving)
+            .accessibilityIdentifier("patient.sending")
+        } else {
+            sendingUnavailableNotice
+        }
+    }
+
+    private var sendingUnavailableNotice: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(L10n.patientSendingUnavailableTitle, systemImage: "lock.fill")
+                .font(.subheadline.weight(.semibold))
+            Text(sendingUnavailableDescription)
+                .font(.footnote)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .foregroundStyle(.secondary)
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("patient.sendingUnavailable")
+    }
+
+    private var sendingUnavailableDescription: String {
+        switch connectionState {
+        case .notConnected: L10n.patientSendingRequiresConnection
+        case .unavailable: L10n.patientSendingUnavailableHere
+        case .checking: L10n.patientConnectionChecking
+        case .failed: L10n.patientConnectionCheckError
+        case .connected: L10n.patientSendingDescription
+        }
+    }
+
+    private var sendOptionsSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.messageRecipient(patient.displayName))
+                            .font(.title3.bold())
+                        Text(L10n.patientChooseSendAction)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    if connectionState == .connected {
+                        sendOption(.message, icon: "envelope", title: L10n.writePatientMessageAction,
+                                   detail: L10n.patientSendMessageDescription)
+                        sendOption(.questionnaire, icon: "list.clipboard", title: L10n.sendQuestionnaireToPatientAction,
+                                   detail: L10n.patientQuestionnaireRequestDescription)
+                        sendOption(.diaryOne, icon: "book.closed", title: L10n.patientEnableDiaryOneAction,
+                                   detail: L10n.patientSendDiaryOneDescription)
+                        VStack(spacing: 0) {
+                            diaryPlaceholder(L10n.diaryTwoTitle)
+                            Divider()
+                            diaryPlaceholder(L10n.diaryThreeTitle)
+                        }
+                        .padding(.horizontal, 16)
+                    } else {
+                        sendingUnavailableNotice
+                    }
+                }
+                .padding(20)
+            }
+            .themedScreen()
+            .navigationTitle(L10n.sendToPatientAction)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.cancel) { isShowingSendOptions = false }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .appTextSize()
+    }
+
+    private func sendOption(_ action: PatientSendAction, icon: String, title: String, detail: String) -> some View {
+        Button {
+            pendingSendAction = action
+            isShowingSendOptions = false
+        } label: {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(Theme.gold)
+                    .frame(width: 40, height: 40)
+                    .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(Theme.textBright)
+                    Text(detail)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(18)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.borderFaint)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .disabled(isSendingToPatient || isSaving)
+    }
+
+    /// Wait for the selector to dismiss before presenting the composer or feedback.
+    private func performPendingSendAction() {
+        guard let action = pendingSendAction else { return }
+        pendingSendAction = nil
+        guard connectionState == .connected else {
+            presentSendFeedback(title: L10n.patientSendingUnavailableTitle,
+                                message: sendingUnavailableDescription)
+            return
+        }
+        switch action {
+        case .message: isShowingMessageComposer = true
+        case .questionnaire: sendStandaloneQuestionnaire()
+        case .diaryOne: sendDiaryOne()
+        }
+    }
+
+    private func diaryPlaceholder(_ title: String) -> some View {
+        HStack {
+            Label(title, systemImage: "book.closed")
+            Spacer()
+            Text(L10n.diaryComingSoon)
+                .font(.subheadline)
+        }
+        .foregroundStyle(.secondary)
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .combine)
     }
 
     /// Consumes a one-shot Getting Started request into sessions.
