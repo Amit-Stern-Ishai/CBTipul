@@ -104,7 +104,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Date
 
-private enum class QuestionnaireAssignmentUi { Demo, Loading, NotConnected, Available, Pending, Failed }
+private enum class QuestionnaireAssignmentUi { Demo, Loading, Connected, NotConnected, Available, Pending, Failed }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -173,12 +173,20 @@ fun SessionEditorScreen(
     var baselineNotes by editorDraft::baselineNotes
     var baselineType by editorDraft::baselineType
     var baselineStructured by editorDraft::baselineStructured
-    var pendingSave by editorDraft::pendingSave
     val hasText = notes.trim().isNotEmpty()
     val processing = isSaving || isTranscribing || isAnonymizingTranscription || isAnalyzing
     val context = LocalContext.current
     val assignmentScope = rememberCoroutineScope()
-    var assignmentStatus by remember { mutableStateOf(QuestionnaireAssignmentUi.Loading) }
+    fun cachedAssignmentState(): QuestionnaireAssignmentUi? {
+        if (isDemo || patient?.id?.let { DemoData.isDemoId(it) } == true) return QuestionnaireAssignmentUi.Demo
+        val patientId = patient?.id?.let(PatientAssignmentRepository::uuidOrNull) ?: return null
+        val connected = assignmentRepository?.cachedPatientConnection(patientId) ?: return null
+        if (!connected) return QuestionnaireAssignmentUi.NotConnected
+        val sessionId = initial.databaseId?.let(PatientAssignmentRepository::uuidOrNull) ?: return null
+        val snapshot = assignmentRepository.cachedQuestionnaireAssignment(sessionId) ?: return QuestionnaireAssignmentUi.Connected
+        return if (snapshot.assignmentId == null) QuestionnaireAssignmentUi.Available else QuestionnaireAssignmentUi.Pending
+    }
+    var assignmentStatus by remember(initial.id, isDemo) { mutableStateOf(cachedAssignmentState() ?: QuestionnaireAssignmentUi.Loading) }
     var assignmentError by remember { mutableStateOf<String?>(null) }
     var isSendingQuestionnaire by remember { mutableStateOf(false) }
     val connectionError = stringResource(R.string.patient_connection_check_error)
@@ -186,7 +194,7 @@ fun SessionEditorScreen(
 
     suspend fun loadAssignment() {
         if (isNew || questionnaire != null || assignmentRepository == null) return
-        assignmentStatus = QuestionnaireAssignmentUi.Loading
+        cachedAssignmentState()?.let { assignmentStatus = it }
         assignmentError = null
         if (questionnaireLoading) return
         if (questionnaireLoadError != null) {
@@ -209,14 +217,18 @@ fun SessionEditorScreen(
         try {
             assignmentStatus = if (!assignmentRepository.isPatientConnected(patientId)) {
                 QuestionnaireAssignmentUi.NotConnected
-            } else if (assignmentRepository.openQuestionnaireAssignment(sessionId) != null) {
-                QuestionnaireAssignmentUi.Pending
             } else {
-                QuestionnaireAssignmentUi.Available
+                assignmentStatus = cachedAssignmentState() ?: QuestionnaireAssignmentUi.Connected
+                assignmentRepository.openQuestionnaireAssignment(sessionId)
+                cachedAssignmentState() ?: QuestionnaireAssignmentUi.Connected
             }
         } catch (error: kotlinx.coroutines.CancellationException) { throw error } catch (_: Exception) {
-            assignmentStatus = QuestionnaireAssignmentUi.Failed
-            assignmentError = connectionError
+            val cached = cachedAssignmentState()
+            if (cached != null && cached != QuestionnaireAssignmentUi.Connected) assignmentStatus = cached
+            else {
+                assignmentStatus = QuestionnaireAssignmentUi.Failed
+                assignmentError = connectionError
+            }
         }
     }
     LaunchedEffect(initial.databaseId?.queryValue, questionnaire?.databaseId?.queryValue, questionnaireLoading, questionnaireLoadError) {
@@ -252,17 +264,8 @@ fun SessionEditorScreen(
         structuredNotes != baselineStructured || recorder.recordingFile != null
 
     val canSave = patient != null && !busy && recorder.recordingFile == null && (isNew || hasUnsavedChanges)
-    LaunchedEffect(isSaving) {
-        if (!isSaving) pendingSave?.let { saved ->
-            if (errorMessage == null) {
-                baselineDate = saved.date; baselineNotes = saved.notes; baselineType = saved.type; baselineStructured = saved.structuredNotes
-            }
-            pendingSave = null
-        }
-    }
     fun persist(leave: Boolean) {
         if (!canSave) return
-        pendingSave = currentSession()
         onSave(currentSession(), leave)
     }
 
@@ -653,6 +656,7 @@ fun SessionEditorScreen(
                 GroupedListCard(accent = accent) {
                     when (assignmentStatus) {
                         QuestionnaireAssignmentUi.Demo -> Text(stringResource(R.string.questionnaire_demo_sending_unavailable), modifier = Modifier.padding(16.dp))
+                        QuestionnaireAssignmentUi.Connected -> Text(stringResource(R.string.patient_connected_status), modifier = Modifier.padding(16.dp))
                         QuestionnaireAssignmentUi.Loading -> {
                             Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator(Modifier.size(22.dp), color = colors.gold, strokeWidth = 2.dp)

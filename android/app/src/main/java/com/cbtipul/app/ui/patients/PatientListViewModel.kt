@@ -230,6 +230,7 @@ class PatientListViewModel(
         rejected: String,
         sessionNotSaved: String,
         anonymizationFailed: String,
+        onSaved: () -> Unit = {},
         onDone: () -> Unit,
     ) {
         viewModelScope.launch {
@@ -239,6 +240,7 @@ class PatientListViewModel(
                 else repository.updateSession(session)
                 refreshGettingStartedProgress()
                 _ui.update { it.copy(isSavingSession = false) }
+                onSaved()
                 if (leaveAfterSave) onDone()
             } catch (error: Exception) {
                 _ui.update {

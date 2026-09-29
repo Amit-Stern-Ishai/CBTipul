@@ -39,4 +39,18 @@ class SessionEditorDraftTest {
         assertEquals("transcript", owner.getOrCreate(Session()).snapshot().notes)
         assertEquals("Edited AI summary", owner.draft?.snapshot()?.structuredNotes?.sessionSummary)
     }
+    @Test fun immediateLocalSaveMarksDraftCleanAndLaterEditsRemainUnsaved() {
+        val draft = SessionEditorViewModel().getOrCreate(Session())
+        draft.notes = "Local sample note"
+        draft.type = SessionType.entries.first()
+        val saved = draft.snapshot()
+
+        // A local save can finish before Compose ever observes a loading state.
+        draft.markSaved(saved)
+        assertEquals(draft.notes, draft.baselineNotes)
+        assertEquals(draft.type, draft.baselineType)
+        draft.notes = "Changed after saving"
+        assertNotEquals(draft.notes, draft.baselineNotes)
+        assertEquals("Local sample note", draft.baselineNotes)
+    }
 }

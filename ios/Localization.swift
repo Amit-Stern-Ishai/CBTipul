@@ -70,7 +70,7 @@ enum L10n {
     static let patientNotesTitle = "הערות על המטופל/ת"
     static let patientNotesDescription = "רקע והערות כלליות שאינן שייכות לפגישה מסוימת"
     static let additionalAssistanceTitle = "תובנות והכנה לפגישה"
-    static let patientAIAssistanceTitle = "חשיבה על הטיפול בעזרת AI"
+    static let patientAIAssistanceTitle = aiChatNavigationTitle
     static let patientAIAssistanceDescription = "שיחה עם עוזר בינה מלאכותית והמשגת המקרה"
     static let patientConnectTitle = "חיבור המטופל/ת לאפליקציה"
     static let patientInviteToAppAction = "הזמנה לאפליקציה"
@@ -280,6 +280,7 @@ enum L10n {
     static let sampleDataReturnTitle = "חזרה בכל רגע"
     static let sampleDataReturnBody = "לחצו על ״חזרה למטופלים שלי״ בראש המסך. השינויים בנתוני הדוגמה יישמרו במכשיר להתנסות הבאה."
     static let sampleDataStartAction = "התחלת התנסות"
+    static let sampleDataActiveTitle = "מצב נתונים לדוגמה פעיל"
 
     static let tutorialCoachHintAddPatient =
         "לחצו על ״הוספת מטופל/ת ראשון/ה״ כדי להוסיף מטופל/ת"
@@ -1048,7 +1049,7 @@ amitishai@gmail.com
     
     // MARK: - AI assistant
     
-    static let aiTitle = "שיחת AI"
+    static let aiTitle = aiChatNavigationTitle
     
     static let aiAction = "שיחת AI"
     
@@ -1066,7 +1067,7 @@ amitishai@gmail.com
     
     static let aiChatTitle = "שיחה"
     
-    static let aiChatNavigationTitle = "שיחת AI"
+    static let aiChatNavigationTitle = "שיחת AI על המטופל/ת"
     
     /// Hint in the chat's message field, e.g. "שאלה על באגס באני".
     static func aiPromptPlaceholder(_ name: String) -> String {
@@ -1545,6 +1546,36 @@ amitishai@gmail.com
     
     static let totalOptionLabel = "ציון כולל"
     
+    static let gad7GraphTitle = "חרדה · GAD-7"
+    static let phq9GraphTitle = "דיכאון · PHQ-9"
+    static let questionTrendsTrendPicker = "מגמה"
+    static let questionTrendsQuestionPicker = "שאלה"
+    static let questionTrendsGraphTitle = "ציוני השאלה לאורך זמן"
+    static let questionTrendsTitle = "מגמות לפי שאלה"
+    static let questionTrendsHelp = "בחרו מגמה ואז שאלה מהרשימה. הגרף מציג את ציוני השאלה בכל השאלונים שמולאו. ציון נמוך יותר משקף שיפור."
+    static let questionTrendsMissing = "נדרשות לפחות שתי תשובות לכל שאלה. תשובות חסרות אינן נחשבות לציון 0 ואינן נכללות בהשוואה."
+    static let questionTrendImproving = "שיפור"
+    static let questionTrendImprovingHelp = "הציון לא עלה באף מילוי, וירד לפחות פעם אחת."
+    static let questionTrendWorsening = "החמרה"
+    static let questionTrendWorseningHelp = "הציון לא ירד באף מילוי, ועלה לפחות פעם אחת."
+    static let questionTrendUnchanged = "ללא שינוי"
+    static let questionTrendUnchangedHelp = "אותו ציון בכל המילויים."
+    static let questionTrendMixed = "מגמה מעורבת"
+    static let questionTrendMixedHelp = "היו גם עליות וגם ירידות בציון."
+    static let questionTrendInsufficient = "אין מספיק תשובות"
+    static let questionTrendInsufficientHelp = "פחות משתי תשובות לשאלה."
+    static let questionTrendsNoQuestions = "אין שאלות שמתאימות למגמה זו."
+    static let questionTrendsMissingAnswer = "לא נענתה"
+    static let questionnaireGraphSingleShort = "מילוי אחד"
+    static let questionnaireGraphUnchangedShort = "ללא שינוי"
+    static func questionTrendsOption(_ title: String, count: Int) -> String { "\(title)\u{00A0}(\u{2066}\(count)\u{2069})" }
+    static func questionTrendsMatchingCount(_ count: Int) -> String { "שאלות: \(count)" }
+    static func questionTrendsReference(_ scale: String, number: Int) -> String { "שאלה \(number) · \u{2066}\(scale)\u{2069}" }
+    static func questionTrendsCount(_ count: Int) -> String { "\(count) שאלונים" }
+    static func questionnaireGraphChangeShort(_ difference: Int) -> String {
+        if difference == 0 { return questionnaireGraphUnchangedShort }
+        return difference > 0 ? "עלייה של \(difference)" : "ירידה של \(-difference)"
+    }
     static let questionnaireGraphHelp = "כל נקודה מייצגת מילוי שאלון. התאריכים מתקדמים משמאל לימין."
     static let questionnaireGraphSingleResponse = "מוצג מילוי אחד. לאחר מילוי נוסף יהיה אפשר לראות שינוי לאורך זמן."
     static let questionnaireGraphNoAnswers = "אין תשובות להצגה עבור הבחירה הזו."

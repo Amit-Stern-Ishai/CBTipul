@@ -39,16 +39,27 @@ internal enum class ConnectionUi { Checking, Connected, NotConnected, Unavailabl
 
 @Composable
 internal fun rememberPatientConnection(patient: Patient?, repository: PatientAssignmentRepository?, isDemo: Boolean): Pair<ConnectionUi, () -> Unit> {
-    var state by remember(patient?.id, isDemo) { mutableStateOf(ConnectionUi.Checking) }
+    val id = patient?.id?.let(PatientAssignmentRepository::uuidOrNull)
+    val available = patient != null && !isDemo && !DemoData.isDemoId(patient.id) && id != null && repository != null
+    fun cachedState(): ConnectionUi? = if (available) repository?.cachedPatientConnection(id!!)?.let {
+        if (it) ConnectionUi.Connected else ConnectionUi.NotConnected
+    } else ConnectionUi.Unavailable
+    var state by remember(id, isDemo, repository) { mutableStateOf(cachedState() ?: ConnectionUi.Checking) }
     var revision by remember { mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { revision++ }
-    LaunchedEffect(patient?.id, isDemo, revision) {
-        val id = patient?.id?.let(PatientAssignmentRepository::uuidOrNull)
-        state = if (patient == null || isDemo || DemoData.isDemoId(patient.id) || id == null || repository == null) ConnectionUi.Unavailable else {
-            state = ConnectionUi.Checking
-            try { if (repository.isPatientConnected(id)) ConnectionUi.Connected else ConnectionUi.NotConnected }
-            catch (e: CancellationException) { throw e }
-            catch (_: Exception) { ConnectionUi.Failed }
+    LaunchedEffect(id, isDemo, revision) {
+        if (!available) {
+            state = ConnectionUi.Unavailable
+        } else {
+            cachedState()?.let { state = it }
+            try {
+                state = if (repository!!.isPatientConnected(id!!)) ConnectionUi.Connected else ConnectionUi.NotConnected
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // A failed refresh must not replace the last known status.
+                state = cachedState() ?: ConnectionUi.Failed
+            }
         }
     }
     return state to { revision++ }

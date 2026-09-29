@@ -8,6 +8,7 @@ struct PatientDiaryOneView: View {
 
     @Environment(DiaryOneStore.self) private var diary
     @Environment(AuthManager.self) private var auth
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(PatientStore.self) private var store
 
     private enum LoadState {
@@ -18,6 +19,7 @@ struct PatientDiaryOneView: View {
 
     private enum PatientModeStatus {
         case loading
+        case connected
         case notConnected
         case inactive
         case active
@@ -25,7 +27,21 @@ struct PatientDiaryOneView: View {
     }
 
     @State private var loadState: LoadState = .loading
-    @State private var patientModeStatus: PatientModeStatus = .loading
+    @State private var refreshedPatientModeStatus: PatientModeStatus = .loading
+    @State private var modeRefreshRevision = 0
+
+    private var cachedPatientModeStatus: PatientModeStatus? {
+        if store.isDemoMode || DemoData.isDemoID(patient.id) { return .notConnected }
+        guard let id = patient.id.uuidValue, let connected = assignmentService().cachedPatientConnection(patientId: id) else { return nil }
+        guard connected else { return .notConnected }
+        guard let snapshot = assignmentService().cachedOngoingAssignment(patientId: id, type: .diaryOne) else { return .connected }
+        return snapshot.assignmentId == nil ? .inactive : .active
+    }
+
+    private var patientModeStatus: PatientModeStatus {
+        get { refreshedPatientModeStatus == .loading ? cachedPatientModeStatus ?? .loading : refreshedPatientModeStatus }
+        nonmutating set { refreshedPatientModeStatus = newValue }
+    }
     @State private var activeAssignmentId: UUID?
     @State private var isUpdatingAssignment = false
     @State private var assignmentError: String?
@@ -87,12 +103,14 @@ struct PatientDiaryOneView: View {
                 }
             }
         }
-        .onAppear {
-            Task {
-                await loadEntries()
-                await attemptFocusIfNeeded()
-                await loadPatientModeState()
-            }
+        .task(id: patient.id) {
+            async let mode: Void = loadPatientModeState()
+            await loadEntries()
+            await attemptFocusIfNeeded()
+            await mode
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await loadPatientModeState() } }
         }
         .alert(L10n.diaryPatientModeStopConfirmTitle, isPresented: $isShowingStopConfirmation) {
             Button(L10n.diaryPatientModeStopConfirmAction, role: .destructive) {
@@ -157,8 +175,9 @@ struct PatientDiaryOneView: View {
             }
         }
         .refreshable {
+            async let mode: Void = loadPatientModeState()
             await loadEntries()
-            await loadPatientModeState()
+            await mode
         }
     }
 
@@ -172,6 +191,8 @@ struct PatientDiaryOneView: View {
                 ProgressView()
                     .tint(Theme.gold)
                     .controlSize(.small)
+            case .connected:
+                Text(L10n.patientConnectedStatus).font(.footnote).foregroundStyle(.secondary)
             case .notConnected:
                 Text(L10n.diaryPatientModeNotConnected)
                     .font(.footnote)
@@ -287,38 +308,45 @@ struct PatientDiaryOneView: View {
     }
 
     private func loadPatientModeState(showLoading: Bool = true) async {
-        if showLoading {
-            patientModeStatus = .loading
-            assignmentError = nil
-            activeAssignmentId = nil
+        if showLoading && isUpdatingAssignment { return }
+        if showLoading { assignmentError = nil }
+        modeRefreshRevision += 1
+        let revision = modeRefreshRevision
+        if let cached = cachedPatientModeStatus { patientModeStatus = cached }
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            patientModeStatus = .notConnected
+            return
         }
         guard let patientId = patient.id.uuidValue else {
             patientModeStatus = .failed
             assignmentError = L10n.patientConnectionCheckError
             return
         }
-        if store.isDemoMode || DemoData.isDemoID(patient.id) {
-            patientModeStatus = .notConnected
-            return
-        }
+        activeAssignmentId = assignmentService().cachedOngoingAssignment(patientId: patientId, type: .diaryOne)?.assignmentId
         do {
             let connected = try await assignmentService().isPatientConnected(patientId: patientId)
+            guard revision == modeRefreshRevision else { return }
             guard connected else {
+                activeAssignmentId = nil
                 patientModeStatus = .notConnected
                 return
             }
-            if let active = try await assignmentService().activeOngoingAssignment(
-                patientId: patientId,
-                type: .diaryOne
-            ) {
-                activeAssignmentId = active.id
-                patientModeStatus = .active
-            } else {
-                patientModeStatus = .inactive
-            }
+            patientModeStatus = cachedPatientModeStatus ?? .connected
+            _ = try await assignmentService().activeOngoingAssignment(patientId: patientId, type: .diaryOne)
+            guard revision == modeRefreshRevision else { return }
+            activeAssignmentId = assignmentService().cachedOngoingAssignment(patientId: patientId, type: .diaryOne)?.assignmentId
+            patientModeStatus = cachedPatientModeStatus ?? .connected
+        } catch is CancellationError {
+            return
         } catch {
-            patientModeStatus = .failed
-            assignmentError = L10n.patientConnectionCheckError
+            guard revision == modeRefreshRevision else { return }
+            // A failed background refresh does not erase a known usable status.
+            if let cached = cachedPatientModeStatus, cached != .connected {
+                patientModeStatus = cached
+            } else {
+                patientModeStatus = .failed
+                assignmentError = L10n.patientConnectionCheckError
+            }
         }
     }
 
@@ -329,6 +357,7 @@ struct PatientDiaryOneView: View {
             return
         }
         isUpdatingAssignment = true
+        modeRefreshRevision += 1
         assignmentError = nil
         defer { isUpdatingAssignment = false }
         do {
@@ -349,6 +378,7 @@ struct PatientDiaryOneView: View {
     private func stopDiaryOne() async {
         guard !isUpdatingAssignment, let assignmentId = activeAssignmentId else { return }
         isUpdatingAssignment = true
+        modeRefreshRevision += 1
         assignmentError = nil
         defer { isUpdatingAssignment = false }
         do {

@@ -69,10 +69,11 @@ fun NotesField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
-            .editorFocus()
             .fillMaxWidth()
             .heightIn(min = minHeight, max = maxHeight)
             .verticalScroll(scrollState)
+            // Observe the text input's focus rather than the scroll container's focus target.
+            .editorFocus()
             .onFocusChanged { focus ->
                 focused = focus.isFocused
                 onFocusChanged?.invoke(focus.isFocused)

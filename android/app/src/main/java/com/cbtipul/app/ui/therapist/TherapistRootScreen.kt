@@ -7,6 +7,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.Lifecycle
+import kotlinx.coroutines.flow.MutableSharedFlow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.cbtipul.app.CbTipulApp
+import com.cbtipul.app.ui.onboarding.DemoModeBanner
 import com.cbtipul.app.R
 import com.cbtipul.app.data.AppDestination
 import com.cbtipul.app.data.NotificationPayload
@@ -80,6 +85,8 @@ fun TherapistRootScreen(
     val context = LocalContext.current
     val app = context.applicationContext as CbTipulApp
     val patientsNav = rememberNavController()
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+    val reselections = remember { TherapistRootTab.entries.associateWith { MutableSharedFlow<Unit>(extraBufferCapacity = 1) } }
     val currentEntry by patientsNav.currentBackStackEntryAsState()
     var returnToInbox by rememberSaveable { mutableStateOf(false) }
     val patients by viewModel.patients.collectAsStateWithLifecycle()
@@ -125,52 +132,57 @@ fun TherapistRootScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
+        if (isDemoMode) DemoModeBanner(onExit = { viewModel.exitDemoMode() })
         Box(Modifier.weight(1f).fillMaxSize()) {
             Box(Modifier.fillMaxSize().then(if (tab == TherapistRootTab.Patients) Modifier else Modifier.clearAndSetSemantics {})) {
-                PatientsNavHost(
-                    viewModel = viewModel,
-                    onOpenSettings = { tab = TherapistRootTab.Settings },
-                    onCloseSettings = onCloseSettingsOverlay,
-                    navController = patientsNav,
-                )
+                CompositionLocalProvider(LocalTabReselections provides reselections.getValue(TherapistRootTab.Patients)) {
+                    PatientsNavHost(
+                        viewModel = viewModel,
+                        onOpenSettings = { tab = TherapistRootTab.Settings },
+                        onCloseSettings = onCloseSettingsOverlay,
+                        navController = patientsNav,
+                    )
+                }
             }
             // The mounted Patients stack must not handle Back behind another tab.
             // Child settings pages register later and keep their own Back behavior.
             BackHandler(enabled = tab != TherapistRootTab.Patients) { tab = TherapistRootTab.Patients }
-            when (tab) {
-                TherapistRootTab.Patients -> Unit
-                TherapistRootTab.Sessions -> GlobalSessionsScreen(
-                    viewModel = viewModel,
-                    unnamed = unnamed,
-                    onOpenSession = { patientId, sessionId ->
-                        tab = TherapistRootTab.Patients
-                        patientsNav.navigate("patient/$patientId") {
-                            popUpTo("list") { inclusive = false }
-                            launchSingleTop = true
-                        }
-                        patientsNav.navigate("patient/$patientId/session/$sessionId")
-                    },
-                    onCreateSession = {
-                        tab = TherapistRootTab.Patients
-                        patientsNav.navigate("patient/_/session/new")
-                    },
-                )
-                TherapistRootTab.Notifications -> NotificationsInboxScreen(
-                    repository = app.notifications,
-                    patients = patients,
-                    unnamed = unnamed,
-                    onOpen = { item ->
-                        val destination = NotificationRouting.destination(NotificationPayload.from(item))
-                        app.applicationScope.launch { app.notifications.markRead(item) }
-                        if (destination != null) {
+            CompositionLocalProvider(LocalTabReselections provides reselections.getValue(tab)) {
+                when (tab) {
+                    TherapistRootTab.Patients -> Unit
+                    TherapistRootTab.Sessions -> GlobalSessionsScreen(
+                        viewModel = viewModel,
+                        unnamed = unnamed,
+                        onOpenSession = { patientId, sessionId ->
                             tab = TherapistRootTab.Patients
-                            navigateTherapistDestination(patientsNav, destination)
-                            returnToInbox = true
-                        }
-                    },
-                )
-                TherapistRootTab.Library -> LibraryPlaceholderScreen()
-                TherapistRootTab.Settings -> settingsContent()
+                            patientsNav.navigate("patient/$patientId") {
+                                popUpTo("list") { inclusive = false }
+                                launchSingleTop = true
+                            }
+                            patientsNav.navigate("patient/$patientId/session/$sessionId")
+                        },
+                        onCreateSession = {
+                            tab = TherapistRootTab.Patients
+                            patientsNav.navigate("patient/_/session/new")
+                        },
+                    )
+                    TherapistRootTab.Notifications -> NotificationsInboxScreen(
+                        repository = app.notifications,
+                        patients = patients,
+                        unnamed = unnamed,
+                        onOpen = { item ->
+                            val destination = NotificationRouting.destination(NotificationPayload.from(item))
+                            app.applicationScope.launch { app.notifications.markRead(item) }
+                            if (destination != null) {
+                                tab = TherapistRootTab.Patients
+                                navigateTherapistDestination(patientsNav, destination)
+                                returnToInbox = true
+                            }
+                        },
+                    )
+                    TherapistRootTab.Library -> LibraryPlaceholderScreen()
+                    TherapistRootTab.Settings -> settingsContent()
+                }
             }
         }
         // Keep the full editor viewport available while typing.
@@ -179,7 +191,24 @@ fun TherapistRootScreen(
                 TherapistRootTab.ordered.forEach { item ->
                     NavigationBarItem(
                         selected = tab == item,
-                        onClick = { returnToInbox = false; tab = item },
+                        onClick = {
+                            returnToInbox = false
+                            if (tab != item) {
+                                tab = item
+                            } else if (item == TherapistRootTab.Patients && currentEntry?.destination?.route != "list") {
+                                // Ignore taps during transitions, and let editing screens handle
+                                // Back themselves (save/discard, recording and in-flight work).
+                                if (currentEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                                    if (canResetPatientsTab(currentEntry?.destination?.route)) {
+                                        patientsNav.popBackStack("list", inclusive = false)
+                                    } else {
+                                        backDispatcher?.onBackPressed()
+                                    }
+                                }
+                            } else {
+                                reselections.getValue(item).tryEmit(Unit)
+                            }
+                        },
                         icon = {
                             if (item == TherapistRootTab.Notifications) {
                                 BadgedBox(

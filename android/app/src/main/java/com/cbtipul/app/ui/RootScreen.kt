@@ -347,7 +347,10 @@ fun RootScreen() {
                             viewModel = listVm,
                             onCloseSettingsOverlay = { showSettings = false },
                             settingsContent = {
+                                val isDemoMode by listVm.isDemoMode.collectAsStateWithLifecycle()
                                 SettingsScreen(
+                                    isDemoMode = isDemoMode,
+                                    onExitDemoMode = { listVm.exitDemoMode() },
                                     email = signedIn?.email,
                                     textSize = textSize,
                                     appearance = appearance,
@@ -484,7 +487,11 @@ fun RootScreen() {
         }
 
         if (showSettings) {
+            val demoModeFlow = remember(patientsViewModel) { patientsViewModel?.isDemoMode ?: flowOf(false) }
+            val isDemoMode by demoModeFlow.collectAsStateWithLifecycle(initialValue = false)
             SettingsScreen(
+                isDemoMode = isDemoMode,
+                onExitDemoMode = { patientsViewModel?.exitDemoMode() },
                 email = signedIn?.email,
                 textSize = textSize,
                 appearance = appearance,

@@ -1,6 +1,63 @@
 import SwiftUI
 import Charts
-import OSLog
+
+/// A notification result owns its loading state independently of the history screen behind it.
+struct NotificationQuestionnaireView: View {
+    let patient: Patient
+    let questionnaireID: DatabaseID
+    @Environment(PatientStore.self) private var store
+    @State private var isLoading = true
+    @State private var loadError: String?
+
+    private var records: [CompletedQuestionnaire] {
+        store.cachedQuestionnaires(for: patient) ?? []
+    }
+
+    var body: some View {
+        Group {
+            if let record = records.first(where: { $0.databaseID.isSameIdentity(as: questionnaireID) }) {
+                CompletedQuestionnaireView(
+                    record: record,
+                    patient: patient,
+                    previous: records.filter { $0.answeredDate < record.answeredDate }
+                        .max(by: { $0.answeredDate < $1.answeredDate }),
+                    accent: PatientAvatarColor.background(for: patient.id)
+                )
+            } else if isLoading {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .themedScreen()
+            } else if let loadError {
+                ContentUnavailableView {
+                    Label(L10n.loadErrorTitle, systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(loadError)
+                } actions: {
+                    Button(L10n.retry) { Task { await load() } }
+                }
+                .themedScreen()
+            } else {
+                ContentUnavailableView {
+                    Label(L10n.notificationTargetUnavailable, systemImage: "doc.questionmark")
+                }
+                .themedScreen()
+            }
+        }
+        .task(id: questionnaireID) { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        loadError = nil
+        defer { isLoading = false }
+        do {
+            _ = try await store.loadQuestionnaires(for: patient)
+        } catch is CancellationError {
+            return
+        } catch {
+            loadError = error.localizedDescription
+        }
+    }
+}
 
 /// Separate history and graph destinations sharing the same questionnaire data.
 /// The destination is fixed when opened; there is no in-screen mode switch.
@@ -15,25 +72,19 @@ struct PatientQuestionnairesView: View {
     /// Graphs are shown one beat after opening, so the charts'
     /// expensive first layout doesn't happen mid-transition and jitter.
     @State private var isPreparingGraphs = true
-    @State private var presentedQuestionnaireID: DatabaseID?
-    @State private var didConsumeNotificationFocus = false
 
     /// Selects the graph destination instead of questionnaire history.
     private let startsOnGraphs: Bool
-    /// CombinedMood id to open after load, from notification routing.
-    private let focusQuestionnaireID: DatabaseID?
 
     /// `previewQuestionnaires` seeds the list so previews have data to show;
     /// the app always starts empty and loads from the cache/server.
     init(
         patient: Patient,
         previewQuestionnaires: [CompletedQuestionnaire] = [],
-        startsOnGraphs: Bool = false,
-        focusQuestionnaireID: DatabaseID? = nil
+        startsOnGraphs: Bool = false
     ) {
         self.patient = patient
         self.startsOnGraphs = startsOnGraphs
-        self.focusQuestionnaireID = focusQuestionnaireID
         _questionnaires = State(initialValue: previewQuestionnaires)
     }
 
@@ -72,7 +123,6 @@ struct PatientQuestionnairesView: View {
             if let cached = store.cachedQuestionnaires(for: patient) {
                 questionnaires = cached
             }
-            attemptFocusIfNeeded()
         }
         .task {
             guard startsOnGraphs else { return }
@@ -85,24 +135,9 @@ struct PatientQuestionnairesView: View {
             if let cached = store.cachedQuestionnaires(for: patient) {
                 questionnaires = cached
             }
-            attemptFocusIfNeeded()
             await load()
         }
-        .navigationDestination(item: $presentedQuestionnaireID) { id in
-            if let record = questionnaires.first(where: { $0.databaseID.isSameIdentity(as: id) }) {
-                CompletedQuestionnaireView(
-                    record: record,
-                    patient: patient,
-                    previous: previousQuestionnaire(before: record),
-                    accent: patientColor
-                )
-            } else {
-                ContentUnavailableView {
-                    Label(L10n.notificationTargetUnavailable, systemImage: "doc.questionmark")
-                }
-                .themedScreen()
-            }
-        }
+
     }
 
     @ViewBuilder
@@ -209,30 +244,45 @@ struct PatientQuestionnairesView: View {
     }
 
     private var graphs: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                Text(L10n.questionnaireGraphHelp)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                QuestionnaireChart(
-                    name: L10n.gad7ShortName,
-                    subtitle: L10n.gad7Title,
-                    entries: chartEntries(for: \.gad7Answers),
-                    questionShortNames: L10n.gad7QuestionShortNames,
-                    tint: Theme.accentFill,
-                    totalScoreColor: { GAD7Severity(score: $0).color }
-                )
-                QuestionnaireChart(
-                    name: L10n.phq9ShortName,
-                    subtitle: L10n.phq9Title,
-                    entries: chartEntries(for: \.phq9Answers),
-                    questionShortNames: L10n.phq9QuestionShortNames,
-                    tint: Theme.goldVivid,
-                    totalScoreColor: { PHQ9Severity(score: $0).color }
-                )
+        GeometryReader { geometry in
+            // Keep both charts visible on ordinary phone sizes; allow scrolling for large text.
+            let chartHeight = max(90, min(170, (geometry.size.height - 300) / 2))
+            ScrollView {
+                VStack(spacing: 12) {
+                    QuestionnaireChart(
+                        name: L10n.gad7GraphTitle,
+                        subtitle: L10n.gad7Title,
+                        entries: chartEntries(for: \.gad7Answers),
+                        questionShortNames: L10n.gad7QuestionShortNames,
+                        tint: Theme.accentFill,
+                        totalScoreColor: { GAD7Severity(score: $0).color },
+                        chartHeight: chartHeight
+                    )
+                    QuestionnaireChart(
+                        name: L10n.phq9GraphTitle,
+                        subtitle: L10n.phq9Title,
+                        entries: chartEntries(for: \.phq9Answers),
+                        questionShortNames: L10n.phq9QuestionShortNames,
+                        tint: Theme.goldVivid,
+                        totalScoreColor: { PHQ9Severity(score: $0).color },
+                        chartHeight: chartHeight
+                    )
+                    NavigationLink {
+                        QuestionnaireTrendsView(patient: patient, records: questionnaires)
+                    } label: {
+                        Label(L10n.questionTrendsTitle, systemImage: "list.bullet.clipboard")
+                            .foregroundStyle(Theme.textOnAccent)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.accentFill)
+                    .controlSize(.large)
+                    Text(L10n.questionnaireGraphHelp)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
             }
-            .padding()
         }
     }
 
@@ -254,42 +304,12 @@ struct PatientQuestionnairesView: View {
             loadError = error.localizedDescription
         }
         isLoading = false
-        attemptFocusIfNeeded()
-    }
-
-    private func attemptFocusIfNeeded() {
-        guard let focusQuestionnaireID, !didConsumeNotificationFocus else { return }
-        if let match = questionnaires.first(where: { $0.databaseID.isSameIdentity(as: focusQuestionnaireID) }) {
-            if presentedQuestionnaireID == nil {
-                didConsumeNotificationFocus = true
-                presentedQuestionnaireID = match.databaseID
-                #if DEBUG
-                AppLog.store.debug(
-                    "notification questionnaire presented id=\(match.databaseID.queryValue, privacy: .public)"
-                )
-                #endif
-            }
-            return
-        }
-        if isLoading {
-            #if DEBUG
-            AppLog.store.debug(
-                "notification questionnaire waiting load focus=\(focusQuestionnaireID.queryValue, privacy: .public)"
-            )
-            #endif
-            return
-        }
-        #if DEBUG
-        AppLog.store.debug(
-            "notification questionnaire not found focus=\(focusQuestionnaireID.queryValue, privacy: .public)"
-        )
-        #endif
     }
 }
 
 /// A card with a line chart of one questionnaire's results over time, and a
 /// picker to switch between the total score and each question's answer.
-private struct QuestionnaireChart: View {
+struct QuestionnaireChart: View {
     struct Entry {
         let date: Date
         let answers: [Int?]
@@ -309,14 +329,17 @@ private struct QuestionnaireChart: View {
     let tint: Color
     /// Severity color for a total score, so points are color coded.
     let totalScoreColor: (Int) -> Color
+    let chartHeight: CGFloat
+    var fixedQuestionIndex: Int? = nil
 
     @State private var metric: Metric = .total
+    private var displayedMetric: Metric { fixedQuestionIndex.map(Metric.question) ?? metric }
 
     /// Color code of a single answer value (0–3), mildest to worst.
     private static let answerColors: [Color] = [Theme.success, Theme.warning, Theme.warning, Theme.error]
 
     private func pointColor(for value: Double) -> Color {
-        switch metric {
+        switch displayedMetric {
         case .total:
             return totalScoreColor(Int(value))
         case .question:
@@ -327,7 +350,7 @@ private struct QuestionnaireChart: View {
 
     private var points: [(date: Date, value: Double)] {
         entries.compactMap { entry in
-            switch metric {
+            switch displayedMetric {
             case .total:
                 let answered = entry.answers.compactMap { $0 }
                 guard !answered.isEmpty else { return nil }
@@ -341,31 +364,19 @@ private struct QuestionnaireChart: View {
 
     /// Y-axis range: the full score range for totals, 0–3 for one question.
     private var yDomain: ClosedRange<Int> {
-        switch metric {
+        switch displayedMetric {
         case .total: return 0...(CombinedMoodQuestionnaire.answerValues.count - 1) * questionShortNames.count
         case .question: return 0...(CombinedMoodQuestionnaire.answerValues.count - 1)
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "chart.xyaxis.line")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(tint)
-                    .frame(width: 32, height: 32)
-                    .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(name)
-                        .font(.headline)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-
-            Picker(L10n.metricPickerTitle, selection: $metric) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(name).font(.headline).accessibilityLabel(subtitle)
+                Spacer(minLength: 4)
+                if fixedQuestionIndex == nil {
+                Picker(L10n.metricPickerTitle, selection: $metric) {
                     Text(L10n.totalOptionLabel).tag(Metric.total)
                     ForEach(questionShortNames.indices, id: \.self) { index in
                         Text(questionShortNames[index]).tag(Metric.question(index))
@@ -373,26 +384,27 @@ private struct QuestionnaireChart: View {
                 }
                 .pickerStyle(.menu)
                 .tint(tint)
-
+                }
+            }
             if let latest = points.last {
-                VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
                     Text(L10n.questionnaireGraphLatest(score: Int(latest.value), maximum: yDomain.upperBound))
-                        .font(.subheadline.weight(.semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(pointColor(for: latest.value))
-                    Text(L10n.hebrewDate(latest.date))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
                     Text(points.count > 1
-                         ? L10n.questionnaireGraphChange(Int(latest.value - points[points.count - 2].value))
-                         : L10n.questionnaireGraphSingleResponse)
-                        .font(.footnote)
+                         ? L10n.questionnaireGraphChangeShort(Int(latest.value - points[points.count - 2].value))
+                         : L10n.questionnaireGraphSingleShort)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 .accessibilityElement(children: .combine)
+                .accessibilityLabel(L10n.questionnaireGraphLatest(score: Int(latest.value), maximum: yDomain.upperBound)
+                    + ", " + L10n.hebrewDate(latest.date) + ", "
+                    + (points.count > 1 ? L10n.questionnaireGraphChange(Int(latest.value - points[points.count - 2].value))
+                       : L10n.questionnaireGraphSingleResponse))
             } else {
-                Text(L10n.questionnaireGraphNoAnswers)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text(L10n.questionnaireGraphNoAnswers).font(.caption).foregroundStyle(.secondary)
             }
 
             if !points.isEmpty {
@@ -426,13 +438,13 @@ private struct QuestionnaireChart: View {
                 }
             }
             .environment(\.locale, Locale(identifier: "he_IL"))
-            .frame(height: 220)
+            .frame(height: chartHeight)
             // Time series keep the conventional left-to-right time axis
             // even though the app's layout is right-to-left.
             .environment(\.layoutDirection, .leftToRight)
             }
         }
-        .padding(16)
+        .padding(12)
         .themedCard()
     }
 }

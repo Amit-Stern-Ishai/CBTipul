@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.cbtipul.app.ui.therapist.TabReselectionEffect
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
@@ -69,6 +71,8 @@ fun GlobalSessionsScreen(
     onCreateSession: () -> Unit,
 ) {
     val colors = Theme.colors
+    val listState = rememberLazyListState()
+    TabReselectionEffect { listState.animateScrollToItem(0) }
     val patients by viewModel.patients.collectAsStateWithLifecycle()
     val questionnaires by viewModel.questionnaires.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
@@ -121,7 +125,7 @@ fun GlobalSessionsScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(stringResource(R.string.empty_sessions_body), color = colors.textBody, textAlign = TextAlign.Center)
                 }
-                else -> LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)) {
+                else -> LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)) {
                     listOf(true to upcoming, false to past).forEach { (isUpcoming, section) ->
                     item(key = "section-$isUpcoming") {
                         Text(stringResource(if (isUpcoming) R.string.upcoming_sessions_section else R.string.past_sessions_section),

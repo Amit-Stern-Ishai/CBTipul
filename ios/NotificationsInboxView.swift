@@ -50,10 +50,10 @@ struct NotificationsInboxView: View {
                    ProcessInfo.processInfo.arguments.contains("-UITestingNotifications"),
                    notifications.notifications.isEmpty,
                    let patient = store.patients.first(where: { !$0.sessions.isEmpty }) {
-                    let records = try? await store.loadQuestionnaires(for: patient)
+                    _ = try? await store.loadQuestionnaires(for: patient)
                     notifications.seedUITestingNotifications(
                         patientID: patient.id.queryValue,
-                        questionnaireID: records?.first?.databaseID.queryValue
+                        questionnaireID: store.prepareUITestingQuestionnaireNotification(for: patient)?.queryValue
                     )
                 }
                 #endif

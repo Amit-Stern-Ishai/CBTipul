@@ -64,7 +64,7 @@ import kotlinx.coroutines.launch
 
 private enum class DiaryLoadState { Loading, Loaded, Failed }
 
-private enum class PatientModeStatus { Loading, NotConnected, Inactive, Active, Failed }
+private enum class PatientModeStatus { Loading, Connected, NotConnected, Inactive, Active, Failed }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,8 +84,18 @@ fun TherapistDiaryOneScreen(
     val entriesMap by diary.entries.collectAsStateWithLifecycle()
     val entries = entriesMap[patientId.queryValue].orEmpty()
     var loadState by remember { mutableStateOf(DiaryLoadState.Loading) }
-    var patientModeStatus by remember { mutableStateOf(PatientModeStatus.Loading) }
-    var activeAssignmentId by remember { mutableStateOf<String?>(null) }
+    val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
+    fun cachedMode(): PatientModeStatus? {
+        if (isDemo || DemoData.isDemoId(patientId)) return PatientModeStatus.NotConnected
+        val id = patientUuid ?: return null
+        val connected = assignments.cachedPatientConnection(id) ?: return null
+        if (!connected) return PatientModeStatus.NotConnected
+        val snapshot = assignments.cachedOngoingAssignment(id, PatientAssignmentType.DiaryOne) ?: return PatientModeStatus.Connected
+        return if (snapshot.assignmentId == null) PatientModeStatus.Inactive else PatientModeStatus.Active
+    }
+    var patientModeStatus by remember(patientId, isDemo) { mutableStateOf(cachedMode() ?: PatientModeStatus.Loading) }
+    var modeRefreshRevision by remember(patientId) { mutableStateOf(0) }
+    var activeAssignmentId by remember(patientId) { mutableStateOf(patientUuid?.let { assignments.cachedOngoingAssignment(it, PatientAssignmentType.DiaryOne)?.assignmentId }) }
     var isUpdatingAssignment by remember { mutableStateOf(false) }
     var assignmentError by remember { mutableStateOf<String?>(null) }
     var showStopConfirm by remember { mutableStateOf(false) }
@@ -111,42 +121,46 @@ fun TherapistDiaryOneScreen(
     }
 
     suspend fun loadPatientMode(showLoading: Boolean = true) {
-        if (showLoading) {
-            patientModeStatus = PatientModeStatus.Loading
-            assignmentError = null
-            activeAssignmentId = null
-        }
-        val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
+        if (showLoading && isUpdatingAssignment) return
+        if (showLoading) assignmentError = null
+        val revision = ++modeRefreshRevision
+        cachedMode()?.let { patientModeStatus = it }
+        if (isDemo || DemoData.isDemoId(patientId)) return
         if (patientUuid == null) {
             patientModeStatus = PatientModeStatus.Failed
             assignmentError = connectionError
             return
         }
-        if (isDemo || DemoData.isDemoId(patientId)) {
-            patientModeStatus = PatientModeStatus.NotConnected
-            return
-        }
+        activeAssignmentId = assignments.cachedOngoingAssignment(patientUuid, PatientAssignmentType.DiaryOne)?.assignmentId
         try {
-            if (!assignments.isPatientConnected(patientUuid)) {
+            val connected = assignments.isPatientConnected(patientUuid)
+            if (revision != modeRefreshRevision) return
+            if (!connected) {
+                activeAssignmentId = null
                 patientModeStatus = PatientModeStatus.NotConnected
                 return
             }
-            val active = assignments.activeOngoingAssignment(patientUuid, PatientAssignmentType.DiaryOne)
-            if (active != null) {
-                activeAssignmentId = active.id
-                patientModeStatus = PatientModeStatus.Active
-            } else {
-                patientModeStatus = PatientModeStatus.Inactive
-            }
+            patientModeStatus = cachedMode() ?: PatientModeStatus.Connected
+            assignments.activeOngoingAssignment(patientUuid, PatientAssignmentType.DiaryOne)
+            if (revision != modeRefreshRevision) return
+            activeAssignmentId = assignments.cachedOngoingAssignment(patientUuid, PatientAssignmentType.DiaryOne)?.assignmentId
+            patientModeStatus = cachedMode() ?: PatientModeStatus.Connected
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
         } catch (_: Exception) {
-            patientModeStatus = PatientModeStatus.Failed
-            assignmentError = connectionError
+            if (revision != modeRefreshRevision) return
+            val cached = cachedMode()
+            if (cached != null && cached != PatientModeStatus.Connected) patientModeStatus = cached
+            else {
+                patientModeStatus = PatientModeStatus.Failed
+                assignmentError = connectionError
+            }
         }
     }
 
-    LaunchedEffect(patientId.queryValue) {
-        loadEntries()
-        loadPatientMode()
+    LaunchedEffect(patientId.queryValue) { loadEntries() }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        scope.launch { loadPatientMode() }
     }
 
     LaunchedEffect(focusEntryId, loadState) {
@@ -274,8 +288,8 @@ fun TherapistDiaryOneScreen(
             isRefreshing = loadState == DiaryLoadState.Loading && entries.isNotEmpty(),
             onRefresh = {
                 scope.launch {
+                    launch { loadPatientMode() }
                     loadEntries()
-                    loadPatientMode()
                 }
             },
             modifier = Modifier
@@ -303,6 +317,7 @@ fun TherapistDiaryOneScreen(
                                         return@launch
                                     }
                                     isUpdatingAssignment = true
+                                    modeRefreshRevision++
                                     assignmentError = null
                                     try {
                                         val active = assignments.activateOngoingAssignment(
@@ -426,6 +441,7 @@ fun TherapistDiaryOneScreen(
             scope.launch {
                 if (isUpdatingAssignment) return@launch
                 isUpdatingAssignment = true
+                modeRefreshRevision++
                 assignmentError = null
                 try {
                     assignments.cancelOngoingAssignment(assignmentId)
@@ -466,6 +482,9 @@ private fun PatientModeControl(
                 modifier = Modifier.size(18.dp),
                 color = colors.gold,
                 strokeWidth = 2.dp,
+            )
+            PatientModeStatus.Connected -> Text(
+                stringResource(R.string.patient_connected_status), color = colors.textBody, fontSize = 13.sp,
             )
             PatientModeStatus.NotConnected -> Text(
                 stringResource(R.string.diary_patient_mode_not_connected),

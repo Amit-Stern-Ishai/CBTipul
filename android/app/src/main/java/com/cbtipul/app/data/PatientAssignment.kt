@@ -132,18 +132,61 @@ sealed class PatientAssignmentException : Exception() {
     data object PatientNotConnected : PatientAssignmentException()
 }
 
+/** A cached null ID means loaded and inactive, rather than still unknown. */
+class AssignmentStatusCache {
+    data class Snapshot(val assignmentId: String?)
+    private data class Entry(val snapshot: Snapshot, val revision: Int)
+    private val entries = mutableMapOf<Pair<String, String>, Entry>()
+    fun value(account: String?, resource: String): Snapshot? = account?.let { entries[it to resource]?.snapshot }
+    fun revision(account: String?, resource: String): Int = account?.let { entries[it to resource]?.revision } ?: 0
+    fun store(id: String?, account: String?, resource: String, ifRevision: Int? = null) {
+        if (account == null) return
+        val current = revision(account, resource)
+        if (ifRevision != null && ifRevision != current) return
+        entries[account to resource] = Entry(Snapshot(id), current + 1)
+    }
+}
+
 class PatientAssignmentRepository(private val client: SupabaseClient) {
+    private val connectionCache = mutableMapOf<Pair<String, String>, Boolean>()
+    private val assignmentCache = AssignmentStatusCache()
+    private fun currentAccount() = client.auth.currentSessionOrNull()?.user?.id
+    fun cachedOngoingAssignment(patientId: String, type: PatientAssignmentType) =
+        assignmentCache.value(currentAccount(), "patient/$patientId/${type.raw}")
+    fun cachedQuestionnaireAssignment(sessionId: String) =
+        assignmentCache.value(currentAccount(), "session/$sessionId")
+    private fun cacheAssignment(assignment: PatientAssignment, account: String?) {
+        if (account != currentAccount()) return
+        val type = assignment.type ?: return
+        if (type == PatientAssignmentType.Questionnaire && assignment.sessionId != null) {
+            assignmentCache.store(if (assignment.isOpen) assignment.id else null, account, "session/${assignment.sessionId}")
+        } else {
+            assignmentCache.store(if (assignment.cancelledAt == null) assignment.id else null, account, "patient/${assignment.patientId}/${type.raw}")
+        }
+    }
+
+    fun cachedPatientConnection(patientId: String): Boolean? =
+        client.auth.currentSessionOrNull()?.user?.id?.let { connectionCache[it to patientId] }
+
     suspend fun isPatientConnected(patientId: String): Boolean {
         ensureConfigured()
+        val userId = client.auth.currentSessionOrNull()?.user?.id
         val result = client.postgrest.rpc(
             "is_patient_connected",
             buildJsonObject { put("p_patient_id", patientId) },
         )
-        return Json.parseToJsonElement(result.data).jsonPrimitive.boolean
+        val connected = Json.parseToJsonElement(result.data).jsonPrimitive.boolean
+        if (userId != null && userId == client.auth.currentSessionOrNull()?.user?.id) {
+            connectionCache[userId to patientId] = connected
+        }
+        return connected
     }
 
     suspend fun openQuestionnaireAssignment(sessionId: String): PatientAssignment? {
         ensureConfigured()
+        val account = currentAccount()
+        val resource = "session/$sessionId"
+        val revision = assignmentCache.revision(account, resource)
         val rows = client.from("patient_assignments")
             .select(assignmentColumns) {
                 filter {
@@ -155,11 +198,13 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
                 limit(1)
             }
             .decodeList<PatientAssignmentRow>()
+        if (account == currentAccount()) assignmentCache.store(rows.firstOrNull()?.id, account, resource, revision)
         return rows.firstOrNull()?.toDomain()
     }
 
     suspend fun sendQuestionnaireAssignment(patientId: String, sessionId: String? = null): PatientAssignment {
         ensureConfigured()
+        val account = currentAccount()
         val payload = encodeQuestionnaireRequest(patientId, sessionId)
         InviteDebugLog.d("request-patient-questionnaire sessionIdPresent=${sessionId != null}")
         return try {
@@ -169,7 +214,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
             }
             val body = http.bodyAsText()
             try {
-                assignmentFromEdgeJson(body)
+                assignmentFromEdgeJson(body).also { cacheAssignment(it, account) }
             } catch (error: Exception) {
                 InviteDebugLog.e("request-patient-questionnaire-parse", error)
                 throw PatientAssignmentException.InvalidIdentifier
@@ -185,6 +230,9 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
     suspend fun activeOngoingAssignment(patientId: String, type: PatientAssignmentType): PatientAssignment? {
         ensureConfigured()
         requireOngoing(type)
+        val account = currentAccount()
+        val resource = "patient/$patientId/${type.raw}"
+        val revision = assignmentCache.revision(account, resource)
         val rows = client.from("patient_assignments")
             .select(assignmentColumns) {
                 filter {
@@ -195,15 +243,17 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
                 limit(1)
             }
             .decodeList<PatientAssignmentRow>()
+        if (account == currentAccount()) assignmentCache.store(rows.firstOrNull()?.id, account, resource, revision)
         return rows.firstOrNull()?.toDomain()
     }
 
     suspend fun activateOngoingAssignment(patientId: String, type: PatientAssignmentType): PatientAssignment {
         ensureConfigured()
+        val account = currentAccount()
         requireOngoing(type)
         if (!isPatientConnected(patientId)) throw PatientAssignmentException.PatientNotConnected
         if (type == PatientAssignmentType.DiaryOne) {
-            return requestPatientDiaryOne(patientId)
+            return requestPatientDiaryOne(patientId).also { cacheAssignment(it, account) }
         }
         activeOngoingAssignment(patientId, type)?.let { return it }
         val therapistId = requireTherapistId()
@@ -219,7 +269,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
             client.from("patient_assignments")
                 .insert(body) { select(assignmentColumns) }
                 .decodeSingle<PatientAssignmentRow>()
-                .toDomain()
+                .toDomain().also { cacheAssignment(it, account) }
         } catch (error: Exception) {
             if (isUniqueViolation(error)) {
                 activeOngoingAssignment(patientId, type)?.let { return it }
@@ -247,6 +297,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
 
     suspend fun cancelOngoingAssignment(id: String) {
         ensureConfigured()
+        val account = currentAccount()
         val body = buildJsonObject { put("cancelled_at", timestampNow()) }
         val updated = client.from("patient_assignments")
             .update(body) {
@@ -258,6 +309,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
             }
             .decodeList<PatientAssignmentRow>()
         if (updated.isEmpty()) throw PatientAssignmentException.InvalidIdentifier
+        updated.forEach { cacheAssignment(it.toDomain(), account) }
     }
 
     suspend fun patientAssignments(patientId: String?): List<PatientAssignment> {

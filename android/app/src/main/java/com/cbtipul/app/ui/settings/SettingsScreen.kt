@@ -12,6 +12,8 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.compose.material3.AlertDialog
+import com.cbtipul.app.ui.therapist.TabReselectionEffect
 import androidx.compose.foundation.border
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
@@ -32,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Assignment
@@ -66,7 +69,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -75,10 +77,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.cbtipul.app.BuildConfig
-import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
 import com.cbtipul.app.data.TherapistProfile
-import com.cbtipul.app.debug.DebugPushTestSection
 import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.ui.theme.cbTipulColors
 import com.cbtipul.app.settings.AppTextSize
@@ -122,11 +122,21 @@ fun SettingsScreen(
     onLoadDisplayName: suspend () -> String?,
     onSaveDisplayName: suspend (String) -> Unit,
     onGettingStartedGuide: () -> Unit = {},
+    isDemoMode: Boolean = false,
+    onExitDemoMode: () -> Unit = {},
     onDone: () -> Unit,
     showCloseButton: Boolean = true,
 ) {
     val colors = Theme.colors
     var page by remember { mutableStateOf<SettingsPage>(SettingsPage.Main) }
+    val mainScroll = rememberScrollState()
+    TabReselectionEffect(enabled = page != SettingsPage.DisplayName && !isDeleting) {
+        if (page == SettingsPage.Main) mainScroll.animateScrollTo(0)
+        else page = SettingsPage.Main
+    }
+    BackHandler(enabled = page != SettingsPage.Main && page != SettingsPage.DisplayName) {
+        page = SettingsPage.Main
+    }
     var confirmDelete by remember { mutableStateOf(false) }
     var codeChallenge by remember { mutableStateOf(false) }
     val displayNameValue = when {
@@ -185,16 +195,16 @@ fun SettingsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .editorScroll()
+                        .editorScroll(mainScroll)
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     GroupedListCard(accent = colors.gold) {
                         SettingsRow(
-                            title = stringResource(R.string.getting_started_guide_settings_title),
-                            subtitle = null,
-                            icon = Icons.Outlined.RecentActors,
-                            onClick = onGettingStartedGuide,
+                            title = stringResource(if (isDemoMode) R.string.sample_data_active_title else R.string.getting_started_guide_settings_title),
+                            subtitle = if (isDemoMode) stringResource(R.string.exit_demo_mode_action) else null,
+                            icon = if (isDemoMode) Icons.AutoMirrored.Outlined.Undo else Icons.Outlined.RecentActors,
+                            onClick = if (isDemoMode) onExitDemoMode else onGettingStartedGuide,
                         )
                     }
 
@@ -298,13 +308,6 @@ fun SettingsScreen(
                             destructive = true,
                             enabled = !isDeleting,
                             onClick = { confirmDelete = true },
-                        )
-                    }
-
-                    if (BuildConfig.DEBUG) {
-                        DebugPushTestSection(
-                            (LocalContext.current.applicationContext as CbTipulApp)
-                                .authRepository.supabaseClient,
                         )
                     }
 
@@ -549,6 +552,8 @@ private fun DisplayNameEditor(
     val colors = Theme.colors
     val scope = rememberCoroutineScope()
     var draft by remember { mutableStateOf(initialName) }
+    var savedName by remember { mutableStateOf(initialName) }
+    var confirmLeave by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -557,10 +562,32 @@ private fun DisplayNameEditor(
     val loadError = stringResource(R.string.therapist_display_name_load_error)
     val canSave = TherapistProfile.isValid(draft) && !isSaving && !isLoading
 
+    fun requestBack() {
+        if (isSaving || isLoading) return
+        if (draft != savedName) confirmLeave = true else onBack()
+    }
+    BackHandler { requestBack() }
+    TabReselectionEffect { requestBack() }
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text(stringResource(R.string.discard_changes_title)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmLeave = false; onBack() }) {
+                    Text(stringResource(R.string.discard_changes_action))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmLeave = false }) {
+                    Text(stringResource(R.string.keep_editing_action))
+                }
+            },
+        )
+    }
     LaunchedEffect(Unit) {
         try {
             val loaded = onLoad()
-            if (!loaded.isNullOrBlank()) draft = loaded
+            if (!loaded.isNullOrBlank()) { draft = loaded; savedName = loaded }
         } catch (_: Exception) {
             errorMessage = loadError
         } finally {
@@ -580,7 +607,7 @@ private fun DisplayNameEditor(
                     Text(stringResource(R.string.therapist_display_name_prompt_title), color = colors.textBright)
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isSaving) {
+                    IconButton(onClick = { requestBack() }, enabled = !isSaving) {
                         Icon(
                             Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = stringResource(R.string.back),

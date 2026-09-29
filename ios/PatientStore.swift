@@ -632,6 +632,20 @@ final class PatientStore {
         questionnairesByPatient[patient.id]
     }
 
+    #if DEBUG
+    /// Give the offline notification fixture a server-shaped ID so it opens the result directly.
+    func prepareUITestingQuestionnaireNotification(for patient: Patient) -> DatabaseID? {
+        guard AuthManager.isUITesting, isDemoMode,
+              ProcessInfo.processInfo.arguments.contains("-UITestingNotifications"),
+              var records = questionnairesByPatient[patient.id], let first = records.first else { return nil }
+        let id = DatabaseID.integer(900_000_001)
+        records[0] = CompletedQuestionnaire(databaseID: id, sessionID: first.sessionID,
+                                           answeredDate: first.answeredDate, questionnaire: first.questionnaire)
+        questionnairesByPatient[patient.id] = records
+        return id
+    }
+    #endif
+
     /// Replaces the in-memory patient list with the contents of the
     /// `Patients` and `Sessions` tables.
     func loadPatients() async throws {

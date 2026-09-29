@@ -56,7 +56,17 @@ struct PatientDetailView: View {
     @State private var isSendingToPatient = false
     @State private var sendFeedbackTitle: String?
     @State private var sendFeedbackMessage: String?
-    @State private var connectionState: PatientConnectionState = .checking
+    @State private var refreshedConnectionState: PatientConnectionState?
+
+    private var connectionState: PatientConnectionState {
+        guard !store.isDemoMode, !DemoData.isDemoID(patient.id), let patientId = patient.id.uuidValue else {
+            return .unavailable
+        }
+        if let connected = assignmentService().cachedPatientConnection(patientId: patientId) {
+            return connected ? .connected : .notConnected
+        }
+        return refreshedConnectionState ?? .checking
+    }
 
     /// A saved preparation goes stale once a session dated after its
     /// generation has already taken place — i.e. the session it prepared
@@ -696,9 +706,6 @@ struct PatientDetailView: View {
             case .connected:
                 Label(L10n.patientConnectedStatus, systemImage: "checkmark.circle.fill")
                     .font(.headline)
-                Text(L10n.patientConnectionReadyDescription)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
             case .notConnected, .unavailable:
                 Button {
                     isShowingConnectionInfo = true
@@ -961,20 +968,21 @@ struct PatientDetailView: View {
 
     private func refreshConnectionState() async {
         if store.isDemoMode || DemoData.isDemoID(patient.id) {
-            connectionState = .unavailable
+            refreshedConnectionState = .unavailable
             return
         }
         guard let patientId = patient.id.uuidValue else {
-            connectionState = .unavailable
+            refreshedConnectionState = .unavailable
             return
         }
-        connectionState = .checking
         do {
-            connectionState = try await assignmentService().isPatientConnected(patientId: patientId)
+            refreshedConnectionState = try await assignmentService().isPatientConnected(patientId: patientId)
                 ? .connected
                 : .notConnected
+        } catch is CancellationError {
+            return
         } catch {
-            connectionState = .failed
+            refreshedConnectionState = .failed
         }
     }
 

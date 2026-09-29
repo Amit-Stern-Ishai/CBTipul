@@ -4,6 +4,7 @@ import SwiftUI
 /// over a form while it is saving. Replaces bare `ProgressView` overlays so
 /// the busy state appears smoothly instead of popping in.
 private struct BusyOverlay: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isBusy: Bool
     var label: String? = nil
 
@@ -24,10 +25,10 @@ private struct BusyOverlay: ViewModifier {
                         .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 16))
                         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.borderDefault))
                         .shadow(color: .black.opacity(0.1), radius: 12, y: 6)
-                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98)))
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: isBusy)
+            .subtleAnimation(value: isBusy)
     }
 }
 

@@ -42,6 +42,8 @@ class NotificationRepository(private val client: SupabaseClient) {
     private val _failed = MutableStateFlow(false)
     val failed: StateFlow<Boolean> = _failed.asStateFlow()
 
+    private var hasLoaded = false
+
     var isDemoInbox: Boolean = false
     private var uiTestItems: List<AppNotification>? = null
 
@@ -60,13 +62,14 @@ class NotificationRepository(private val client: SupabaseClient) {
 
     fun clear() {
         uiTestItems = null
+        hasLoaded = false
         _items.value = emptyList()
         _unseenCount.value = 0
         _failed.value = false
         _isLoading.value = false
     }
 
-    suspend fun refresh() {
+    suspend fun refresh(showLoading: Boolean = false) {
         if (com.cbtipul.app.BuildConfig.DEBUG && isDemoInbox && uiTestItems != null) {
             _items.value = uiTestItems.orEmpty()
             return
@@ -75,7 +78,7 @@ class NotificationRepository(private val client: SupabaseClient) {
             clear()
             return
         }
-        _isLoading.value = true
+        _isLoading.value = showLoading || !hasLoaded
         _failed.value = false
         try {
             val rows = client.from("notifications")
@@ -83,6 +86,7 @@ class NotificationRepository(private val client: SupabaseClient) {
                 .decodeList<NotificationRow>()
             if (isDemoInbox) { clear(); return }
             _items.value = rows.map { it.toDomain() }
+            hasLoaded = true
             _unseenCount.value = fetchUnseenCount() ?: NotificationInbox.unseenCount(_items.value)
         } catch (error: CancellationException) {
             throw error

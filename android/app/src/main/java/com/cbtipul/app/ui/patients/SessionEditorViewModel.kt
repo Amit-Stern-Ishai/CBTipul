@@ -24,7 +24,12 @@ class SessionEditorDraft(val initial: Session) {
     var baselineNotes by mutableStateOf(initial.notes)
     var baselineType by mutableStateOf(initial.type)
     var baselineStructured by mutableStateOf(initial.structuredNotes)
-    var pendingSave by mutableStateOf<Session?>(null)
+    fun markSaved(saved: Session) {
+        baselineDate = saved.date
+        baselineNotes = saved.notes
+        baselineType = saved.type
+        baselineStructured = saved.structuredNotes
+    }
 
     fun snapshot(): Session = initial.copy(date = date, notes = notes, type = type, structuredNotes = structuredNotes)
 }

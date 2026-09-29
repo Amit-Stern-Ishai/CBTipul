@@ -190,7 +190,18 @@ struct TherapistPatientMessagesView: View {
     @State private var isLoading = true
     @State private var isRefreshing = false
     @State private var didFail = false
-    @State private var connectionState: ConnectionState = .checking
+    @State private var refreshedConnectionState: ConnectionState = .checking
+    private var connectionState: ConnectionState {
+        get {
+            if store.isDemoMode || DemoData.isDemoID(patient.id) { return .demo }
+            guard let id = patient.id.uuidValue else { return .unavailable }
+            if let connected = PatientAssignmentService(client: auth.client).cachedPatientConnection(patientId: id) {
+                return connected ? .connected : .notConnected
+            }
+            return refreshedConnectionState
+        }
+        nonmutating set { refreshedConnectionState = newValue }
+    }
     @State private var isShowingComposer = false
     @State private var didSend = false
 
@@ -325,7 +336,6 @@ struct TherapistPatientMessagesView: View {
             connectionState = .unavailable
             return
         }
-        connectionState = .checking
         do {
             let connected = try await PatientAssignmentService(client: auth.client)
                 .isPatientConnected(patientId: patientId)

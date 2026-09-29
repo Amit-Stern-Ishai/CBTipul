@@ -63,14 +63,21 @@ struct PatientListView: View {
             }
             .navigationDestination(for: PatientQuestionnairesRoute.self) { route in
                 if let patient = store.patients.first(where: { $0.id == route.patientID }) {
-                    PatientQuestionnairesView(
-                        patient: patient,
-                        focusQuestionnaireID: route.focusQuestionnaireID
-                    )
+                    PatientQuestionnairesView(patient: patient)
                 } else {
                     ContentUnavailableView {
                         Label(L10n.notificationTargetUnavailable, systemImage: "questionmark.circle")
                     }
+                }
+            }
+            .navigationDestination(for: PatientQuestionnaireResultRoute.self) { route in
+                if let patient = store.patients.first(where: { $0.id == route.patientID }) {
+                    NotificationQuestionnaireView(patient: patient, questionnaireID: route.questionnaireID)
+                } else {
+                    ContentUnavailableView {
+                        Label(L10n.notificationTargetUnavailable, systemImage: "doc.questionmark")
+                    }
+                    .themedScreen()
                 }
             }
             .navigationDestination(for: PatientDiaryOneRoute.self) { route in
@@ -311,6 +318,9 @@ struct PatientListView: View {
             next.append(patient)
             if let questionnaires = pending.questionnairesRoute {
                 next.append(questionnaires)
+                if let result = questionnaires.resultRoute {
+                    next.append(result)
+                }
             } else if let diaryOne = pending.diaryOneRoute {
                 next.append(diaryOne)
             }

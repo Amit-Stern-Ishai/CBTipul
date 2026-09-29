@@ -6,6 +6,16 @@ import OSLog
 struct PatientQuestionnairesRoute: Hashable {
     let patientID: DatabaseID
     let focusQuestionnaireID: DatabaseID?
+
+    var resultRoute: PatientQuestionnaireResultRoute? {
+        focusQuestionnaireID.map { PatientQuestionnaireResultRoute(patientID: patientID, questionnaireID: $0) }
+    }
+}
+
+/// Registered at the root stack so a notification can open the full path atomically.
+struct PatientQuestionnaireResultRoute: Hashable {
+    let patientID: DatabaseID
+    let questionnaireID: DatabaseID
 }
 
 /// Programmatic path: Patient Detail → Diary 1 → optional exact entry.

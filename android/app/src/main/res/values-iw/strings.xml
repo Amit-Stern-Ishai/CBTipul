@@ -126,7 +126,7 @@
     <string name="mic_permission_denied">נדרשת גישה למיקרופון לצורך הקלטה. יש לאפשר גישה בהגדרות.</string>
     <string name="transcribe_action">תמלול</string>
     <string name="transcribing_label">מתבצע תמלול…</string>
-    <string name="ai_title">שיחת AI</string>
+    <string name="ai_title">@string/ai_chat_navigation_title</string>
     <string name="ai_action">שיחת AI</string>
     <string name="ai_mode_picker_title">מצב</string>
     <string name="ai_mode_insights">תובנות</string>
@@ -135,7 +135,7 @@
     <string name="ai_mode_chat">שיחה</string>
     <string name="ai_send_action">שליחה</string>
     <string name="ai_chat_title">שיחה</string>
-    <string name="ai_chat_navigation_title">שיחת AI</string>
+    <string name="ai_chat_navigation_title">שיחת AI על המטופל/ת</string>
     <string name="ai_empty_message">אפשר לשאול כל שאלה על המטופל/ת — הפגישות, ההערות והשאלונים משמשים כהקשר לתשובה.</string>
     <string name="ai_generate_insights_action">הפקת תובנות</string>
     <string name="ai_ask_action">שאלה</string>
@@ -688,7 +688,7 @@
     <string name="patient_questionnaires_description">עיון בתשובות קודמות ומילוי שאלון חדש</string>
     <string name="patient_graphs_description">מעקב אחרי ציוני השאלונים לאורך זמן</string>
     <string name="additional_assistance_title">תובנות והכנה לפגישה</string>
-    <string name="patient_ai_assistance_title">חשיבה על הטיפול בעזרת AI</string>
+    <string name="patient_ai_assistance_title">@string/ai_chat_navigation_title</string>
     <string name="patient_invite_to_app_action">הזמנה לאפליקציה</string>
     <string name="patient_invitation_demo_status">לא זמין במצב הדגמה</string>
     <string name="patient_connect_description">שליחת קישור הזמנה אישי מאפשרת למטופל/ת לקבל ממך הודעות ושאלונים ולמלא יומנים שהפעלת.</string>
@@ -742,6 +742,7 @@
     <string name="sample_data_return_title">חזרה בכל רגע</string>
     <string name="sample_data_return_body">לחצו על ״חזרה למטופלים שלי״ בראש המסך. השינויים בנתוני הדוגמה יישמרו במכשיר להתנסות הבאה.</string>
     <string name="sample_data_start_action">התחלת התנסות</string>
+    <string name="sample_data_active_title">מצב נתונים לדוגמה פעיל</string>
     <string name="message_recipient">אל: %1$s</string>
     <string name="therapist_message_delivery_explanation">ההודעות מופיעות באפליקציית CBTipul של המטופל/ת. כרגע אי אפשר להשיב להן דרך האפליקציה.</string>
     <string name="message_send_explanation">ההודעה תישלח רק לאחר לחיצה על ״שליחה״.</string>
@@ -783,4 +784,31 @@
     <string name="questionnaire_graph_increased">עלייה של %1$d לעומת המילוי הקודם</string>
     <string name="questionnaire_graph_decreased">ירידה של %1$d לעומת המילוי הקודם</string>
     <string name="patient_diary_one_start">כתיבת אירוע ביומן</string>
+    <string name="question_trends_trend_picker">מגמה</string>
+    <string name="question_trends_question_picker">שאלה</string>
+    <string name="question_trends_graph_title">ציוני השאלה לאורך זמן</string>
+    <string name="question_trends_title">מגמות לפי שאלה</string>
+    <string name="question_trends_help">בחרו מגמה ואז שאלה מהרשימה. הגרף מציג את ציוני השאלה בכל השאלונים שמולאו. ציון נמוך יותר משקף שיפור.</string>
+    <string name="question_trends_missing">נדרשות לפחות שתי תשובות לכל שאלה. תשובות חסרות אינן נחשבות לציון 0 ואינן נכללות בהשוואה.</string>
+    <string name="question_trend_improving">שיפור</string>
+    <string name="question_trend_improving_help">הציון לא עלה באף מילוי, וירד לפחות פעם אחת.</string>
+    <string name="question_trend_worsening">החמרה</string>
+    <string name="question_trend_worsening_help">הציון לא ירד באף מילוי, ועלה לפחות פעם אחת.</string>
+    <string name="question_trend_unchanged">ללא שינוי</string>
+    <string name="question_trend_unchanged_help">אותו ציון בכל המילויים.</string>
+    <string name="question_trend_mixed">מגמה מעורבת</string>
+    <string name="question_trend_mixed_help">היו גם עליות וגם ירידות בציון.</string>
+    <string name="question_trend_insufficient">אין מספיק תשובות</string>
+    <string name="question_trend_insufficient_help">פחות משתי תשובות לשאלה.</string>
+    <string name="question_trends_no_questions">אין שאלות שמתאימות למגמה זו.</string>
+    <string name="question_trends_missing_answer">לא נענתה</string>
+    <string name="questionnaire_graph_single_short">מילוי אחד</string>
+    <string name="questionnaire_graph_unchanged_short">ללא שינוי</string>
+    <string name="question_trends_matching_count">שאלות: %1$d</string>
+    <string name="question_trends_reference">שאלה %1$d · \u2066%2$s\u2069</string>
+    <string name="question_trends_count">%1$d שאלונים</string>
+    <string name="questionnaire_graph_increased_short">עלייה של %1$d</string>
+    <string name="questionnaire_graph_decreased_short">ירידה של %1$d</string>
+    <string name="gad7_graph_title">חרדה · GAD-7</string>
+    <string name="phq9_graph_title">דיכאון · PHQ-9</string>
 </resources>

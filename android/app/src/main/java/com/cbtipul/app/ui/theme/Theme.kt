@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -98,6 +99,7 @@ fun CbTipulTheme(
     }
     CompositionLocalProvider(
         LocalCbTipulColors provides colors,
+        LocalContentColor provides colors.textBright,
         LocalLayoutDirection provides LayoutDirection.Rtl,
         LocalDensity provides Density(
             density = density.density,

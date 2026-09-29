@@ -36,7 +36,21 @@ struct SessionEditorView: View {
     @State private var isRequestingRecording = false
     @State private var isLoadingQuestionnaire = false
     @State private var isRefreshingQuestionnaire = false
-    @State private var assignmentStatus: QuestionnaireAssignmentStatus = .loading
+    @State private var refreshedAssignmentStatus: QuestionnaireAssignmentStatus = .loading
+    private var cachedAssignmentStatus: QuestionnaireAssignmentStatus? {
+        guard let patient = storePatient else { return nil }
+        if store.isDemoMode || DemoData.isDemoID(patient.id) { return .demo }
+        guard let patientId = patient.id.uuidValue,
+              let connected = assignmentService().cachedPatientConnection(patientId: patientId) else { return nil }
+        guard connected else { return .notConnected }
+        guard let sessionId = session.databaseID?.uuidValue,
+              let snapshot = assignmentService().cachedQuestionnaireAssignment(sessionId: sessionId) else { return .connected }
+        return snapshot.assignmentId == nil ? .available : .pending
+    }
+    private var assignmentStatus: QuestionnaireAssignmentStatus {
+        get { refreshedAssignmentStatus == .loading ? cachedAssignmentStatus ?? .loading : refreshedAssignmentStatus }
+        nonmutating set { refreshedAssignmentStatus = newValue }
+    }
     @State private var isSendingQuestionnaire = false
     @State private var didSendQuestionnaire = false
     @State private var voiceRecorder = VoiceNoteRecorder()
@@ -745,6 +759,7 @@ struct SessionEditorView: View {
     }
 
     private enum QuestionnaireAssignmentStatus: Equatable {
+        case connected
         case loading
         case demo
         case notConnected
@@ -807,6 +822,8 @@ struct SessionEditorView: View {
     @ViewBuilder
     private var questionnaireAssignmentRow: some View {
         switch assignmentStatus {
+        case .connected:
+            Text(L10n.patientConnectedStatus).font(.footnote).foregroundStyle(.secondary)
         case .loading:
             ProgressView()
         case .demo:
@@ -879,10 +896,10 @@ struct SessionEditorView: View {
     }
 
     /// Connection and open-assignment state for sending a questionnaire.
-    /// Starts in loading so "not connected" is never shown speculatively.
+    /// Shows cached connection and assignment state while refreshing in the background.
     private func loadQuestionnaireAssignment() async {
         guard !isNew, let patient = storePatient else { return }
-        assignmentStatus = .loading
+        if let cached = cachedAssignmentStatus { assignmentStatus = cached }
         guard questionnaire == nil else { return }
         if store.isDemoMode || DemoData.isDemoID(patient.id) {
             assignmentStatus = .demo
@@ -900,13 +917,17 @@ struct SessionEditorView: View {
                 assignmentStatus = .notConnected
                 return
             }
-            if try await assignmentService().openQuestionnaireAssignment(sessionId: sessionId) != nil {
-                assignmentStatus = .pending
-            } else {
-                assignmentStatus = .available
-            }
+            assignmentStatus = cachedAssignmentStatus ?? .connected
+            _ = try await assignmentService().openQuestionnaireAssignment(sessionId: sessionId)
+            assignmentStatus = cachedAssignmentStatus ?? .connected
+        } catch is CancellationError {
+            return
         } catch {
-            assignmentStatus = .failed(L10n.patientConnectionCheckError)
+            if let cached = cachedAssignmentStatus, cached != .connected {
+                assignmentStatus = cached
+            } else {
+                assignmentStatus = .failed(L10n.patientConnectionCheckError)
+            }
         }
     }
 

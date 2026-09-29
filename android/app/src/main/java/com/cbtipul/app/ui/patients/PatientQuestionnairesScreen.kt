@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -57,6 +58,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -94,6 +97,7 @@ fun PatientQuestionnairesScreen(
     onRetry: () -> Unit,
     onBack: () -> Unit,
     onOpen: (CompletedQuestionnaire) -> Unit,
+    onOpenTrends: () -> Unit = {},
 ) {
     val colors = Theme.colors
     val newestFirst = remember(records) { records.sortedByDescending { it.answeredDate.time } }
@@ -177,10 +181,12 @@ fun PatientQuestionnairesScreen(
                 }
             }
             else -> {
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+        val chartHeight = ((maxHeight.value - 300f) / 2f).coerceIn(90f, 170f)
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(if (graphsMode) 12.dp else 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (loadError != null) item {
                 Text(loadError, color = colors.error)
@@ -188,12 +194,10 @@ fun PatientQuestionnairesScreen(
             }
             if (graphsMode) {
             item {
-                Text(stringResource(R.string.questionnaire_graph_help), color = colors.textBody, fontSize = 13.sp)
-            }
-            item {
                 val theme = Theme.colors
                 QuestionnaireScoreChart(
-                    name = stringResource(R.string.gad7_short_name),
+                    chartHeight = chartHeight,
+                    name = stringResource(R.string.gad7_graph_title),
                     subtitle = stringResource(R.string.gad7_title),
                     entries = oldestFirst.map { it.answeredDate to it.questionnaire.gad7Answers },
                     shortNames = stringArrayResource(R.array.gad7_question_short_names),
@@ -210,7 +214,8 @@ fun PatientQuestionnairesScreen(
             item {
                 val theme = Theme.colors
                 QuestionnaireScoreChart(
-                    name = stringResource(R.string.phq9_short_name),
+                    chartHeight = chartHeight,
+                    name = stringResource(R.string.phq9_graph_title),
                     subtitle = stringResource(R.string.phq9_title),
                     entries = oldestFirst.map { it.answeredDate to it.questionnaire.phq9Answers },
                     shortNames = stringArrayResource(R.array.phq9_question_short_names),
@@ -223,6 +228,13 @@ fun PatientQuestionnairesScreen(
                         }
                     },
                 )
+            }
+            item {
+                Button(onClick = onOpenTrends, modifier = Modifier.fillMaxWidth()) {
+                    IconLabel(stringResource(R.string.question_trends_title), Icons.AutoMirrored.Outlined.ShowChart)
+                }
+                Text(stringResource(R.string.questionnaire_graph_help), color = colors.textBody, fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 8.dp))
             }
             } else {
             item {
@@ -250,6 +262,7 @@ fun PatientQuestionnairesScreen(
             }
             }
         }
+        }
             }
         }
     }
@@ -257,125 +270,62 @@ fun PatientQuestionnairesScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuestionnaireScoreChart(
+internal fun QuestionnaireScoreChart(
     name: String,
     subtitle: String,
     entries: List<Pair<Date, List<Int?>>>,
     shortNames: Array<String>,
     tint: Color,
     totalColor: (Int) -> Color,
+    chartHeight: Float,
+    fixedQuestionIndex: Int? = null,
 ) {
     val colors = Theme.colors
     val answerColors = listOf(colors.success, colors.warning, colors.warning, colors.error)
     var metric by remember { mutableIntStateOf(-1) }
+    val displayedMetric = fixedQuestionIndex ?: metric
     var expanded by remember { mutableStateOf(false) }
     val totalLabel = stringResource(R.string.total_option_label)
     val selectedLabel = if (metric < 0) totalLabel else shortNames.getOrElse(metric) { totalLabel }
-    val points = remember(entries, metric) {
+    val points = remember(entries, displayedMetric) {
         entries.mapNotNull { (date, answers) ->
-            val value = if (metric < 0) {
+            val value = if (displayedMetric < 0) {
                 val answered = answers.filterNotNull()
                 if (answered.isEmpty()) null else answered.sum()
             } else {
-                answers.getOrNull(metric)
+                answers.getOrNull(displayedMetric)
             }
             value?.let { date to it }
         }
     }
-    val maxScore = if (metric < 0) 3 * shortNames.size else 3
+    val maxScore = if (displayedMetric < 0) 3 * shortNames.size else 3
     val yTicks = remember(maxScore) { yAxisTicks(maxScore) }
     val xTickIndexes = remember(points.size) { xAxisIndexes(points.size) }
     val textMeasurer = rememberTextMeasurer()
     val axisStyle = TextStyle(color = colors.textBody, fontSize = 10.sp)
     val pointColors = points.map { (_, value) ->
-        if (metric < 0) totalColor(value) else answerColors[value.coerceIn(0, answerColors.lastIndex)]
+        if (displayedMetric < 0) totalColor(value) else answerColors[value.coerceIn(0, answerColors.lastIndex)]
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .groupedListCard(tint)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth().groupedListCard(tint).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(tint.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ShowChart,
-                    contentDescription = null,
-                    tint = tint,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    name,
-                    color = colors.textBright,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 17.sp,
-                )
-                Text(
-                    subtitle,
-                    color = colors.textBody,
-                    fontSize = 12.sp,
-                )
-            }
-        }
-        Box(modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.Start)) {
-            TextButton(
-                onClick = { expanded = true },
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-            ) {
-                Text(
-                    stringResource(R.string.metric_picker_title),
-                    color = colors.textBody,
-                    fontSize = 12.sp,
-                )
-                Text(
-                    selectedLabel,
-                    color = tint,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .padding(start = 6.dp)
-                        .widthIn(max = 180.dp),
-                )
-                Icon(
-                    Icons.Outlined.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = tint,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                DropdownMenuItem(
-                    text = { Text(totalLabel) },
-                    onClick = {
-                        metric = -1
-                        expanded = false
-                    },
-                )
-                shortNames.forEachIndexed { index, label ->
-                    DropdownMenuItem(
-                        text = { Text(label) },
-                        onClick = {
-                            metric = index
-                            expanded = false
-                        },
-                    )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(name, color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
+                modifier = Modifier.weight(1f).semantics { contentDescription = subtitle })
+            if (fixedQuestionIndex == null) Box {
+                TextButton(onClick = { expanded = true }, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                    Text(selectedLabel, color = tint, fontWeight = FontWeight.Medium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 160.dp))
+                    Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.metric_picker_title),
+                        tint = tint, modifier = Modifier.size(18.dp))
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    DropdownMenuItem(text = { Text(totalLabel) }, onClick = { metric = -1; expanded = false })
+                    shortNames.forEachIndexed { index, label ->
+                        DropdownMenuItem(text = { Text(label) }, onClick = { metric = index; expanded = false })
+                    }
                 }
             }
         }
@@ -383,30 +333,31 @@ private fun QuestionnaireScoreChart(
             Text(stringResource(R.string.questionnaire_graph_no_answers), color = colors.textBody)
         } else {
             val latest = points.last()
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.questionnaire_graph_latest, latest.second, maxScore),
                     color = pointColors.last(),
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f),
                 )
-                Text(hebrewDate(latest.first), color = colors.textBody, fontSize = 12.sp)
                 val change = if (points.size < 2) {
-                    stringResource(R.string.questionnaire_graph_single_response)
+                    stringResource(R.string.questionnaire_graph_single_short)
                 } else {
                     val difference = latest.second - points[points.lastIndex - 1].second
                     when {
-                        difference > 0 -> stringResource(R.string.questionnaire_graph_increased, difference)
-                        difference < 0 -> stringResource(R.string.questionnaire_graph_decreased, -difference)
-                        else -> stringResource(R.string.questionnaire_graph_unchanged)
+                        difference > 0 -> stringResource(R.string.questionnaire_graph_increased_short, difference)
+                        difference < 0 -> stringResource(R.string.questionnaire_graph_decreased_short, -difference)
+                        else -> stringResource(R.string.questionnaire_graph_unchanged_short)
                     }
                 }
-                Text(change, color = colors.textBody, fontSize = 13.sp)
+                Text(change, color = colors.textBody, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
             }
         }
         if (points.isNotEmpty()) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            Canvas(modifier = Modifier.fillMaxWidth().height(220.dp)) {
+            Canvas(modifier = Modifier.fillMaxWidth().height(chartHeight.dp)) {
                 val labelPad = 8.dp.toPx()
                 val yLabelWidth = 36.dp.toPx()
                 val xLabelHeight = 28.dp.toPx()
@@ -468,16 +419,24 @@ private fun QuestionnaireScoreChart(
                     points.forEachIndexed { index, _ ->
                         drawCircle(color = pointColors[index], radius = 5.dp.toPx(), center = Offset(xFor(index), yFor(points[index].second)))
                     }
+                    val lastLabel = textMeasurer.measure(hebrewShortDate(points.last().first), axisStyle)
+                    val lastLabelLeft = (plotRight - lastLabel.size.width).coerceAtLeast(plotLeft)
+                    var previousLabelRight = Float.NEGATIVE_INFINITY
                     xTickIndexes.forEach { index ->
                         val label = textMeasurer.measure(hebrewShortDate(points[index].first), axisStyle)
-                        val x = xFor(index) - label.size.width / 2f
+                        val x = (xFor(index) - label.size.width / 2f)
+                            .coerceIn(plotLeft, (plotRight - label.size.width).coerceAtLeast(plotLeft))
+                        // Reserve room for the newest date and skip labels that would overlap.
+                        if (index != points.lastIndex && x + label.size.width + labelPad > lastLabelLeft) return@forEach
+                        if (x < previousLabelRight + labelPad) return@forEach
                         drawText(
                             label,
                             topLeft = Offset(
-                                x.coerceIn(plotLeft, plotRight - label.size.width),
+                                x,
                                 plotBottom + 4.dp.toPx(),
                             ),
                         )
+                        previousLabelRight = x + label.size.width
                     }
                 }
             }
@@ -498,4 +457,3 @@ private fun xAxisIndexes(count: Int): List<Int> {
     if (count <= 5) return (0 until count).toList()
     return listOf(0, count / 3, (2 * count) / 3, count - 1).distinct()
 }
-

@@ -1,11 +1,5 @@
 import SwiftUI
 import WebKit
-#if DEBUG
-import Functions
-import os
-import OSLog
-import Supabase
-#endif
 
 /// How the AI assistant reveals its answers.
 enum AIResponseStyle: String, CaseIterable {
@@ -109,22 +103,19 @@ struct SettingsView: View {
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
+    @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(OnboardingStore.self) private var onboarding
     @Environment(TherapistProfileService.self) private var therapistProfiles
 
     @State private var presentedLink: OfficialLink?
     @State private var isShowingSamplePreview = false
     @State private var shouldStartSampleMode = false
+    @State private var isExitingSampleMode = false
     @State private var isShowingDeleteAccountConfirmation = false
     @State private var isShowingDeleteAccountCodeChallenge = false
     @State private var isDeletingAccount = false
     @State private var deleteAccountError: String?
     @State private var displayNameLoadFailed = false
-    #if DEBUG
-    @State private var isSendingPushTest = false
-    @State private var pushTestAlertTitle: String?
-    @State private var pushTestAlertMessage: String?
-    #endif
     // Tutorial consent is presented by TherapistRootView — not here — so
     // Settings cannot flash under a cover.
 
@@ -167,12 +158,30 @@ struct SettingsView: View {
 
                 Section {
                     Button {
-                        isShowingSamplePreview = true
+                        if store.isDemoMode {
+                            isExitingSampleMode = true
+                            Task {
+                                gettingStartedRouter.resetShowcaseReveal()
+                                await store.exitDemoMode()
+                                isExitingSampleMode = false
+                            }
+                        } else {
+                            isShowingSamplePreview = true
+                        }
                     } label: {
                         HStack(spacing: 12) {
-                            Label(L10n.gettingStartedGuideSettingsTitle,
-                                  systemImage: "person.2.crop.square.stack")
-                                .foregroundStyle(Theme.gold)
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(store.isDemoMode ? L10n.sampleDataActiveTitle : L10n.gettingStartedGuideSettingsTitle)
+                                    if store.isDemoMode {
+                                        Text(L10n.exitDemoModeAction)
+                                            .font(.subheadline)
+                                    }
+                                }
+                            } icon: {
+                                Image(systemName: store.isDemoMode ? "arrow.uturn.backward" : "person.2.crop.square.stack")
+                            }
+                            .foregroundStyle(Theme.gold)
                             Spacer(minLength: 8)
                             Image(systemName: "chevron.forward")
                                 .font(.footnote.weight(.semibold))
@@ -180,7 +189,7 @@ struct SettingsView: View {
                         }
                         .padding(.vertical, 4)
                     }
-                    .disabled(store.isDemoMode)
+                    .disabled(isExitingSampleMode)
                     .accessibilityIdentifier("settings.sampleData")
                 }
                 .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
@@ -327,24 +336,6 @@ struct SettingsView: View {
                 }
                 .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
 
-                #if DEBUG
-                Section {
-                    Button {
-                        Task { await sendDebugPushTest() }
-                    } label: {
-                        HStack {
-                            Text("שליחת התראת בדיקה")
-                                .frame(maxWidth: .infinity)
-                            if isSendingPushTest {
-                                ProgressView()
-                            }
-                        }
-                    }
-                    .disabled(isSendingPushTest)
-                }
-                .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
-                #endif
-
                 Section {
                     Text(appVersionLine)
                         .font(.footnote)
@@ -414,62 +405,9 @@ struct SettingsView: View {
             } message: {
                 Text(deleteAccountError ?? "")
             }
-            #if DEBUG
-            .alert(
-                pushTestAlertTitle ?? "",
-                isPresented: .init(
-                    get: { pushTestAlertTitle != nil },
-                    set: { if !$0 { pushTestAlertTitle = nil; pushTestAlertMessage = nil } }
-                )
-            ) {
-                Button(L10n.ok, role: .cancel) {}
-            } message: {
-                Text(pushTestAlertMessage ?? "")
-            }
-            #endif
             .busyOverlay(isDeletingAccount)
             .appTextSize()
     }
-
-    #if DEBUG
-    private func sendDebugPushTest() async {
-        guard !isSendingPushTest else { return }
-        isSendingPushTest = true
-        defer { isSendingPushTest = false }
-        do {
-            let raw: String = try await auth.client.functions.invoke(
-                "test-apns-push",
-                options: FunctionInvokeOptions(body: [String: String]())
-            ) { data, response in
-                let body = String(data: data, encoding: .utf8) ?? ""
-                return "status=\(response.statusCode) body=\(body)"
-            }
-            AppLog.push.debug("test-apns-push \(Self.redactSecrets(raw), privacy: .public)")
-            pushTestAlertTitle = "התראת הבדיקה נשלחה"
-            pushTestAlertMessage = nil
-        } catch {
-            AppLog.push.error(
-                "test-apns-push failed: \(error.localizedDescription, privacy: .public)"
-            )
-            pushTestAlertTitle = "שליחת התראת הבדיקה נכשלה"
-            pushTestAlertMessage = error.localizedDescription
-        }
-    }
-
-    private static func redactSecrets(_ text: String) -> String {
-        let jwt = try? NSRegularExpression(pattern: "eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")
-        let hex = try? NSRegularExpression(pattern: "\\b[a-fA-F0-9]{32,}\\b")
-        var result = text
-        for regex in [jwt, hex].compactMap({ $0 }) {
-            result = regex.stringByReplacingMatches(
-                in: result,
-                range: NSRange(result.startIndex..., in: result),
-                withTemplate: "[redacted]"
-            )
-        }
-        return result
-    }
-    #endif
 
     /// One of the official cbtipul.com pages, shown in an in-app web view.
     private struct OfficialLink: Identifiable {

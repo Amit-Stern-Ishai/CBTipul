@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.cbtipul.app.ui.therapist.TabReselectionEffect
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -84,6 +86,8 @@ fun PatientListScreen(
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
     val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
     val colors = Theme.colors
+    val listState = rememberLazyListState()
+    TabReselectionEffect { listState.animateScrollToItem(0) }
     var patientSearch by rememberSaveable { mutableStateOf("") }
     val visiblePatients = remember(patients, patientSearch, unnamed) {
         val query = patientSearch.trim()
@@ -192,6 +196,7 @@ fun PatientListScreen(
                             }
                         } else {
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {

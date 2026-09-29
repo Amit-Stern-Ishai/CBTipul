@@ -353,12 +353,11 @@ class PatientRepository(
 
     suspend fun addSession(patientId: DatabaseId, session: Session) {
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
-            val notes = textGate.prepare(session.notes)
-            val analysis = anonymizedAnalysis(session.structuredNotes)
+            // Sample edits stay local, just like updateSession in sample mode.
+            textGate.markSafe(session.notes)
+            markAnalysisSafe(session.structuredNotes)
             val saved = session.copy(
                 databaseId = session.databaseId ?: DatabaseId.Text("demo-session-${session.id}"),
-                notes = notes.orEmpty(),
-                structuredNotes = analysis,
             )
             _patients.update { list ->
                 list.map { patient ->

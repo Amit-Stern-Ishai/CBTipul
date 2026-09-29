@@ -51,7 +51,6 @@ import com.cbtipul.app.ui.messages.TherapistMessageComposeScreen
 import com.cbtipul.app.model.DatabaseId
 import com.cbtipul.app.model.PatientFormulation
 import com.cbtipul.app.model.Session
-import com.cbtipul.app.ui.onboarding.DemoModeChrome
 import com.cbtipul.app.ui.onboarding.DemoShowcaseIntroScreen
 import com.cbtipul.app.ui.onboarding.ShowcaseRevealPhase
 import com.cbtipul.app.ui.theme.hebrewDate
@@ -94,9 +93,7 @@ fun PatientsNavHost(
     val questionnaires by viewModel.questionnaires.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
-    val showcaseLoaded by viewModel.showcaseDataLoaded.collectAsStateWithLifecycle()
     val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
-    val checklistDismissed by viewModel.onboarding.checklistDismissed.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val atList = backStackEntry?.destination?.route == "list"
 
@@ -119,16 +116,6 @@ fun PatientsNavHost(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        DemoModeChrome(
-            isDemoMode = isDemoMode,
-            checklistDismissed = checklistDismissed,
-            routerState = routerState,
-            showcaseLoaded = showcaseLoaded,
-            onExitDemo = { viewModel.exitDemoMode() },
-            onRestart = { viewModel.restartDemoTutorial() },
-            onDismissCoach = { viewModel.dismissCoach() },
-            onSkipToShowcase = { viewModel.skipToShowcaseData() },
-        ) {
             val navigationDirection = LocalLayoutDirection.current
             NavHost(
                 navController = navController,
@@ -423,6 +410,7 @@ fun PatientsNavHost(
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             PatientQuestionnairesScreen(
                 graphsMode = entry.arguments?.getBoolean("graphs") == true,
+                onOpenTrends = { navController.navigate("patient/$id/questionnaire-trends") },
                 onAdd = { navController.navigate("patient/$id/questionnaire-result/new") },
                 records = questionnaires[id].orEmpty(),
                 patientName = patient?.displayName(unnamed).orEmpty(),
@@ -434,6 +422,14 @@ fun PatientsNavHost(
                 onOpen = { record ->
                     navController.navigate("patient/$id/questionnaire-result/${record.databaseId.queryValue}")
                 },
+            )
+        }
+        composable("patient/{id}/questionnaire-trends", arguments = listOf(navArgument("id") { type = NavType.StringType })) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            QuestionnaireTrendsScreen(
+                records = questionnaires[id].orEmpty(),
+                patientName = viewModel.patient(id)?.displayName(unnamed).orEmpty(),
+                onBack = { navController.popScreen() },
             )
         }
         composable(
@@ -513,9 +509,11 @@ fun PatientsNavHost(
                         rejected,
                         sessionNotSaved,
                         anonymizationFailed,
+                        onSaved = { draft.markSaved(edited) },
                     ) {
                         viewModel.clearSessionError()
-                        navController.popScreen()
+                        // A completed save is not a repeated Back tap. Only close its own editor.
+                        if (navController.currentBackStackEntry == entry) navController.popBackStack()
                     }
                 },
                 onDelete = { edited ->
@@ -921,7 +919,6 @@ fun PatientsNavHost(
             )
         }
             }
-        }
         MessageOverlay(
             visible = invitationError != null,
             title = inviteFailed,

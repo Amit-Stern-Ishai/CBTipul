@@ -280,11 +280,58 @@ private struct IsPatientConnectedParams: Encodable {
     }
 }
 
+/// A known empty assignment is different from an assignment that has not loaded yet.
+@MainActor
+final class AssignmentStatusCache {
+    struct Snapshot { let assignmentId: UUID? }
+    private struct Entry { let snapshot: Snapshot; let revision: Int }
+    private var entries: [String: Entry] = [:]
+    private func key(_ account: UUID, _ resource: String) -> String { "\(account.uuidString)/\(resource)" }
+    func value(account: UUID?, resource: String) -> Snapshot? {
+        guard let account else { return nil }
+        return entries[key(account, resource)]?.snapshot
+    }
+    func revision(account: UUID?, resource: String) -> Int {
+        guard let account else { return 0 }
+        return entries[key(account, resource)]?.revision ?? 0
+    }
+    func store(_ id: UUID?, account: UUID?, resource: String, ifRevision: Int? = nil) {
+        guard let account else { return }
+        let current = revision(account: account, resource: resource)
+        guard ifRevision == nil || ifRevision == current else { return }
+        entries[key(account, resource)] = Entry(snapshot: Snapshot(assignmentId: id), revision: current + 1)
+    }
+}
+
 /// Therapist-side patient assignments. Connection is decided only by the
 /// `is_patient_connected` RPC — never by reading `patient_access`.
 @MainActor
 final class PatientAssignmentService {
     private let client: SupabaseClient
+    private static var connectionCache: [UUID: [UUID: Bool]] = [:]
+    private static let assignmentCache = AssignmentStatusCache()
+
+    func cachedOngoingAssignment(patientId: UUID, type: PatientAssignmentType) -> AssignmentStatusCache.Snapshot? {
+        Self.assignmentCache.value(account: client.auth.currentUser?.id, resource: "patient/\(patientId)/\(type.rawValue)")
+    }
+
+    func cachedQuestionnaireAssignment(sessionId: UUID) -> AssignmentStatusCache.Snapshot? {
+        Self.assignmentCache.value(account: client.auth.currentUser?.id, resource: "session/\(sessionId)")
+    }
+
+    private func cacheAssignment(_ assignment: PatientAssignment, account: UUID?) {
+        guard account == client.auth.currentUser?.id else { return }
+        if assignment.type == .questionnaire, let sessionId = assignment.sessionId {
+            Self.assignmentCache.store(assignment.isOpen ? assignment.id : nil, account: account, resource: "session/\(sessionId)")
+        } else if let type = assignment.type {
+            Self.assignmentCache.store(assignment.cancelledAt == nil ? assignment.id : nil, account: account, resource: "patient/\(assignment.patientId)/\(type.rawValue)")
+        }
+    }
+
+    func cachedPatientConnection(patientId: UUID) -> Bool? {
+        guard let userId = client.auth.currentUser?.id else { return nil }
+        return Self.connectionCache[userId]?[patientId]
+    }
 
     init(client: SupabaseClient) {
         self.client = client
@@ -293,6 +340,7 @@ final class PatientAssignmentService {
     /// Active Patient Mode connection for this patient. Boolean only.
     func isPatientConnected(patientId: UUID) async throws -> Bool {
         try ensureConfigured()
+        let userId = client.auth.currentUser?.id
         do {
             let connected: Bool = try await client.rpc(
                 "is_patient_connected",
@@ -300,6 +348,9 @@ final class PatientAssignmentService {
             )
             .execute()
             .value
+            if let userId, userId == client.auth.currentUser?.id {
+                Self.connectionCache[userId, default: [:]][patientId] = connected
+            }
             return connected
         } catch {
             AppLog.store.error(
@@ -312,6 +363,9 @@ final class PatientAssignmentService {
     /// Open questionnaire assignment for this session, if one exists.
     func openQuestionnaireAssignment(sessionId: UUID) async throws -> PatientAssignment? {
         try ensureConfigured()
+        let account = client.auth.currentUser?.id
+        let resource = "session/\(sessionId)"
+        let revision = Self.assignmentCache.revision(account: account, resource: resource)
         do {
             let rows: [PatientAssignment] = try await client.from("patient_assignments")
                 .select(
@@ -324,6 +378,9 @@ final class PatientAssignmentService {
                 .limit(1)
                 .execute()
                 .value
+            if account == client.auth.currentUser?.id {
+                Self.assignmentCache.store(rows.first?.id, account: account, resource: resource, ifRevision: revision)
+            }
             return rows.first
         } catch {
             AppLog.store.error(
@@ -342,6 +399,7 @@ final class PatientAssignmentService {
         sessionId: UUID? = nil
     ) async throws -> PatientAssignment {
         try ensureConfigured()
+        let account = client.auth.currentUser?.id
         let request = RequestPatientQuestionnaireRequest(
             patientId: patientId,
             sessionId: sessionId
@@ -374,7 +432,7 @@ final class PatientAssignmentService {
                 cancelledAt = nil
             }
             AppLog.store.info("Questionnaire assignment created")
-            return PatientAssignment(
+            let assignment = PatientAssignment(
                 id: response.id,
                 patientId: response.patientId,
                 therapistId: response.therapistId,
@@ -384,6 +442,8 @@ final class PatientAssignmentService {
                 completedAt: completedAt,
                 cancelledAt: cancelledAt
             )
+            cacheAssignment(assignment, account: account)
+            return assignment
         } catch let error as PatientAssignmentError {
             throw error
         } catch let FunctionsError.httpError(code, data) {
@@ -405,6 +465,9 @@ final class PatientAssignmentService {
     ) async throws -> PatientAssignment? {
         try ensureConfigured()
         try Self.requireOngoingType(type)
+        let account = client.auth.currentUser?.id
+        let resource = "patient/\(patientId)/\(type.rawValue)"
+        let revision = Self.assignmentCache.revision(account: account, resource: resource)
         do {
             let rows: [PatientAssignment] = try await client.from("patient_assignments")
                 .select(
@@ -416,6 +479,9 @@ final class PatientAssignmentService {
                 .limit(1)
                 .execute()
                 .value
+            if account == client.auth.currentUser?.id {
+                Self.assignmentCache.store(rows.first?.id, account: account, resource: resource, ifRevision: revision)
+            }
             return rows.first
         } catch {
             AppLog.store.error(
@@ -437,10 +503,15 @@ final class PatientAssignmentService {
         let connected = try await isPatientConnected(patientId: patientId)
         guard connected else { throw PatientAssignmentError.patientNotConnected }
 
+        let account = client.auth.currentUser?.id
+        let assignment: PatientAssignment
         if PatientDiaryOneActivation.usesEdgeFunction(type) {
-            return try await requestPatientDiaryOne(patientId: patientId)
+            assignment = try await requestPatientDiaryOne(patientId: patientId)
+        } else {
+            assignment = try await insertOngoingAssignment(patientId: patientId, type: type)
         }
-        return try await insertOngoingAssignment(patientId: patientId, type: type)
+        cacheAssignment(assignment, account: account)
+        return assignment
     }
 
     /// Creates Diary 1 via Edge Function. Reuse, connection, notification,
@@ -514,6 +585,7 @@ final class PatientAssignmentService {
     /// Stops an ongoing assignment by setting `cancelled_at` only.
     func cancelOngoingAssignment(id: UUID) async throws {
         try ensureConfigured()
+        let account = client.auth.currentUser?.id
         do {
             let updated: [PatientAssignment] = try await client.from("patient_assignments")
                 .update(
@@ -529,6 +601,7 @@ final class PatientAssignmentService {
             guard !updated.isEmpty else {
                 throw PatientAssignmentError.invalidIdentifier
             }
+            updated.forEach { cacheAssignment($0, account: account) }
             AppLog.store.info("Ongoing assignment cancelled")
         } catch {
             AppLog.store.error(

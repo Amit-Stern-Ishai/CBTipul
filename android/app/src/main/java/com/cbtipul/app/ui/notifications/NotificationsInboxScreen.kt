@@ -42,6 +42,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.cbtipul.app.ui.therapist.TabReselectionEffect
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +85,8 @@ fun NotificationsInboxScreen(
     onOpen: (AppNotification) -> Unit,
 ) {
     val colors = Theme.colors
+    val listState = rememberLazyListState()
+    TabReselectionEffect { listState.animateScrollToItem(0) }
     val items by repository.items.collectAsStateWithLifecycle()
     val loading by repository.isLoading.collectAsStateWithLifecycle()
     val failed by repository.failed.collectAsStateWithLifecycle()
@@ -90,8 +94,8 @@ fun NotificationsInboxScreen(
     val read = NotificationInbox.read(items)
     val scope = rememberCoroutineScope()
 
-    suspend fun loadAndMarkSeen() {
-        repository.refresh()
+    suspend fun loadAndMarkSeen(showLoading: Boolean = false) {
+        repository.refresh(showLoading = showLoading)
         if (!repository.failed.value) repository.markInboxSeen()
     }
 
@@ -134,10 +138,10 @@ fun NotificationsInboxScreen(
             }
             else -> PullToRefreshBox(
                 isRefreshing = loading && items.isNotEmpty(),
-                onRefresh = { scope.launch { loadAndMarkSeen() } },
+                onRefresh = { scope.launch { loadAndMarkSeen(showLoading = true) } },
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
-                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (failed) item(key = "refresh-error") {
                         Column {
