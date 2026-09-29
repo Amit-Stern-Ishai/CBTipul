@@ -57,7 +57,7 @@ fun DiaryOneEditorScreen(
     onBack: () -> Unit,
     onSave: (
         event: String,
-        thought: String,
+        automaticThoughts: List<String>,
         feelings: List<DiaryFeeling>,
         behaviour: String,
         physicalSymptoms: String?,
@@ -109,7 +109,7 @@ fun DiaryOneEditorScreen(
         }
         onSave(
             draft.event.trim(),
-            draft.thought.trim(),
+            draft.persistedAutomaticThoughts,
             feelings,
             draft.behaviour.trim(),
             draft.physicalSymptoms.trim().ifEmpty { null },

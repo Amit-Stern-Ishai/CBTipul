@@ -154,6 +154,9 @@ struct ContentView: View {
                 onboarding.dismissWelcome()
                 onboarding.markDemoTourCompleted()
                 onboarding.markDisplayNamePromptShown()
+                if !ProcessInfo.processInfo.arguments.contains("-UITestingIntroduction") {
+                    onboarding.completeIntroduction()
+                }
                 if !store.isDemoMode {
                     store.enterDemoMode()
                 }
@@ -192,7 +195,23 @@ struct ContentView: View {
     /// Non-anonymous therapist session: Terms / Welcome / tab shell.
     @ViewBuilder
     private var therapistSessionRoot: some View {
-        if showOptionalDisplayNamePrompt {
+        if !hasAcceptedTerms {
+            NavigationStack {
+                TermsView {
+                    if let email = auth.currentUserEmail {
+                        TermsAcceptance.setAccepted(email: email)
+                    }
+                    hasAcceptedTerms = true
+                }
+            }
+        } else if onboarding.shouldShowIntroduction {
+            AppIntroductionView(onTrySample: {
+                store.enterDemoMode()
+                onboarding.completeIntroduction()
+            }, onContinue: {
+                onboarding.completeIntroduction()
+            })
+        } else if showOptionalDisplayNamePrompt && !store.isDemoMode {
             // Full-screen gate (not a second root sheet) so this
             // never races Terms/Welcome or the password-recovery sheet.
             TherapistDisplayNameEditorView(
@@ -202,17 +221,8 @@ struct ContentView: View {
                     showOptionalDisplayNamePrompt = false
                 }
             )
-        } else if isResolvingDisplayNameGate {
+        } else if isResolvingDisplayNameGate && !store.isDemoMode {
             Theme.base.ignoresSafeArea()
-        } else if !hasAcceptedTerms {
-            NavigationStack {
-                TermsView {
-                    if let email = auth.currentUserEmail {
-                        TermsAcceptance.setAccepted(email: email)
-                    }
-                    hasAcceptedTerms = true
-                }
-            }
         } else {
             TherapistRootView()
         }
@@ -271,6 +281,7 @@ struct ContentView: View {
         ) {
         case .therapist:
             let ready = hasAcceptedTerms
+                && !onboarding.shouldShowIntroduction
                 && !showOptionalDisplayNamePrompt
                 && !isResolvingDisplayNameGate
                 && !auth.isRecoveringPassword

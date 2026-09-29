@@ -51,36 +51,55 @@ enum DiaryOneEditorMode: Equatable {
     }
 }
 
+struct DiaryAutomaticThoughtDraft: Identifiable, Equatable, Codable {
+    var id: UUID
+    var text: String
+
+    init(id: UUID = UUID(), text: String = "") {
+        self.id = id
+        self.text = text
+    }
+}
+
 /// Single editable source of truth for create and edit.
 struct DiaryOneEntryDraft: Equatable, Codable {
     var event: String
-    var thought: String
+    var automaticThoughts: [DiaryAutomaticThoughtDraft]
     var feelings: [DiaryFeelingDraft]
     var behaviour: String
     var physicalSymptoms: String
 
     static let empty = DiaryOneEntryDraft(
         event: "",
-        thought: "",
+        automaticThoughts: [DiaryAutomaticThoughtDraft()],
         feelings: [],
         behaviour: "",
         physicalSymptoms: ""
     )
 
     static func from(_ entry: DiaryOneEntry) -> DiaryOneEntryDraft {
-        DiaryOneEntryDraft(
+        let thoughts = entry.automaticThoughts.isEmpty
+            ? [DiaryAutomaticThoughtDraft()]
+            : entry.automaticThoughts.map { DiaryAutomaticThoughtDraft(text: $0) }
+        return DiaryOneEntryDraft(
             event: entry.event,
-            thought: entry.thought,
+            automaticThoughts: thoughts,
             feelings: entry.feelings.map(DiaryFeelingDraft.init(persisted:)),
             behaviour: entry.behaviour,
             physicalSymptoms: entry.physicalSymptoms ?? ""
         )
     }
 
+    var persistedAutomaticThoughts: [String] {
+        automaticThoughts
+            .map { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     var comparableSnapshot: Snapshot {
         Snapshot(
             event: event.trimmingCharacters(in: .whitespacesAndNewlines),
-            thought: thought.trimmingCharacters(in: .whitespacesAndNewlines),
+            automaticThoughts: persistedAutomaticThoughts,
             feelings: feelings.map {
                 Snapshot.Feeling(
                     name: $0.trimmedName,
@@ -92,11 +111,23 @@ struct DiaryOneEntryDraft: Equatable, Codable {
         )
     }
 
+    mutating func addAutomaticThought() {
+        automaticThoughts.append(DiaryAutomaticThoughtDraft())
+    }
+
+    mutating func removeAutomaticThought(id: UUID) {
+        guard automaticThoughts.count > 1 else { return }
+        automaticThoughts.removeAll { $0.id == id }
+        if automaticThoughts.isEmpty {
+            automaticThoughts = [DiaryAutomaticThoughtDraft()]
+        }
+    }
+
     func validationMessage() -> String? {
         if event.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return L10n.diaryOneValidationEvent
         }
-        if thought.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if persistedAutomaticThoughts.isEmpty {
             return L10n.diaryOneValidationThought
         }
         if feelings.isEmpty {
@@ -128,7 +159,7 @@ struct DiaryOneEntryDraft: Equatable, Codable {
 
     struct Snapshot: Equatable {
         var event: String
-        var thought: String
+        var automaticThoughts: [String]
         var feelings: [Feeling]
         var behaviour: String
         var physicalSymptoms: String

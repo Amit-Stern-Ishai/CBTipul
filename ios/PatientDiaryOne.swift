@@ -21,9 +21,9 @@ enum PatientDiaryOneSubmitError: LocalizedError {
 
 /// CamelCase body for `submit-diary-one-entry`. No patient, therapist,
 /// assignment, session, or provenance IDs.
-private struct SubmitDiaryOneEntryRequest: Encodable {
+struct SubmitDiaryOneEntryRequest: Encodable {
     let event: String
-    let thought: String
+    let automaticThoughts: [String]
     let feelings: [DiaryFeeling]
     let behaviour: String
     let physicalSymptoms: String?
@@ -31,14 +31,14 @@ private struct SubmitDiaryOneEntryRequest: Encodable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(event, forKey: .event)
-        try container.encode(thought, forKey: .thought)
+        try container.encode(automaticThoughts, forKey: .automaticThoughts)
         try container.encode(feelings, forKey: .feelings)
         try container.encode(behaviour, forKey: .behaviour)
         try container.encode(physicalSymptoms, forKey: .physicalSymptoms)
     }
 
     enum CodingKeys: String, CodingKey {
-        case event, thought, feelings, behaviour, physicalSymptoms
+        case event, automaticThoughts, feelings, behaviour, physicalSymptoms
     }
 }
 
@@ -47,7 +47,15 @@ private struct SubmitDiaryOneEntryResponse: Decodable, Sendable {
     let entryId: UUID?
 }
 
-/// Patient Mode create-only submission. Does not read `diary_one_entries`.
+enum PatientDiaryOneHistory {
+    static func visible(_ entries: [DiaryOneEntry]) -> [DiaryOneEntry] {
+        entries
+            .filter { $0.createdBy == .patient }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+}
+
+/// Patient Mode history (patient-created rows only) and Edge Function submit.
 @MainActor
 final class PatientDiaryOneService {
     private let client: SupabaseClient
@@ -56,9 +64,28 @@ final class PatientDiaryOneService {
         self.client = client
     }
 
+    func loadPatientCreatedEntries(patientId: UUID) async throws -> [DiaryOneEntry] {
+        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        do {
+            let rows: [DiaryOneEntry] = try await client.from("diary_one_entries")
+                .select(diaryOneSelectColumns)
+                .eq("patient_id", value: patientId)
+                .eq("created_by", value: DiaryOneEntryCreator.patient.rawValue)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+            return PatientDiaryOneHistory.visible(rows)
+        } catch {
+            AppLog.store.error(
+                "Patient Diary 1 history load failed: \(error.localizedDescription, privacy: .public)"
+            )
+            throw error
+        }
+    }
+
     func submitEntry(
         event: String,
-        thought: String,
+        automaticThoughts: [String],
         feelings: [DiaryFeeling],
         behaviour: String,
         physicalSymptoms: String?
@@ -70,7 +97,7 @@ final class PatientDiaryOneService {
                 options: FunctionInvokeOptions(
                     body: SubmitDiaryOneEntryRequest(
                         event: event,
-                        thought: thought,
+                        automaticThoughts: automaticThoughts,
                         feelings: feelings,
                         behaviour: behaviour,
                         physicalSymptoms: physicalSymptoms
@@ -93,7 +120,7 @@ final class PatientDiaryOneService {
         }
     }
 
-    private static func submitError(from data: Data, statusCode: Int) -> PatientDiaryOneSubmitError {
+    static func submitError(from data: Data, statusCode: Int) -> PatientDiaryOneSubmitError {
         let payload = edgePayload(from: data)
         let fallback = L10n.patientDiaryOneSubmitError
         let message = payload.message.isEmpty ? fallback : payload.message
@@ -104,7 +131,9 @@ final class PatientDiaryOneService {
             return .accessDenied(message)
         case "patient_therapist_mismatch":
             return .accessDenied(message)
-        case "invalid_event", "invalid_thought", "invalid_behaviour",
+        case "invalid_automatic_thoughts":
+            return .invalid(L10n.diaryOneValidationThought)
+        case "invalid_event", "invalid_behaviour",
              "invalid_feelings", "duplicate_feeling", "invalid_request":
             return .invalid(message)
         default:

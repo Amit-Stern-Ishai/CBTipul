@@ -14,7 +14,7 @@ nonisolated struct DiaryOneEntry: Identifiable, Equatable, Sendable, Codable {
     let therapistId: UUID
     let createdBy: DiaryOneEntryCreator
     var event: String
-    var thought: String
+    var automaticThoughts: [String]
     var feelings: [DiaryFeeling]
     var behaviour: String
     var physicalSymptoms: String?
@@ -27,12 +27,16 @@ nonisolated struct DiaryOneEntry: Identifiable, Equatable, Sendable, Codable {
         case therapistId = "therapist_id"
         case createdBy = "created_by"
         case event
-        case thought
+        case automaticThoughts = "automatic_thoughts"
         case feelings
         case behaviour
         case physicalSymptoms = "physical_symptoms"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+
+    var automaticThoughtsPreview: String {
+        L10n.diaryAutomaticThoughtsPreview(automaticThoughts)
     }
 }
 
@@ -41,7 +45,7 @@ private struct NewDiaryOneEntry: Encodable {
     let therapistId: UUID
     let createdBy: DiaryOneEntryCreator
     let event: String
-    let thought: String
+    let automaticThoughts: [String]
     let feelings: [DiaryFeeling]
     let behaviour: String
     let physicalSymptoms: String?
@@ -50,7 +54,8 @@ private struct NewDiaryOneEntry: Encodable {
         case patientId = "patient_id"
         case therapistId = "therapist_id"
         case createdBy = "created_by"
-        case event, thought, feelings, behaviour
+        case event, feelings, behaviour
+        case automaticThoughts = "automatic_thoughts"
         case physicalSymptoms = "physical_symptoms"
     }
 
@@ -60,7 +65,7 @@ private struct NewDiaryOneEntry: Encodable {
         try container.encode(therapistId, forKey: .therapistId)
         try container.encode(createdBy, forKey: .createdBy)
         try container.encode(event, forKey: .event)
-        try container.encode(thought, forKey: .thought)
+        try container.encode(automaticThoughts, forKey: .automaticThoughts)
         try container.encode(feelings, forKey: .feelings)
         try container.encode(behaviour, forKey: .behaviour)
         try container.encode(physicalSymptoms, forKey: .physicalSymptoms)
@@ -69,14 +74,15 @@ private struct NewDiaryOneEntry: Encodable {
 
 private struct DiaryOneEntryClinicalUpdate: Encodable {
     let event: String
-    let thought: String
+    let automaticThoughts: [String]
     let feelings: [DiaryFeeling]
     let behaviour: String
     let physicalSymptoms: String?
     let updatedAt: String
 
     enum CodingKeys: String, CodingKey {
-        case event, thought, feelings, behaviour
+        case event, feelings, behaviour
+        case automaticThoughts = "automatic_thoughts"
         case physicalSymptoms = "physical_symptoms"
         case updatedAt = "updated_at"
     }
@@ -84,7 +90,7 @@ private struct DiaryOneEntryClinicalUpdate: Encodable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(event, forKey: .event)
-        try container.encode(thought, forKey: .thought)
+        try container.encode(automaticThoughts, forKey: .automaticThoughts)
         try container.encode(feelings, forKey: .feelings)
         try container.encode(behaviour, forKey: .behaviour)
         try container.encode(physicalSymptoms, forKey: .physicalSymptoms)
@@ -96,8 +102,8 @@ private struct DeletedDiaryOneRow: Decodable {
     let id: UUID
 }
 
-private let diaryOneSelectColumns =
-    "id, patient_id, therapist_id, created_by, event, thought, feelings, behaviour, physical_symptoms, created_at, updated_at"
+let diaryOneSelectColumns =
+    "id, patient_id, therapist_id, created_by, event, automatic_thoughts, feelings, behaviour, physical_symptoms, created_at, updated_at"
 
 /// Therapist CRUD for `public.diary_one_entries`. RLS is the authorization
 /// boundary. Demo clinic IDs stay in memory because they are not UUIDs.
@@ -180,7 +186,7 @@ final class DiaryOneStore {
     func createEntry(
         patientId: DatabaseID,
         event: String,
-        thought: String,
+        automaticThoughts: [String],
         feelings: [DiaryFeeling],
         behaviour: String,
         physicalSymptoms: String?
@@ -193,7 +199,7 @@ final class DiaryOneStore {
                 therapistId: UUID(),
                 createdBy: .therapist,
                 event: event,
-                thought: thought,
+                automaticThoughts: automaticThoughts,
                 feelings: feelings,
                 behaviour: behaviour,
                 physicalSymptoms: symptoms,
@@ -214,7 +220,7 @@ final class DiaryOneStore {
                         therapistId: therapistId,
                         createdBy: .therapist,
                         event: event,
-                        thought: thought,
+                        automaticThoughts: automaticThoughts,
                         feelings: feelings,
                         behaviour: behaviour,
                         physicalSymptoms: symptoms
@@ -239,7 +245,7 @@ final class DiaryOneStore {
         id: UUID,
         patientId: DatabaseID,
         event: String,
-        thought: String,
+        automaticThoughts: [String],
         feelings: [DiaryFeeling],
         behaviour: String,
         physicalSymptoms: String?
@@ -250,7 +256,7 @@ final class DiaryOneStore {
                 throw AuthError.notConfigured
             }
             entry.event = event
-            entry.thought = thought
+            entry.automaticThoughts = automaticThoughts
             entry.feelings = feelings
             entry.behaviour = behaviour
             entry.physicalSymptoms = symptoms
@@ -264,7 +270,7 @@ final class DiaryOneStore {
                 .update(
                     DiaryOneEntryClinicalUpdate(
                         event: event,
-                        thought: thought,
+                        automaticThoughts: automaticThoughts,
                         feelings: feelings,
                         behaviour: behaviour,
                         physicalSymptoms: symptoms,

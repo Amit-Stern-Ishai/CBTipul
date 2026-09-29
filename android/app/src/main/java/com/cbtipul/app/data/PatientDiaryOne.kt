@@ -1,5 +1,6 @@
 package com.cbtipul.app.data
 
+import com.cbtipul.app.model.DatabaseId
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
 import io.ktor.client.statement.bodyAsText
@@ -8,10 +9,17 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import kotlinx.serialization.Serializable
 
+object PatientDiaryOneHistory {
+    fun visible(entries: List<DiaryOneEntry>): List<DiaryOneEntry> =
+        entries
+            .filter { it.createdBy == DiaryOneEntryCreator.Patient }
+            .sortedByDescending { it.createdAt.time }
+}
+
 @Serializable
 data class SubmitDiaryOneEntryRequest(
     val event: String,
-    val thought: String,
+    val automaticThoughts: List<String>,
     val feelings: List<DiaryFeeling>,
     val behaviour: String,
     val physicalSymptoms: String?,
@@ -30,14 +38,23 @@ sealed class PatientDiaryOneSubmitError(open val userMessage: String) : Exceptio
     data class Failed(override val userMessage: String) : PatientDiaryOneSubmitError(userMessage)
 }
 
-class PatientDiaryOneService(private val client: SupabaseClient) {
+class PatientDiaryOneService(
+    private val client: SupabaseClient,
+    private val diaryOne: DiaryOneRepository,
+) {
+    suspend fun loadPatientCreatedEntries(patientId: String): List<DiaryOneEntry> {
+        val id = DatabaseId.parse(patientId) ?: throw IllegalStateException("not_configured")
+        return diaryOne.loadPatientCreatedEntries(id)
+    }
+
     suspend fun submitEntry(
         event: String,
-        thought: String,
+        automaticThoughts: List<String>,
         feelings: List<DiaryFeeling>,
         behaviour: String,
         physicalSymptoms: String?,
         fallbackMessage: String,
+        invalidThoughtsMessage: String,
     ) {
         if (!SupabaseConfig.isConfigured) throw PatientDiaryOneSubmitError.Failed(fallbackMessage)
         try {
@@ -45,7 +62,7 @@ class PatientDiaryOneService(private val client: SupabaseClient) {
                 function = "submit-diary-one-entry",
                 body = SubmitDiaryOneEntryRequest(
                     event = event,
-                    thought = thought,
+                    automaticThoughts = automaticThoughts,
                     feelings = feelings,
                     behaviour = behaviour,
                     physicalSymptoms = physicalSymptoms,
@@ -62,27 +79,44 @@ class PatientDiaryOneService(private val client: SupabaseClient) {
         } catch (error: PatientDiaryOneSubmitError) {
             throw error
         } catch (error: Exception) {
-            throw mapError(error, fallbackMessage)
+            throw mapError(error, fallbackMessage, invalidThoughtsMessage)
         }
     }
 
-    private suspend fun mapError(error: Exception, fallback: String): PatientDiaryOneSubmitError {
+    private suspend fun mapError(
+        error: Exception,
+        fallback: String,
+        invalidThoughtsMessage: String,
+    ): PatientDiaryOneSubmitError {
         val body = EdgePayload.responseBody(error)
         val (code, message) = EdgePayload.codeAndMessage(body)
-        val text = message.ifBlank { fallback }
         val status = EdgePayload.httpStatus(error)
-        return when (code) {
-            "diary_one_not_active" -> PatientDiaryOneSubmitError.NotActive(text)
-            "unauthorized", "patient_mode_required", "patient_access_not_found",
-            "patient_therapist_mismatch",
-            -> PatientDiaryOneSubmitError.AccessDenied(text)
-            "invalid_event", "invalid_thought", "invalid_behaviour",
-            "invalid_feelings", "duplicate_feeling", "invalid_request",
-            -> PatientDiaryOneSubmitError.Invalid(text)
-            else -> if (status == 401 || status == 403) {
-                PatientDiaryOneSubmitError.AccessDenied(text)
-            } else {
-                PatientDiaryOneSubmitError.Failed(text)
+        return mapSubmitCode(code, message, status, fallback, invalidThoughtsMessage)
+    }
+
+    companion object {
+        fun mapSubmitCode(
+            code: String,
+            message: String,
+            status: Int?,
+            fallback: String,
+            invalidThoughtsMessage: String,
+        ): PatientDiaryOneSubmitError {
+            val text = message.ifBlank { fallback }
+            return when (code) {
+                "diary_one_not_active" -> PatientDiaryOneSubmitError.NotActive(text)
+                "unauthorized", "patient_mode_required", "patient_access_not_found",
+                "patient_therapist_mismatch",
+                -> PatientDiaryOneSubmitError.AccessDenied(text)
+                "invalid_automatic_thoughts" -> PatientDiaryOneSubmitError.Invalid(invalidThoughtsMessage)
+                "invalid_event", "invalid_behaviour",
+                "invalid_feelings", "duplicate_feeling", "invalid_request",
+                -> PatientDiaryOneSubmitError.Invalid(text)
+                else -> if (status == 401 || status == 403) {
+                    PatientDiaryOneSubmitError.AccessDenied(text)
+                } else {
+                    PatientDiaryOneSubmitError.Failed(text)
+                }
             }
         }
     }

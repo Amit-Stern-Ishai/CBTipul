@@ -345,13 +345,7 @@ struct DiaryOneDraftFields: View {
                 incompleteMessage: didAttemptSave && draft.event.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     ? L10n.diaryOneValidationEvent : nil
             )
-            stepCard(
-                title: L10n.diaryOneThoughtTitle,
-                question: L10n.diaryOneThoughtQuestion,
-                text: $draft.thought,
-                incompleteMessage: didAttemptSave && draft.thought.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? L10n.diaryOneValidationThought : nil
-            )
+            automaticThoughtsCard
             feelingsCard
             stepCard(
                 title: L10n.diaryOneBehaviourTitle,
@@ -373,6 +367,53 @@ struct DiaryOneDraftFields: View {
                     .padding(.horizontal, 4)
             }
         }
+    }
+
+    private var automaticThoughtsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.diaryOneThoughtTitle)
+                .font(.headline)
+            Text(L10n.diaryOneThoughtQuestion)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            ForEach($draft.automaticThoughts) { $thought in
+                HStack(alignment: .top, spacing: 8) {
+                    NotesField(
+                        text: $thought.text,
+                        placeholder: L10n.diaryOneThoughtSingularTitle,
+                        minLines: 2,
+                        maxLines: 6
+                    )
+                    if draft.automaticThoughts.count > 1 {
+                        Button {
+                            draft.removeAutomaticThought(id: thought.id)
+                        } label: {
+                            Image(systemName: "minus.circle")
+                                .foregroundStyle(Theme.textBody)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.diaryOneRemoveThoughtAction)
+                        .padding(.top, 8)
+                    }
+                }
+            }
+            Button {
+                draft.addAutomaticThought()
+            } label: {
+                Text(L10n.diaryOneAddThoughtAction)
+                    .fontWeight(.semibold)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.gold)
+            if didAttemptSave, draft.persistedAutomaticThoughts.isEmpty {
+                Text(L10n.diaryOneValidationThought)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.error)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .themedCard()
     }
 
     private var feelingsCard: some View {

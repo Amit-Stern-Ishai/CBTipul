@@ -55,6 +55,7 @@ import androidx.navigation.navArgument
 import com.cbtipul.app.R
 import com.cbtipul.app.data.AppDestination
 import com.cbtipul.app.data.DiaryFeeling
+import com.cbtipul.app.data.DiaryOneEntry
 import com.cbtipul.app.data.NotificationRouting
 import com.cbtipul.app.data.PatientAssignment
 import com.cbtipul.app.data.PatientAssignmentType
@@ -77,7 +78,8 @@ private enum class TasksLoadState { Loading, Loaded, Failed }
 fun PatientModeScreen(
     loadAssignments: suspend () -> List<PatientAssignment>,
     submitQuestionnaire: suspend (String, List<Int>, List<Int>, Int) -> Unit,
-    submitDiaryOne: suspend (String, String, List<DiaryFeeling>, String, String?) -> Unit,
+    submitDiaryOne: suspend (String, List<String>, List<DiaryFeeling>, String, String?) -> Unit,
+    loadDiaryOneHistory: suspend () -> List<DiaryOneEntry> = { emptyList() },
     loadMessages: suspend () -> List<PatientMessage> = { emptyList() },
     loadMessage: suspend (String) -> PatientMessage? = { null },
     markMessageRead: suspend (String) -> Unit = {},
@@ -92,6 +94,7 @@ fun PatientModeScreen(
     var messages by remember { mutableStateOf<List<PatientMessage>>(emptyList()) }
     var didSubmitQuestionnaire by remember { mutableStateOf(false) }
     var didSubmitDiaryOne by remember { mutableStateOf(false) }
+    var diaryEntries by remember { mutableStateOf<List<DiaryOneEntry>>(emptyList()) }
 
     suspend fun reload() {
         if (assignments.isEmpty()) loadState = TasksLoadState.Loading
@@ -129,7 +132,7 @@ fun PatientModeScreen(
                         val assignment = NotificationRouting.matchingOpenAssignment(
                             assignments, destination.assignmentId, PatientAssignmentType.DiaryOne,
                         )
-                        if (assignment != null) nav.navigate("diary-one")
+                        if (assignment != null) nav.navigate("diary-one/new")
                     }
                     else -> Unit
                 }
@@ -175,16 +178,52 @@ fun PatientModeScreen(
             )
         }
         composable("diary-one") {
+            PatientDiaryOneHubScreen(
+                loadEntries = {
+                    val loaded = loadDiaryOneHistory()
+                    diaryEntries = loaded
+                    loaded
+                },
+                onAddEntry = { nav.navigate("diary-one/new") },
+                onOpenEntry = { nav.navigate("diary-one/entry/${it.id}") },
+                onBack = { nav.popScreen() },
+            )
+        }
+        composable("diary-one/new") {
             PatientDiaryOneEntryScreen(
                 draftTarget = assignments.firstOrNull { it.type == PatientAssignmentType.DiaryOne }?.patientId ?: "diary-one",
-                onSubmit = { event, thought, feelings, behaviour, physicalSymptoms ->
-                    submitDiaryOne(event, thought, feelings, behaviour, physicalSymptoms)
+                onSubmit = { event, automaticThoughts, feelings, behaviour, physicalSymptoms ->
+                    submitDiaryOne(event, automaticThoughts, feelings, behaviour, physicalSymptoms)
                     didSubmitDiaryOne = true
                     reload()
                 },
                 onDiaryInactive = { scope.launch { reload() } },
                 onBack = { nav.popScreen() },
             )
+        }
+        composable(
+            "diary-one/entry/{entryId}",
+            arguments = listOf(navArgument("entryId") { type = NavType.StringType }),
+        ) { entry ->
+            val entryId = entry.arguments?.getString("entryId").orEmpty()
+            var detail by remember(entryId, diaryEntries) {
+                mutableStateOf(diaryEntries.firstOrNull { it.id.equals(entryId, true) })
+            }
+            LaunchedEffect(entryId) {
+                if (detail == null) {
+                    val loaded = runCatching { loadDiaryOneHistory() }.getOrDefault(emptyList())
+                    diaryEntries = loaded
+                    detail = loaded.firstOrNull { it.id.equals(entryId, true) }
+                }
+            }
+            val current = detail
+            if (current != null) {
+                PatientDiaryOneDetailScreen(entry = current, onBack = { nav.popScreen() })
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Theme.colors.gold)
+                }
+            }
         }
         composable("messages") {
             MessageListScreen(

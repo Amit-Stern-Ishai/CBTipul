@@ -109,6 +109,7 @@ struct SettingsView: View {
 
     @State private var presentedLink: OfficialLink?
     @State private var isShowingSamplePreview = false
+    @State private var isShowingIntroduction = false
     @State private var shouldStartSampleMode = false
     @State private var isExitingSampleMode = false
     @State private var isShowingDeleteAccountConfirmation = false
@@ -191,6 +192,14 @@ struct SettingsView: View {
                     }
                     .disabled(isExitingSampleMode)
                     .accessibilityIdentifier("settings.sampleData")
+                    Button {
+                        isShowingIntroduction = true
+                    } label: {
+                        Label(L10n.introductionReview, systemImage: "rectangle.stack")
+                            .foregroundStyle(Theme.gold)
+                            .padding(.vertical, 4)
+                    }
+                    .accessibilityIdentifier("settings.introduction")
                 }
                 .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
 
@@ -347,6 +356,19 @@ struct SettingsView: View {
             .patientAtmosphere(Theme.gold)
             .themedScreen()
             .demoModeChrome()
+            .fullScreenCover(isPresented: $isShowingIntroduction, onDismiss: {
+                guard shouldStartSampleMode else { return }
+                shouldStartSampleMode = false
+                store.enterDemoMode()
+            }) {
+                AppIntroductionView(isReview: true, onTrySample: {
+                    shouldStartSampleMode = true
+                    isShowingIntroduction = false
+                }, onContinue: {
+                    isShowingIntroduction = false
+                })
+                .appTextSize()
+            }
             .sheet(isPresented: $isShowingSamplePreview, onDismiss: {
                 guard shouldStartSampleMode else { return }
                 shouldStartSampleMode = false

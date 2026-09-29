@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +37,7 @@ import com.cbtipul.app.ui.invite.InvitationFlowScreen
 import com.cbtipul.app.ui.legal.AiConsentDialog
 import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.onboarding.WelcomeOnboardingScreen
+import com.cbtipul.app.ui.onboarding.AppIntroductionScreen
 import com.cbtipul.app.ui.patient.PatientActivationIncompleteScreen
 import com.cbtipul.app.ui.patient.PatientContextRetryScreen
 import com.cbtipul.app.ui.patient.PatientModeScreen
@@ -115,9 +117,14 @@ fun RootScreen() {
         therapistIdentity?.let { app.preferences.hasAcceptedAiConsent(it) } ?: flowOf(false)
     }
     val aiConsentAccepted by consentAcceptedFlow.collectAsStateWithLifecycle(initialValue = false)
-    val welcomeDismissed by app.onboardingStore.welcomeDismissed.collectAsStateWithLifecycle()
     val onboardingHydrated by app.onboardingStore.isHydrated.collectAsStateWithLifecycle()
+    val onboardingIdentity by app.onboardingStore.hydratedIdentity.collectAsStateWithLifecycle()
+    val shouldShowIntroduction by app.onboardingStore.shouldShowIntroduction.collectAsStateWithLifecycle()
+    var reviewIntroduction by rememberSaveable(therapistIdentity) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(therapistIdentity, isTherapist) {
+        app.onboardingStore.setActiveUser(therapistIdentity.takeIf { isTherapist })
+    }
     LaunchedEffect(therapistIdentity) {
         app.aiConsentStore.setActiveUser(therapistIdentity)
     }
@@ -165,6 +172,7 @@ fun RootScreen() {
     val resetSent = stringResource(R.string.password_reset_sent_message)
     val resentMessage = stringResource(R.string.verification_resent_message)
     val diarySubmitFallback = stringResource(R.string.patient_diary_one_submit_error)
+    val diaryThoughtsInvalid = stringResource(R.string.diary_one_validation_thought)
     val leaveFailed = stringResource(R.string.patient_leave_mode_failed)
     val activity = androidx.activity.compose.LocalActivity.current
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -174,7 +182,8 @@ fun RootScreen() {
         recovering || invitationActive -> null
         isTherapist &&
             termsAccepted.value == true &&
-            onboardingHydrated -> signedIn?.userId?.let { "therapist-$it" }
+            onboardingHydrated && onboardingIdentity == therapistIdentity &&
+            !shouldShowIntroduction && !reviewIntroduction && !showWelcome -> signedIn?.userId?.let { "therapist-$it" }
         rootDestination == AppRootDestination.AnonymousPatient &&
             anonymousDestination == AnonymousPatientDestination.PatientMode ->
             signedIn?.userId?.let { "patient-$it" }
@@ -233,19 +242,28 @@ fun RootScreen() {
                                 interference,
                             )
                         },
-                        submitDiaryOne = { event, thought, feelings, behaviour, physicalSymptoms ->
+                        submitDiaryOne = { event, automaticThoughts, feelings, behaviour, physicalSymptoms ->
                             try {
                                 app.patientDiaryOne.submitEntry(
                                     event,
-                                    thought,
+                                    automaticThoughts,
                                     feelings,
                                     behaviour,
                                     physicalSymptoms,
                                     fallbackMessage = diarySubmitFallback,
+                                    invalidThoughtsMessage = diaryThoughtsInvalid,
                                 )
                             } catch (error: PatientDiaryOneSubmitError.AccessDenied) {
                                 runCatching { app.appContext.getCurrentAppContext() }
                                 throw error
+                            }
+                        },
+                        loadDiaryOneHistory = {
+                            val patientId = appContext?.patientId
+                            if (patientId.isNullOrBlank()) {
+                                emptyList()
+                            } else {
+                                app.patientDiaryOne.loadPatientCreatedEntries(patientId)
                             }
                         },
                         loadMessages = {
@@ -322,11 +340,6 @@ fun RootScreen() {
                 )
             }
             isTherapist && termsAccepted.value == true -> {
-                LaunchedEffect(therapistIdentity) {
-                    therapistIdentity?.let { app.onboardingStore.setActiveUser(it) }
-                }
-                val welcomeDismissed by app.onboardingStore.welcomeDismissed.collectAsStateWithLifecycle()
-                val onboardingHydrated by app.onboardingStore.isHydrated.collectAsStateWithLifecycle()
                 val listVm: PatientListViewModel = viewModel(
                     key = "$therapistIdentity-$listSession",
                     factory = PatientListViewModel.Factory(app.patientRepository, app.onboardingStore),
@@ -334,13 +347,24 @@ fun RootScreen() {
                 SideEffect { patientsViewModel = listVm }
 
                 when {
-                    !onboardingHydrated -> {
+                    !onboardingHydrated || onboardingIdentity != therapistIdentity -> {
                         Box(
                             modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold),
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(color = Theme.colors.gold)
                         }
+                    }
+                    shouldShowIntroduction -> {
+                        AppIntroductionScreen(
+                            onTrySample = {
+                                scope.launch {
+                                    listVm.startDemoTour().join()
+                                    app.onboardingStore.completeIntroduction()
+                                }
+                            },
+                            onContinue = { scope.launch { app.onboardingStore.completeIntroduction() } },
+                        )
                     }
                     else -> {
                         TherapistRootScreen(
@@ -401,6 +425,7 @@ fun RootScreen() {
                                     onGettingStartedGuide = {
                                         app.onboardingStore.requestDemoConsent()
                                     },
+                                    onReviewIntroduction = { reviewIntroduction = true },
                                     onDone = {},
                                     showCloseButton = false,
                                 )
@@ -543,6 +568,7 @@ fun RootScreen() {
                     // RootScreen presents welcome and closes Settings under it.
                     app.onboardingStore.requestDemoConsent()
                 },
+                onReviewIntroduction = { reviewIntroduction = true },
                 onDone = { showSettings = false },
             )
         }
@@ -555,6 +581,19 @@ fun RootScreen() {
                     showWelcome = false
                 },
                 onSkip = { showWelcome = false },
+            )
+        }
+
+        if (reviewIntroduction && isTherapist && termsAccepted.value == true && !invitationActive && !recovering) {
+            AppIntroductionScreen(
+                isReview = true,
+                onTrySample = {
+                    scope.launch {
+                        patientsViewModel?.startDemoTour()?.join()
+                        reviewIntroduction = false
+                    }
+                },
+                onContinue = { reviewIntroduction = false },
             )
         }
     }

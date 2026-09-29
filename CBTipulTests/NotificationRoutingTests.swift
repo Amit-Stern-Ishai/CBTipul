@@ -406,7 +406,7 @@ struct DiaryOneNotificationRoutingTests {
             therapistId: UUID(),
             createdBy: .patient,
             event: "e",
-            thought: "t",
+            automaticThoughts: ["t"],
             feelings: [],
             behaviour: "b",
             physicalSymptoms: nil,

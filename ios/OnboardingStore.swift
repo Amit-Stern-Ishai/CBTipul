@@ -9,6 +9,31 @@ final class OnboardingStore {
     static let shared = OnboardingStore()
 
     private(set) var welcomeDismissed = false
+    private(set) var introductionCompleted = false
+    private var introductionFinishedThisLaunch: Set<String> = []
+    private let repeatsIntroductionEachLaunch: Bool
+
+    /// Debug launches replay the introduction, but background/foreground does not.
+    static var repeatIntroductionForDevelopment: Bool {
+        #if DEBUG
+        !AuthManager.isUITesting || ProcessInfo.processInfo.arguments.contains("-UITestingIntroduction")
+        #else
+        false
+        #endif
+    }
+
+    var shouldShowIntroduction: Bool {
+        guard let id = activeUserId else { return false }
+        return !introductionCompleted
+            || (repeatsIntroductionEachLaunch && !introductionFinishedThisLaunch.contains(id))
+    }
+
+    func completeIntroduction() {
+        guard let id = activeUserId else { return }
+        introductionCompleted = true
+        introductionFinishedThisLaunch.insert(id)
+        defaults.set(true, forKey: Self.introductionKey(for: id))
+    }
     private(set) var checklistDismissed = false
     private(set) var hasSeenFirstPreparationTip = false
     private(set) var hasSeenFirstQuestionnaireTip = false
@@ -20,14 +45,15 @@ final class OnboardingStore {
     /// as a cover inside Settings — that flashed Settings on exit).
     private(set) var wantsDemoConsent = false
 
-    @ObservationIgnored
     private var activeUserId: String?
 
     @ObservationIgnored
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard,
+         repeatsIntroductionEachLaunch: Bool? = nil) {
         self.defaults = defaults
+        self.repeatsIntroductionEachLaunch = repeatsIntroductionEachLaunch ?? Self.repeatIntroductionForDevelopment
     }
 
     /// Switches flags to the given account. Signed out (`nil`) clears the
@@ -88,6 +114,8 @@ final class OnboardingStore {
 
     /// Clears this account's onboarding keys after account deletion wipe.
     func clearPersistedState(for userId: String) {
+        defaults.removeObject(forKey: Self.introductionKey(for: userId))
+        introductionFinishedThisLaunch.remove(userId)
         defaults.removeObject(forKey: Self.welcomeKey(for: userId))
         defaults.removeObject(forKey: Self.checklistKey(for: userId))
         defaults.removeObject(forKey: Self.firstPrepTipKey(for: userId))
@@ -95,6 +123,7 @@ final class OnboardingStore {
         defaults.removeObject(forKey: Self.demoTourKey(for: userId))
         defaults.removeObject(forKey: Self.displayNamePromptKey(for: userId))
         if activeUserId == userId {
+            introductionCompleted = false
             welcomeDismissed = false
             checklistDismissed = false
             hasSeenFirstPreparationTip = false
@@ -112,6 +141,7 @@ final class OnboardingStore {
 
     private func reloadFromDefaults() {
         guard let id = activeUserId else {
+            introductionCompleted = false
             welcomeDismissed = false
             checklistDismissed = false
             hasSeenFirstPreparationTip = false
@@ -120,6 +150,7 @@ final class OnboardingStore {
             displayNamePromptShown = false
             return
         }
+        introductionCompleted = defaults.bool(forKey: Self.introductionKey(for: id))
         welcomeDismissed = defaults.bool(forKey: Self.welcomeKey(for: id))
         checklistDismissed = defaults.bool(forKey: Self.checklistKey(for: id))
         hasSeenFirstPreparationTip = defaults.bool(forKey: Self.firstPrepTipKey(for: id))
@@ -140,6 +171,10 @@ final class OnboardingStore {
 
     static func welcomeKey(for userId: String) -> String {
         "onboarding.welcomeDismissed-\(userId)"
+    }
+
+    static func introductionKey(for userId: String) -> String {
+        "onboarding.introductionCompleted-\(userId)"
     }
 
     static func checklistKey(for userId: String) -> String {

@@ -249,7 +249,7 @@ struct PatientDiaryOneView: View {
             Text(L10n.hebrewNumericDate(entry.createdAt))
                 .font(.headline)
             labeledLine(L10n.diaryOneEventTitle, entry.event)
-            labeledLine(L10n.diaryOneThoughtTitle, entry.thought)
+            labeledLine(L10n.diaryOneThoughtTitle, entry.automaticThoughtsPreview)
             labeledLine(
                 L10n.diaryFeelingsTitle,
                 L10n.diaryFeelingsPreview(entry.feelings)
@@ -531,7 +531,7 @@ struct DiaryOneEntryFormView: View {
         errorMessage = nil
         let symptoms = draft.physicalSymptoms.trimmingCharacters(in: .whitespacesAndNewlines)
         let event = draft.event.trimmingCharacters(in: .whitespacesAndNewlines)
-        let thought = draft.thought.trimmingCharacters(in: .whitespacesAndNewlines)
+        let thoughts = draft.persistedAutomaticThoughts
         let behaviour = draft.behaviour.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
             switch mode {
@@ -540,7 +540,7 @@ struct DiaryOneEntryFormView: View {
                     id: existing.id,
                     patientId: patient.id,
                     event: event,
-                    thought: thought,
+                    automaticThoughts: thoughts,
                     feelings: feelings,
                     behaviour: behaviour,
                     physicalSymptoms: symptoms
@@ -549,7 +549,7 @@ struct DiaryOneEntryFormView: View {
                 _ = try await diary.createEntry(
                     patientId: patient.id,
                     event: event,
-                    thought: thought,
+                    automaticThoughts: thoughts,
                     feelings: feelings,
                     behaviour: behaviour,
                     physicalSymptoms: symptoms

@@ -123,19 +123,17 @@ class PatientListViewModel(
         gettingStartedRouter.refresh(repository)
     }
 
-    fun startDemoTour() {
-        viewModelScope.launch {
-            onboardingStore.markDemoTourCompleted()
-            onboardingStore.dismissWelcome()
-            onboardingStore.dismissChecklist()
-            repository.enterDemoMode()
-            gettingStartedRouter.setPlacement(
-                com.cbtipul.app.ui.onboarding.TutorialCoachPlacement.PatientList,
-            )
-            gettingStartedRouter.refresh(repository)
-            gettingStartedRouter.resetShowcaseReveal()
-            _ui.update { it.copy(isLoading = false, hasLoaded = true, loadError = null) }
-        }
+    fun startDemoTour() = viewModelScope.launch {
+        onboardingStore.markDemoTourCompleted()
+        onboardingStore.dismissWelcome()
+        onboardingStore.dismissChecklist()
+        repository.enterDemoMode()
+        gettingStartedRouter.setPlacement(
+            com.cbtipul.app.ui.onboarding.TutorialCoachPlacement.PatientList,
+        )
+        gettingStartedRouter.refresh(repository)
+        gettingStartedRouter.resetShowcaseReveal()
+        _ui.update { it.copy(isLoading = false, hasLoaded = true, loadError = null) }
     }
 
     fun exitDemoMode() {

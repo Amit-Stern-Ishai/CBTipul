@@ -111,6 +111,56 @@ struct OnboardingStoreTests {
         store.setActiveUser(id: "user-a")
         #expect(store.displayNamePromptShown)
     }
+
+    @Test func introductionCompletionSurvivesReleaseRelaunchAndIsPerAccount() {
+        let (_, defaults) = makeStore()
+        let store = OnboardingStore(defaults: defaults, repeatsIntroductionEachLaunch: false)
+        store.setActiveUser(id: "user-a")
+        #expect(store.shouldShowIntroduction)
+        store.completeIntroduction()
+        #expect(!store.shouldShowIntroduction)
+
+        let relaunched = OnboardingStore(defaults: defaults, repeatsIntroductionEachLaunch: false)
+        relaunched.setActiveUser(id: "user-a")
+        #expect(!relaunched.shouldShowIntroduction)
+        relaunched.setActiveUser(id: "user-b")
+        #expect(relaunched.shouldShowIntroduction)
+        relaunched.setActiveUser(id: nil)
+        #expect(!relaunched.shouldShowIntroduction)
+    }
+
+    @Test func developmentIntroductionRepeatsOnlyOnFreshLaunch() {
+        let (_, defaults) = makeStore()
+        let store = OnboardingStore(defaults: defaults, repeatsIntroductionEachLaunch: true)
+        store.setActiveUser(id: "user-a")
+        store.completeIntroduction()
+        #expect(!store.shouldShowIntroduction)
+        store.setActiveUser(id: "user-a")
+        #expect(!store.shouldShowIntroduction)
+
+        let relaunched = OnboardingStore(defaults: defaults, repeatsIntroductionEachLaunch: true)
+        relaunched.setActiveUser(id: "user-a")
+        #expect(relaunched.shouldShowIntroduction)
+    }
+
+    @Test func oldWelcomeDoesNotSkipNewIntroduction() {
+        let (_, defaults) = makeStore()
+        let store = OnboardingStore(defaults: defaults, repeatsIntroductionEachLaunch: false)
+        store.setActiveUser(id: "user-a")
+        store.dismissWelcome()
+        #expect(store.shouldShowIntroduction)
+    }
+
+    @Test func deletingAccountClearsIntroductionCompletion() {
+        let (_, defaults) = makeStore()
+        let store = OnboardingStore(defaults: defaults, repeatsIntroductionEachLaunch: false)
+        store.setActiveUser(id: "user-a")
+        store.completeIntroduction()
+        store.setActiveUser(id: nil)
+        store.clearPersistedState(for: "user-a")
+        store.setActiveUser(id: "user-a")
+        #expect(store.shouldShowIntroduction)
+    }
 }
 
 @MainActor

@@ -107,7 +107,7 @@ class CbTipulApp : Application() {
         invitations = PatientInvitationService(client)
         assignments = PatientAssignmentRepository(client)
         diaryOne = DiaryOneRepository(client)
-        patientDiaryOne = PatientDiaryOneService(client)
+        patientDiaryOne = PatientDiaryOneService(client, diaryOne)
         therapistProfiles = TherapistProfileRepository(client)
         invitationFlow = PatientInvitationFlow(
             invitations = invitations,

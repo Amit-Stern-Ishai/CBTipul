@@ -40,22 +40,29 @@ data class DiaryOneEntry(
     val therapistId: String,
     val createdBy: DiaryOneEntryCreator,
     val event: String,
-    val thought: String,
+    val automaticThoughts: List<String>,
     val feelings: List<DiaryFeeling>,
     val behaviour: String,
     val physicalSymptoms: String?,
     val createdAt: Date,
     val updatedAt: Date,
-)
+) {
+    val automaticThoughtsPreview: String
+        get() {
+            val first = automaticThoughts.firstOrNull().orEmpty()
+            if (first.isEmpty()) return ""
+            return if (automaticThoughts.size > 1) "$first · +${automaticThoughts.size - 1}" else first
+        }
+}
 
 @Serializable
-private data class DiaryOneEntryRow(
+internal data class DiaryOneEntryRow(
     val id: String,
     @SerialName("patient_id") val patientId: String,
     @SerialName("therapist_id") val therapistId: String,
     @SerialName("created_by") val createdBy: String,
     val event: String,
-    val thought: String,
+    @SerialName("automatic_thoughts") val automaticThoughts: List<String> = emptyList(),
     val feelings: List<DiaryFeeling> = emptyList(),
     val behaviour: String,
     @SerialName("physical_symptoms") val physicalSymptoms: String? = null,
@@ -91,6 +98,22 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         return loaded
     }
 
+    suspend fun loadPatientCreatedEntries(patientId: DatabaseId): List<DiaryOneEntry> {
+        if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
+        val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
+            ?: throw IllegalStateException("not_configured")
+        val rows = client.from("diary_one_entries")
+            .select(columns) {
+                filter {
+                    eq("patient_id", patientUuid)
+                    eq("created_by", DiaryOneEntryCreator.Patient.raw)
+                }
+                order("created_at", Order.DESCENDING)
+            }
+            .decodeList<DiaryOneEntryRow>()
+        return PatientDiaryOneHistory.visible(rows.map { it.toDomain(patientId) })
+    }
+
     suspend fun loadEntry(id: String, patientId: DatabaseId): DiaryOneEntry? {
         if (DemoData.isDemoId(patientId)) {
             return NotificationRouting.acceptedDiaryEntry(
@@ -121,7 +144,7 @@ class DiaryOneRepository(private val client: SupabaseClient) {
     suspend fun createEntry(
         patientId: DatabaseId,
         event: String,
-        thought: String,
+        automaticThoughts: List<String>,
         feelings: List<DiaryFeeling>,
         behaviour: String,
         physicalSymptoms: String?,
@@ -134,7 +157,7 @@ class DiaryOneRepository(private val client: SupabaseClient) {
                 therapistId = UUID.randomUUID().toString(),
                 createdBy = DiaryOneEntryCreator.Therapist,
                 event = event,
-                thought = thought,
+                automaticThoughts = automaticThoughts,
                 feelings = feelings,
                 behaviour = behaviour,
                 physicalSymptoms = symptoms,
@@ -154,7 +177,7 @@ class DiaryOneRepository(private val client: SupabaseClient) {
             put("therapist_id", therapistId)
             put("created_by", DiaryOneEntryCreator.Therapist.raw)
             put("event", event)
-            put("thought", thought)
+            put("automatic_thoughts", thoughtsJson(automaticThoughts))
             put("feelings", feelingsJson(feelings))
             put("behaviour", behaviour)
             if (symptoms == null) put("physical_symptoms", JsonNull) else put("physical_symptoms", symptoms)
@@ -171,7 +194,7 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         id: String,
         patientId: DatabaseId,
         event: String,
-        thought: String,
+        automaticThoughts: List<String>,
         feelings: List<DiaryFeeling>,
         behaviour: String,
         physicalSymptoms: String?,
@@ -181,7 +204,7 @@ class DiaryOneRepository(private val client: SupabaseClient) {
             val existing = demoEntries[patientId.queryValue].orEmpty().first { it.id == id }
             val updated = existing.copy(
                 event = event,
-                thought = thought,
+                automaticThoughts = automaticThoughts,
                 feelings = feelings,
                 behaviour = behaviour,
                 physicalSymptoms = symptoms,
@@ -193,7 +216,7 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
         val body = buildJsonObject {
             put("event", event)
-            put("thought", thought)
+            put("automatic_thoughts", thoughtsJson(automaticThoughts))
             put("feelings", feelingsJson(feelings))
             put("behaviour", behaviour)
             if (symptoms == null) put("physical_symptoms", JsonNull) else put("physical_symptoms", symptoms)
@@ -244,6 +267,10 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         _entries.update { it + (key to next) }
     }
 
+    private fun thoughtsJson(thoughts: List<String>) = buildJsonArray {
+        thoughts.forEach { add(JsonPrimitive(it)) }
+    }
+
     private fun feelingsJson(feelings: List<DiaryFeeling>) = buildJsonArray {
         feelings.forEach { feeling ->
             add(
@@ -267,7 +294,7 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         therapistId = therapistId,
         createdBy = DiaryOneEntryCreator.fromRaw(createdBy),
         event = event,
-        thought = thought,
+        automaticThoughts = automaticThoughts,
         feelings = feelings,
         behaviour = behaviour,
         physicalSymptoms = physicalSymptoms,
@@ -280,7 +307,7 @@ class DiaryOneRepository(private val client: SupabaseClient) {
 
     companion object {
         private val columns = Columns.raw(
-            "id, patient_id, therapist_id, created_by, event, thought, feelings, behaviour, physical_symptoms, created_at, updated_at",
+            "id, patient_id, therapist_id, created_by, event, automatic_thoughts, feelings, behaviour, physical_symptoms, created_at, updated_at",
         )
 
         private fun parseIso(raw: String): Date {

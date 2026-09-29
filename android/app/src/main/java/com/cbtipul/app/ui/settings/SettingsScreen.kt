@@ -4,6 +4,7 @@ import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.RecentActors
+import androidx.compose.material.icons.outlined.Layers
 import com.cbtipul.app.ui.theme.editorScroll
 import com.cbtipul.app.ui.theme.editorFocus
 import android.annotation.SuppressLint
@@ -122,6 +123,7 @@ fun SettingsScreen(
     onLoadDisplayName: suspend () -> String?,
     onSaveDisplayName: suspend (String) -> Unit,
     onGettingStartedGuide: () -> Unit = {},
+    onReviewIntroduction: () -> Unit = {},
     isDemoMode: Boolean = false,
     onExitDemoMode: () -> Unit = {},
     onDone: () -> Unit,
@@ -205,6 +207,12 @@ fun SettingsScreen(
                             subtitle = if (isDemoMode) stringResource(R.string.exit_demo_mode_action) else null,
                             icon = if (isDemoMode) Icons.AutoMirrored.Outlined.Undo else Icons.Outlined.RecentActors,
                             onClick = if (isDemoMode) onExitDemoMode else onGettingStartedGuide,
+                        )
+                        GroupedListDivider()
+                        SettingsRow(
+                            title = stringResource(R.string.introduction_review),
+                            icon = Icons.Outlined.Layers,
+                            onClick = onReviewIntroduction,
                         )
                     }
 

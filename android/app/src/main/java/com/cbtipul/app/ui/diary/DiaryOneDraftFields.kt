@@ -5,7 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.RemoveCircleOutline
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,17 +47,62 @@ fun DiaryOneDraftFields(
                 null
             },
         )
-        DraftStepCard(
-            title = stringResource(R.string.diary_one_thought_title),
-            question = stringResource(R.string.diary_one_thought_question),
-            value = draft.thought,
-            onValueChange = { onChange(draft.copy(thought = it)) },
-            incompleteMessage = if (didAttemptSave && draft.thought.trim().isEmpty()) {
-                stringResource(R.string.diary_one_validation_thought)
-            } else {
-                null
-            },
-        )
+        GroupedListCard(accent = colors.gold) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    stringResource(R.string.diary_one_thought_title),
+                    color = colors.textBright,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(R.string.diary_one_thought_question),
+                    color = colors.textBody,
+                    fontSize = 14.sp,
+                )
+                draft.automaticThoughts.forEach { thought ->
+                    Row(verticalAlignment = Alignment.Top) {
+                        NotesField(
+                            value = thought.text,
+                            onValueChange = { value ->
+                                onChange(
+                                    draft.copy(
+                                        automaticThoughts = draft.automaticThoughts.map {
+                                            if (it.id == thought.id) it.copy(text = value) else it
+                                        },
+                                    ),
+                                )
+                            },
+                            placeholder = stringResource(R.string.diary_one_thought_singular),
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (draft.automaticThoughts.size > 1) {
+                            IconButton(
+                                onClick = { onChange(draft.withoutThought(thought.id)) },
+                            ) {
+                                Icon(
+                                    Icons.Outlined.RemoveCircleOutline,
+                                    contentDescription = stringResource(R.string.diary_one_remove_thought),
+                                    tint = colors.textBody,
+                                )
+                            }
+                        }
+                    }
+                }
+                TextButton(onClick = { onChange(draft.withAddedThought()) }) {
+                    Text(stringResource(R.string.diary_one_add_thought), color = colors.gold)
+                }
+                if (didAttemptSave && draft.persistedAutomaticThoughts.isEmpty()) {
+                    Text(
+                        stringResource(R.string.diary_one_validation_thought),
+                        color = colors.error,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
+        }
         GroupedListCard(accent = colors.gold) {
             Column(
                 modifier = Modifier.padding(16.dp),

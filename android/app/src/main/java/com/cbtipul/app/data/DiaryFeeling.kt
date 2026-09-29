@@ -51,29 +51,47 @@ object DiaryFeelingVocabulary {
 }
 
 @Serializable
+data class DiaryAutomaticThoughtDraft(
+    val id: String = UUID.randomUUID().toString(),
+    val text: String = "",
+)
+
+@Serializable
 data class DiaryOneEntryDraft(
     val event: String = "",
-    val thought: String = "",
+    val automaticThoughts: List<DiaryAutomaticThoughtDraft> = listOf(DiaryAutomaticThoughtDraft()),
     val feelings: List<DiaryFeelingDraft> = emptyList(),
     val behaviour: String = "",
     val physicalSymptoms: String = "",
 ) {
     data class Snapshot(
         val event: String,
-        val thought: String,
+        val automaticThoughts: List<String>,
         val feelings: List<Pair<String, Int?>>,
         val behaviour: String,
         val physicalSymptoms: String,
     )
 
+    val persistedAutomaticThoughts: List<String>
+        get() = automaticThoughts.map { it.text.trim() }.filter { it.isNotEmpty() }
+
     val comparableSnapshot: Snapshot
         get() = Snapshot(
             event = event.trim(),
-            thought = thought.trim(),
+            automaticThoughts = persistedAutomaticThoughts,
             feelings = feelings.map { it.trimmedName to it.intensity },
             behaviour = behaviour.trim(),
             physicalSymptoms = physicalSymptoms.trim(),
         )
+
+    fun withAddedThought(): DiaryOneEntryDraft =
+        copy(automaticThoughts = automaticThoughts + DiaryAutomaticThoughtDraft())
+
+    fun withoutThought(id: String): DiaryOneEntryDraft {
+        if (automaticThoughts.size <= 1) return this
+        val next = automaticThoughts.filterNot { it.id == id }
+        return copy(automaticThoughts = next.ifEmpty { listOf(DiaryAutomaticThoughtDraft()) })
+    }
 
     fun validationMessage(
         eventMissing: String,
@@ -84,7 +102,7 @@ data class DiaryOneEntryDraft(
         behaviourMissing: String,
     ): String? {
         if (event.trim().isEmpty()) return eventMissing
-        if (thought.trim().isEmpty()) return thoughtMissing
+        if (persistedAutomaticThoughts.isEmpty()) return thoughtMissing
         if (feelings.isEmpty()) return feelingsRequired
         for (feeling in feelings) {
             if (feeling.trimmedName.isEmpty()) return feelingName
@@ -96,7 +114,7 @@ data class DiaryOneEntryDraft(
     }
 
     fun persistedFeelings(): List<DiaryFeeling>? {
-        if (event.trim().isEmpty() || thought.trim().isEmpty() || behaviour.trim().isEmpty()) return null
+        if (event.trim().isEmpty() || persistedAutomaticThoughts.isEmpty() || behaviour.trim().isEmpty()) return null
         if (feelings.isEmpty()) return null
         if (feelings.any { it.trimmedName.isEmpty() || it.intensity == null || it.intensity !in 0..100 }) return null
         return feelings.map { DiaryFeeling(it.trimmedName, it.intensity ?: 0) }
@@ -105,7 +123,11 @@ data class DiaryOneEntryDraft(
     companion object {
         fun from(entry: DiaryOneEntry) = DiaryOneEntryDraft(
             event = entry.event,
-            thought = entry.thought,
+            automaticThoughts = if (entry.automaticThoughts.isEmpty()) {
+                listOf(DiaryAutomaticThoughtDraft())
+            } else {
+                entry.automaticThoughts.map { DiaryAutomaticThoughtDraft(text = it) }
+            },
             feelings = entry.feelings.map(::DiaryFeelingDraft),
             behaviour = entry.behaviour,
             physicalSymptoms = entry.physicalSymptoms.orEmpty(),

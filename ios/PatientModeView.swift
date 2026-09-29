@@ -313,12 +313,9 @@ struct PatientModeView: View {
                 .font(.footnote)
                 .foregroundStyle(Theme.textBody)
             NavigationLink {
-                PatientDiaryOneEntryView(
-                    onSubmitted: {
+                PatientDiaryOneHubView(
+                    onEntrySubmitted: {
                         didSubmitDiaryOne = true
-                        await loadAssignments()
-                    },
-                    onDiaryInactive: {
                         await loadAssignments()
                     }
                 )

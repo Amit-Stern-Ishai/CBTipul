@@ -183,7 +183,7 @@ fun TherapistDiaryOneScreen(
                 editor = null
                 editorError = null
             },
-            onSave = { event, thought, feelings, behaviour, physicalSymptoms ->
+            onSave = { event, automaticThoughts, feelings, behaviour, physicalSymptoms ->
                 scope.launch {
                     isSaving = true
                     editorError = null
@@ -193,7 +193,7 @@ fun TherapistDiaryOneScreen(
                                 id = existing.id,
                                 patientId = patientId,
                                 event = event,
-                                thought = thought,
+                                automaticThoughts = automaticThoughts,
                                 feelings = feelings,
                                 behaviour = behaviour,
                                 physicalSymptoms = physicalSymptoms,
@@ -202,7 +202,7 @@ fun TherapistDiaryOneScreen(
                             diary.createEntry(
                                 patientId = patientId,
                                 event = event,
-                                thought = thought,
+                                automaticThoughts = automaticThoughts,
                                 feelings = feelings,
                                 behaviour = behaviour,
                                 physicalSymptoms = physicalSymptoms,
@@ -558,7 +558,7 @@ private fun DiaryEntrySummary(
     ) {
         Text(hebrewDate(entry.createdAt), color = colors.textBright, fontWeight = FontWeight.SemiBold)
         LabeledLine(stringResource(R.string.diary_one_event_title), entry.event)
-        LabeledLine(stringResource(R.string.diary_one_thought_title), entry.thought)
+        LabeledLine(stringResource(R.string.diary_one_thought_title), entry.automaticThoughtsPreview)
         LabeledLine(stringResource(R.string.diary_feelings_title), feelingsPreview(entry.feelings))
     }
 }

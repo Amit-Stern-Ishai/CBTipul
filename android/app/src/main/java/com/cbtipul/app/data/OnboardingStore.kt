@@ -1,6 +1,9 @@
 package com.cbtipul.app.data
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import com.cbtipul.app.BuildConfig
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
@@ -14,8 +17,25 @@ private val Context.onboardingDataStore by preferencesDataStore(name = "cbtipul_
 /**
  * Device-local first-run / Getting Started flags, namespaced by account email.
  */
-class OnboardingStore(context: Context) {
-    private val appContext = context.applicationContext
+class OnboardingStore internal constructor(
+    private val dataStore: DataStore<Preferences>,
+    private val repeatIntroductionEachLaunch: Boolean,
+) {
+    constructor(context: Context) : this(context.applicationContext.onboardingDataStore, BuildConfig.DEBUG)
+
+    private val introductionsFinishedThisLaunch = mutableSetOf<String>()
+    private val _shouldShowIntroduction = MutableStateFlow(false)
+    val shouldShowIntroduction: StateFlow<Boolean> = _shouldShowIntroduction.asStateFlow()
+    private val _hydratedIdentity = MutableStateFlow<String?>(null)
+    val hydratedIdentity: StateFlow<String?> = _hydratedIdentity.asStateFlow()
+
+    suspend fun completeIntroduction() {
+        val email = activeEmail ?: return
+        dataStore.edit { it[booleanPreferencesKey(introductionKey(email))] = true }
+        introductionsFinishedThisLaunch.add(email)
+        if (activeEmail == email) _shouldShowIntroduction.value = false
+    }
+
     private var activeEmail: String? = null
 
     private val _welcomeDismissed = MutableStateFlow(false)
@@ -42,9 +62,13 @@ class OnboardingStore(context: Context) {
 
     suspend fun setActiveUser(email: String?) {
         _isHydrated.value = false
+        _hydratedIdentity.value = null
         activeEmail = email
         reloadFromStore()
-        _isHydrated.value = email != null
+        if (activeEmail == email) {
+            _hydratedIdentity.value = email
+            _isHydrated.value = email != null
+        }
     }
 
     suspend fun dismissWelcome() {
@@ -86,7 +110,9 @@ class OnboardingStore(context: Context) {
     }
 
     suspend fun clearPersistedState(forEmail: String) {
-        appContext.onboardingDataStore.edit { prefs ->
+        introductionsFinishedThisLaunch.remove(forEmail)
+        dataStore.edit { prefs ->
+            prefs.remove(booleanPreferencesKey(introductionKey(forEmail)))
             prefs.remove(booleanPreferencesKey(welcomeKey(forEmail)))
             prefs.remove(booleanPreferencesKey(checklistKey(forEmail)))
             prefs.remove(booleanPreferencesKey(firstPrepTipKey(forEmail)))
@@ -94,6 +120,7 @@ class OnboardingStore(context: Context) {
             prefs.remove(booleanPreferencesKey(demoTourKey(forEmail)))
         }
         if (activeEmail == forEmail) {
+            _shouldShowIntroduction.value = true
             _welcomeDismissed.value = false
             _checklistDismissed.value = false
             _hasSeenFirstPreparationTip.value = false
@@ -110,6 +137,7 @@ class OnboardingStore(context: Context) {
     private suspend fun reloadFromStore() {
         val email = activeEmail
         if (email == null) {
+            _shouldShowIntroduction.value = false
             _welcomeDismissed.value = false
             _checklistDismissed.value = false
             _hasSeenFirstPreparationTip.value = false
@@ -117,7 +145,11 @@ class OnboardingStore(context: Context) {
             _hasCompletedDemoTour.value = false
             return
         }
-        val prefs = appContext.onboardingDataStore.data.first()
+        val prefs = dataStore.data.first()
+        if (activeEmail != email) return
+        val completed = prefs[booleanPreferencesKey(introductionKey(email))] == true
+        _shouldShowIntroduction.value = !completed ||
+            (repeatIntroductionEachLaunch && email !in introductionsFinishedThisLaunch)
         _welcomeDismissed.value = prefs[booleanPreferencesKey(welcomeKey(email))] == true
         _checklistDismissed.value = prefs[booleanPreferencesKey(checklistKey(email))] == true
         _hasSeenFirstPreparationTip.value = prefs[booleanPreferencesKey(firstPrepTipKey(email))] == true
@@ -128,7 +160,7 @@ class OnboardingStore(context: Context) {
 
     private suspend fun persist() {
         val email = activeEmail ?: return
-        appContext.onboardingDataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[booleanPreferencesKey(welcomeKey(email))] = _welcomeDismissed.value
             prefs[booleanPreferencesKey(checklistKey(email))] = _checklistDismissed.value
             prefs[booleanPreferencesKey(firstPrepTipKey(email))] = _hasSeenFirstPreparationTip.value
@@ -139,6 +171,7 @@ class OnboardingStore(context: Context) {
     }
 
     companion object {
+        fun introductionKey(email: String) = "onboarding.introductionCompleted-$email"
         fun welcomeKey(email: String) = "onboarding.welcomeDismissed-$email"
         fun checklistKey(email: String) = "onboarding.checklistDismissed-$email"
         fun firstPrepTipKey(email: String) = "onboarding.firstPreparationTipSeen-$email"

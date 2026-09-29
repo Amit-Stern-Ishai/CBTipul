@@ -243,6 +243,39 @@ enum L10n {
 
     // MARK: - Getting Started / first-run
 
+    static let introductionReview = "היכרות עם האפליקציה"
+    static let introductionSkip = "דילוג"
+    static let introductionNext = "הבא"
+    static let introductionStart = "התחלה עם המטופלים שלי"
+    static let introductionReturn = "חזרה לאפליקציה"
+    static let introductionSampleAction = "התנסות עם נתונים לדוגמה"
+    static let introductionPatientTitle = "כל התמונה, בתיק אחד"
+    static let introductionPatientBody = "מטרת הטיפול, הפגישות, השאלונים וההערות — מרוכזים בתיק של כל מטופל/ת."
+    static let introductionSessionTitle = "מתעדים בדרך שנוחה לכם"
+    static let introductionSessionBody = "כתבו או הקליטו סיכום פגישה. כלי AI יכולים לעזור בניסוח ובהכנה לפגישה הבאה — אתם בודקים ומחליטים."
+    static let introductionConnectTitle = "הטיפול ממשיך בין הפגישות"
+    static let introductionConnectBody = "הזמינו מטופלים להתחבר לאפליקציה. אחרי החיבור אפשר לשלוח הודעה, בקשה למילוי שאלון או להפעיל יומן."
+    static let introductionProgressTitle = "רואים מה משתנה לאורך הדרך"
+    static let introductionProgressBody = "גרפים מרכזים את תוצאות השאלונים. בחרו מגמה ושאלה כדי לראות מה השתפר, מה החמיר ומה נשאר יציב."
+    static let introductionSampleTitle = "קודם להכיר, אחר כך להתחיל"
+    static let introductionSampleBody = "נסו את האפליקציה עם מטופלים בדויים ותיקים מוכנים. הנתונים האמיתיים נשארים בנפרד, ולא נשלח דבר למטופלים."
+    static let introductionSampleHint = "אפשר לצאת בכל רגע דרך ״חזרה למטופלים שלי״, ולחזור להתנסות מההגדרות."
+    static let introductionGoal = "מטרת הטיפול"
+    static let introductionSessionNotes = "סיכום פגישה"
+    static let introductionWrite = "כתיבה"
+    static let introductionRecord = "הקלטה ותמלול"
+    static let introductionAI = "עזרה בניסוח עם AI"
+    static let introductionMessage = "הודעה"
+    static let introductionQuestionnaire = "בקשה למילוי שאלון"
+    static let introductionDiary = "יומן"
+    static let introductionConnected = "לאחר חיבור המטופל/ת"
+    static let introductionTrend = "מגמה לאורך זמן"
+    static let introductionSampleBadge = "נתונים לדוגמה"
+    static let introductionSamplePatient = "תיק לדוגמה"
+    static func introductionPage(_ page: Int, total: Int) -> String {
+        "מסך \(page) מתוך \(total)"
+    }
+
     static let welcomeTitle = "בואו נכיר את האפליקציה"
     static let welcomeBody =
         "מצב ההדגמה פועל בסביבה נפרדת. המטופלים האמיתיים שלך יוסתרו זמנית ולא יימחקו. המדריך נכנס למצב הדגמה עם קליניקה ריקה — כמו אחרי הרשמה. תיצרו מטופל/ת, פגישה ושאר הצעדים בעצמכם. בסוף המדריך (או בלחיצה על «דלגו לנתונים לדוגמה») יופיעו נתונים לדוגמה לצורכי התנסות. כל מה שייווצר במהלך המדריך נשמר במכשיר בלבד — לא יועלה לשרת."
@@ -1297,7 +1330,7 @@ amitishai@gmail.com
     static let patientUpcomingTaskBody = "משימה זו תהיה זמינה בקרוב."
 
     static let patientDiaryOneCardTitle = "יומן 1"
-    static let patientDiaryOneStartAction = "כתיבת אירוע ביומן"
+    static let patientDiaryOneStartAction = "פתיחת היומן"
 
     static let patientDiaryOneCardBody =
         "אפשר לתאר אירוע, את המחשבות והרגשות שעלו ואת התגובה שלך."
@@ -1427,9 +1460,17 @@ amitishai@gmail.com
 
     static let diaryOneEventQuestion = "מה קרה?"
 
-    static let diaryOneThoughtTitle = "מחשבה"
+    static let diaryOneThoughtTitle = "מחשבות אוטומטיות"
 
-    static let diaryOneThoughtQuestion = "איזו מחשבה עברה לי בראש?"
+    static let diaryOneThoughtSingularTitle = "מחשבה אוטומטית"
+
+    static let diaryOneThoughtQuestion = "איזו מחשבה אוטומטית עברה לי בראש?"
+
+    static let diaryOneAddThoughtAction = "הוספת מחשבה"
+
+    static let diaryOneRemoveThoughtAction = "הסרת מחשבה"
+
+    static let diaryOneMyEntriesTitle = "הרשומות שלי"
 
     static let diaryOneFeelingTitle = "רגשות"
 
@@ -1447,7 +1488,7 @@ amitishai@gmail.com
 
     static let diaryOneEmptyTitle = "אין רשומות ביומן 1 עדיין"
 
-    static let diaryOneEmptyBody = "הוסיפו רשומה כדי לתעד אירוע, מחשבה ורגשות."
+    static let diaryOneEmptyBody = "הוסיפו רשומה כדי לתעד אירוע, מחשבות אוטומטיות ורגשות."
 
     static let diaryOneIntensityUnset = "לא נבחרה"
 
@@ -1492,12 +1533,20 @@ amitishai@gmail.com
 
     static let diaryOneValidationTitle = "הרשומה אינה שלמה"
 
+    static func diaryAutomaticThoughtsPreview(_ thoughts: [String]) -> String {
+        guard let first = thoughts.first, !first.isEmpty else { return "" }
+        if thoughts.count > 1 {
+            return "\(first) · \(diaryFeelingsMoreCount(thoughts.count - 1))"
+        }
+        return first
+    }
+
     static let diaryOneValidationMessage =
-        "יש למלא אירוע, מחשבה והתנהגות, לבחור לפחות רגש אחד, ולבחור עוצמה לכל רגש."
+        "יש למלא אירוע, לפחות מחשבה אוטומטית אחת והתנהגות, לבחור לפחות רגש אחד, ולבחור עוצמה לכל רגש."
 
     static let diaryOneValidationEvent = "יש למלא את האירוע."
 
-    static let diaryOneValidationThought = "יש למלא את המחשבה."
+    static let diaryOneValidationThought = "יש למלא לפחות מחשבה אוטומטית אחת."
 
     static let diaryOneValidationFeelingsRequired = "יש לבחור לפחות רגש אחד."
 
