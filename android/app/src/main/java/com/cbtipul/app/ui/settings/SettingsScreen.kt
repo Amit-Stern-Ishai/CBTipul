@@ -5,6 +5,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +31,7 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FormatSize
@@ -68,6 +73,8 @@ import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
 import com.cbtipul.app.data.TherapistProfile
 import com.cbtipul.app.debug.DebugPushTestSection
+import com.cbtipul.app.settings.AppAppearance
+import com.cbtipul.app.ui.theme.cbTipulColors
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
 import com.cbtipul.app.ui.patients.ConfirmDeleteOverlay
@@ -84,6 +91,7 @@ import kotlinx.coroutines.launch
 private sealed class SettingsPage {
     data object Main : SettingsPage()
     data object TextSize : SettingsPage()
+    data object Appearance : SettingsPage()
     data object Terms : SettingsPage()
     data object DisplayName : SettingsPage()
     data class Web(val title: String, val url: String) : SettingsPage()
@@ -94,6 +102,8 @@ private sealed class SettingsPage {
 fun SettingsScreen(
     email: String?,
     textSize: AppTextSize,
+    appearance: AppAppearance,
+    onAppearance: (AppAppearance) -> Unit,
     aiConsentAccepted: Boolean,
     displayName: String?,
     displayNameLoadFailed: Boolean,
@@ -126,6 +136,11 @@ fun SettingsScreen(
         is SettingsPage.Web -> OfficialLinkScreen(
             title = current.title,
             url = current.url,
+            onBack = { page = SettingsPage.Main },
+        )
+        SettingsPage.Appearance -> AppearancePicker(
+            selected = appearance,
+            onSelect = onAppearance,
             onBack = { page = SettingsPage.Main },
         )
         SettingsPage.TextSize -> TextSizePicker(
@@ -183,6 +198,13 @@ fun SettingsScreen(
                         fontWeight = FontWeight.SemiBold,
                     )
                     GroupedListCard(accent = colors.gold) {
+                        SettingsRow(
+                            title = stringResource(R.string.settings_appearance_title),
+                            trailing = stringResource(if (appearance == AppAppearance.Light) R.string.appearance_light else R.string.appearance_dark),
+                            icon = Icons.Outlined.Contrast,
+                            onClick = { page = SettingsPage.Appearance },
+                        )
+                        GroupedListDivider()
                         SettingsRow(
                             title = stringResource(R.string.settings_text_size_title),
                             trailing = stringResource(textSize.labelRes()),
@@ -407,6 +429,66 @@ internal fun SettingsRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun AppearancePicker(selected: AppAppearance, onSelect: (AppAppearance) -> Unit, onBack: () -> Unit) {
+    val colors = Theme.colors
+    BackHandler(onBack = onBack)
+    Scaffold(
+        modifier = Modifier.themedScreen(colors.gold),
+        containerColor = Color.Transparent,
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_appearance_title), color = colors.textBright) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), tint = colors.gold)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            )
+        },
+    ) { padding ->
+        Row(Modifier.fillMaxWidth().padding(padding).padding(24.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            AppAppearance.entries.forEach { option ->
+                val palette = cbTipulColors(option == AppAppearance.Dark)
+                val label = stringResource(if (option == AppAppearance.Light) R.string.appearance_light else R.string.appearance_dark)
+                Column(
+                    Modifier.weight(1f)
+                        .background(colors.surface, RoundedCornerShape(20.dp))
+                        .border(if (selected == option) 2.dp else 1.dp, if (selected == option) colors.gold else colors.borderFaint, RoundedCornerShape(20.dp))
+                        .selectable(selected == option, role = Role.RadioButton, onClick = { onSelect(option) })
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().background(palette.base, RoundedCornerShape(14.dp)).padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Box(Modifier.fillMaxWidth(0.6f).height(6.dp).background(palette.textBody, RoundedCornerShape(4.dp)))
+                        repeat(2) {
+                            Row(Modifier.fillMaxWidth().background(palette.surface, RoundedCornerShape(10.dp)).padding(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(20.dp).background(palette.accentFill, RoundedCornerShape(10.dp)))
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Box(Modifier.fillMaxWidth().height(4.dp).background(palette.textBody, RoundedCornerShape(2.dp)))
+                                    Box(Modifier.fillMaxWidth(0.65f).height(4.dp).background(palette.borderDefault, RoundedCornerShape(2.dp)))
+                                }
+                            }
+                        }
+                        Box(Modifier.fillMaxWidth().height(24.dp).background(palette.accentFill, RoundedCornerShape(8.dp)))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                        if (selected == option) Icon(Icons.Outlined.Check, contentDescription = null, tint = colors.gold, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun TextSizePicker(
     selected: AppTextSize,
     onSelect: (AppTextSize) -> Unit,
@@ -526,7 +608,7 @@ private fun DisplayNameEditor(
                     .padding(horizontal = 24.dp, vertical = 16.dp)
                     .height(48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.gold,
+                    containerColor = colors.accentFill,
                     contentColor = colors.textOnAccent,
                     disabledContainerColor = colors.goldDim,
                 ),

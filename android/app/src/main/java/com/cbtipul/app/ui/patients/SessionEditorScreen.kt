@@ -377,7 +377,7 @@ fun SessionEditorScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Button(onClick = { persist(leave = isNew) }, enabled = canSave, modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent)) {
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
                     Text(stringResource(R.string.save_session_action), modifier = Modifier.padding(6.dp))
                 }
             }

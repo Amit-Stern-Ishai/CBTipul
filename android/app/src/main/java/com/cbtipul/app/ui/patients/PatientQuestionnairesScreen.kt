@@ -142,7 +142,7 @@ fun PatientQuestionnairesScreen(
                     Button(
                         onClick = onRetry,
                         modifier = Modifier.padding(top = 16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
                     ) { Text(stringResource(R.string.retry_action)) }
                 }
             }
@@ -299,15 +299,15 @@ private fun QuestionnaireScoreChart(
         ) {
             Box(
                 modifier = Modifier
-                    .size(28.dp)
-                    .background(tint, RoundedCornerShape(7.dp)),
+                    .size(32.dp)
+                    .background(tint.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.AutoMirrored.Outlined.ShowChart,
                     contentDescription = null,
-                    tint = colors.textOnAccent,
-                    modifier = Modifier.size(16.dp),
+                    tint = tint,
+                    modifier = Modifier.size(18.dp),
                 )
             }
             Column(

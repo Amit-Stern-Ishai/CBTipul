@@ -83,7 +83,7 @@ private fun PatientStatusScreen(
             enabled = secondaryEnabled,
             modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = colors.gold,
+                containerColor = colors.accentFill,
                 contentColor = colors.textOnAccent,
             ),
             shape = RoundedCornerShape(14.dp),

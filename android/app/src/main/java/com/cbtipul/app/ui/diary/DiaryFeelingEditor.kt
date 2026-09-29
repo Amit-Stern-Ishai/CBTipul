@@ -344,7 +344,7 @@ private fun DiaryFeelingPickerSheet(
                                 enabled = customText.trim().isNotEmpty(),
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = colors.gold,
+                                    containerColor = colors.accentFill,
                                     contentColor = colors.textOnAccent,
                                     disabledContainerColor = colors.goldDim,
                                 ),

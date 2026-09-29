@@ -164,17 +164,17 @@ fun FormulationScreen(
                 onClick = { onSave(draft) },
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
             ) { Text(stringResource(R.string.save_changes_action)) }
             Text(stringResource(R.string.ai_supervision_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             Text(stringResource(R.string.ai_supervision_footer), color = colors.textBody)
-            Button(onClick = onChallenge, enabled = !busy, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent)) {
+            Button(onClick = onChallenge, enabled = !busy, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
                 Text(stringResource(R.string.challenge_formulation_action))
             }
-            Button(onClick = onMissing, enabled = !busy, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent)) {
+            Button(onClick = onMissing, enabled = !busy, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
                 Text(stringResource(R.string.what_am_i_missing_action))
             }
-            Button(onClick = onLongitudinal, enabled = !busy, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent)) {
+            Button(onClick = onLongitudinal, enabled = !busy, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
                 Text(stringResource(R.string.longitudinal_review_action))
             }
         }

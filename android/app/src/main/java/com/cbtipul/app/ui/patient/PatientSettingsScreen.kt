@@ -49,6 +49,7 @@ import com.cbtipul.app.BuildConfig
 import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
 import com.cbtipul.app.debug.DebugPushTestSection
+import com.cbtipul.app.ui.settings.AppearancePicker
 import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
@@ -101,15 +102,8 @@ fun PatientSettingsScreen(
             onSelect = onTextSize,
             onBack = { page = PatientSettingsPage.Main },
         )
-        PatientSettingsPage.Appearance -> OptionPicker(
-            title = stringResource(R.string.settings_appearance_title),
-            options = AppAppearance.entries,
+        PatientSettingsPage.Appearance -> AppearancePicker(
             selected = appearance,
-            label = {
-                stringResource(
-                    if (it == AppAppearance.Light) R.string.appearance_light else R.string.appearance_dark,
-                )
-            },
             onSelect = onAppearance,
             onBack = { page = PatientSettingsPage.Main },
         )

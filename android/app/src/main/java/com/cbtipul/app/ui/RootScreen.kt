@@ -350,6 +350,8 @@ fun RootScreen() {
                                 SettingsScreen(
                                     email = signedIn?.email,
                                     textSize = textSize,
+                                    appearance = appearance,
+                                    onAppearance = { value -> scope.launch { app.preferences.setAppearance(value) } },
                                     aiConsentAccepted = aiConsentAccepted,
                                     displayName = therapistDisplayName,
                                     displayNameLoadFailed = therapistDisplayNameLoadFailed,
@@ -485,6 +487,8 @@ fun RootScreen() {
             SettingsScreen(
                 email = signedIn?.email,
                 textSize = textSize,
+                appearance = appearance,
+                onAppearance = { value -> scope.launch { app.preferences.setAppearance(value) } },
                 aiConsentAccepted = aiConsentAccepted,
                 displayName = therapistDisplayName,
                 displayNameLoadFailed = therapistDisplayNameLoadFailed,

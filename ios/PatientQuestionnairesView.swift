@@ -345,9 +345,9 @@ private struct QuestionnaireChart: View {
             HStack(spacing: 10) {
                 Image(systemName: "chart.xyaxis.line")
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Theme.textOnAccent)
-                    .frame(width: 28, height: 28)
-                    .background(tint, in: RoundedRectangle(cornerRadius: 7))
+                    .foregroundStyle(tint)
+                    .frame(width: 32, height: 32)
+                    .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(name)
                         .font(.headline)

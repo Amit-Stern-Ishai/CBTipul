@@ -330,7 +330,7 @@ private fun GoldButton(
         enabled = enabled,
         modifier = Modifier.fillMaxWidth().height(48.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = colors.gold,
+            containerColor = colors.accentFill,
             contentColor = colors.textOnAccent,
             disabledContainerColor = colors.goldDim,
         ),

@@ -175,7 +175,7 @@ fun GlobalSessionsScreen(
             Button(
                 onClick = onCreateSession,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
             ) {
                 Text(stringResource(if (groups.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action))
             }

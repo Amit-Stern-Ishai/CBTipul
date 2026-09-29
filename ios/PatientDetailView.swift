@@ -123,7 +123,7 @@ struct PatientDetailView: View {
                     HStack(spacing: 8) {
                         Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
                         Text(patient.displayName)
-                            .font(.title2.bold())
+                            .font(.title.bold())
                             .fixedSize(horizontal: false, vertical: true)
                         Button {
                             startEditingName()
@@ -680,7 +680,7 @@ struct PatientDetailView: View {
                 .foregroundStyle(Theme.textBright)
             Text(detail)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textBody)
                 .lineLimit(2)
         }
         .padding(.vertical, 4)

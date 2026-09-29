@@ -170,8 +170,7 @@ struct PatientListView: View {
             Button(store.patients.isEmpty ? L10n.emptyPatientsPrimaryAction : L10n.addPatientAction) {
                 isAddingPatient = true
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.pressableProminent)
             .frame(maxWidth: .infinity)
             .tutorialPulse(
                 store.isDemoMode
@@ -353,7 +352,7 @@ private struct PatientRow: View {
                     .font(.headline)
                 Text(subtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textBody)
             }
             Spacer(minLength: 0)
         }

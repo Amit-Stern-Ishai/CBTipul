@@ -111,7 +111,7 @@ fun TherapistMessageComposeScreen(
                 onClick = { if (didSubmit) finish() else scope.launch { if (onSend(draft)) finish() } },
                 enabled = !isSending && PatientMessageDraft.canSend(draft),
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
             ) {
                 Text(
                     if (didSubmit) stringResource(R.string.done) else if (isSending) stringResource(R.string.send_patient_message_sending) else stringResource(R.string.send_message_action),

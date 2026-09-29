@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -138,7 +139,7 @@ fun TherapistRootScreen(
                 TherapistRootTab.Settings -> settingsContent()
             }
         }
-        NavigationBar(containerColor = colors.surface) {
+        NavigationBar(containerColor = colors.base, tonalElevation = 0.dp) {
             TherapistRootTab.ordered.forEach { item ->
                 NavigationBarItem(
                     selected = tab == item,
@@ -159,7 +160,13 @@ fun TherapistRootScreen(
                         }
                     },
                     label = { Text(stringResource(item.labelRes())) },
-                    colors = NavigationBarItemDefaults.colors(indicatorColor = colors.goldGhost),
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = colors.gold,
+                        selectedTextColor = colors.gold,
+                        unselectedIconColor = colors.textBody,
+                        unselectedTextColor = colors.textBody,
+                        indicatorColor = colors.goldGhost,
+                    ),
                 )
             }
         }

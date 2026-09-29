@@ -15,16 +15,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-private val GroupCornerRadius = 12.dp
+private val GroupCornerRadius = 20.dp
 
 @Composable
 fun Modifier.groupedListCard(accent: Color? = null): Modifier {
     val shape = RoundedCornerShape(GroupCornerRadius)
-    val outline = (accent ?: Theme.colors.gold).copy(alpha = 0.35f)
+    val outline = Theme.colors.borderFaint
     return this
         .clip(shape)
         .background(Theme.colors.surface)
-        .border(1.dp, outline, shape)
+        .border(0.75.dp, outline, shape)
 }
 
 @Composable

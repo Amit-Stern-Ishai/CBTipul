@@ -67,8 +67,7 @@ struct PatientSessionsView: View {
             gettingStartedRouter.clearHighlightIfMatching(.addSession)
             route = .new(Session())
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
+        .buttonStyle(.pressableProminent)
         .frame(maxWidth: .infinity)
         .tutorialPulse(shouldPulseAddSession)
         .padding(.horizontal, 24)

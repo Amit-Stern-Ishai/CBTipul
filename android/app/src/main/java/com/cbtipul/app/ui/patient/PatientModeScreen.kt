@@ -342,7 +342,7 @@ private fun GoldActionButton(text: String, onClick: () -> Unit, modifier: Modifi
     Button(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().height(48.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+        colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
         shape = RoundedCornerShape(14.dp),
     ) { Text(text, fontWeight = FontWeight.SemiBold) }
 }

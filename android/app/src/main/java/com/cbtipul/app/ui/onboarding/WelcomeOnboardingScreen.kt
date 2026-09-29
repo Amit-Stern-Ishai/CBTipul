@@ -26,7 +26,7 @@ fun WelcomeOnboardingScreen(onStartDemoTour: () -> Unit, onSkip: () -> Unit, all
             if (allowsSkip) TextButton(onClick = onSkip) { Text(stringResource(R.string.cancel)) }
         }) },
         bottomBar = { Button(onClick = onStartDemoTour, modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent)) {
+            colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
             Text(stringResource(R.string.sample_data_start_action), modifier = Modifier.padding(8.dp), fontWeight = FontWeight.Bold)
         } },
     ) { padding ->

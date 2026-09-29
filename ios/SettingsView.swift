@@ -54,7 +54,7 @@ enum AppTextSize: String, CaseIterable {
 }
 
 /// The app-wide appearance: the dark navy theme (default) or the light
-/// mode built on the native iOS system palette.
+/// mode with soft slate surfaces and warm gold actions.
 enum AppAppearance: String, CaseIterable {
     case light
     case dark
@@ -88,6 +88,10 @@ private struct AppTextSizeModifier: ViewModifier {
             .dynamicTypeSize(textSize.dynamicTypeSize)
             .environment(\.layoutDirection, .rightToLeft)
             .environment(\.colorScheme, resolvedScheme)
+            .preferredColorScheme(resolvedScheme)
+            .toolbarBackground(Theme.base, for: .navigationBar, .tabBar)
+            .toolbarColorScheme(resolvedScheme, for: .navigationBar, .tabBar)
+            .foregroundStyle(Theme.textBright, Theme.textBody, Theme.textFaint)
             .tint(Theme.gold)
     }
 }
@@ -100,6 +104,7 @@ extension View {
 
 /// App-wide settings.
 struct SettingsView: View {
+    @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
     @AppStorage("aiResponseStyle") private var responseStyle: AIResponseStyle = .typing
     @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
     @Environment(AuthManager.self) private var auth
@@ -181,6 +186,16 @@ struct SettingsView: View {
                 .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
 
                 Section(L10n.settingsAccessibilitySectionTitle) {
+                    NavigationLink {
+                        AppearancePickerView()
+                    } label: {
+                        HStack {
+                            Label(L10n.settingsAppearanceTitle, systemImage: "circle.lefthalf.filled")
+                            Spacer()
+                            Text(appearance.label).foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityIdentifier("settings.appearance")
                     NavigationLink {
                         TextSizePickerView()
                     } label: {
@@ -639,34 +654,66 @@ struct AppearancePickerView: View {
     @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
 
     var body: some View {
-        Form {
-            Section {
+        ScrollView {
+            HStack(alignment: .top, spacing: 16) {
                 ForEach(AppAppearance.allCases, id: \.self) { option in
                     Button {
                         appearance = option
                     } label: {
-                        HStack {
-                            Text(option.label)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            if appearance == option {
-                                Image(systemName: "checkmark")
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(Theme.gold)
+                        VStack(spacing: 16) {
+                            appearancePreview(option)
+                            HStack(spacing: 8) {
+                                Text(option.label).font(.headline)
+                                Image(systemName: appearance == option ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(appearance == option ? Theme.gold : Theme.textFaint)
                             }
+                            .foregroundStyle(Theme.textBright)
                         }
+                        .padding(12)
+                        .frame(maxWidth: .infinity)
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 20))
+                        .overlay(RoundedRectangle(cornerRadius: 20)
+                            .strokeBorder(appearance == option ? Theme.gold : Theme.borderFaint,
+                                          lineWidth: appearance == option ? 2 : 1))
                     }
-                    .listRowBackground(groupBorderedRow(
-                        .at(AppAppearance.allCases.firstIndex(of: option) ?? 0,
-                            of: AppAppearance.allCases.count),
-                        accent: Theme.gold))
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(option.label)
+                    .accessibilityAddTraits(appearance == option ? .isSelected : [])
+                    .accessibilityIdentifier("appearance." + option.rawValue)
                 }
             }
+            .padding(24)
         }
-        .patientAtmosphere(Theme.gold)
         .themedScreen()
         .navigationTitle(L10n.settingsAppearanceTitle)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func appearancePreview(_ option: AppAppearance) -> some View {
+        let dark = option == .dark
+        let base = Color(uiColor: UIColor(hex: dark ? 0x0C1420 : 0xF1F4F8))
+        let surface = Color(uiColor: UIColor(hex: dark ? 0x172231 : 0xFFFFFF))
+        let ink = Color(uiColor: UIColor(hex: dark ? 0xB4C0D0 : 0x4B5E75))
+        return VStack(alignment: .leading, spacing: 12) {
+            Capsule().fill(ink).frame(width: 52, height: 6)
+            ForEach(0..<2) { _ in
+                HStack(spacing: 8) {
+                    Circle().fill(Color(uiColor: UIColor(hex: dark ? 0xE2BB76 : 0x203E61))).frame(width: 20, height: 20)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Capsule().fill(ink.opacity(0.7)).frame(height: 4)
+                        Capsule().fill(ink.opacity(0.25)).frame(width: 32, height: 4)
+                    }
+                }
+                .padding(10)
+                .background(surface, in: RoundedRectangle(cornerRadius: 10))
+            }
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(uiColor: UIColor(hex: dark ? 0xE2BB76 : 0x203E61))).frame(height: 24)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(base, in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityHidden(true)
     }
 }
 

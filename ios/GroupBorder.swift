@@ -17,17 +17,13 @@ enum GroupRowPosition {
 /// section corners.
 private let groupCornerRadius: CGFloat = 26
 
-/// A list-row background carrying the row's slice of its group's thin
-/// accent-colored outline (the patient's identity color), layered on the
-/// standard surface fill. Per-row because SwiftUI has no section-level
-/// background.
+/// Shared row surface. SwiftUI supplies the section's outer shape;
+/// patient identity colors stay on avatars and action icons.
 @MainActor
 func groupBorderedRow(_ position: GroupRowPosition, accent: Color) -> some View {
-    ZStack {
-        Theme.surface
-        GroupBorderEdge(position: position, radius: groupCornerRadius)
-            .stroke(accent.opacity(0.35), lineWidth: 1)
-    }
+    // SwiftUI clips the entire section. Per-row rounded outlines create
+    // doubled corners, so let the native section shape define the edge.
+    Theme.surface
 }
 
 /// One row's share of a section group's outline: the two side lines, plus

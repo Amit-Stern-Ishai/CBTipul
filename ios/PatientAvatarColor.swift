@@ -11,8 +11,8 @@ extension View {
         return background(
             RadialGradient(
                 gradient: Gradient(stops: [
-                    .init(color: wash.opacity(0.12), location: 0),
-                    .init(color: wash.opacity(0.05), location: 0.55),
+                    .init(color: wash.opacity(0.045), location: 0),
+                    .init(color: wash.opacity(0.015), location: 0.55),
                     .init(color: .clear, location: 1),
                 ]),
                 center: UnitPoint(x: 0.85, y: 0.05),

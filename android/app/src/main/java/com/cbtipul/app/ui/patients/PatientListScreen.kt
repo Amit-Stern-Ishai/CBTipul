@@ -321,7 +321,7 @@ private fun PersistentAddButton(
             .padding(top = 8.dp, bottom = 12.dp)
             .tutorialPulse(pulse),
         colors = ButtonDefaults.buttonColors(
-            containerColor = colors.gold,
+            containerColor = colors.accentFill,
             contentColor = colors.textOnAccent,
         ),
     ) {
@@ -351,7 +351,7 @@ private fun EmptyState(
             Button(
                 onClick = onAction,
                 modifier = Modifier.tutorialPulse(pulseAction),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
             ) { Text(action) }
         }
     }

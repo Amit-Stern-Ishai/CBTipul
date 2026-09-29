@@ -235,7 +235,7 @@ private fun AuthCard(
             enabled = canSubmit,
             modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = colors.gold,
+                containerColor = colors.accentFill,
                 contentColor = colors.textOnAccent,
                 disabledContainerColor = colors.goldDim,
             ),
@@ -299,7 +299,7 @@ private fun VerificationCard(
             onClick = onResend,
             enabled = !state.isWorking && !state.isResendBlocked,
             modifier = Modifier.fillMaxWidth().height(48.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = colors.gold, contentColor = colors.textOnAccent),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
             shape = RoundedCornerShape(14.dp),
         ) {
             if (state.isWorking) {

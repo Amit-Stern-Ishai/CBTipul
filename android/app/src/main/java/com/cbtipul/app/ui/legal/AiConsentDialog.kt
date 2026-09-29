@@ -55,7 +55,7 @@ fun AiConsentDialog(
             onClick = onAccept,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
-                containerColor = colors.gold,
+                containerColor = colors.accentFill,
                 contentColor = colors.textOnAccent,
             ),
         ) { Text(stringResource(R.string.ai_consent_accept_action)) }

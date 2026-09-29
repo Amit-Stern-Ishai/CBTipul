@@ -18,8 +18,8 @@ fun Modifier.patientAtmosphere(accent: Color?): Modifier {
         drawRect(
             brush = Brush.radialGradient(
                 colorStops = arrayOf(
-                    0f to color.copy(alpha = 0.12f),
-                    0.55f to color.copy(alpha = 0.05f),
+                    0f to color.copy(alpha = 0.045f),
+                    0.55f to color.copy(alpha = 0.015f),
                     1f to Color.Transparent,
                 ),
                 center = Offset(size.width * 0.85f, size.height * 0.05f),

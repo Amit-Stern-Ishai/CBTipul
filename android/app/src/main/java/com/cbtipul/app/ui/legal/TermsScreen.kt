@@ -59,7 +59,7 @@ fun TermsScreen(onAgree: (() -> Unit)? = null, onBack: (() -> Unit)? = null) {
                     .padding(24.dp)
                     .height(52.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.gold,
+                    containerColor = colors.accentFill,
                     contentColor = colors.textOnAccent,
                 ),
                 shape = RoundedCornerShape(14.dp),
@@ -74,7 +74,7 @@ fun TermsScreen(onAgree: (() -> Unit)? = null, onBack: (() -> Unit)? = null) {
                     .padding(24.dp)
                     .height(52.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.gold,
+                    containerColor = colors.accentFill,
                     contentColor = colors.textOnAccent,
                 ),
                 shape = RoundedCornerShape(14.dp),

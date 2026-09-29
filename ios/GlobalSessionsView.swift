@@ -80,8 +80,7 @@ struct GlobalSessionsView: View {
         Button(allItems.isEmpty ? L10n.createSessionAction : L10n.addSessionAction) {
             editor = SessionEditorRoute(patient: nil, session: Session(), isNew: true)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
+        .buttonStyle(.pressableProminent)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 24)
         .padding(.vertical, 12)

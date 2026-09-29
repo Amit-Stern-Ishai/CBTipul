@@ -232,7 +232,7 @@ fun PatientSessionsScreen(
                     .padding(top = 8.dp, bottom = 12.dp)
                     .tutorialPulse(pulseAddSession),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.gold,
+                    containerColor = colors.accentFill,
                     contentColor = colors.textOnAccent,
                 ),
             ) {

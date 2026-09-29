@@ -288,7 +288,7 @@ fun PatientDetailScreen(
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Spacer(Modifier.size(48.dp))
-                    Text(name, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 22.sp,
+                    Text(name, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 26.sp,
                         textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false))
                     IconButton(onClick = { showRename = true }, enabled = !busy, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_patient_name_action), tint = colors.gold)
@@ -557,11 +557,11 @@ private fun IconChipRow(
     ) {
         Box(
             modifier = Modifier
-                .size(28.dp)
-                .background(colors.goldGhost, RoundedCornerShape(7.dp)),
+                .size(36.dp)
+                .background(colors.goldGhost, RoundedCornerShape(11.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
+            Icon(icon, contentDescription = null, tint = colors.gold, modifier = Modifier.size(18.dp))
         }
         Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
         trailing()

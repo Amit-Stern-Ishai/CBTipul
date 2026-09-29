@@ -186,7 +186,7 @@ fun PatientDiaryOneEntryScreen(
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.gold,
+                        containerColor = colors.accentFill,
                         contentColor = colors.textOnAccent,
                         disabledContainerColor = colors.goldDim,
                     ),
