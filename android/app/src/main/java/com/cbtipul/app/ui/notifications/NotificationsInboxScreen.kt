@@ -1,5 +1,9 @@
 package com.cbtipul.app.ui.notifications
 
+import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.HowToReg
+import androidx.compose.material.icons.outlined.WarningAmber
+import com.cbtipul.app.ui.theme.IconLabel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -112,7 +116,7 @@ fun NotificationsInboxScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(stringResource(R.string.notifications_load_failed), color = colors.textBody)
+                IconLabel(stringResource(R.string.notifications_load_failed), Icons.Outlined.WarningAmber, color = colors.textBody)
                 TextButton(onClick = { scope.launch { loadAndMarkSeen() } }) {
                     Text(stringResource(R.string.retry), color = colors.gold)
                 }
@@ -181,8 +185,8 @@ private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> 
     }
     val icon = when (kind) {
         InboxCopyKind.QuestionnaireCompleted -> Icons.Outlined.Checklist
-        InboxCopyKind.PatientConnected -> Icons.Outlined.PersonAddAlt1
-        InboxCopyKind.DiaryOneEntryAdded -> Icons.AutoMirrored.Outlined.MenuBook
+        InboxCopyKind.PatientConnected -> Icons.Outlined.HowToReg
+        InboxCopyKind.DiaryOneEntryAdded -> Icons.Outlined.Book
         InboxCopyKind.Generic -> Icons.Outlined.NotificationsNone
     }
     val action = when (NotificationRouting.destination(NotificationPayload.from(item))) {

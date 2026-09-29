@@ -1,8 +1,18 @@
 package com.cbtipul.app.ui.therapist
 
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.MenuBook
@@ -67,8 +77,11 @@ fun TherapistRootScreen(
     settingsContent: @Composable () -> Unit,
     onCloseSettingsOverlay: (() -> Unit)? = null,
 ) {
-    val app = LocalContext.current.applicationContext as CbTipulApp
+    val context = LocalContext.current
+    val app = context.applicationContext as CbTipulApp
     val patientsNav = rememberNavController()
+    val currentEntry by patientsNav.currentBackStackEntryAsState()
+    var returnToInbox by rememberSaveable { mutableStateOf(false) }
     val patients by viewModel.patients.collectAsStateWithLifecycle()
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
     val unseen by app.notifications.unseenCount.collectAsStateWithLifecycle()
@@ -76,11 +89,25 @@ fun TherapistRootScreen(
     val unnamed = stringResource(R.string.unnamed_patient)
     var tab by remember { mutableStateOf(TherapistRootTab.Patients) }
     val colors = Theme.colors
+    LaunchedEffect(currentEntry) {
+        if (returnToInbox && currentEntry?.destination?.route == "list") {
+            returnToInbox = false
+            tab = TherapistRootTab.Notifications
+        }
+    }
 
     LaunchedEffect(isDemoMode) {
         tab = TherapistRootTab.Patients
         app.notifications.isDemoInbox = isDemoMode
         if (isDemoMode) app.notifications.clear() else app.notifications.refresh()
+        if (isDemoMode && com.cbtipul.app.BuildConfig.DEBUG &&
+            (context as? android.app.Activity)?.intent?.getBooleanExtra("cbtipul_test_notifications", false) == true
+        ) {
+            patients.firstOrNull { it.sessions.isNotEmpty() }?.let { patient ->
+                val records = runCatching { app.patientRepository.loadQuestionnaires(patient.id) }.getOrDefault(emptyList())
+                app.notifications.seedUITestingNotifications(patient.id.queryValue, records.firstOrNull()?.databaseId?.queryValue)
+            }
+        }
     }
 
     LaunchedEffect(pending) {
@@ -92,18 +119,24 @@ fun TherapistRootScreen(
             return@LaunchedEffect
         }
         app.pendingDestinations.consume()
+        returnToInbox = false
         tab = TherapistRootTab.Patients
         navigateTherapistDestination(patientsNav, destination)
     }
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxSize()) {
-            PatientsNavHost(
-                viewModel = viewModel,
-                onOpenSettings = { tab = TherapistRootTab.Settings },
-                onCloseSettings = onCloseSettingsOverlay,
-                navController = patientsNav,
-            )
+            Box(Modifier.fillMaxSize().then(if (tab == TherapistRootTab.Patients) Modifier else Modifier.clearAndSetSemantics {})) {
+                PatientsNavHost(
+                    viewModel = viewModel,
+                    onOpenSettings = { tab = TherapistRootTab.Settings },
+                    onCloseSettings = onCloseSettingsOverlay,
+                    navController = patientsNav,
+                )
+            }
+            // The mounted Patients stack must not handle Back behind another tab.
+            // Child settings pages register later and keep their own Back behavior.
+            BackHandler(enabled = tab != TherapistRootTab.Patients) { tab = TherapistRootTab.Patients }
             when (tab) {
                 TherapistRootTab.Patients -> Unit
                 TherapistRootTab.Sessions -> GlobalSessionsScreen(
@@ -132,6 +165,7 @@ fun TherapistRootScreen(
                         if (destination != null) {
                             tab = TherapistRootTab.Patients
                             navigateTherapistDestination(patientsNav, destination)
+                            returnToInbox = true
                         }
                     },
                 )
@@ -139,46 +173,49 @@ fun TherapistRootScreen(
                 TherapistRootTab.Settings -> settingsContent()
             }
         }
-        NavigationBar(containerColor = colors.base, tonalElevation = 0.dp) {
-            TherapistRootTab.ordered.forEach { item ->
-                NavigationBarItem(
-                    selected = tab == item,
-                    onClick = { tab = item },
-                    icon = {
-                        if (item == TherapistRootTab.Notifications) {
-                            BadgedBox(
-                                badge = {
-                                    if (unseen > 0 && tab != TherapistRootTab.Notifications) {
-                                        Badge { Text(if (unseen > 99) "99+" else unseen.toString()) }
-                                    }
-                                },
-                            ) {
-                                Icon(Icons.Outlined.Notifications, contentDescription = null)
+        // Keep the full editor viewport available while typing.
+        if (WindowInsets.ime.getBottom(LocalDensity.current) == 0) {
+            NavigationBar(containerColor = colors.base, tonalElevation = 0.dp) {
+                TherapistRootTab.ordered.forEach { item ->
+                    NavigationBarItem(
+                        selected = tab == item,
+                        onClick = { returnToInbox = false; tab = item },
+                        icon = {
+                            if (item == TherapistRootTab.Notifications) {
+                                BadgedBox(
+                                    badge = {
+                                        if (unseen > 0 && tab != TherapistRootTab.Notifications) {
+                                            Badge { Text(if (unseen > 99) "99+" else unseen.toString()) }
+                                        }
+                                    },
+                                ) {
+                                    Icon(Icons.Filled.Notifications, contentDescription = null)
+                                }
+                            } else {
+                                Icon(item.icon(), contentDescription = null)
                             }
-                        } else {
-                            Icon(item.icon(), contentDescription = null)
-                        }
-                    },
-                    label = { Text(stringResource(item.labelRes())) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = colors.gold,
-                        selectedTextColor = colors.gold,
-                        unselectedIconColor = colors.textBody,
-                        unselectedTextColor = colors.textBody,
-                        indicatorColor = colors.goldGhost,
-                    ),
-                )
+                        },
+                        label = { Text(stringResource(item.labelRes())) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = colors.gold,
+                            selectedTextColor = colors.gold,
+                            unselectedIconColor = colors.textBody,
+                            unselectedTextColor = colors.textBody,
+                            indicatorColor = colors.goldGhost,
+                        ),
+                    )
+                }
             }
         }
     }
 }
 
 private fun TherapistRootTab.icon() = when (this) {
-    TherapistRootTab.Patients -> Icons.Outlined.People
+    TherapistRootTab.Patients -> Icons.Filled.People
     TherapistRootTab.Sessions -> Icons.Outlined.CalendarMonth
-    TherapistRootTab.Notifications -> Icons.Outlined.Notifications
+    TherapistRootTab.Notifications -> Icons.Filled.Notifications
     TherapistRootTab.Library -> Icons.Outlined.MenuBook
-    TherapistRootTab.Settings -> Icons.Outlined.Settings
+    TherapistRootTab.Settings -> Icons.Filled.Settings
 }
 
 private fun TherapistRootTab.labelRes() = when (this) {
@@ -190,32 +227,11 @@ private fun TherapistRootTab.labelRes() = when (this) {
 }
 
 fun navigateTherapistDestination(nav: NavHostController, destination: AppDestination) {
-    when (destination) {
-        is AppDestination.PatientDetail -> nav.navigate("patient/${destination.patientId}") {
-            popUpTo("list") { inclusive = false }
+    NotificationRouting.therapistRoutes(destination).forEachIndexed { index, route ->
+        nav.navigate(route) {
+            if (index == 0) popUpTo("list") { inclusive = false }
             launchSingleTop = true
         }
-        is AppDestination.QuestionnaireResult -> {
-            nav.navigate("patient/${destination.patientId}") {
-                popUpTo("list") { inclusive = false }
-                launchSingleTop = true
-            }
-            destination.moodId?.let {
-                nav.navigate("patient/${destination.patientId}/questionnaire-result/$it")
-            }
-        }
-        is AppDestination.DiaryOneEntry -> {
-            nav.navigate("patient/${destination.patientId}") {
-                popUpTo("list") { inclusive = false }
-                launchSingleTop = true
-            }
-            val entry = destination.entryId
-            nav.navigate(
-                if (entry != null) "patient/${destination.patientId}/diary-one?entry=$entry"
-                else "patient/${destination.patientId}/diary-one",
-            )
-        }
-        else -> Unit
     }
 }
 

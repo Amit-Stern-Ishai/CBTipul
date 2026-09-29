@@ -566,7 +566,7 @@ private struct LegacyOfficialLinkWebView: View {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: isLoading)
+            .subtleAnimation(value: isLoading)
             .ignoresSafeArea(edges: .bottom)
     }
 }

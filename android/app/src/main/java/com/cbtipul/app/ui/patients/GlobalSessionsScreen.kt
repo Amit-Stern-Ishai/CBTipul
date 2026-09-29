@@ -1,5 +1,8 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material.icons.outlined.Search
+import com.cbtipul.app.ui.theme.PrimaryActionButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -102,6 +105,7 @@ fun GlobalSessionsScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             OutlinedTextField(value = query, onValueChange = { query = it }, singleLine = true,
                 label = { Text(stringResource(R.string.sessions_search_prompt)) },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             when {
                 patients.isEmpty() && ui.isLoading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -112,6 +116,7 @@ fun GlobalSessionsScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    Icon(if (query.isBlank()) Icons.Outlined.EventAvailable else Icons.Outlined.Search, contentDescription = null, tint = colors.textBody, modifier = Modifier.size(48.dp).padding(bottom = 12.dp))
                     Text(stringResource(if (query.isBlank()) R.string.empty_sessions_title else R.string.sessions_search_empty), color = colors.textBright, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(8.dp))
                     Text(stringResource(R.string.empty_sessions_body), color = colors.textBody, textAlign = TextAlign.Center)
@@ -172,13 +177,12 @@ fun GlobalSessionsScreen(
                 }
             }
             }
-            Button(
+            PrimaryActionButton(
+                label = stringResource(if (groups.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action),
+                icon = Icons.Outlined.Add,
                 onClick = onCreateSession,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
-            ) {
-                Text(stringResource(if (groups.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action))
-            }
+                modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp),
+            )
         }
     }
 

@@ -5,6 +5,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -14,6 +19,7 @@ import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.RootScreen
 import com.cbtipul.app.ui.theme.CbTipulTheme
+import com.cbtipul.app.ui.theme.Theme
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -30,7 +36,11 @@ class MainActivity : ComponentActivity() {
                 initialValue = AppAppearance.Dark,
             )
             CbTipulTheme(appearance = appearance, textSize = textSize) {
-                RootScreen()
+                // Own and consume system-bar, cutout and keyboard insets once.
+                // Nested Scaffolds then measure their bars inside this safe viewport.
+                Box(Modifier.fillMaxSize().background(Theme.colors.base).safeDrawingPadding()) {
+                    RootScreen()
+                }
             }
         }
     }

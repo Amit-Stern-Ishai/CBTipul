@@ -1,5 +1,8 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material.icons.automirrored.outlined.Notes
+import com.cbtipul.app.ui.theme.editorScroll
+import com.cbtipul.app.ui.theme.editorFocus
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.material3.Button
@@ -190,7 +193,7 @@ fun QuestionnaireScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .editorScroll()
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
@@ -521,7 +524,7 @@ private fun NoteButton(note: String, editable: Boolean, onNote: (String) -> Unit
     var show by remember { mutableStateOf(false) }
     IconButton(onClick = { if (editable) show = true }, modifier = Modifier.size(40.dp)) {
         Icon(
-            if (note.isBlank()) Icons.Outlined.EditNote else Icons.Filled.Edit,
+            if (note.isBlank()) Icons.Outlined.EditNote else Icons.AutoMirrored.Outlined.Notes,
             contentDescription = stringResource(R.string.question_note_title),
             tint = if (note.isBlank()) Theme.colors.textBody else Theme.colors.gold,
         )
@@ -540,7 +543,7 @@ private fun NoteButton(note: String, editable: Boolean, onNote: (String) -> Unit
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.editorFocus().fillMaxWidth(),
                 minLines = 4,
                 textStyle = TextStyle(
                     color = colors.textBright,

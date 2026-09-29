@@ -1,5 +1,14 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material.icons.outlined.HourglassEmpty
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.FindInPage
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.filled.StopCircle
+import com.cbtipul.app.ui.theme.IconLabel
+import com.cbtipul.app.ui.theme.editorScroll
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -369,8 +378,14 @@ fun SessionEditorScreen(
                     hasUnsavedChanges -> R.string.session_not_saved
                     else -> R.string.session_saved
                 }
-                Text(
+                IconLabel(
                     stringResource(status),
+                    icon = when {
+                        recorder.isRecording -> Icons.Filled.Mic
+                        busy -> Icons.Outlined.HourglassEmpty
+                        !isNew && !hasUnsavedChanges -> Icons.Filled.CheckCircle
+                        else -> Icons.Outlined.EditNote
+                    },
                     color = if (recorder.isRecording) colors.error else colors.textBody,
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
@@ -387,7 +402,7 @@ fun SessionEditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .editorScroll()
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -445,12 +460,12 @@ fun SessionEditorScreen(
                                 recorder.stopRecording()
                                 transcribePending()
                             }) {
-                                Text(stringResource(R.string.stop_and_transcribe_action), color = colors.error)
+                                IconLabel(stringResource(R.string.stop_and_transcribe_action), Icons.Filled.StopCircle, color = colors.error)
                             }
                         }
                     } else {
                         TextButton(onClick = { startMic() }, enabled = !busy && recorder.recordingFile == null) {
-                            Text(stringResource(R.string.record_session_notes_action), color = colors.gold)
+                            IconLabel(stringResource(R.string.record_session_notes_action), Icons.Filled.Mic, color = colors.gold)
                         }
                     }
                 }
@@ -573,7 +588,7 @@ fun SessionEditorScreen(
                                 .background(colors.goldGhost, RoundedCornerShape(7.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Outlined.Description, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Outlined.FindInPage, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
                         }
                         Text(
                             stringResource(R.string.show_structured_summary_action),
@@ -596,8 +611,8 @@ fun SessionEditorScreen(
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text(
-                                hebrewDate(questionnaire.answeredDate),
+                            IconLabel(
+                                hebrewDate(questionnaire.answeredDate), Icons.Outlined.CheckCircle,
                                 color = colors.textBright,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -622,7 +637,7 @@ fun SessionEditorScreen(
                                     .background(colors.goldGhost, RoundedCornerShape(7.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(Icons.Outlined.Add, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Outlined.EditNote, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
                             }
                             Text(
                                 stringResource(R.string.fill_questionnaire_here_action),
@@ -651,8 +666,8 @@ fun SessionEditorScreen(
                         }
                         QuestionnaireAssignmentUi.Available -> {
                             Text(stringResource(R.string.patient_questionnaire_request_description), modifier = Modifier.padding(16.dp))
-                            Text(
-                                stringResource(R.string.send_questionnaire_to_patient),
+                            IconLabel(
+                                stringResource(R.string.send_questionnaire_to_patient), Icons.AutoMirrored.Outlined.Send,
                                 color = colors.gold,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier
@@ -682,8 +697,8 @@ fun SessionEditorScreen(
                         }
                         QuestionnaireAssignmentUi.Pending -> {
                             TextButton(onClick = { onRefreshQuestionnaire() }) { Text(stringResource(R.string.questionnaire_refresh_action)) }
-                            Text(
-                                stringResource(R.string.questionnaire_awaiting_patient),
+                            IconLabel(
+                                stringResource(R.string.questionnaire_awaiting_patient), Icons.Outlined.Schedule,
                                 color = colors.textBody,
                                 modifier = Modifier.padding(16.dp),
                             )

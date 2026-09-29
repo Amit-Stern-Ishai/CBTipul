@@ -8,6 +8,7 @@ struct NotificationsInboxView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
+        @Bindable var coordinator = coordinator
         NavigationStack {
             Group {
                 if notifications.isLoading && notifications.notifications.isEmpty {
@@ -34,11 +35,28 @@ struct NotificationsInboxView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
+            .subtleAnimation(value: notifications.isLoading)
+            .subtleAnimation(value: notifications.didFailLastLoad)
             .demoModeChrome()
             .navigationTitle(L10n.therapistTabNotifications)
             .navigationBarTitleDisplayMode(.large)
             .accessibilityIdentifier("notifications.root")
+            .alert(L10n.notificationTargetUnavailable, isPresented: $coordinator.unavailableTarget) {
+                Button(L10n.ok, role: .cancel) {}
+            }
             .task {
+                #if DEBUG
+                if AuthManager.isUITesting, store.isDemoMode,
+                   ProcessInfo.processInfo.arguments.contains("-UITestingNotifications"),
+                   notifications.notifications.isEmpty,
+                   let patient = store.patients.first(where: { !$0.sessions.isEmpty }) {
+                    let records = try? await store.loadQuestionnaires(for: patient)
+                    notifications.seedUITestingNotifications(
+                        patientID: patient.id.queryValue,
+                        questionnaireID: records?.first?.databaseID.queryValue
+                    )
+                }
+                #endif
                 if store.isDemoMode { return }
                 await notifications.refresh()
             }

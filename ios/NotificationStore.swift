@@ -40,6 +40,25 @@ final class NotificationStore {
         Task { await synchronizeAppIconBadge() }
     }
 
+    #if DEBUG
+    /// Offline regression fixtures, reachable only in the explicit UI-testing launch.
+    func seedUITestingNotifications(patientID: String, questionnaireID: String?) {
+        guard AuthManager.isUITesting, isDemoInbox,
+              ProcessInfo.processInfo.arguments.contains("-UITestingNotifications") else { return }
+        notifications = [
+            AppNotification(id: UUID(), type: .questionnaireCompleted, patientId: patientID,
+                            sessionId: nil, assignmentId: nil, resourceType: "questionnaire",
+                            resourceId: questionnaireID, createdAt: Date(), seenAt: nil, readAt: nil),
+            AppNotification(id: UUID(), type: .patientConnected, patientId: patientID,
+                            sessionId: nil, assignmentId: nil, resourceType: nil,
+                            resourceId: nil, createdAt: Date(), seenAt: nil, readAt: nil),
+            AppNotification(id: UUID(), type: .diaryOneEntryAdded, patientId: "missing-test-patient",
+                            sessionId: nil, assignmentId: nil, resourceType: nil,
+                            resourceId: nil, createdAt: Date(), seenAt: nil, readAt: nil),
+        ]
+    }
+    #endif
+
     func refresh() async {
         guard !AuthManager.isUITesting else { return }
         if isDemoInbox {

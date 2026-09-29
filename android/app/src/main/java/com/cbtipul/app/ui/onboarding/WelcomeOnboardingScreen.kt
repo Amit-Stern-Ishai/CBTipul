@@ -1,5 +1,12 @@
 package com.cbtipul.app.ui.onboarding
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.automirrored.outlined.Undo
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.RecentActors
+import androidx.compose.material.icons.Icons
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -32,14 +39,23 @@ fun WelcomeOnboardingScreen(onStartDemoTour: () -> Unit, onSkip: () -> Unit, all
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            Icon(Icons.Outlined.RecentActors, contentDescription = null, tint = colors.gold, modifier = Modifier.size(64.dp).background(colors.goldGhost, RoundedCornerShape(18.dp)).padding(16.dp))
             Text(stringResource(R.string.getting_started_guide_settings_title), color = colors.textBright, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.getting_started_guide_settings_subtitle), color = colors.textBody)
             listOf(R.string.sample_data_explore_title to R.string.sample_data_explore_body,
                 R.string.sample_data_separate_title to R.string.sample_data_separate_body,
                 R.string.sample_data_return_title to R.string.sample_data_return_body).forEach { (title, body) ->
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                    Text(stringResource(body), color = colors.textBody)
+                val icon = when (title) {
+                    R.string.sample_data_explore_title -> Icons.Outlined.Folder
+                    R.string.sample_data_separate_title -> Icons.Outlined.Shield
+                    else -> Icons.AutoMirrored.Outlined.Undo
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Icon(icon, contentDescription = null, tint = colors.gold, modifier = Modifier.size(26.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(body), color = colors.textBody)
+                    }
                 }
             }
         }

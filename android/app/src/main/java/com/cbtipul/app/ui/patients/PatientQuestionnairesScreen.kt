@@ -1,5 +1,9 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.EditNote
+import com.cbtipul.app.ui.theme.IconLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
@@ -120,7 +124,7 @@ fun PatientQuestionnairesScreen(
             if (!graphsMode) Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(stringResource(R.string.questionnaire_local_entry_help), color = colors.textBody, fontSize = 13.sp)
                 Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.fill_questionnaire_here_action))
+                    IconLabel(stringResource(R.string.fill_questionnaire_here_action), Icons.Outlined.EditNote)
                 }
             }
         },
@@ -137,6 +141,7 @@ fun PatientQuestionnairesScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = colors.textBody, modifier = Modifier.size(40.dp).padding(bottom = 8.dp))
                     Text(stringResource(R.string.load_error_title), color = colors.textBright, fontWeight = FontWeight.Bold)
                     Text(loadError, color = colors.textBody, modifier = Modifier.padding(top = 8.dp))
                     Button(
@@ -155,6 +160,7 @@ fun PatientQuestionnairesScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    Icon(if (graphsMode) Icons.AutoMirrored.Outlined.ShowChart else Icons.Outlined.Assignment, contentDescription = null, tint = colors.textBody, modifier = Modifier.size(48.dp).padding(bottom = 12.dp))
                     Text(
                         stringResource(if (graphsMode) R.string.empty_questionnaire_graphs_title else R.string.empty_questionnaires_title),
                         color = colors.textBright,

@@ -52,8 +52,8 @@ struct PatientListView: View {
             .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
             .demoModeChrome()
-            .animation(.easeInOut(duration: 0.25), value: isLoading)
-            .animation(.easeInOut(duration: 0.25), value: loadError)
+            .subtleAnimation(value: isLoading)
+            .subtleAnimation(value: loadError)
             .navigationTitle(L10n.therapistTabPatients)
             .navigationBarTitleDisplayMode(.large)
             .task { await load() }
@@ -112,6 +112,7 @@ struct PatientListView: View {
             }
             .onChange(of: path.count) { _, count in
                 guard count == 0 else { return }
+                notificationCoordinator.finishInboxNavigation()
                 gettingStartedRouter.setPlacement(.patientList)
                 refreshProgress()
             }

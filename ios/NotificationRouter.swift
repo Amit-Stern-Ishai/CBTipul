@@ -79,6 +79,8 @@ final class TherapistNotificationCoordinator {
     static let shared = TherapistNotificationCoordinator()
 
     var selectedTab: TherapistRootTab = .patients
+    var unavailableTarget = false
+    private(set) var returnsToInbox = false
     private(set) var pendingPatientNavigation: PendingPatientNavigation?
     /// Bumps when a push tap is enqueued so the therapist shell can consume it.
     private(set) var pendingRevision = 0
@@ -104,6 +106,8 @@ final class TherapistNotificationCoordinator {
     }
 
     func resetOnLogout() {
+        unavailableTarget = false
+        returnsToInbox = false
         pendingPayload = nil
         pendingPatientNavigation = nil
         lastConsumedFingerprint = nil
@@ -123,12 +127,25 @@ final class TherapistNotificationCoordinator {
 
     /// Inbox row tap. Uses the same `NotificationRouter` as APNs.
     func handleInboxTap(_ notification: AppNotification, patients: [Patient]) {
+        pendingPatientNavigation = nil
+        unavailableTarget = false
         execute(
             NotificationRouter.destination(from: notification),
             fingerprint: "inbox:\(notification.id.uuidString)",
             patients: patients,
             waitForPatients: false
         )
+        returnsToInbox = pendingPatientNavigation != nil
+    }
+
+    func finishInboxNavigation() {
+        guard returnsToInbox else { return }
+        returnsToInbox = false
+        selectedTab = .notifications
+    }
+
+    func cancelInboxReturn() {
+        returnsToInbox = false
     }
 
     func processPending(patients: [Patient]) {
@@ -151,6 +168,7 @@ final class TherapistNotificationCoordinator {
         patients: [Patient],
         waitForPatients: Bool
     ) {
+        if waitForPatients { returnsToInbox = false }
         switch destination {
         case .none:
             pendingPayload = nil
@@ -257,6 +275,7 @@ final class TherapistNotificationCoordinator {
         pendingPayload = nil
         lastConsumedFingerprint = fingerprint
         selectedTab = .notifications
+        unavailableTarget = true
         return nil
     }
 

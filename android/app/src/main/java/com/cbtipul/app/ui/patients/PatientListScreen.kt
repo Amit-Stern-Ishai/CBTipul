@@ -1,5 +1,9 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.cbtipul.app.ui.theme.PrimaryActionButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -167,6 +171,7 @@ fun PatientListScreen(
                     showLoadError -> {
                         EmptyState(
                             title = stringResource(R.string.couldnt_load_patients_title),
+                            icon = Icons.Outlined.WarningAmber,
                             message = ui.loadError.orEmpty(),
                             action = stringResource(R.string.retry),
                             onAction = viewModel::refresh,
@@ -175,6 +180,7 @@ fun PatientListScreen(
                     patients.isEmpty() -> {
                         EmptyState(
                             title = stringResource(R.string.no_patients_title),
+                            icon = Icons.Outlined.PersonAdd,
                             message = stringResource(R.string.add_first_patient_message),
                         )
                     }
@@ -313,25 +319,19 @@ private fun PersistentAddButton(
     pulse: Boolean = false,
 ) {
     val colors = Theme.colors
-    Button(
+    PrimaryActionButton(
+        label = label,
+        icon = Icons.Outlined.Add,
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(top = 8.dp, bottom = 12.dp)
-            .tutorialPulse(pulse),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = colors.accentFill,
-            contentColor = colors.textOnAccent,
-        ),
-    ) {
-        Text(label)
-    }
+        modifier = Modifier.padding(horizontal = 24.dp)
+            .padding(top = 8.dp, bottom = 12.dp).tutorialPulse(pulse),
+    )
 }
 
 @Composable
 private fun EmptyState(
     title: String,
+    icon: ImageVector,
     message: String,
     action: String? = null,
     onAction: (() -> Unit)? = null,
@@ -343,6 +343,8 @@ private fun EmptyState(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Icon(icon, contentDescription = null, tint = colors.textBody, modifier = Modifier.size(48.dp))
+        Spacer(Modifier.height(12.dp))
         Text(title, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         Spacer(Modifier.height(8.dp))
         Text(message, color = colors.textBody)

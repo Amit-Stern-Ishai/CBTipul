@@ -1,5 +1,8 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.cbtipul.app.ui.theme.editorFocus
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -98,7 +101,7 @@ fun DeleteCodeDialog(
         OutlinedTextField(
             value = input,
             onValueChange = { input = it.uppercase() },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.editorFocus().fillMaxWidth(),
             singleLine = true,
             textStyle = TextStyle(
                 color = colors.textBright,
@@ -205,7 +208,7 @@ fun AppDialogOverlay(
             color = colors.elevated,
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 content = content,
             )

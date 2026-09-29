@@ -1,5 +1,11 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.Icons
+import com.cbtipul.app.ui.theme.IconLabel
+import com.cbtipul.app.ui.theme.popScreen
+import com.cbtipul.app.ui.theme.AppMotion
+import androidx.compose.ui.platform.LocalLayoutDirection
 import android.app.Activity
 import android.content.Intent
 import androidx.compose.foundation.layout.Box
@@ -123,7 +129,15 @@ fun PatientsNavHost(
             onDismissCoach = { viewModel.dismissCoach() },
             onSkipToShowcase = { viewModel.skipToShowcaseData() },
         ) {
-            NavHost(navController = navController, startDestination = "list") {
+            val navigationDirection = LocalLayoutDirection.current
+            NavHost(
+                navController = navController,
+                startDestination = "list",
+                enterTransition = { AppMotion.enter(navigationDirection) },
+                exitTransition = { AppMotion.exit(navigationDirection) },
+                popEnterTransition = { AppMotion.enter(navigationDirection, back = true) },
+                popExitTransition = { AppMotion.exit(navigationDirection, back = true) },
+            ) {
         composable("list") {
             PatientListScreen(
                 viewModel = viewModel,
@@ -137,10 +151,10 @@ fun PatientsNavHost(
             AddPatientScreen(
                 isSaving = ui.isSavingAdd,
                 errorMessage = ui.addError,
-                onCancel = { if (!ui.isSavingAdd) navController.popBackStack() },
+                onCancel = { if (!ui.isSavingAdd) navController.popScreen() },
                 onSave = { first, last, status ->
                     viewModel.addPatient(first, last, status, notConfigured, rejected) {
-                        navController.popBackStack()
+                        navController.popScreen()
                     }
                 },
                 gettingStarted = viewModel.gettingStarted,
@@ -161,7 +175,7 @@ fun PatientsNavHost(
             PatientDetailScreen(
                 patient = patient,
                 unnamed = unnamed,
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
                 onRename = { first, last ->
                     patient?.let { viewModel.rename(it.id, first, last) }
                 },
@@ -260,7 +274,7 @@ fun PatientsNavHost(
                         sessionNotSaved,
                         anonymizationFailed,
                     ) {
-                        if (leave) navController.popBackStack()
+                        if (leave) navController.popScreen()
                     }
                 },
                 onTranscribe = { file, existing, onNotes, onDone ->
@@ -287,7 +301,7 @@ fun PatientsNavHost(
                     val databaseId: DatabaseId? = patient?.id
                     if (databaseId != null) {
                         viewModel.delete(databaseId, notConfigured, rejected) {
-                            navController.popBackStack()
+                            navController.popScreen()
                         }
                     }
                 },
@@ -308,7 +322,7 @@ fun PatientsNavHost(
                 errorMessage = ui.sessionError,
                 onBack = {
                     viewModel.clearSessionError()
-                    navController.popBackStack()
+                    navController.popScreen()
                 },
                 onSave = { formulation ->
                     val databaseId = patient?.id ?: return@FormulationScreen
@@ -353,7 +367,7 @@ fun PatientsNavHost(
             FormulationSupervisionScreen(
                 result = ui.formulationSupervision,
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
             )
         }
         composable(
@@ -365,7 +379,7 @@ fun PatientsNavHost(
             WhatAmIMissingScreen(
                 result = ui.missingReview,
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
             )
         }
         composable(
@@ -377,7 +391,7 @@ fun PatientsNavHost(
             LongitudinalReviewScreen(
                 result = ui.longitudinalReview,
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
             )
         }
         composable(
@@ -390,7 +404,7 @@ fun PatientsNavHost(
                 patient = patient,
                 unnamed = unnamed,
                 questionnaires = questionnaires[id].orEmpty(),
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
                 onAdd = { navController.navigate("patient/$id/session/new") },
                 onOpenSession = { session ->
                     val sessionKey = session.databaseId?.queryValue ?: session.id.toString()
@@ -416,7 +430,7 @@ fun PatientsNavHost(
                 isLoading = ui.isLoadingQuestionnaires && questionnaires[id].isNullOrEmpty(),
                 loadError = ui.questionnairesError,
                 onRetry = { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } },
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
                 onOpen = { record ->
                     navController.navigate("patient/$id/questionnaire-result/${record.databaseId.queryValue}")
                 },
@@ -433,6 +447,7 @@ fun PatientsNavHost(
             val focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() }
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             if (patient == null) {
+                NotificationTargetScreen(onBack = { navController.popScreen() })
                 return@composable
             }
             TherapistDiaryOneScreen(
@@ -443,7 +458,7 @@ fun PatientsNavHost(
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 focusEntryId = focusEntryId,
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
             )
         }
         composable(
@@ -485,7 +500,7 @@ fun PatientsNavHost(
                 errorMessage = ui.sessionError,
                 onBack = {
                     viewModel.clearSessionError()
-                    navController.popBackStack()
+                    navController.popScreen()
                 },
                 onSave = { edited, leave ->
                     val patientId = patient?.id ?: return@SessionEditorScreen
@@ -500,7 +515,7 @@ fun PatientsNavHost(
                         anonymizationFailed,
                     ) {
                         viewModel.clearSessionError()
-                        navController.popBackStack()
+                        navController.popScreen()
                     }
                 },
                 onDelete = { edited ->
@@ -512,7 +527,7 @@ fun PatientsNavHost(
                         anonymizationFailed,
                     ) {
                         viewModel.clearSessionError()
-                        navController.popBackStack()
+                        navController.popScreen()
                     }
                 },
                 onTranscribe = { file, existing, edited, onNotes, onDone ->
@@ -605,7 +620,7 @@ fun PatientsNavHost(
                 errorMessage = ui.sessionError,
                 onBack = {
                     viewModel.clearSessionError()
-                    navController.popBackStack()
+                    navController.popScreen()
                 },
                 onSave = { analysis ->
                     val target = session
@@ -620,12 +635,12 @@ fun PatientsNavHost(
                         ) {
                             editorDraft?.structuredNotes = analysis
                             viewModel.clearSessionError()
-                            navController.popBackStack()
+                            navController.popScreen()
                         }
                     } else {
                         editorDraft?.structuredNotes = analysis
                         viewModel.clearSessionError()
-                        navController.popBackStack()
+                        navController.popScreen()
                     }
                 },
                 onDiscard = {
@@ -634,7 +649,7 @@ fun PatientsNavHost(
                         viewModel.clearPendingAnalysis()
                     }
                     viewModel.clearSessionError()
-                    navController.popBackStack()
+                    navController.popScreen()
                 },
             )
         }
@@ -651,7 +666,7 @@ fun PatientsNavHost(
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 isOutdated = patient != null && saved != null &&
                     viewModel.isPreparationOutdated(patient, saved.generatedAtMillis),
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
             )
         }
         composable(
@@ -668,7 +683,7 @@ fun PatientsNavHost(
                 errorMessage = ui.sessionError,
                 onBack = {
                     viewModel.clearSessionError()
-                    navController.popBackStack()
+                    navController.popScreen()
                 },
                 onSend = { system, turns, onAnswer, onDone ->
                     viewModel.sendChat(
@@ -713,7 +728,7 @@ fun PatientsNavHost(
                 errorMessage = ui.sessionError,
                 onBack = {
                     viewModel.clearSessionError()
-                    navController.popBackStack()
+                    navController.popScreen()
                 },
                 onSave = { filled ->
                     val patientId = patient?.id ?: return@QuestionnaireScreen
@@ -728,7 +743,7 @@ fun PatientsNavHost(
                         anonymizationFailed,
                     ) {
                         viewModel.clearSessionError()
-                        navController.popBackStack()
+                        navController.popScreen()
                     }
                 },
                 onDelete = {
@@ -743,7 +758,7 @@ fun PatientsNavHost(
                         anonymizationFailed,
                     ) {
                         viewModel.clearSessionError()
-                        navController.popBackStack()
+                        navController.popScreen()
                     }
                 },
                 gettingStarted = viewModel.gettingStarted,
@@ -763,6 +778,17 @@ fun PatientsNavHost(
             val records = questionnaires[id].orEmpty()
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             val record = records.firstOrNull { it.databaseId.matches(moodId) }
+            if (moodId != "new" && record == null) {
+                NotificationTargetScreen(
+                    onBack = { navController.popScreen() },
+                    loading = patient != null && ui.isLoadingQuestionnaires,
+                    error = ui.questionnairesError,
+                    onRetry = patient?.let { current ->
+                        { viewModel.loadQuestionnaires(current.id, notConfigured, rejected) }
+                    },
+                )
+                return@composable
+            }
             val session = record?.sessionId?.let { sid ->
                 viewModel.session(id, sid.queryValue) ?: Session(databaseId = sid, date = record.answeredDate)
             } ?: record?.let { Session(date = it.answeredDate) } ?: if (moodId == "new") remember { Session() } else null
@@ -775,7 +801,7 @@ fun PatientsNavHost(
                 errorMessage = ui.sessionError,
                 onBack = {
                     viewModel.clearSessionError()
-                    navController.popBackStack()
+                    navController.popScreen()
                 },
                 onSave = { filled ->
                     val patientId = patient?.id ?: return@QuestionnaireScreen
@@ -784,7 +810,7 @@ fun PatientsNavHost(
                         filled, patientId, target, notConfigured, rejected, sessionNotSaved, anonymizationFailed, recordId = record?.databaseId,
                     ) {
                         viewModel.clearSessionError()
-                        navController.popBackStack()
+                        navController.popScreen()
                     }
                 },
                 onDelete = {
@@ -794,7 +820,7 @@ fun PatientsNavHost(
                         patientId, target, notConfigured, rejected, sessionNotSaved, anonymizationFailed, recordId = record?.databaseId,
                     ) {
                         viewModel.clearSessionError()
-                        navController.popBackStack()
+                        navController.popScreen()
                     }
                 },
                 gettingStarted = viewModel.gettingStarted,
@@ -844,7 +870,7 @@ fun PatientsNavHost(
                         } finally { sending = false }
                     }
                 },
-                onBack = { if (!sending) navController.popBackStack() },
+                onBack = { if (!sending) navController.popScreen() },
             )
         }
         composable(
@@ -868,13 +894,13 @@ fun PatientsNavHost(
                     when (connection) {
                         ConnectionUi.Connected -> androidx.compose.material3.Button(
                             onClick = { navController.navigate("patient/$id/message-compose") }, modifier = Modifier.fillMaxWidth(),
-                        ) { Text(stringResource(R.string.send_patient_message_action)) }
+                        ) { IconLabel(stringResource(R.string.send_patient_message_action), Icons.Outlined.EditNote) }
                         ConnectionUi.Checking -> Text(stringResource(R.string.patient_connection_checking))
                         ConnectionUi.Failed -> androidx.compose.material3.TextButton(onClick = refreshConnection) { Text(stringResource(R.string.retry_action)) }
                         else -> Text(stringResource(if (isDemoMode) R.string.messages_demo_unavailable else R.string.messages_require_connection))
                     }
                 },
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
                 onOpen = { navController.navigate("patient/$id/messages/${it.id}") },
             )
         }
@@ -891,7 +917,7 @@ fun PatientsNavHost(
                 recipient = viewModel.patient(patientId)?.displayName(unnamed).orEmpty(),
                 load = { app.messages.message(messageId) },
                 showNoReply = false,
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popScreen() },
             )
         }
             }

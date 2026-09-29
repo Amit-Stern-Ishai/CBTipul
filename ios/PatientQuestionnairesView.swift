@@ -16,6 +16,7 @@ struct PatientQuestionnairesView: View {
     /// expensive first layout doesn't happen mid-transition and jitter.
     @State private var isPreparingGraphs = true
     @State private var presentedQuestionnaireID: DatabaseID?
+    @State private var didConsumeNotificationFocus = false
 
     /// Selects the graph destination instead of questionnaire history.
     private let startsOnGraphs: Bool
@@ -52,8 +53,8 @@ struct PatientQuestionnairesView: View {
 
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .animation(.easeInOut(duration: 0.25), value: isLoading)
-                .animation(.easeInOut(duration: 0.25), value: isPreparingGraphs)
+                .subtleAnimation(value: isLoading)
+                .subtleAnimation(value: isPreparingGraphs)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !startsOnGraphs {
@@ -95,6 +96,11 @@ struct PatientQuestionnairesView: View {
                     previous: previousQuestionnaire(before: record),
                     accent: patientColor
                 )
+            } else {
+                ContentUnavailableView {
+                    Label(L10n.notificationTargetUnavailable, systemImage: "doc.questionmark")
+                }
+                .themedScreen()
             }
         }
     }
@@ -252,9 +258,10 @@ struct PatientQuestionnairesView: View {
     }
 
     private func attemptFocusIfNeeded() {
-        guard let focusQuestionnaireID else { return }
+        guard let focusQuestionnaireID, !didConsumeNotificationFocus else { return }
         if let match = questionnaires.first(where: { $0.databaseID.isSameIdentity(as: focusQuestionnaireID) }) {
             if presentedQuestionnaireID == nil {
+                didConsumeNotificationFocus = true
                 presentedQuestionnaireID = match.databaseID
                 #if DEBUG
                 AppLog.store.debug(

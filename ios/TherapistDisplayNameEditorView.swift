@@ -72,7 +72,7 @@ struct TherapistDisplayNameEditorView: View {
         }
         .themedScreen()
         .dismissesKeyboardOnTap()
-        .animation(.easeInOut(duration: 0.2), value: errorMessage)
+        .subtleAnimation(value: errorMessage)
         .navigationTitle(L10n.therapistDisplayNamePromptTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

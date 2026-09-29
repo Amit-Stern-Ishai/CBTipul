@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.theme.editorScroll
+import com.cbtipul.app.ui.theme.editorFocus
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -89,7 +91,7 @@ fun AddPatientScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .verticalScroll(rememberScrollState())
+                    .editorScroll()
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -114,14 +116,14 @@ fun AddPatientScreen(
                         value = first,
                         onValueChange = { first = it },
                         placeholder = { Text(stringResource(R.string.first_name_placeholder)) },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.editorFocus().fillMaxWidth(),
                         enabled = !isSaving,
                     )
                     OutlinedTextField(
                         value = last,
                         onValueChange = { last = it },
                         placeholder = { Text(stringResource(R.string.last_name_placeholder)) },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        modifier = Modifier.editorFocus().fillMaxWidth().padding(top = 8.dp),
                         enabled = !isSaving,
                     )
                     ExposedDropdownMenuBox(

@@ -3,6 +3,36 @@ import Testing
 @testable import CBTipul
 
 struct NotificationRoutingTests {
+    @MainActor @Test func inboxJourneyReturnsToInboxAndCanBeOpenedAgain() {
+        let coordinator = TherapistNotificationCoordinator.shared
+        coordinator.resetOnLogout()
+        defer { coordinator.resetOnLogout() }
+        let patient = Patient(id: .text("inbox-patient"))
+        let item = AppNotification(
+            id: UUID(), type: .questionnaireCompleted,
+            patientId: "inbox-patient", sessionId: nil, assignmentId: nil,
+            resourceType: "questionnaire", resourceId: "42",
+            createdAt: Date(), seenAt: nil, readAt: nil
+        )
+        coordinator.selectedTab = .notifications
+        coordinator.handleInboxTap(item, patients: [patient])
+        #expect(coordinator.selectedTab == .patients)
+        #expect(coordinator.consumePatientNavigation()?.questionnairesRoute?.focusQuestionnaireID == .integer(42))
+        coordinator.finishInboxNavigation()
+        #expect(coordinator.selectedTab == .notifications)
+        #expect(!coordinator.returnsToInbox)
+        coordinator.handleInboxTap(item, patients: [patient])
+        #expect(coordinator.consumePatientNavigation() != nil)
+        coordinator.cancelInboxReturn()
+        coordinator.finishInboxNavigation()
+        #expect(coordinator.selectedTab == .patients)
+        coordinator.handleInboxTap(item, patients: [])
+        #expect(coordinator.selectedTab == .notifications)
+        #expect(coordinator.unavailableTarget)
+        #expect(coordinator.consumePatientNavigation() == nil)
+        #expect(!coordinator.returnsToInbox)
+    }
+
     @Test func unknownTypeDoesNotCrashAndDoesNotRoute() {
         let payload = AppNotificationPayload.from(userInfo: [
             "type": "diary_entry_submitted",

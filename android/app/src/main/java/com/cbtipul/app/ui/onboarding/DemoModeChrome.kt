@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.onboarding
 
+import androidx.compose.material.icons.outlined.RecentActors
+import com.cbtipul.app.ui.theme.IconLabel
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -61,7 +63,7 @@ fun DemoModeBanner(
     val colors = Theme.colors
     Row(modifier.fillMaxWidth().background(colors.surface).padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.demo_mode_banner_title), color = colors.gold,
+        IconLabel(stringResource(R.string.demo_mode_banner_title), Icons.Outlined.RecentActors, color = colors.gold,
             fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
         TextButton(onClick = onExit) { Text(stringResource(R.string.demo_mode_exit_short), color = colors.gold) }
     }

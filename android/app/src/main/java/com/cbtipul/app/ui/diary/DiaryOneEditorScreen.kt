@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.diary
 
+import com.cbtipul.app.ui.theme.editorScroll
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -185,7 +186,7 @@ fun DiaryOneEditorScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .verticalScroll(rememberScrollState())
+                    .editorScroll()
                     .padding(horizontal = 20.dp)
                     .padding(top = 12.dp, bottom = 28.dp),
             ) {

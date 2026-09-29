@@ -12,6 +12,30 @@ class AppNotificationTest {
     private val patient = "22222222-2222-2222-2222-222222222222"
 
     @Test
+    fun completedQuestionnaireHasAHistoryScreenToGoBackTo() {
+        assertEquals(
+            listOf("patient/$patient", "patient/$patient/questionnaires", "patient/$patient/questionnaire-result/42"),
+            NotificationRouting.therapistRoutes(AppDestination.QuestionnaireResult(patient, "42")),
+        )
+    }
+
+    @Test
+    fun questionnaireWithoutAValidResourceOpensHistory() {
+        assertEquals(
+            listOf("patient/$patient", "patient/$patient/questionnaires"),
+            NotificationRouting.therapistRoutes(AppDestination.QuestionnaireResult(patient, null)),
+        )
+    }
+
+    @Test
+    fun diaryNotificationKeepsThePatientAsItsParent() {
+        assertEquals(
+            listOf("patient/$patient", "patient/$patient/diary-one?entry=$uuid"),
+            NotificationRouting.therapistRoutes(AppDestination.DiaryOneEntry(patient, uuid)),
+        )
+    }
+
+    @Test
     fun seenAndReadAreIndependent() {
         val item = AppNotification(uuid, "patient_connected", patient, null, null, null, null, Date(), null, null)
         assertTrue(item.isUnseen)

@@ -1,5 +1,22 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material.icons.automirrored.outlined.Notes
+import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
+import androidx.compose.material.icons.outlined.FindInPage
+import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.filled.StopCircle
+import com.cbtipul.app.ui.theme.IconLabel
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import com.cbtipul.app.ui.theme.editorScroll
+import com.cbtipul.app.ui.theme.editorFocus
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -196,7 +213,6 @@ fun PatientDetailScreen(
             closeNotesAfterSave = false
         }
     }
-    val notesBringIntoView = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
     var isSendingQuestionnaire by remember { mutableStateOf(false) }
     var sendFeedbackTitle by remember { mutableStateOf<String?>(null) }
@@ -275,7 +291,7 @@ fun PatientDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .imePadding()
-                .verticalScroll(rememberScrollState())
+                .editorScroll()
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -318,24 +334,30 @@ fun PatientDetailScreen(
             PatientConnectionActions(patient, name, assignmentRepository, isDemo, busy || isCreatingInvitation, onInvitePatient, onSendMessage)
             Text(stringResource(R.string.patient_records_title), color = colors.textBody)
             GroupedListCard(accent = accent) {
-                IconChipRow(Icons.Outlined.DateRange, stringResource(R.string.sessions_title), onClick = onOpenSessions)
+                IconChipRow(Icons.Outlined.DateRange, stringResource(R.string.sessions_title), detail = stringResource(R.string.patient_sessions_description), onClick = onOpenSessions)
                 GroupedListDivider()
-                IconChipRow(Icons.Outlined.MenuBook, stringResource(R.string.patient_diaries_title),
-                    trailing = { Icon(if (diariesExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown, contentDescription = null) },
+                IconChipRow(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title),
+                    trailing = { Icon(if (diariesExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = colors.gold) },
                     onClick = { diariesExpanded = !diariesExpanded })
-                if (diariesExpanded) {
-                    IconChipRow(Icons.Outlined.MenuBook, stringResource(R.string.diary_one_title), onClick = onOpenDiaryOne)
-                    Text(stringResource(R.string.diary_two_title) + " · " + stringResource(R.string.coming_soon), color = colors.textFaint, modifier = Modifier.padding(16.dp))
-                    Text(stringResource(R.string.diary_three_title) + " · " + stringResource(R.string.coming_soon), color = colors.textFaint, modifier = Modifier.padding(16.dp))
+                AnimatedVisibility(
+                    visible = diariesExpanded,
+                    enter = expandVertically(tween(180)) + fadeIn(tween(180)),
+                    exit = shrinkVertically(tween(180)) + fadeOut(tween(120)),
+                ) {
+                    Column {
+                    IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_one_title), onClick = onOpenDiaryOne)
+                    IconLabel(stringResource(R.string.diary_two_title) + " · " + stringResource(R.string.coming_soon), Icons.Outlined.Book, color = colors.textFaint, modifier = Modifier.padding(16.dp))
+                    IconLabel(stringResource(R.string.diary_three_title) + " · " + stringResource(R.string.coming_soon), Icons.Outlined.Book, color = colors.textFaint, modifier = Modifier.padding(16.dp))
+                    }
                 }
                 GroupedListDivider()
-                IconChipRow(Icons.Outlined.Description, stringResource(R.string.questionnaire_history_title), onClick = onOpenQuestionnaires)
+                IconChipRow(Icons.Outlined.Assignment, stringResource(R.string.questionnaire_history_title), detail = stringResource(R.string.patient_questionnaires_description), onClick = onOpenQuestionnaires)
                 GroupedListDivider()
-                IconChipRow(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), onClick = onOpenGraphs)
+                IconChipRow(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), detail = stringResource(R.string.patient_graphs_description), onClick = onOpenGraphs)
                 GroupedListDivider()
                 IconChipRow(Icons.Outlined.MailOutline, stringResource(R.string.messages_title), onClick = onOpenMessages)
                 GroupedListDivider()
-                IconChipRow(Icons.Outlined.Edit, stringResource(R.string.patient_notes_title), onClick = { showNotes = true })
+                IconChipRow(Icons.AutoMirrored.Outlined.Notes, stringResource(R.string.patient_notes_title), detail = stringResource(R.string.patient_notes_description), onClick = { showNotes = true })
             }
             Text(stringResource(R.string.additional_assistance_title), color = colors.textBody)
             GroupedListCard(accent = accent) {
@@ -345,7 +367,7 @@ fun PatientDetailScreen(
                     trailing = { if (isPreparing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) }, onClick = onPrepare)
                 if (savedPreparationDate != null) {
                     GroupedListDivider()
-                    IconChipRow(Icons.Outlined.Description, stringResource(R.string.last_preparation_action), trailing = {
+                    IconChipRow(Icons.Outlined.FindInPage, stringResource(R.string.last_preparation_action), trailing = {
                         Column(horizontalAlignment = Alignment.End) {
                             Text(savedPreparationDate, color = colors.textBody, fontSize = 12.sp)
                             if (isPreparationOutdated) Text(stringResource(R.string.outdated_badge), color = colors.warning, fontSize = 11.sp)
@@ -359,7 +381,6 @@ fun PatientDetailScreen(
             Text(stringResource(R.string.notes_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             GroupedListCard(
                 accent = accent,
-                modifier = Modifier.bringIntoViewRequester(notesBringIntoView),
             ) {
                 val pending = recorder.recordingFile != null && !isTranscribing && !isAnonymizingTranscription
                 Column(
@@ -373,14 +394,6 @@ fun PatientDetailScreen(
                         placeholder = stringResource(R.string.patient_notes_field_placeholder),
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !busy,
-                        onFocusChanged = { focused ->
-                            if (focused) {
-                                scope.launch {
-                                    delay(300)
-                                    notesBringIntoView.bringIntoView()
-                                }
-                            }
-                        },
                     )
                     if (recorder.isRecording) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -389,12 +402,12 @@ fun PatientDetailScreen(
                                 recorder.stopRecording()
                                 transcribePending()
                             }) {
-                                Text(stringResource(R.string.stop_and_transcribe_action), color = colors.error)
+                                IconLabel(stringResource(R.string.stop_and_transcribe_action), Icons.Filled.StopCircle, color = colors.error)
                             }
                         }
                     } else {
                         TextButton(onClick = { startMic() }, enabled = !busy && recorder.recordingFile == null) {
-                            Text(stringResource(R.string.record_patient_notes_action), color = colors.gold)
+                            IconLabel(stringResource(R.string.record_patient_notes_action), Icons.Filled.Mic, color = colors.gold)
                         }
                     }
                 }
@@ -530,11 +543,7 @@ fun PatientDetailScreen(
 
 @Composable
 private fun BoxMissing(onBack: () -> Unit) {
-    val colors = Theme.colors
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Text(stringResource(R.string.unnamed_patient), color = colors.textBright)
-        TextButton(onClick = onBack) { Text(stringResource(R.string.back), color = colors.gold) }
-    }
+    NotificationTargetScreen(onBack = onBack)
 }
 
 @Composable
@@ -542,7 +551,8 @@ private fun IconChipRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     enabled: Boolean = true,
-    trailing: @Composable () -> Unit = {},
+    detail: String? = null,
+    trailing: @Composable () -> Unit = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = Theme.colors.textFaint) },
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -563,7 +573,10 @@ private fun IconChipRow(
         ) {
             Icon(icon, contentDescription = null, tint = colors.gold, modifier = Modifier.size(18.dp))
         }
-        Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+            detail?.let { Text(it, color = colors.textBody, style = MaterialTheme.typography.bodyMedium) }
+        }
         trailing()
     }
 }
@@ -593,7 +606,7 @@ private fun EditGoalOverlay(
             color = colors.elevated,
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
@@ -604,7 +617,7 @@ private fun EditGoalOverlay(
                 OutlinedTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.editorFocus().fillMaxWidth(),
                     minLines = 2,
                     textStyle = TextStyle(
                         color = colors.textBright,
@@ -651,7 +664,7 @@ private fun RenameDialog(
         OutlinedTextField(
             value = first,
             onValueChange = { first = it },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.editorFocus().fillMaxWidth(),
             textStyle = TextStyle(
                 color = Theme.colors.textBright,
                 textDirection = TextDirection.Rtl,
@@ -668,7 +681,7 @@ private fun RenameDialog(
         OutlinedTextField(
             value = last,
             onValueChange = { last = it },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.editorFocus().fillMaxWidth(),
             textStyle = TextStyle(
                 color = Theme.colors.textBright,
                 textDirection = TextDirection.Rtl,

@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.theme.PrimaryActionButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -224,25 +225,13 @@ fun PatientSessionsScreen(
                     }
                 }
             }
-            Button(
+            PrimaryActionButton(
+                label = stringResource(if (sorted.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action),
+                icon = Icons.Outlined.Add,
                 onClick = onAdd,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(top = 8.dp, bottom = 12.dp)
+                modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp)
                     .tutorialPulse(pulseAddSession),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.accentFill,
-                    contentColor = colors.textOnAccent,
-                ),
-            ) {
-                Text(
-                    stringResource(
-                        if (sorted.isEmpty()) R.string.empty_sessions_primary_action
-                        else R.string.add_session_action,
-                    ),
-                )
-            }
+            )
         }
     }
 }

@@ -1,5 +1,12 @@
 package com.cbtipul.app.ui.patient
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.MailOutline
+import com.cbtipul.app.ui.theme.IconLabel
+import com.cbtipul.app.ui.theme.popScreen
+import com.cbtipul.app.ui.theme.AppMotion
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -131,7 +138,15 @@ fun PatientModeScreen(
         }
     }
 
-    NavHost(navController = nav, startDestination = "home") {
+    val navigationDirection = LocalLayoutDirection.current
+    NavHost(
+        navController = nav,
+        startDestination = "home",
+        enterTransition = { AppMotion.enter(navigationDirection) },
+        exitTransition = { AppMotion.exit(navigationDirection) },
+        popEnterTransition = { AppMotion.enter(navigationDirection, back = true) },
+        popExitTransition = { AppMotion.exit(navigationDirection, back = true) },
+    ) {
         composable("home") {
             PatientHomeContent(
                 loadState = loadState,
@@ -154,7 +169,7 @@ fun PatientModeScreen(
                     didSubmitQuestionnaire = true
                 },
                 onBack = {
-                    nav.popBackStack()
+                    nav.popScreen()
                     scope.launch { reload() }
                 },
             )
@@ -168,7 +183,7 @@ fun PatientModeScreen(
                     reload()
                 },
                 onDiaryInactive = { scope.launch { reload() } },
-                onBack = { nav.popBackStack() },
+                onBack = { nav.popScreen() },
             )
         }
         composable("messages") {
@@ -181,7 +196,7 @@ fun PatientModeScreen(
                 },
                 emptyText = stringResource(R.string.patient_messages_empty),
                 showReadState = false,
-                onBack = { nav.popBackStack() },
+                onBack = { nav.popScreen() },
                 onOpen = { nav.navigate("message/${it.id}") },
             )
         }
@@ -194,7 +209,7 @@ fun PatientModeScreen(
                     messages = messages.map { item -> if (item.id == it.id) item.markedRead(Date()) else item }
                 },
                 showNoReply = true,
-                onBack = { nav.popBackStack() },
+                onBack = { nav.popScreen() },
             )
         }
     }
@@ -289,12 +304,15 @@ private fun PatientHomeContent(
                     }
                     Text(stringResource(R.string.patient_messages_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
                     if (unread.isEmpty()) {
-                        Text(stringResource(if (messages.isEmpty()) R.string.patient_messages_empty else R.string.no_new_messages), color = colors.textBody, fontSize = 14.sp)
+                        IconLabel(stringResource(if (messages.isEmpty()) R.string.patient_messages_empty else R.string.no_new_messages), Icons.Outlined.MailOutline, color = colors.textBody, fontSize = 14.sp)
                     } else {
                         previews.forEach { message ->
                             GroupedListCard(accent = colors.gold) {
                                 Column(Modifier.fillMaxWidth().clickable { onOpenMessage(message.id) }.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(message.body, color = colors.textBright, fontWeight = FontWeight.SemiBold, maxLines = 3)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(message.body, color = colors.textBright, fontWeight = FontWeight.SemiBold, maxLines = 3, modifier = Modifier.weight(1f))
+                                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
+                                    }
                                     Text(hebrewDateTime(message.createdAt), color = colors.textFaint, fontSize = 13.sp)
                                 }
                             }
@@ -315,6 +333,7 @@ private fun PatientHomeContent(
                                 else stringResource(R.string.all_messages_action_with_count, unread.size),
                                 color = colors.gold,
                             )
+                            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.gold)
                         }
                     }
                 }

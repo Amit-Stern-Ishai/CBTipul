@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.diary
 
+import androidx.compose.material.icons.outlined.RemoveCircleOutline
+import com.cbtipul.app.ui.theme.editorFocus
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -89,7 +91,7 @@ fun DiaryFeelingsEditor(
                             onClick = { onChange(drafts.filterNot { it.id == draft.id }) },
                         ) {
                             Icon(
-                                Icons.Outlined.Remove,
+                                Icons.Outlined.RemoveCircleOutline,
                                 contentDescription = stringResource(R.string.diary_remove_feeling),
                                 tint = colors.textBody,
                             )
@@ -264,7 +266,7 @@ private fun DiaryFeelingPickerSheet(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.editorFocus().fillMaxWidth(),
                 singleLine = true,
                 placeholder = {
                     Text(stringResource(R.string.diary_feeling_search), color = colors.textFaint)
@@ -318,7 +320,7 @@ private fun DiaryFeelingPickerSheet(
                                     customText = it
                                     customError = null
                                 },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.editorFocus().fillMaxWidth(),
                                 singleLine = true,
                                 placeholder = {
                                     Text(

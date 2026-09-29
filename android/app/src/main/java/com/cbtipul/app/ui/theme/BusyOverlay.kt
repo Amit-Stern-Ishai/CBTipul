@@ -1,5 +1,9 @@
 package com.cbtipul.app.ui.theme
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -21,8 +25,8 @@ fun BusyOverlay(
     isBusy: Boolean,
     label: String? = null,
 ) {
-    if (!isBusy) return
     val colors = Theme.colors
+    AnimatedVisibility(visible = isBusy, enter = fadeIn(tween(180)), exit = fadeOut(tween(120))) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
@@ -40,5 +44,6 @@ fun BusyOverlay(
                 Text(label, color = colors.textBody, fontSize = 13.sp)
             }
         }
+    }
     }
 }

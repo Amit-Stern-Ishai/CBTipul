@@ -1,5 +1,11 @@
 package com.cbtipul.app.ui.settings
 
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.RecentActors
+import com.cbtipul.app.ui.theme.editorScroll
+import com.cbtipul.app.ui.theme.editorFocus
 import android.annotation.SuppressLint
 import android.view.View
 import android.view.ViewGroup
@@ -179,7 +185,7 @@ fun SettingsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .editorScroll()
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
@@ -187,7 +193,7 @@ fun SettingsScreen(
                         SettingsRow(
                             title = stringResource(R.string.getting_started_guide_settings_title),
                             subtitle = null,
-                            icon = Icons.Outlined.Assignment,
+                            icon = Icons.Outlined.RecentActors,
                             onClick = onGettingStartedGuide,
                         )
                     }
@@ -423,6 +429,9 @@ internal fun SettingsRow(
                     maxLines = 1,
                 )
             }
+            if (icon != null && clickable && !external && !selected) {
+                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint, modifier = Modifier.padding(start = 8.dp).size(18.dp))
+            }
         }
     }
 }
@@ -479,7 +488,7 @@ fun AppearancePicker(selected: AppAppearance, onSelect: (AppAppearance) -> Unit,
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(label, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                        if (selected == option) Icon(Icons.Outlined.Check, contentDescription = null, tint = colors.gold, modifier = Modifier.size(20.dp))
+                        Icon(if (selected == option) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked, contentDescription = null, tint = colors.gold, modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -633,7 +642,7 @@ private fun DisplayNameEditor(
                     OutlinedTextField(
                         value = draft,
                         onValueChange = { draft = it },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.editorFocus().fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                         enabled = !isLoading && !isSaving,
                         singleLine = true,
                         placeholder = {

@@ -1,5 +1,11 @@
 package com.cbtipul.app.ui.auth
 
+import androidx.compose.material.icons.outlined.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.WarningAmber
+import com.cbtipul.app.ui.theme.IconLabel
+import com.cbtipul.app.ui.theme.editorFocus
+import com.cbtipul.app.ui.theme.editorScroll
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -79,7 +85,7 @@ fun AuthScreen(
         modifier = Modifier
             .themedScreen(colors.gold)
             .dismissKeyboardOnTap()
-            .verticalScroll(rememberScrollState())
+            .editorScroll()
             .padding(24.dp)
             .padding(top = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -222,13 +228,13 @@ private fun AuthCard(
                 state.confirmPassword.length >= state.password.length &&
                 state.password != state.confirmPassword
             ) {
-                Text(stringResource(R.string.passwords_dont_match_error), color = colors.error, fontSize = 13.sp)
+                IconLabel(stringResource(R.string.passwords_dont_match_error), Icons.Outlined.WarningAmber, color = colors.error, fontSize = 13.sp)
             }
         }
 
-        state.errorMessage?.let { Text(it, color = colors.error, fontSize = 13.sp) }
-        callbackError?.let { Text(it, color = colors.error, fontSize = 13.sp) }
-        state.infoMessage?.let { Text(it, color = colors.success, fontSize = 13.sp) }
+        state.errorMessage?.let { IconLabel(it, Icons.Outlined.WarningAmber, color = colors.error, fontSize = 13.sp) }
+        callbackError?.let { IconLabel(it, Icons.Outlined.WarningAmber, color = colors.error, fontSize = 13.sp) }
+        state.infoMessage?.let { IconLabel(it, Icons.Filled.CheckCircle, color = colors.success, fontSize = 13.sp) }
 
         Button(
             onClick = onSubmit,
@@ -293,8 +299,8 @@ private fun VerificationCard(
             color = colors.textBody,
             textAlign = TextAlign.Center,
         )
-        state.errorMessage?.let { Text(it, color = colors.error, fontSize = 13.sp) }
-        state.infoMessage?.let { Text(it, color = colors.success, fontSize = 13.sp) }
+        state.errorMessage?.let { IconLabel(it, Icons.Outlined.WarningAmber, color = colors.error, fontSize = 13.sp) }
+        state.infoMessage?.let { IconLabel(it, Icons.Filled.CheckCircle, color = colors.success, fontSize = 13.sp) }
         Button(
             onClick = onResend,
             enabled = !state.isWorking && !state.isResendBlocked,
@@ -351,7 +357,7 @@ private fun AuthField(
             else -> VisualTransformation.None
         },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        modifier = Modifier
+        modifier = Modifier.editorFocus()
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .border(1.dp, colors.gold.copy(alpha = 0.35f), RoundedCornerShape(14.dp)),
@@ -382,8 +388,8 @@ fun PasswordRulesChecklist(password: String) {
                     PasswordRule.Special -> R.string.password_rule_special
                 },
             )
-            Text(
-                text = title,
+            IconLabel(
+                text = title, icon = if (met) Icons.Filled.CheckCircle else Icons.Outlined.Cancel,
                 color = if (met) colors.success else colors.error,
                 fontSize = 13.sp,
             )

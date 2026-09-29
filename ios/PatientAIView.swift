@@ -77,9 +77,9 @@ struct PatientAIView: View {
                 emptyState
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: chatEntries.count)
-        .animation(.easeInOut(duration: 0.2), value: isLoading)
-        .animation(.easeInOut(duration: 0.2), value: errorMessage)
+        .subtleAnimation(value: chatEntries.count)
+        .subtleAnimation(value: isLoading)
+        .subtleAnimation(value: errorMessage)
         .safeAreaInset(edge: .bottom) {
             inputBar
         }

@@ -1,5 +1,9 @@
 package com.cbtipul.app.ui.forms
 
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.Icons
+import com.cbtipul.app.ui.theme.IconLabel
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Text
@@ -60,7 +64,8 @@ fun <T> rememberDeviceFormDraft(kind: String, target: String, serializer: KSeria
 @Composable
 fun DraftStatus(failed: Boolean, visible: Boolean = true) {
     if (!visible && !failed) return
-    Text(stringResource(if (failed) R.string.draft_save_failed else R.string.draft_saved),
+    IconLabel(stringResource(if (failed) R.string.draft_save_failed else R.string.draft_saved),
+        if (failed) Icons.Outlined.WarningAmber else Icons.Outlined.PhoneAndroid,
         color = if (failed) Theme.colors.error else Theme.colors.textBody)
 }
 

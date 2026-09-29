@@ -1,5 +1,21 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.filled.CheckCircle
+import com.cbtipul.app.ui.theme.IconLabel
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.MailOutline
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -56,16 +72,20 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
             when (connection) {
                 ConnectionUi.Checking -> Text(stringResource(R.string.patient_connection_checking), color = colors.textBody)
                 ConnectionUi.Connected -> {
-                    Text(stringResource(R.string.patient_connected_status), color = colors.textBody)
+                    IconLabel(stringResource(R.string.patient_connected_status), Icons.Filled.CheckCircle, color = colors.success)
                     TextButton(onClick = { sheet = "send" }, enabled = !busy && !sending) {
+                        Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.send_to_patient_action), fontWeight = FontWeight.SemiBold)
                     }
                 }
                 ConnectionUi.NotConnected, ConnectionUi.Unavailable -> {
                     TextButton(onClick = { sheet = "invite" }, enabled = !busy) {
+                        Icon(Icons.Outlined.PersonAdd, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.patient_invite_to_app_action), fontWeight = FontWeight.SemiBold)
                     }
-                    Text(stringResource(if (connection == ConnectionUi.Unavailable) R.string.patient_invitation_demo_status else R.string.patient_not_connected_status), color = colors.textBody)
+                    IconLabel(stringResource(if (connection == ConnectionUi.Unavailable) R.string.patient_invitation_demo_status else R.string.patient_not_connected_status), Icons.Outlined.Lock, color = colors.textBody)
                 }
                 ConnectionUi.Failed -> {
                     Text(stringResource(R.string.patient_connection_check_error), color = colors.textBody)
@@ -83,13 +103,13 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                 Text(stringResource(R.string.patient_connect_description))
                 if (connection == ConnectionUi.NotConnected) {
                     Text(stringResource(R.string.patient_share_invitation_explanation))
-                    Button(onClick = { sheet = null; onInvite() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.patient_share_invitation_action)) }
+                    Button(onClick = { sheet = null; onInvite() }, modifier = Modifier.fillMaxWidth()) { IconLabel(stringResource(R.string.patient_share_invitation_action), Icons.Outlined.Share) }
                 } else Text(stringResource(R.string.patient_invitation_unavailable_explanation))
                 Text(stringResource(R.string.patient_connection_optional_explanation))
             } else if (connection == ConnectionUi.Connected) {
                 Text(stringResource(R.string.patient_choose_send_action), fontWeight = FontWeight.Bold)
-                SendChoice(R.string.send_patient_message_action, R.string.patient_send_message_description, !sending) { sheet = null; onMessage() }
-                SendChoice(R.string.send_questionnaire_to_patient, R.string.patient_questionnaire_request_description, !sending) {
+                SendChoice(Icons.Outlined.MailOutline, R.string.send_patient_message_action, R.string.patient_send_message_description, !sending) { sheet = null; onMessage() }
+                SendChoice(Icons.Outlined.Assignment, R.string.send_questionnaire_to_patient, R.string.patient_questionnaire_request_description, !sending) {
                     sending = true
                     scope.launch {
                         try { repository!!.sendQuestionnaireAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!); feedback = sent }
@@ -98,7 +118,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                         finally { sending = false; sheet = null }
                     }
                 }
-                SendChoice(R.string.patient_enable_diary_one_action, R.string.patient_send_diary_one_description, !sending) {
+                SendChoice(Icons.Outlined.Book, R.string.patient_enable_diary_one_action, R.string.patient_send_diary_one_description, !sending) {
                     sending = true
                     scope.launch {
                         try { repository!!.activateOngoingAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!, PatientAssignmentType.DiaryOne); feedback = diarySent }
@@ -107,8 +127,8 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                         finally { sending = false; sheet = null }
                     }
                 }
-                Text(stringResource(R.string.diary_two_title) + " · " + stringResource(R.string.coming_soon), color = colors.textFaint)
-                Text(stringResource(R.string.diary_three_title) + " · " + stringResource(R.string.coming_soon), color = colors.textFaint)
+                IconLabel(stringResource(R.string.diary_two_title) + " · " + stringResource(R.string.coming_soon), Icons.Outlined.Book, color = colors.textFaint)
+                IconLabel(stringResource(R.string.diary_three_title) + " · " + stringResource(R.string.coming_soon), Icons.Outlined.Book, color = colors.textFaint)
             } else Text(stringResource(R.string.patient_not_connected_body))
             TextButton(onClick = { sheet = null }, enabled = !sending) { Text(stringResource(R.string.cancel)) }
         }
@@ -118,11 +138,16 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
 }
 
 @Composable
-private fun SendChoice(title: Int, description: Int, enabled: Boolean, onClick: () -> Unit) {
+private fun SendChoice(icon: ImageVector, title: Int, description: Int, enabled: Boolean, onClick: () -> Unit) {
     OutlinedCard(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(stringResource(title), fontWeight = FontWeight.SemiBold)
-            Text(stringResource(description), style = MaterialTheme.typography.bodyMedium)
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            Box(Modifier.size(40.dp).background(Theme.colors.goldGhost, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = Theme.colors.gold, modifier = Modifier.size(22.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(title), fontWeight = FontWeight.SemiBold)
+                Text(stringResource(description), style = MaterialTheme.typography.bodyMedium, color = Theme.colors.textBody)
+            }
         }
     }
 }

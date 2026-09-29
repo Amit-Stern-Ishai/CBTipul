@@ -43,8 +43,23 @@ class NotificationRepository(private val client: SupabaseClient) {
     val failed: StateFlow<Boolean> = _failed.asStateFlow()
 
     var isDemoInbox: Boolean = false
+    private var uiTestItems: List<AppNotification>? = null
+
+    internal fun seedUITestingNotifications(patientId: String, questionnaireId: String?) {
+        if (!com.cbtipul.app.BuildConfig.DEBUG || !isDemoInbox) return
+        fun item(type: String, resource: String?, id: String?, target: String = patientId) =
+            AppNotification(java.util.UUID.randomUUID().toString(), type, target, null, null,
+                resource, id, Date(), null, null)
+        uiTestItems = listOf(
+            item(AppNotificationTypes.QUESTIONNAIRE_COMPLETED, "questionnaire", questionnaireId),
+            item(AppNotificationTypes.PATIENT_CONNECTED, null, null),
+            item(AppNotificationTypes.DIARY_ONE_ENTRY_ADDED, null, null, "missing-test-patient"),
+        )
+        _items.value = uiTestItems.orEmpty()
+    }
 
     fun clear() {
+        uiTestItems = null
         _items.value = emptyList()
         _unseenCount.value = 0
         _failed.value = false
@@ -52,6 +67,10 @@ class NotificationRepository(private val client: SupabaseClient) {
     }
 
     suspend fun refresh() {
+        if (com.cbtipul.app.BuildConfig.DEBUG && isDemoInbox && uiTestItems != null) {
+            _items.value = uiTestItems.orEmpty()
+            return
+        }
         if (isDemoInbox || !SupabaseConfig.isConfigured) {
             clear()
             return

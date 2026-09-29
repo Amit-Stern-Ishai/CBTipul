@@ -409,6 +409,11 @@ extension UIColor {
 
 extension View {
 
+    /// State changes use one restrained timing and respect Reduce Motion.
+    func subtleAnimation<Value: Equatable>(value: Value) -> some View {
+        modifier(SubtleContentAnimation(value: value))
+    }
+
     /// Inline navigation title with a secondary subtitle line under it.
     ///
     /// Used instead of `navigationSubtitle` (iOS 26-only) so title/subtitle
@@ -449,5 +454,14 @@ extension View {
             RoundedRectangle(cornerRadius: cornerRadius)
                 .strokeBorder(Theme.borderFaint, lineWidth: 0.75)
         )
+    }
+}
+
+private struct SubtleContentAnimation<Value: Equatable>: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let value: Value
+
+    func body(content: Content) -> some View {
+        content.animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: value)
     }
 }

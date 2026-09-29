@@ -1,5 +1,11 @@
 package com.cbtipul.app.ui.messages
 
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Drafts
+import androidx.compose.material.icons.outlined.MailOutline
+import com.cbtipul.app.ui.theme.IconLabel
+import com.cbtipul.app.ui.theme.editorScroll
+import com.cbtipul.app.ui.theme.editorFocus
 import androidx.activity.compose.BackHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -121,14 +127,14 @@ fun TherapistMessageComposeScreen(
             }
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).editorScroll().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(stringResource(R.string.message_recipient, recipient), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             Text(stringResource(R.string.therapist_message_delivery_explanation), color = colors.textBody)
             com.cbtipul.app.ui.forms.DraftStatus(savedDraft.failed, savedDraft.hasSaved)
             OutlinedTextField(
                 value = draft,
                 onValueChange = { if (it.length <= PatientMessageDraft.MAX_LENGTH) savedDraft.value = it },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp),
+                modifier = Modifier.editorFocus().fillMaxWidth().heightIn(min = 160.dp),
                 enabled = !isSending && !didSubmit,
                 placeholder = { Text(stringResource(R.string.send_patient_message_placeholder)) },
             )
@@ -192,7 +198,7 @@ fun MessageListScreen(
                 TextButton(onClick = { scope.launch { reload() } }) { Text(stringResource(R.string.retry), color = colors.gold) }
             }
             items.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(emptyText, color = colors.textBody)
+                IconLabel(emptyText, Icons.Outlined.MailOutline, color = colors.textBody)
             }
             else -> LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp)) {
                 if (failed) item {
@@ -202,18 +208,20 @@ fun MessageListScreen(
                 itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
                     GroupedListCard(accent = colors.gold) {
                         Column {
-                            Row(Modifier.fillMaxWidth().clickable { onOpen(item) }.padding(16.dp)) {
+                            Row(Modifier.fillMaxWidth().clickable { onOpen(item) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(item.body, color = colors.textBright, fontWeight = if (item.isUnread) FontWeight.SemiBold else FontWeight.Normal, maxLines = 3)
                                     Text(hebrewDateTime(item.createdAt), color = colors.textFaint, fontSize = 13.sp)
                                     if (showReadState) {
-                                        Text(
+                                        IconLabel(
                                             stringResource(if (item.isUnread) R.string.sent_message_unread_status else R.string.sent_message_read_status),
+                                            icon = if (item.isUnread) Icons.Outlined.MailOutline else Icons.Outlined.Drafts,
                                             color = colors.textBody,
                                             fontSize = 13.sp,
                                         )
                                     }
                                 }
+                                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
                             }
                             if (index < items.lastIndex) GroupedListDivider()
                         }
@@ -280,11 +288,11 @@ fun PatientMessageDetailScreen(
             else -> {
                 val item = message!!
                 Column(
-                    Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp),
+                    Modifier.fillMaxSize().padding(padding).editorScroll().padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(if (showNoReply) stringResource(R.string.message_from_therapist) else stringResource(R.string.message_recipient, recipient), color = colors.textBody)
-                    if (!showNoReply) Text(stringResource(if (item.isUnread) R.string.sent_message_unread_status else R.string.sent_message_read_status), color = colors.textBody)
+                    if (!showNoReply) IconLabel(stringResource(if (item.isUnread) R.string.sent_message_unread_status else R.string.sent_message_read_status), if (item.isUnread) Icons.Outlined.MailOutline else Icons.Outlined.Drafts, color = colors.textBody)
                     Text(hebrewDateTime(item.createdAt), color = colors.textFaint, fontSize = 13.sp)
                     Text(item.body, color = colors.textBright, fontSize = 18.sp)
                     if (showNoReply) {

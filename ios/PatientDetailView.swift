@@ -472,9 +472,10 @@ struct PatientDetailView: View {
             ActivityShareSheet(items: [payload.text])
                 .presentationDetents([.medium])
         }
-        .animation(.easeInOut(duration: 0.2), value: errorMessage)
-        .animation(.easeInOut(duration: 0.2), value: isTranscribing)
-        .animation(.easeInOut(duration: 0.2), value: isAnonymizingTranscription)
+        .subtleAnimation(value: areDiariesExpanded)
+        .subtleAnimation(value: errorMessage)
+        .subtleAnimation(value: isTranscribing)
+        .subtleAnimation(value: isAnonymizingTranscription)
         .navigationDestination(isPresented: $isShowingSessions) {
             PatientSessionsView(patient: patient, initialAction: sessionsInitialAction)
         }

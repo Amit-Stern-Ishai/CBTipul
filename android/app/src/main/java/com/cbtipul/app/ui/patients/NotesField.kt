@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.theme.editorFocus
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -68,6 +69,7 @@ fun NotesField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
+            .editorFocus()
             .fillMaxWidth()
             .heightIn(min = minHeight, max = maxHeight)
             .verticalScroll(scrollState)

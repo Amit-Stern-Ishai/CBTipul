@@ -58,7 +58,7 @@ struct AuthView: View {
             }
             .contentShape(Rectangle())
             .dismissesKeyboardOnTap()
-            .animation(.easeInOut(duration: 0.2), value: verificationEmail)
+            .subtleAnimation(value: verificationEmail)
             .task {
                 // Hold Auth long enough for smoke to assert IDs, then inject demo.
                 guard AuthManager.isUITesting else { return }
@@ -151,8 +151,8 @@ struct AuthView: View {
         .overlay(RoundedRectangle(cornerRadius: 28)
             .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1))
         .shadow(color: .black.opacity(0.08), radius: 20, y: 12)
-        .animation(.easeInOut(duration: 0.2), value: errorMessage)
-        .animation(.easeInOut(duration: 0.2), value: infoMessage)
+        .subtleAnimation(value: errorMessage)
+        .subtleAnimation(value: infoMessage)
     }
 
     private var card: some View {
@@ -225,9 +225,9 @@ struct AuthView: View {
         .overlay(RoundedRectangle(cornerRadius: 28)
             .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1))
         .shadow(color: .black.opacity(0.08), radius: 20, y: 12)
-        .animation(.easeInOut(duration: 0.2), value: mode)
-        .animation(.easeInOut(duration: 0.2), value: errorMessage)
-        .animation(.easeInOut(duration: 0.2), value: infoMessage)
+        .subtleAnimation(value: mode)
+        .subtleAnimation(value: errorMessage)
+        .subtleAnimation(value: infoMessage)
         .onChange(of: mode) { confirmPassword = "" }
     }
 
@@ -401,7 +401,7 @@ private struct PasswordRulesChecklist: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .animation(.easeInOut(duration: 0.15), value: password)
+        .subtleAnimation(value: password)
     }
 }
 

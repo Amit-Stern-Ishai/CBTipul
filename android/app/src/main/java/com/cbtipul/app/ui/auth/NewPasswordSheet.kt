@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.auth
 
+import com.cbtipul.app.ui.theme.editorFocus
+import com.cbtipul.app.ui.theme.editorScroll
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -57,7 +59,7 @@ fun NewPasswordSheet(
             .fillMaxSize()
             .themedScreen(colors.gold)
             .dismissKeyboardOnTap()
-            .verticalScroll(rememberScrollState())
+            .editorScroll()
             .padding(24.dp)
             .patientAtmosphere(colors.gold),
     ) {
@@ -130,7 +132,7 @@ private fun PasswordField(value: String, onChange: (String) -> Unit, placeholder
         singleLine = true,
         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.editorFocus().fillMaxWidth(),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = colors.elevated,
             unfocusedContainerColor = colors.elevated,

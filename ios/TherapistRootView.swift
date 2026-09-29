@@ -54,6 +54,9 @@ struct TherapistRootView: View {
         .tint(Theme.gold)
         .toolbarBackground(.visible, for: .tabBar)
         .accessibilityIdentifier("therapist.root")
+        .onChange(of: coordinator.selectedTab) { _, tab in
+            if tab != .patients { coordinator.cancelInboxReturn() }
+        }
         .onChange(of: store.isDemoMode) { _, isDemo in
             coordinator.selectedTab = .patients
             guard isDemo else {

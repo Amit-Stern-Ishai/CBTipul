@@ -421,9 +421,9 @@ struct SessionEditorView: View {
             }
             .interactiveDismissDisabled(hasUnsavedChanges || isWorking)
             .busyOverlay(isSaving, label: busyLabel)
-            .animation(.easeInOut(duration: 0.2), value: errorMessage)
-            .animation(.easeInOut(duration: 0.2), value: isTranscribing)
-            .animation(.easeInOut(duration: 0.2), value: isAnonymizingTranscription)
+            .subtleAnimation(value: errorMessage)
+            .subtleAnimation(value: isTranscribing)
+            .subtleAnimation(value: isAnonymizingTranscription)
             .onAppear {
                 if initialDate == nil {
                     initialDate = session.date

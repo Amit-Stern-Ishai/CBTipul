@@ -93,6 +93,21 @@ sealed class AppDestination {
 }
 
 object NotificationRouting {
+    /** Root-to-leaf history; Back from a result should reveal its history screen. */
+    fun therapistRoutes(destination: AppDestination): List<String> = when (destination) {
+        is AppDestination.PatientDetail -> listOf("patient/${destination.patientId}")
+        is AppDestination.QuestionnaireResult -> buildList {
+            add("patient/${destination.patientId}")
+            add("patient/${destination.patientId}/questionnaires")
+            destination.moodId?.let { add("patient/${destination.patientId}/questionnaire-result/$it") }
+        }
+        is AppDestination.DiaryOneEntry -> listOf(
+            "patient/${destination.patientId}",
+            "patient/${destination.patientId}/diary-one" + (destination.entryId?.let { "?entry=$it" } ?: ""),
+        )
+        else -> emptyList()
+    }
+
     fun destination(payload: NotificationPayload): AppDestination? = when (payload.type) {
         AppNotificationTypes.PATIENT_CONNECTED ->
             payload.patientId?.let(AppDestination::PatientDetail)
