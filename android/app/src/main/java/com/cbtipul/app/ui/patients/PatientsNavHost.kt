@@ -486,9 +486,10 @@ fun PatientsNavHost(
             )
         }
         composable(
-            "patient/{id}/diary-three",
+            "patient/{id}/diary-three?entry={entry}",
             arguments = listOf(
                 navArgument("id") { type = NavType.StringType },
+                navArgument("entry") { type = NavType.StringType; defaultValue = ""; nullable = true },
             ),
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
@@ -502,6 +503,7 @@ fun PatientsNavHost(
                 patientName = patient.displayName(unnamed),
                 atmosphere = PatientAvatarColor.background(patient.id),
                 diary = app.diaryThree,
+                focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() },
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 onBack = { navController.popScreen() },

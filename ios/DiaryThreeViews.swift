@@ -4,6 +4,9 @@ import OSLog
 /// A patient's Diary 3 entries, newest first. Therapist-only for this step.
 struct PatientDiaryThreeView: View {
     let patient: Patient
+    var focusEntryID: UUID? = nil
+    @State private var consumedFocusID: UUID?
+    @State private var presentedEntryID: UUID?
 
     @Environment(DiaryThreeStore.self) private var diary
     @Environment(AuthManager.self) private var auth
@@ -78,6 +81,9 @@ struct PatientDiaryThreeView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             addDiaryEntryCTA
         }
+        .navigationDestination(item: $presentedEntryID) { id in
+            DiaryThreeEntryDetailView(patient: patient, entryID: id)
+        }
         .demoModeChrome()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -89,9 +95,16 @@ struct PatientDiaryThreeView: View {
                 }
             }
         }
-        .task(id: patient.id) {
+        .task(id: focusEntryID) {
+            if consumedFocusID != focusEntryID { presentedEntryID = nil }
             async let mode: Void = loadPatientModeState()
             await loadEntries()
+            if let focusEntryID, consumedFocusID != focusEntryID {
+                consumedFocusID = focusEntryID
+                if let entry = try? await diary.loadEntry(id: focusEntryID, patientId: patient.id) {
+                    presentedEntryID = entry.id
+                }
+            }
             await mode
         }
         .onChange(of: scenePhase) { _, phase in

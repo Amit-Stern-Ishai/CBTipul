@@ -257,7 +257,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return [.banner, .list, .sound]
         }
         PatientPushPersonalizer.apply(to: personalized)
-        if personalized.body == original.body, personalized.title == original.title {
+        if personalized.body == original.body, personalized.title == original.title, personalized.subtitle == original.subtitle {
             return [.banner, .list, .sound]
         }
         let request = UNNotificationRequest(

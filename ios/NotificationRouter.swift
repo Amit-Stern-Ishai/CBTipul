@@ -30,6 +30,11 @@ struct PatientDiaryTwoRoute: Hashable {
     let focusEntryID: UUID?
 }
 
+struct PatientDiaryThreeRoute: Hashable {
+    let patientID: DatabaseID
+    let focusEntryID: UUID?
+}
+
 /// Shared destination for push and persistent inbox taps.
 enum NotificationDestination: Equatable {
     /// Therapist Patients tab → patient → questionnaires → optional CombinedMood.
@@ -45,6 +50,7 @@ enum NotificationDestination: Equatable {
         resourceId: String?
     )
     case diaryTwoEntry(patientId: String, resourceType: String?, resourceId: String?)
+    case diaryThreeEntry(patientId: String, resourceType: String?, resourceId: String?)
     /// Therapist Patients tab → Patient Detail. No session/questionnaire.
     case patientDetail(patientId: String)
     /// Unknown, Patient Mode, or missing identifiers — do not navigate.
@@ -75,12 +81,15 @@ enum NotificationRouter {
         case .diaryTwoEntryAdded:
             guard let patientId = payload.patientId, !patientId.isEmpty else { return .none }
             return .diaryTwoEntry(patientId: patientId, resourceType: payload.resourceType, resourceId: payload.resourceId)
+        case .diaryThreeEntryAdded:
+            guard let patientId = payload.patientId, !patientId.isEmpty else { return .none }
+            return .diaryThreeEntry(patientId: patientId, resourceType: payload.resourceType, resourceId: payload.resourceId)
         case .patientConnected:
             guard let patientId = payload.patientId, !patientId.isEmpty else {
                 return .none
             }
             return .patientDetail(patientId: patientId)
-        case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .diaryTwoAssigned, .unknown:
+        case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .diaryTwoAssigned, .diaryThreeAssigned, .unknown:
             return .none
         }
     }
@@ -256,6 +265,16 @@ final class TherapistNotificationCoordinator {
                 token: UUID(), patientID: patient.id, questionnairesRoute: nil, diaryOneRoute: nil,
                 diaryTwoRoute: PatientDiaryTwoRoute(patientID: patient.id,
                     focusEntryID: DiaryTwoNotificationFocus.entryID(resourceType: resourceType, resourceId: resourceId)))
+        case .diaryThreeEntry(let patientId, let resourceType, let resourceId):
+            guard let patient = resolvedPatient(patientId: patientId, patients: patients,
+                fingerprint: fingerprint, waitForPatients: waitForPatients) else { return }
+            pendingPayload = nil
+            lastConsumedFingerprint = fingerprint
+            selectedTab = .patients
+            pendingPatientNavigation = PendingPatientNavigation(
+                token: UUID(), patientID: patient.id, questionnairesRoute: nil, diaryOneRoute: nil,
+                diaryThreeRoute: PatientDiaryThreeRoute(patientID: patient.id,
+                    focusEntryID: DiaryThreeNotificationFocus.entryID(resourceType: resourceType, resourceId: resourceId)))
         case .diaryOneEntry(let patientId, let resourceType, let resourceId):
             guard let patient = resolvedPatient(
                 patientId: patientId,
@@ -329,4 +348,5 @@ struct PendingPatientNavigation: Equatable {
     let questionnairesRoute: PatientQuestionnairesRoute?
     let diaryOneRoute: PatientDiaryOneRoute?
     var diaryTwoRoute: PatientDiaryTwoRoute? = nil
+    var diaryThreeRoute: PatientDiaryThreeRoute? = nil
 }

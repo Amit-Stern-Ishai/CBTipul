@@ -22,84 +22,100 @@ import com.cbtipul.app.ui.theme.Theme
 import kotlin.math.roundToInt
 
 @Composable
-fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error: Int? = null, onChange: (DiaryThreeEntryDraft) -> Unit) {
+fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error: Int? = null, step: Int? = null, onChange: (DiaryThreeEntryDraft) -> Unit) {
     var pickingFeelings by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        DiaryThreeSection(stringResource(R.string.diary_three_situation_title)) {
-            NotesField(draft.situation, { onChange(draft.copy(situation = it)) }, stringResource(R.string.diary_one_event_question))
+        if (step == null || step == 1) {
+            DiaryThreeSection(stringResource(R.string.diary_three_situation_title)) {
+                NotesField(draft.situation, { onChange(draft.copy(situation = it)) }, stringResource(R.string.diary_one_event_question))
+            }
         }
-        DiaryThreeSection(stringResource(R.string.diary_one_thought_title)) {
-            draft.automaticThoughts.forEach { row -> key(row.id) {
-                Row(verticalAlignment = Alignment.Top) {
-                    NotesField(row.text, { text -> onChange(draft.copy(automaticThoughts = draft.automaticThoughts.map { if (it.id == row.id) it.copy(text = text) else it })) }, stringResource(R.string.diary_one_thought_singular), Modifier.weight(1f))
-                    if (draft.automaticThoughts.size > 1) RemoveDiaryThreeRow(R.string.diary_one_remove_thought) {
-                        onChange(draft.copy(automaticThoughts = draft.automaticThoughts.filterNot { it.id == row.id }))
+        if (step == null || step == 2) {
+            DiaryThreeSection(stringResource(R.string.diary_one_thought_title)) {
+                draft.automaticThoughts.forEach { row -> key(row.id) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        NotesField(row.text, { text -> onChange(draft.copy(automaticThoughts = draft.automaticThoughts.map { if (it.id == row.id) it.copy(text = text) else it })) }, stringResource(R.string.diary_one_thought_singular), Modifier.weight(1f))
+                        if (draft.automaticThoughts.size > 1) RemoveDiaryThreeRow(R.string.diary_one_remove_thought) {
+                            onChange(draft.copy(automaticThoughts = draft.automaticThoughts.filterNot { it.id == row.id }))
+                        }
                     }
-                }
-                DiaryThreePercentage(stringResource(R.string.diary_three_belief_before), row.beliefBefore) { value ->
-                    onChange(draft.copy(automaticThoughts = draft.automaticThoughts.map { if (it.id == row.id) it.copy(beliefBefore = value) else it }))
-                }
-                HorizontalDivider()
-            } }
-            TextButton(onClick = { onChange(draft.copy(automaticThoughts = draft.automaticThoughts + DiaryThreeAutomaticThoughtDraft())) }) { Text(stringResource(R.string.diary_one_add_thought)) }
+                    DiaryThreePercentage(stringResource(R.string.diary_three_belief_before), row.beliefBefore) { value ->
+                        onChange(draft.copy(automaticThoughts = draft.automaticThoughts.map { if (it.id == row.id) it.copy(beliefBefore = value) else it }))
+                    }
+                    HorizontalDivider()
+                } }
+                TextButton(onClick = { onChange(draft.copy(automaticThoughts = draft.automaticThoughts + DiaryThreeAutomaticThoughtDraft())) }) { Text(stringResource(R.string.diary_one_add_thought)) }
+            }
         }
-        DiaryThreeSection(stringResource(R.string.diary_three_feelings_before)) {
-            draft.feelings.forEach { row -> key(row.id) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(row.name, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                    RemoveDiaryThreeRow(R.string.diary_three_remove_feeling) { onChange(draft.copy(feelings = draft.feelings.filterNot { it.id == row.id })) }
-                }
-                DiaryThreePercentage(stringResource(R.string.diary_three_intensity_before), row.intensityBefore) { value ->
-                    onChange(draft.copy(feelings = draft.feelings.map { if (it.id == row.id) it.copy(intensityBefore = value) else it }))
-                }
-                HorizontalDivider()
-            } }
-            TextButton(onClick = { pickingFeelings = true }) { Text(stringResource(R.string.diary_feeling_pick_title)) }
+        if (step == null || step == 3) {
+            DiaryThreeSection(stringResource(R.string.diary_three_feelings_before)) {
+                draft.feelings.forEach { row -> key(row.id) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(row.name, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                        RemoveDiaryThreeRow(R.string.diary_three_remove_feeling) { onChange(draft.copy(feelings = draft.feelings.filterNot { it.id == row.id })) }
+                    }
+                    DiaryThreePercentage(stringResource(R.string.diary_three_intensity_before), row.intensityBefore) { value ->
+                        onChange(draft.copy(feelings = draft.feelings.map { if (it.id == row.id) it.copy(intensityBefore = value) else it }))
+                    }
+                    HorizontalDivider()
+                } }
+                TextButton(onClick = { pickingFeelings = true }) { Text(stringResource(R.string.diary_feeling_pick_title)) }
+            }
         }
-        DiaryThreeSection(stringResource(R.string.diary_thinking_errors_title)) {
-            ThinkingError.entries.forEach { thinkingError ->
-                val selected = thinkingError in draft.thinkingErrors
-                Row(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Checkbox) {
-                    onChange(draft.copy(thinkingErrors = if (selected) draft.thinkingErrors - thinkingError else draft.thinkingErrors + thinkingError))
-                }.padding(vertical = 6.dp), verticalAlignment = Alignment.Top) {
-                    Checkbox(selected, onCheckedChange = null)
-                    Column(Modifier.weight(1f).padding(start = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(thinkingError.title), fontWeight = FontWeight.SemiBold)
-                        Text(stringResource(thinkingError.explanation), style = MaterialTheme.typography.bodySmall, color = Theme.colors.textBody)
+        if (step == null || step == 4) {
+            DiaryThreeSection(stringResource(R.string.diary_thinking_errors_title)) {
+                ThinkingError.entries.forEach { thinkingError ->
+                    val selected = thinkingError in draft.thinkingErrors
+                    Row(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Checkbox) {
+                        onChange(draft.copy(thinkingErrors = if (selected) draft.thinkingErrors - thinkingError else draft.thinkingErrors + thinkingError))
+                    }.padding(vertical = 6.dp), verticalAlignment = Alignment.Top) {
+                        Checkbox(selected, onCheckedChange = null)
+                        Column(Modifier.weight(1f).padding(start = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(thinkingError.title), fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(thinkingError.explanation), style = MaterialTheme.typography.bodySmall, color = Theme.colors.textBody)
+                        }
                     }
                 }
             }
         }
-        DiaryThreeSection(stringResource(R.string.diary_alternative_thoughts_title)) {
-            draft.alternativeThoughts.forEach { row -> key(row.id) {
-                Row(verticalAlignment = Alignment.Top) {
-                    NotesField(row.text, { text -> onChange(draft.copy(alternativeThoughts = draft.alternativeThoughts.map { if (it.id == row.id) it.copy(text = text) else it })) }, stringResource(R.string.diary_alternative_thought_title), Modifier.weight(1f))
-                    if (draft.alternativeThoughts.size > 1) RemoveDiaryThreeRow(R.string.diary_one_remove_thought) { onChange(draft.copy(alternativeThoughts = draft.alternativeThoughts.filterNot { it.id == row.id })) }
-                }
-                DiaryThreePercentage(stringResource(R.string.diary_three_belief), row.belief) { value ->
-                    onChange(draft.copy(alternativeThoughts = draft.alternativeThoughts.map { if (it.id == row.id) it.copy(belief = value) else it }))
-                }
-                HorizontalDivider()
-            } }
-            TextButton(onClick = { onChange(draft.copy(alternativeThoughts = draft.alternativeThoughts + DiaryThreeAlternativeThoughtDraft())) }) { Text(stringResource(R.string.diary_one_add_thought)) }
+        if (step == null || step == 5) {
+            DiaryThreeSection(stringResource(R.string.diary_alternative_thoughts_title)) {
+                draft.alternativeThoughts.forEach { row -> key(row.id) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        NotesField(row.text, { text -> onChange(draft.copy(alternativeThoughts = draft.alternativeThoughts.map { if (it.id == row.id) it.copy(text = text) else it })) }, stringResource(R.string.diary_alternative_thought_title), Modifier.weight(1f))
+                        if (draft.alternativeThoughts.size > 1) RemoveDiaryThreeRow(R.string.diary_one_remove_thought) { onChange(draft.copy(alternativeThoughts = draft.alternativeThoughts.filterNot { it.id == row.id })) }
+                    }
+                    DiaryThreePercentage(stringResource(R.string.diary_three_belief), row.belief) { value ->
+                        onChange(draft.copy(alternativeThoughts = draft.alternativeThoughts.map { if (it.id == row.id) it.copy(belief = value) else it }))
+                    }
+                    HorizontalDivider()
+                } }
+                TextButton(onClick = { onChange(draft.copy(alternativeThoughts = draft.alternativeThoughts + DiaryThreeAlternativeThoughtDraft())) }) { Text(stringResource(R.string.diary_one_add_thought)) }
+            }
         }
-        DiaryThreeSection(stringResource(R.string.diary_three_thoughts_after)) {
-            draft.automaticThoughts.forEach { row -> key(row.id) {
-                Text(row.text.ifBlank { stringResource(R.string.diary_one_thought_singular) })
-                DiaryThreePercentage(stringResource(R.string.diary_three_belief_after), row.beliefAfter) { value ->
-                    onChange(draft.copy(automaticThoughts = draft.automaticThoughts.map { if (it.id == row.id) it.copy(beliefAfter = value) else it }))
-                }
-                HorizontalDivider()
-            } }
+        if (step == null || step == 6) {
+            DiaryThreeSection(stringResource(R.string.diary_three_thoughts_after)) {
+                draft.automaticThoughts.forEach { row -> key(row.id) {
+                    Text(row.text.ifBlank { stringResource(R.string.diary_one_thought_singular) })
+                    if (step != null) Text(stringResource(R.string.diary_three_belief_before) + ": ${row.beliefBefore}%", color = Theme.colors.textBody)
+                    DiaryThreePercentage(stringResource(if (step == null) R.string.diary_three_belief_after else R.string.patient_diary_three_belief_now), row.beliefAfter) { value ->
+                        onChange(draft.copy(automaticThoughts = draft.automaticThoughts.map { if (it.id == row.id) it.copy(beliefAfter = value) else it }))
+                    }
+                    HorizontalDivider()
+                } }
+            }
         }
-        DiaryThreeSection(stringResource(R.string.diary_three_feelings_after)) {
-            draft.feelings.forEach { row -> key(row.id) {
-                Text(row.name, fontWeight = FontWeight.SemiBold)
-                DiaryThreePercentage(stringResource(R.string.diary_three_intensity_after), row.intensityAfter) { value ->
-                    onChange(draft.copy(feelings = draft.feelings.map { if (it.id == row.id) it.copy(intensityAfter = value) else it }))
-                }
-                HorizontalDivider()
-            } }
+        if (step == null || step == 7) {
+            DiaryThreeSection(stringResource(R.string.diary_three_feelings_after)) {
+                draft.feelings.forEach { row -> key(row.id) {
+                    Text(row.name, fontWeight = FontWeight.SemiBold)
+                    if (step != null) Text(stringResource(R.string.diary_three_intensity_before) + ": ${row.intensityBefore}%", color = Theme.colors.textBody)
+                    DiaryThreePercentage(stringResource(if (step == null) R.string.diary_three_intensity_after else R.string.patient_diary_three_intensity_now), row.intensityAfter) { value ->
+                        onChange(draft.copy(feelings = draft.feelings.map { if (it.id == row.id) it.copy(intensityAfter = value) else it }))
+                    }
+                    HorizontalDivider()
+                } }
+            }
         }
         if (attempted) draft.validationError()?.let { Text(stringResource(it), color = Theme.colors.error) }
         error?.let { Text(stringResource(it), color = Theme.colors.error) }

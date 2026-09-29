@@ -18,6 +18,7 @@ import com.cbtipul.app.data.PatientMessageRepository
 import com.cbtipul.app.data.PendingDestinationStore
 import com.cbtipul.app.data.PatientCache
 import com.cbtipul.app.data.PatientDiaryTwoService
+import com.cbtipul.app.data.PatientDiaryThreeService
 import com.cbtipul.app.data.PatientDiaryOneService
 import com.cbtipul.app.data.PatientIdentityStore
 import com.cbtipul.app.data.PatientInvitationFlow
@@ -58,6 +59,8 @@ class CbTipulApp : Application() {
     lateinit var diaryTwo: DiaryTwoRepository
         private set
     lateinit var diaryOne: DiaryOneRepository
+        private set
+    lateinit var patientDiaryThree: PatientDiaryThreeService
         private set
     lateinit var patientDiaryTwo: PatientDiaryTwoService
         private set
@@ -120,6 +123,7 @@ class CbTipulApp : Application() {
         diaryTwo = DiaryTwoRepository(client)
         patientDiaryOne = PatientDiaryOneService(client, diaryOne)
         patientDiaryTwo = PatientDiaryTwoService(client)
+        patientDiaryThree = PatientDiaryThreeService(client)
         therapistProfiles = TherapistProfileRepository(client)
         invitationFlow = PatientInvitationFlow(
             invitations = invitations,

@@ -907,4 +907,18 @@
     <string name="patient_enable_diary_three_action">פתיחת יומן 3 למטופל</string>
     <string name="patient_send_diary_three_description">יומן מתמשך לתיעוד מחשבות ורגשות, מחשבות חלופיות והערכה מחדש.</string>
     <string name="patient_diary_three_activated">יומן 3 פתוח כעת למילוי אצל המטופל.</string>
+    <string name="patient_diary_three_card_body">תרגול מונחה בשבעה שלבים: מחשבות ורגשות לפני, בחינת מחשבות חלופיות והערכה מחדש.</string>
+    <string name="patient_diary_three_not_active">המטפל/ת סגר/ה את יומן 3 למילוי. הרשומות שכבר נשמרו נשארות ביומן.</string>
+    <string name="patient_diary_three_belief_now">אמונה עכשיו</string>
+    <string name="patient_diary_three_intensity_now">עוצמה עכשיו</string>
+    <string name="patient_diary_three_rate_every_item">יש לבחור דירוג בין 0 ל־100 לכל פריט בשלב זה.</string>
+    <string name="patient_diary_three_step_1">מה קרה? תארו בקצרה את האירוע או המצב.</string>
+    <string name="patient_diary_three_step_2">מה עבר בראש באותו רגע? דרגו עד כמה האמנתם בכל מחשבה, בין 0 ל־100.</string>
+    <string name="patient_diary_three_step_3">בחרו את הרגשות שהיו באותו רגע ודרגו את עוצמתם לפני התרגול.</string>
+    <string name="patient_diary_three_step_4">אילו טעויות חשיבה אפשר לזהות במחשבות שתיארתם?</string>
+    <string name="patient_diary_three_step_5">מהי דרך נוספת לראות את המצב? כתבו מחשבות חלופיות ודרגו עד כמה אתם מאמינים בהן.</string>
+    <string name="patient_diary_three_step_6">חזרו למחשבות המקוריות. עד כמה אתם מאמינים בכל אחת עכשיו?</string>
+    <string name="patient_diary_three_step_7">איך אתם מרגישים עכשיו? דרגו שוב את אותם רגשות. לאחר השמירה הרשומה תישלח למטפל/ת ולא ניתן לערוך אותה.</string>
+    <string name="patient_diary_three_progress">שלב %1$d מתוך 7</string>
+    <string name="notification_diary_three_entry_added">הוסיף/ה רשומה חדשה ליומן 3</string>
 </resources>

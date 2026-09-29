@@ -2292,3 +2292,24 @@ extension L10n {
     static let patientSendDiaryThreeDescription = "יומן מתמשך לתיעוד מחשבות ורגשות, מחשבות חלופיות והערכה מחדש."
     static let diaryThreeSentToPatient = "יומן 3 פתוח כעת למילוי אצל המטופל."
 }
+
+extension L10n {
+    static let patientDiaryThreeCardBody = "תרגול מונחה בשבעה שלבים: מחשבות ורגשות לפני, בחינת מחשבות חלופיות והערכה מחדש."
+    static let patientDiaryThreeNotActive = "המטפל/ת סגר/ה את יומן 3 למילוי. הרשומות שכבר נשמרו נשארות ביומן."
+    static let patientDiaryThreeBeliefNow = "אמונה עכשיו"
+    static let patientDiaryThreeIntensityNow = "עוצמה עכשיו"
+    static let patientDiaryThreeRateEveryItem = "יש לבחור דירוג בין 0 ל־100 לכל פריט בשלב זה."
+    static let patientDiaryThreeStep1 = "מה קרה? תארו בקצרה את האירוע או המצב."
+    static let patientDiaryThreeStep2 = "מה עבר בראש באותו רגע? דרגו עד כמה האמנתם בכל מחשבה, בין 0 ל־100."
+    static let patientDiaryThreeStep3 = "בחרו את הרגשות שהיו באותו רגע ודרגו את עוצמתם לפני התרגול."
+    static let patientDiaryThreeStep4 = "אילו טעויות חשיבה אפשר לזהות במחשבות שתיארתם?"
+    static let patientDiaryThreeStep5 = "מהי דרך נוספת לראות את המצב? כתבו מחשבות חלופיות ודרגו עד כמה אתם מאמינים בהן."
+    static let patientDiaryThreeStep6 = "חזרו למחשבות המקוריות. עד כמה אתם מאמינים בכל אחת עכשיו?"
+    static let patientDiaryThreeStep7 = "איך אתם מרגישים עכשיו? דרגו שוב את אותם רגשות. לאחר השמירה הרשומה תישלח למטפל/ת ולא ניתן לערוך אותה."
+    static func patientDiaryThreeProgress(_ step: Int) -> String { "שלב \(step) מתוך 7" }
+    static let patientDiaryThreeStepHints = [patientDiaryThreeStep1, patientDiaryThreeStep2, patientDiaryThreeStep3, patientDiaryThreeStep4, patientDiaryThreeStep5, patientDiaryThreeStep6, patientDiaryThreeStep7]
+}
+
+extension L10n {
+    static let notificationDiaryThreeEntryAdded = "הוסיף/ה רשומה חדשה ליומן 3"
+}

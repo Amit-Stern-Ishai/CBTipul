@@ -10,7 +10,9 @@ object AppNotificationTypes {
     const val QUESTIONNAIRE_COMPLETED = "questionnaire_completed"
     const val MESSAGE_RECEIVED = "message_received"
     const val DIARY_TWO_ASSIGNED = "diary_2_assigned"
+    const val DIARY_THREE_ASSIGNED = "diary_3_assigned"
     const val DIARY_TWO_ENTRY_ADDED = "diary_2_entry_added"
+    const val DIARY_THREE_ENTRY_ADDED = "diary_3_entry_added"
     const val DIARY_ONE_ASSIGNED = "diary_1_assigned"
     const val DIARY_ONE_ENTRY_ADDED = "diary_1_entry_added"
 }
@@ -48,6 +50,7 @@ data class NotificationPayload(
         AppNotificationTypes.MESSAGE_RECEIVED,
         AppNotificationTypes.DIARY_ONE_ASSIGNED,
         AppNotificationTypes.DIARY_TWO_ASSIGNED,
+        AppNotificationTypes.DIARY_THREE_ASSIGNED,
         -> true
         else -> false
     }
@@ -90,7 +93,9 @@ sealed class AppDestination {
     data class PatientDetail(val patientId: String) : AppDestination()
     data class QuestionnaireResult(val patientId: String, val moodId: String?) : AppDestination()
     data class DiaryTwoEntry(val patientId: String, val entryId: String?) : AppDestination()
+    data class DiaryThreeEntry(val patientId: String, val entryId: String?) : AppDestination()
     data class PatientDiaryTwoForm(val payload: NotificationPayload) : AppDestination()
+    data class PatientDiaryThreeForm(val payload: NotificationPayload) : AppDestination()
     data class DiaryOneEntry(val patientId: String, val entryId: String?) : AppDestination()
     data class PatientQuestionnaire(val assignmentId: String) : AppDestination()
     data class PatientMessage(val messageId: String?) : AppDestination()
@@ -110,6 +115,10 @@ object NotificationRouting {
             "patient/${destination.patientId}",
             "patient/${destination.patientId}/diary-two" + (destination.entryId?.let { "?entry=$it" } ?: ""),
         )
+        is AppDestination.DiaryThreeEntry -> listOf(
+            "patient/${destination.patientId}",
+            "patient/${destination.patientId}/diary-three" + (destination.entryId?.let { "?entry=$it" } ?: ""),
+        )
         is AppDestination.DiaryOneEntry -> listOf(
             "patient/${destination.patientId}",
             "patient/${destination.patientId}/diary-one" + (destination.entryId?.let { "?entry=$it" } ?: ""),
@@ -123,8 +132,12 @@ object NotificationRouting {
         AppNotificationTypes.QUESTIONNAIRE_COMPLETED ->
             payload.patientId?.let { AppDestination.QuestionnaireResult(it, combinedMoodId(payload.resourceType, payload.resourceId)) }
         AppNotificationTypes.DIARY_TWO_ASSIGNED -> AppDestination.PatientDiaryTwoForm(payload)
+        AppNotificationTypes.DIARY_THREE_ASSIGNED -> AppDestination.PatientDiaryThreeForm(payload)
         AppNotificationTypes.DIARY_TWO_ENTRY_ADDED -> payload.patientId?.let {
             AppDestination.DiaryTwoEntry(it, diaryTwoEntryId(payload.resourceType, payload.resourceId))
+        }
+        AppNotificationTypes.DIARY_THREE_ENTRY_ADDED -> payload.patientId?.let {
+            AppDestination.DiaryThreeEntry(it, diaryThreeEntryId(payload.resourceType, payload.resourceId))
         }
         AppNotificationTypes.DIARY_ONE_ENTRY_ADDED ->
             payload.patientId?.let {
@@ -150,6 +163,12 @@ object NotificationRouting {
         if (resourceType == "diary_two_entry") diaryTwoUUID(resourceId) else null
 
     fun diaryTwoUUID(raw: String?): String? =
+        uuidOrNull(raw)?.takeIf { it.equals(raw?.trim(), ignoreCase = true) }
+
+    fun diaryThreeEntryId(resourceType: String?, resourceId: String?): String? =
+        if (resourceType == "diary_three_entry") diaryThreeUUID(resourceId) else null
+
+    fun diaryThreeUUID(raw: String?): String? =
         uuidOrNull(raw)?.takeIf { it.equals(raw?.trim(), ignoreCase = true) }
 
     fun diaryEntryId(resourceType: String?, resourceId: String?): String? {
@@ -190,6 +209,7 @@ object NotificationRouting {
         AppNotificationTypes.QUESTIONNAIRE_COMPLETED -> InboxCopyKind.QuestionnaireCompleted
         AppNotificationTypes.PATIENT_CONNECTED -> InboxCopyKind.PatientConnected
         AppNotificationTypes.DIARY_TWO_ENTRY_ADDED -> InboxCopyKind.DiaryTwoEntryAdded
+        AppNotificationTypes.DIARY_THREE_ENTRY_ADDED -> InboxCopyKind.DiaryThreeEntryAdded
         AppNotificationTypes.DIARY_ONE_ENTRY_ADDED -> InboxCopyKind.DiaryOneEntryAdded
         else -> InboxCopyKind.Generic
     }
@@ -200,6 +220,7 @@ enum class InboxCopyKind {
     PatientConnected,
     DiaryOneEntryAdded,
     DiaryTwoEntryAdded,
+    DiaryThreeEntryAdded,
     Generic,
 }
 
@@ -244,5 +265,30 @@ object PatientDiaryTwoNotificationRouting {
 
 object DiaryTwoEntryLookup {
     fun accepted(entry: DiaryTwoEntry?, id: String, patientId: DatabaseId): DiaryTwoEntry? =
+        entry?.takeIf { it.id.equals(id, true) && it.patientId.matches(patientId.queryValue) }
+}
+
+object PatientDiaryThreeNotificationRouting {
+    fun matchingAssignment(assignments: List<PatientAssignment>, payload: NotificationPayload, patientId: String): PatientAssignment? {
+        val id = NotificationRouting.diaryThreeUUID(payload.assignmentId) ?: return null
+        val patient = NotificationRouting.diaryThreeUUID(patientId) ?: return null
+        if (payload.type != AppNotificationTypes.DIARY_THREE_ASSIGNED || payload.resourceType != "assignment" ||
+            NotificationRouting.diaryThreeUUID(payload.resourceId) != id || NotificationRouting.diaryThreeUUID(payload.patientId) != patient) return null
+        return assignments.firstOrNull {
+            it.id.equals(id, true) && it.patientId.equals(patient, true) &&
+                it.type == PatientAssignmentType.DiaryThree && it.cancelledAt == null
+        }
+    }
+
+    suspend fun resolve(payload: NotificationPayload, patientId: String, load: suspend () -> List<PatientAssignment>): PatientAssignment? {
+        val assignments = try { load() } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) { return null }
+        return matchingAssignment(assignments, payload, patientId)
+    }
+}
+
+object DiaryThreeEntryLookup {
+    fun accepted(entry: DiaryThreeEntry?, id: String, patientId: DatabaseId): DiaryThreeEntry? =
         entry?.takeIf { it.id.equals(id, true) && it.patientId.matches(patientId.queryValue) }
 }

@@ -95,6 +95,20 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
         return loaded
     }
 
+    suspend fun loadEntry(id: String, patientId: DatabaseId): DiaryThreeEntry? {
+        if (DemoData.isDemoId(patientId)) return DiaryThreeEntryLookup.accepted(entriesFor(patientId).firstOrNull { it.id.equals(id, true) }, id, patientId)
+        val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId) ?: return null
+        val rows = client.from("diary_three_entries").select(columns) {
+            filter { eq("id", id); eq("patient_id", patientUuid) }
+            limit(1)
+        }.decodeList<DiaryThreeEntryRow>()
+        // Preserve the row's actual identity before validating, never substitute the requested patient.
+        val row = rows.firstOrNull() ?: return null
+        val entry = DiaryThreeEntryLookup.accepted(row.toDomain(DatabaseId.Text(row.patientId)), id, patientId) ?: return null
+        upsert(entry)
+        return entry
+    }
+
     suspend fun createEntry(
         patientId: DatabaseId,
         situation: String,

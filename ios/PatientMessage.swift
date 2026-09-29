@@ -154,6 +154,7 @@ enum PatientModePushDestination: Equatable {
     case messages(PatientMessageDestination)
     case diaryOneAssigned(PatientDiaryOneAssignedDestination)
     case diaryTwoAssigned(AppNotificationPayload)
+    case diaryThreeAssigned(AppNotificationPayload)
 }
 
 /// Patient Mode pending message and diary-assignment routes. Therapist
@@ -205,6 +206,8 @@ final class PatientModeMessageCoordinator {
             return .messages(PatientMessageRouter.destination(from: payload))
         case .diaryTwoAssigned:
             return .diaryTwoAssigned(payload)
+        case .diaryThreeAssigned:
+            return .diaryThreeAssigned(payload)
         case .diaryOneAssigned:
             return .diaryOneAssigned(PatientDiaryOneAssignedRouter.destination(from: payload))
         default:
@@ -388,6 +391,24 @@ enum PatientDiaryTwoAssignedRouter {
               payload.patientId.flatMap(UUID.init(uuidString:)) == patientId else { return nil }
         return assignments.first {
             $0.id == assignmentId && $0.type == .diaryTwo && $0.cancelledAt == nil && $0.patientId == patientId
+        }
+    }
+
+    @MainActor static func resolve(payload: AppNotificationPayload, patientId: UUID,
+        load: () async throws -> [PatientAssignment]) async -> PatientAssignment? {
+        guard let assignments = try? await load() else { return nil }
+        return matchingAssignment(in: assignments, payload: payload, patientId: patientId)
+    }
+}
+
+enum PatientDiaryThreeAssignedRouter {
+    static func matchingAssignment(in assignments: [PatientAssignment], payload: AppNotificationPayload, patientId: UUID) -> PatientAssignment? {
+        guard payload.type == .diaryThreeAssigned, payload.resourceType == "assignment",
+              let raw = payload.assignmentId, let assignmentId = UUID(uuidString: raw),
+              payload.resourceId.flatMap(UUID.init(uuidString:)) == assignmentId,
+              payload.patientId.flatMap(UUID.init(uuidString:)) == patientId else { return nil }
+        return assignments.first {
+            $0.id == assignmentId && $0.type == .diaryThree && $0.cancelledAt == nil && $0.patientId == patientId
         }
     }
 

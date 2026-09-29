@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.update
 
 /** Process-level one-shot destination from FCM/inbox. Consumed once. */
 class PendingDestinationStore {
+    private val recentDiaryThreeTaps = LinkedHashSet<NotificationPayload>()
     private val _pending = MutableStateFlow<AppDestination?>(null)
     val pending: StateFlow<AppDestination?> = _pending.asStateFlow()
 
@@ -15,6 +16,11 @@ class PendingDestinationStore {
     }
 
     fun offer(payload: NotificationPayload) {
+        if (payload.type == AppNotificationTypes.DIARY_THREE_ASSIGNED || payload.type == AppNotificationTypes.DIARY_THREE_ENTRY_ADDED) {
+            // Activity recreation/re-delivery must not reopen a consumed notification.
+            if (!recentDiaryThreeTaps.add(payload)) return
+            if (recentDiaryThreeTaps.size > 64) recentDiaryThreeTaps.remove(recentDiaryThreeTaps.first())
+        }
         NotificationRouting.destination(payload)?.let(::offer)
     }
 

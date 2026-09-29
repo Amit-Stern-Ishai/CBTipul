@@ -90,6 +90,7 @@ fun TherapistRootScreen(
     val currentEntry by patientsNav.currentBackStackEntryAsState()
     var returnToInbox by rememberSaveable { mutableStateOf(false) }
     val patients by viewModel.patients.collectAsStateWithLifecycle()
+    val clinicState by viewModel.ui.collectAsStateWithLifecycle()
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
     val unseen by app.notifications.unseenCount.collectAsStateWithLifecycle()
     val pending by app.pendingDestinations.pending.collectAsStateWithLifecycle()
@@ -117,12 +118,14 @@ fun TherapistRootScreen(
         }
     }
 
-    LaunchedEffect(pending) {
+    LaunchedEffect(pending, clinicState.hasLoaded, currentEntry != null) {
         val destination = pending ?: return@LaunchedEffect
+        if (destination is AppDestination.DiaryThreeEntry && (!clinicState.hasLoaded || currentEntry == null)) return@LaunchedEffect
         if (destination !is AppDestination.PatientDetail &&
             destination !is AppDestination.QuestionnaireResult &&
             destination !is AppDestination.DiaryOneEntry &&
-            destination !is AppDestination.DiaryTwoEntry
+            destination !is AppDestination.DiaryTwoEntry &&
+            destination !is AppDestination.DiaryThreeEntry
         ) {
             return@LaunchedEffect
         }

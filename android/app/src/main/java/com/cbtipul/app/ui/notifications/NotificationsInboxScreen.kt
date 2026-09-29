@@ -184,19 +184,19 @@ private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> 
     val kind = NotificationRouting.inboxCopy(item.type)
     val eventColor = when (kind) {
         InboxCopyKind.PatientConnected -> colors.success
-        InboxCopyKind.DiaryOneEntryAdded, InboxCopyKind.DiaryTwoEntryAdded -> colors.accentFill
+        InboxCopyKind.DiaryOneEntryAdded, InboxCopyKind.DiaryTwoEntryAdded, InboxCopyKind.DiaryThreeEntryAdded -> colors.accentFill
         else -> colors.gold
     }
     val icon = when (kind) {
         InboxCopyKind.QuestionnaireCompleted -> Icons.Outlined.Checklist
         InboxCopyKind.PatientConnected -> Icons.Outlined.HowToReg
-        InboxCopyKind.DiaryOneEntryAdded, InboxCopyKind.DiaryTwoEntryAdded -> Icons.Outlined.Book
+        InboxCopyKind.DiaryOneEntryAdded, InboxCopyKind.DiaryTwoEntryAdded, InboxCopyKind.DiaryThreeEntryAdded -> Icons.Outlined.Book
         InboxCopyKind.Generic -> Icons.Outlined.NotificationsNone
     }
     val action = when (NotificationRouting.destination(NotificationPayload.from(item))) {
         is AppDestination.PatientDetail -> R.string.notification_open_patient
         is AppDestination.QuestionnaireResult -> R.string.notification_open_questionnaires
-        is AppDestination.DiaryOneEntry, is AppDestination.DiaryTwoEntry -> R.string.notification_open_diary
+        is AppDestination.DiaryOneEntry, is AppDestination.DiaryTwoEntry, is AppDestination.DiaryThreeEntry -> R.string.notification_open_diary
         else -> null
     }
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
@@ -246,6 +246,7 @@ private fun inboxMessage(type: String): String = when (NotificationRouting.inbox
     InboxCopyKind.QuestionnaireCompleted -> stringResource(R.string.notification_questionnaire_completed)
     InboxCopyKind.PatientConnected -> stringResource(R.string.notification_patient_connected)
     InboxCopyKind.DiaryTwoEntryAdded -> stringResource(R.string.notification_diary_two_entry_added)
+    InboxCopyKind.DiaryThreeEntryAdded -> stringResource(R.string.notification_diary_three_entry_added)
     InboxCopyKind.DiaryOneEntryAdded -> stringResource(R.string.notification_diary_one_entry_added)
     InboxCopyKind.Generic -> stringResource(R.string.notification_generic)
 }

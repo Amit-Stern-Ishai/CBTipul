@@ -39,6 +39,7 @@ fun TherapistDiaryThreeScreen(
     diary: DiaryThreeRepository,
     assignments: PatientAssignmentRepository,
     isDemo: Boolean,
+    focusEntryId: String? = null,
     onBack: () -> Unit,
 ) {
     val vm: DiaryThreeViewModel = viewModel(key = "diary-three-${patientId.queryValue}", factory = viewModelFactory {
@@ -50,6 +51,17 @@ fun TherapistDiaryThreeScreen(
     val draft by vm.draft.collectAsStateWithLifecycle()
     val nav = rememberNavController()
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { vm.refreshConnection() }
+    var consumedFocus by rememberSaveable(patientId.queryValue, focusEntryId) { mutableStateOf(false) }
+    LaunchedEffect(focusEntryId, state.loading) {
+        // Finish the initial history load first so it cannot overwrite the exact-entry cache.
+        if (!state.loading && !consumedFocus && focusEntryId != null) {
+            val entry = try { diary.loadEntry(focusEntryId, patientId) }
+                catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                catch (_: Exception) { null }
+            consumedFocus = true
+            if (entry != null) nav.navigate("detail/${entry.id}") { launchSingleTop = true }
+        }
+    }
     NavHost(navController = nav, startDestination = "history") {
         composable("history") {
             var stop by rememberSaveable { mutableStateOf(false) }
@@ -153,7 +165,7 @@ private fun DiaryThreeEditor(vm: DiaryThreeViewModel, draft: DiaryThreeEntryDraf
             Text(stringResource(R.string.diary_one_save_entry))
         }
     }) {
-        DiaryThreeDraftFields(draft, attempted, state.error, vm::changeDraft)
+        DiaryThreeDraftFields(draft, attempted, state.error, onChange = vm::changeDraft)
     }
     feedback?.let { message ->
         AlertDialog(onDismissRequest = { feedback = null }, title = { Text(stringResource(R.string.diary_three_title)) },

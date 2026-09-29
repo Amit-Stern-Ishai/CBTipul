@@ -162,6 +162,22 @@ final class DiaryThreeStore {
         }
     }
 
+    /// Notification targets must be fetched using both identifiers, even if cached.
+    func loadEntry(id: UUID, patientId: DatabaseID) async throws -> DiaryThreeEntry? {
+        if DemoData.isDemoID(patientId) {
+            return DiaryThreeEntryLookup.accepted(cached(for: patientId).first { $0.id == id }, id: id, patientId: patientId)
+        }
+        guard let patientUUID = patientId.uuidValue else { return nil }
+        let rows: [DiaryThreeEntry] = try await client.from("diary_three_entries")
+            .select(diaryThreeSelectColumns)
+            .eq("id", value: id)
+            .eq("patient_id", value: patientUUID)
+            .limit(1).execute().value
+        guard let entry = DiaryThreeEntryLookup.accepted(rows.first, id: id, patientId: patientId) else { return nil }
+        upsertCache(entry)
+        return entry
+    }
+
     func createEntry(
         patientId: DatabaseID,
         situation: String,
@@ -333,5 +349,12 @@ final class DiaryThreeStore {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)
+    }
+}
+
+enum DiaryThreeEntryLookup {
+    static func accepted(_ entry: DiaryThreeEntry?, id: UUID, patientId: DatabaseID) -> DiaryThreeEntry? {
+        guard let entry, entry.id == id, entry.patientId.matches(patientId.queryValue) else { return nil }
+        return entry
     }
 }

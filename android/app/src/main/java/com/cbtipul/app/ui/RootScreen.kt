@@ -232,6 +232,7 @@ fun RootScreen() {
                         val pending by app.pendingDestinations.pending.collectAsStateWithLifecycle()
                         PatientModeScreen(
                         diaryTwo = app.patientDiaryTwo,
+                        diaryThree = app.patientDiaryThree,
                         patientId = appContext?.patientId.orEmpty(),
                         loadAssignments = {
                             app.assignments.patientAssignments(appContext?.patientId)

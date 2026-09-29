@@ -907,4 +907,18 @@
     <string name="patient_enable_diary_three_action">פתיחת יומן 3 למטופל</string>
     <string name="patient_send_diary_three_description">יומן מתמשך לתיעוד מחשבות ורגשות, מחשבות חלופיות והערכה מחדש.</string>
     <string name="patient_diary_three_activated">יומן 3 פתוח כעת למילוי אצל המטופל.</string>
+    <string name="patient_diary_three_card_body">A guided seven-step exercise: thoughts and feelings before, alternative thoughts, then a fresh rating.</string>
+    <string name="patient_diary_three_not_active">Your therapist has closed Diary 3 for new entries. Previously saved entries are kept.</string>
+    <string name="patient_diary_three_belief_now">Belief now</string>
+    <string name="patient_diary_three_intensity_now">Intensity now</string>
+    <string name="patient_diary_three_rate_every_item">Choose a rating from 0 to 100 for every item in this step.</string>
+    <string name="patient_diary_three_step_1">What happened? Briefly describe the event or situation.</string>
+    <string name="patient_diary_three_step_2">What went through your mind then? Rate how much you believed each thought, from 0 to 100.</string>
+    <string name="patient_diary_three_step_3">Select the feelings you had at that moment and rate their intensity before the exercise.</string>
+    <string name="patient_diary_three_step_4">Which thinking errors can you identify in those thoughts?</string>
+    <string name="patient_diary_three_step_5">What is another way to view the situation? Write alternative thoughts and rate your belief in them.</string>
+    <string name="patient_diary_three_step_6">Return to your original thoughts. How much do you believe each one now?</string>
+    <string name="patient_diary_three_step_7">How do you feel now? Rate the same feelings again. Saving sends the entry to your therapist; it cannot be edited afterwards.</string>
+    <string name="patient_diary_three_progress">Step %1$d of 7</string>
+    <string name="notification_diary_three_entry_added">הוסיף/ה רשומה חדשה ליומן 3</string>
 </resources>

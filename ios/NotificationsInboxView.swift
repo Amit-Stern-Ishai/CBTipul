@@ -213,7 +213,7 @@ private struct NotificationInboxRow: View {
     private var actionTitle: String? {
         switch NotificationRouter.destination(from: item) {
         case .completedQuestionnaire: L10n.notificationOpenQuestionnaires
-        case .diaryOneEntry, .diaryTwoEntry: L10n.notificationOpenDiary
+        case .diaryOneEntry, .diaryTwoEntry, .diaryThreeEntry: L10n.notificationOpenDiary
         case .patientDetail: L10n.notificationOpenPatient
         case .none: nil
         }
@@ -223,7 +223,7 @@ private struct NotificationInboxRow: View {
         switch item.type {
         case .questionnaireCompleted: "checklist"
         case .patientConnected: "person.crop.circle.badge.checkmark"
-        case .diaryOneEntryAdded, .diaryTwoEntryAdded: "book.closed"
+        case .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded: "book.closed"
         default: "bell"
         }
     }
@@ -231,7 +231,7 @@ private struct NotificationInboxRow: View {
     private var eventColor: Color {
         switch item.type {
         case .patientConnected: Theme.success
-        case .diaryOneEntryAdded, .diaryTwoEntryAdded: Theme.accentFill
+        case .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded: Theme.accentFill
         default: Theme.gold
         }
     }
