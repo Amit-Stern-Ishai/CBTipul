@@ -24,8 +24,13 @@ struct PatientDiaryOneRoute: Hashable {
     let focusEntryID: UUID?
 }
 
-/// Result of parsing a push or inbox record. Push taps and inbox taps share
-/// this type so routing is not duplicated.
+/// Programmatic path: Patient Detail → Diary 2 → optional exact entry.
+struct PatientDiaryTwoRoute: Hashable {
+    let patientID: DatabaseID
+    let focusEntryID: UUID?
+}
+
+/// Shared destination for push and persistent inbox taps.
 enum NotificationDestination: Equatable {
     /// Therapist Patients tab → patient → questionnaires → optional CombinedMood.
     case completedQuestionnaire(
@@ -39,6 +44,7 @@ enum NotificationDestination: Equatable {
         resourceType: String?,
         resourceId: String?
     )
+    case diaryTwoEntry(patientId: String, resourceType: String?, resourceId: String?)
     /// Therapist Patients tab → Patient Detail. No session/questionnaire.
     case patientDetail(patientId: String)
     /// Unknown, Patient Mode, or missing identifiers — do not navigate.
@@ -66,12 +72,15 @@ enum NotificationRouter {
                 resourceType: payload.resourceType,
                 resourceId: payload.resourceId
             )
+        case .diaryTwoEntryAdded:
+            guard let patientId = payload.patientId, !patientId.isEmpty else { return .none }
+            return .diaryTwoEntry(patientId: patientId, resourceType: payload.resourceType, resourceId: payload.resourceId)
         case .patientConnected:
             guard let patientId = payload.patientId, !patientId.isEmpty else {
                 return .none
             }
             return .patientDetail(patientId: patientId)
-        case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .unknown:
+        case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .diaryTwoAssigned, .unknown:
             return .none
         }
     }
@@ -237,6 +246,16 @@ final class TherapistNotificationCoordinator {
                 "notification route created questionnaires patient=\(patient.id.queryValue, privacy: .public) focus=\(focusID?.queryValue ?? "nil", privacy: .public)"
             )
             #endif
+        case .diaryTwoEntry(let patientId, let resourceType, let resourceId):
+            guard let patient = resolvedPatient(patientId: patientId, patients: patients,
+                fingerprint: fingerprint, waitForPatients: waitForPatients) else { return }
+            pendingPayload = nil
+            lastConsumedFingerprint = fingerprint
+            selectedTab = .patients
+            pendingPatientNavigation = PendingPatientNavigation(
+                token: UUID(), patientID: patient.id, questionnairesRoute: nil, diaryOneRoute: nil,
+                diaryTwoRoute: PatientDiaryTwoRoute(patientID: patient.id,
+                    focusEntryID: DiaryTwoNotificationFocus.entryID(resourceType: resourceType, resourceId: resourceId)))
         case .diaryOneEntry(let patientId, let resourceType, let resourceId):
             guard let patient = resolvedPatient(
                 patientId: patientId,
@@ -309,4 +328,5 @@ struct PendingPatientNavigation: Equatable {
     /// When nil, open Patient Detail only (`patient_connected`).
     let questionnairesRoute: PatientQuestionnairesRoute?
     let diaryOneRoute: PatientDiaryOneRoute?
+    var diaryTwoRoute: PatientDiaryTwoRoute? = nil
 }

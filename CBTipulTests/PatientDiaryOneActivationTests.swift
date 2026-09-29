@@ -37,9 +37,9 @@ struct PatientDiaryOneActivationTests {
         #expect(!PatientDiaryOneActivation.usesDirectInsert(.diaryOne))
     }
 
-    @Test func otherOngoingTypesKeepDirectInsert() {
+    @Test func diaryTwoNoLongerUsesDirectInsert() {
         #expect(!PatientDiaryOneActivation.usesEdgeFunction(.diaryTwo))
-        #expect(PatientDiaryOneActivation.usesDirectInsert(.diaryTwo))
+        #expect(!PatientDiaryOneActivation.usesDirectInsert(.diaryTwo))
         #expect(!PatientDiaryOneActivation.usesEdgeFunction(.questionnaire))
         #expect(!PatientDiaryOneActivation.usesDirectInsert(.questionnaire))
     }

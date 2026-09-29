@@ -205,8 +205,16 @@ struct PatientDetailView: View {
                                      detail: L10n.patientDiaryDescription)
                     }
                     .accessibilityIdentifier("patient.diaryOne")
-                    diaryPlaceholder(L10n.diaryTwoTitle)
-                    diaryPlaceholder(L10n.diaryThreeTitle)
+                    NavigationLink {
+                        PatientDiaryTwoView(patient: patient)
+                    } label: {
+                        Label(L10n.diaryTwoTitle, systemImage: "book.closed")
+                    }
+                    .accessibilityIdentifier("patient.diaryTwo")
+                    NavigationLink { PatientDiaryThreeView(patient: patient) } label: {
+                        Label(L10n.diaryThreeTitle, systemImage: "book.closed")
+                    }
+                    .accessibilityIdentifier("patient.diaryThree")
                 } label: {
                     workspaceRow("books.vertical", title: L10n.patientDiariesTitle,
                                  detail: L10n.patientDiariesDescription)
@@ -798,7 +806,7 @@ struct PatientDetailView: View {
     }
 
     private enum PatientSendAction {
-        case message, questionnaire, diaryOne
+        case message, questionnaire, diaryOne, diaryTwo, diaryThree
     }
 
     @ViewBuilder
@@ -867,12 +875,11 @@ struct PatientDetailView: View {
                                    detail: L10n.patientQuestionnaireRequestDescription)
                         sendOption(.diaryOne, icon: "book.closed", title: L10n.patientEnableDiaryOneAction,
                                    detail: L10n.patientSendDiaryOneDescription)
-                        VStack(spacing: 0) {
-                            diaryPlaceholder(L10n.diaryTwoTitle)
-                            Divider()
-                            diaryPlaceholder(L10n.diaryThreeTitle)
-                        }
-                        .padding(.horizontal, 16)
+                        sendOption(.diaryTwo, icon: "book.closed", title: L10n.patientEnableDiaryTwoAction,
+                                   detail: L10n.patientSendDiaryTwoDescription)
+                        sendOption(.diaryThree, icon: "book.closed", title: L10n.patientEnableDiaryThreeAction,
+                                   detail: L10n.patientSendDiaryThreeDescription)
+                            .padding(.horizontal, 16)
                     } else {
                         sendingUnavailableNotice
                     }
@@ -940,6 +947,8 @@ struct PatientDetailView: View {
         case .message: isShowingMessageComposer = true
         case .questionnaire: sendStandaloneQuestionnaire()
         case .diaryOne: sendDiaryOne()
+        case .diaryTwo: sendDiaryTwo()
+        case .diaryThree: sendDiaryThree()
         }
     }
 
@@ -1057,6 +1066,92 @@ struct PatientDetailView: View {
                 presentSendFeedback(
                     title: L10n.diaryOneTitle,
                     message: L10n.diaryOneSentToPatient
+                )
+            } catch PatientAssignmentError.patientNotConnected {
+                presentSendFeedback(
+                    title: L10n.patientNotConnectedTitle,
+                    message: L10n.patientNotConnectedBody
+                )
+            } catch {
+                presentSendFeedback(
+                    title: L10n.diaryPatientModeTitle,
+                    message: L10n.diaryPatientModeActivateFailed
+                )
+            }
+        }
+    }
+
+    private func sendDiaryTwo() {
+        guard !isSendingToPatient else { return }
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            presentSendFeedback(
+                title: L10n.patientNotConnectedTitle,
+                message: L10n.patientNotConnectedBody
+            )
+            return
+        }
+        guard let patientId = patient.id.uuidValue else {
+            presentSendFeedback(
+                title: L10n.diaryPatientModeTitle,
+                message: L10n.patientInvitationInvalidPatientError
+            )
+            return
+        }
+        isSendingToPatient = true
+        Task {
+            defer { isSendingToPatient = false }
+            try? await Task.sleep(for: .milliseconds(250))
+            do {
+                _ = try await assignmentService().activateOngoingAssignment(
+                    patientId: patientId,
+                    type: .diaryTwo
+                )
+                presentSendFeedback(
+                    title: L10n.diaryTwoTitle,
+                    message: L10n.diaryTwoSentToPatient
+                )
+            } catch PatientAssignmentError.patientNotConnected {
+                presentSendFeedback(
+                    title: L10n.patientNotConnectedTitle,
+                    message: L10n.patientNotConnectedBody
+                )
+            } catch {
+                presentSendFeedback(
+                    title: L10n.diaryPatientModeTitle,
+                    message: L10n.diaryPatientModeActivateFailed
+                )
+            }
+        }
+    }
+
+    private func sendDiaryThree() {
+        guard !isSendingToPatient else { return }
+        if store.isDemoMode || DemoData.isDemoID(patient.id) {
+            presentSendFeedback(
+                title: L10n.patientNotConnectedTitle,
+                message: L10n.patientNotConnectedBody
+            )
+            return
+        }
+        guard let patientId = patient.id.uuidValue else {
+            presentSendFeedback(
+                title: L10n.diaryPatientModeTitle,
+                message: L10n.patientInvitationInvalidPatientError
+            )
+            return
+        }
+        isSendingToPatient = true
+        Task {
+            defer { isSendingToPatient = false }
+            try? await Task.sleep(for: .milliseconds(250))
+            do {
+                _ = try await assignmentService().activateOngoingAssignment(
+                    patientId: patientId,
+                    type: .diaryThree
+                )
+                presentSendFeedback(
+                    title: L10n.diaryThreeTitle,
+                    message: L10n.diaryThreeSentToPatient
                 )
             } catch PatientAssignmentError.patientNotConnected {
                 presentSendFeedback(

@@ -8,6 +8,8 @@ import com.cbtipul.app.data.AppContextRepository
 import com.cbtipul.app.data.ClinicalTextAnonymizer
 import com.cbtipul.app.data.ClinicalTextGate
 import com.cbtipul.app.data.DemoClinicStore
+import com.cbtipul.app.data.DiaryTwoRepository
+import com.cbtipul.app.data.DiaryThreeRepository
 import com.cbtipul.app.data.DiaryOneRepository
 import com.cbtipul.app.data.NotificationRepository
 import com.cbtipul.app.data.OnboardingStore
@@ -15,6 +17,7 @@ import com.cbtipul.app.data.PatientAssignmentRepository
 import com.cbtipul.app.data.PatientMessageRepository
 import com.cbtipul.app.data.PendingDestinationStore
 import com.cbtipul.app.data.PatientCache
+import com.cbtipul.app.data.PatientDiaryTwoService
 import com.cbtipul.app.data.PatientDiaryOneService
 import com.cbtipul.app.data.PatientIdentityStore
 import com.cbtipul.app.data.PatientInvitationFlow
@@ -50,7 +53,13 @@ class CbTipulApp : Application() {
         private set
     lateinit var assignments: PatientAssignmentRepository
         private set
+    lateinit var diaryThree: DiaryThreeRepository
+        private set
+    lateinit var diaryTwo: DiaryTwoRepository
+        private set
     lateinit var diaryOne: DiaryOneRepository
+        private set
+    lateinit var patientDiaryTwo: PatientDiaryTwoService
         private set
     lateinit var patientDiaryOne: PatientDiaryOneService
         private set
@@ -107,7 +116,10 @@ class CbTipulApp : Application() {
         invitations = PatientInvitationService(client)
         assignments = PatientAssignmentRepository(client)
         diaryOne = DiaryOneRepository(client)
+        diaryThree = DiaryThreeRepository(client)
+        diaryTwo = DiaryTwoRepository(client)
         patientDiaryOne = PatientDiaryOneService(client, diaryOne)
+        patientDiaryTwo = PatientDiaryTwoService(client)
         therapistProfiles = TherapistProfileRepository(client)
         invitationFlow = PatientInvitationFlow(
             invitations = invitations,

@@ -23,9 +23,12 @@ struct PatientModeView: View {
     @State private var didSubmitDiaryOne = false
     @State private var isShowingSettings = false
     @State private var isShowingDiaryOneEntry = false
+    @State private var isShowingDiaryTwoHub = false
+    @State private var isShowingDiaryTwoEntry = false
+    @State private var didSubmitDiaryTwo = false
 
     private var openAssignments: [PatientAssignment] {
-        assignments.filter(\.isOpen)
+        assignments.filter { $0.type == .diaryTwo ? $0.cancelledAt == nil : $0.isOpen }
     }
 
     private var homeMessagePreviews: [PatientMessage] {
@@ -83,6 +86,27 @@ struct PatientModeView: View {
                     }
                 )
             }
+            .navigationDestination(isPresented: $isShowingDiaryTwoEntry) {
+                PatientDiaryTwoEntryView(
+                    onSubmitted: { didSubmitDiaryTwo = true; await loadAssignments() },
+                    onDiaryInactive: {
+                        assignments.removeAll { $0.type == .diaryTwo }
+                        await loadAssignments()
+                    }
+                )
+                .id(appContext.current?.patientId)
+            }
+            .navigationDestination(isPresented: $isShowingDiaryTwoHub) {
+                PatientDiaryTwoHubView(
+                    isActive: assignments.contains { $0.type == .diaryTwo && $0.cancelledAt == nil },
+                    onAssignmentsRefresh: { await loadAssignments() },
+                    onDiaryInactive: {
+                        assignments.removeAll { $0.type == .diaryTwo }
+                        await loadAssignments()
+                    }
+                )
+                .id(appContext.current?.patientId)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -118,10 +142,14 @@ struct PatientModeView: View {
             .alert(L10n.patientQuestionnaireSubmittedTitle, isPresented: $didSubmitQuestionnaire) {
                 Button(L10n.ok, role: .cancel) {}
             }
+            .alert(L10n.patientDiaryOneSaved, isPresented: $didSubmitDiaryTwo) {
+                Button(L10n.ok, role: .cancel) {}
+            }
             .alert(L10n.patientDiaryOneSaved, isPresented: $didSubmitDiaryOne) {
                 Button(L10n.ok, role: .cancel) {}
             }
         }
+        .onDisappear { messageCoordinator.markNotReady() }
         .appTextSize()
     }
 
@@ -269,7 +297,9 @@ struct PatientModeView: View {
             questionnaireCard(assignment)
         case .diaryOne:
             diaryOneCard
-        case .diaryTwo, nil:
+        case .diaryTwo:
+            diaryTwoCard
+        case .diaryThree, nil:
             upcomingTaskCard
         }
     }
@@ -331,6 +361,18 @@ struct PatientModeView: View {
         .themedCard()
     }
 
+    private var diaryTwoCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.diaryTwoTitle).font(.headline).foregroundStyle(Theme.textBright)
+            Text(L10n.patientDiaryTwoCardBody).foregroundStyle(Theme.textBody)
+            Text(L10n.patientDiaryOneOngoingHint).font(.footnote).foregroundStyle(Theme.textBody)
+            Button { isShowingDiaryTwoHub = true } label: {
+                Text(L10n.patientDiaryOneStartAction).fontWeight(.semibold)
+                    .frame(maxWidth: .infinity, minHeight: 24)
+            }.buttonStyle(.pressableProminent)
+        }.padding(16).frame(maxWidth: .infinity, alignment: .leading).themedCard()
+    }
+
     private var upcomingTaskCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.patientUpcomingTaskTitle)
@@ -390,6 +432,20 @@ struct PatientModeView: View {
         case .messages(let messagesDestination):
             await loadMessages()
             await applyMessageDestination(messagesDestination)
+        case .diaryTwoAssigned(let payload):
+            guard let patientId = appContext.current?.patientId else { return }
+            let assignment = await PatientDiaryTwoAssignedRouter.resolve(payload: payload, patientId: patientId) {
+                let loaded = try await PatientAssignmentService(client: auth.client).patientAssignments(patientId: patientId)
+                assignments = loaded
+                return loaded
+            }
+            guard appContext.current?.patientId == patientId else { return }
+            openedMessageID = nil
+            isShowingMessages = false
+            isShowingDiaryOneEntry = false
+            isShowingDiaryTwoHub = false
+            isShowingSettings = false
+            isShowingDiaryTwoEntry = assignment != nil
         case .diaryOneAssigned(let diaryDestination):
             await loadAssignments()
             applyDiaryOneAssignedDestination(diaryDestination)

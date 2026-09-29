@@ -16,6 +16,7 @@ enum PatientPushCopy {
     }
 
     static let genericPatient = "מטופל/ת"
+    static let diaryTwoEntryAdded = "הוסיף/ה רשומה חדשה ליומן 2"
     static let diaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן 1"
 }
 
@@ -25,6 +26,7 @@ enum PatientPushPersonalizer: Sendable {
     enum NotificationType: String {
         case patientConnected = "patient_connected"
         case questionnaireCompleted = "questionnaire_completed"
+        case diaryTwoEntryAdded = "diary_2_entry_added"
         case diaryOneEntryAdded = "diary_1_entry_added"
     }
 
@@ -51,6 +53,12 @@ enum PatientPushPersonalizer: Sendable {
                 namedBody: PatientPushCopy.questionnaireCompletedBody,
                 nameForPatientId: nameForPatientId
             )
+        case .diaryTwoEntryAdded:
+            let name = patientId(from: content.userInfo).flatMap(nameForPatientId)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            content.title = name.isEmpty ? PatientPushCopy.genericPatient : name
+            content.subtitle = ""
+            content.body = PatientPushCopy.diaryTwoEntryAdded
         case .diaryOneEntryAdded:
             applyDiaryOneEntryAdded(to: content, nameForPatientId: nameForPatientId)
         }

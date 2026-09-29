@@ -9,6 +9,7 @@ import com.cbtipul.app.ui.theme.AppMotion
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,6 +56,9 @@ import androidx.navigation.navArgument
 import com.cbtipul.app.R
 import com.cbtipul.app.data.AppDestination
 import com.cbtipul.app.data.DiaryFeeling
+import com.cbtipul.app.data.DiaryTwoEntry
+import com.cbtipul.app.data.PatientDiaryTwoAccess
+import com.cbtipul.app.data.PatientDiaryTwoHistory
 import com.cbtipul.app.data.DiaryOneEntry
 import com.cbtipul.app.data.NotificationRouting
 import com.cbtipul.app.data.PatientAssignment
@@ -76,6 +80,8 @@ private enum class TasksLoadState { Loading, Loaded, Failed }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PatientModeScreen(
+    diaryTwo: PatientDiaryTwoAccess,
+    patientId: String,
     loadAssignments: suspend () -> List<PatientAssignment>,
     submitQuestionnaire: suspend (String, List<Int>, List<Int>, Int) -> Unit,
     submitDiaryOne: suspend (String, List<String>, List<DiaryFeeling>, String, String?) -> Unit,
@@ -94,6 +100,8 @@ fun PatientModeScreen(
     var messages by remember { mutableStateOf<List<PatientMessage>>(emptyList()) }
     var didSubmitQuestionnaire by remember { mutableStateOf(false) }
     var didSubmitDiaryOne by remember { mutableStateOf(false) }
+    var diaryTwoEntries by remember(patientId) { mutableStateOf<List<DiaryTwoEntry>>(emptyList()) }
+    var didSubmitDiaryTwo by remember { mutableStateOf(false) }
     var diaryEntries by remember { mutableStateOf<List<DiaryOneEntry>>(emptyList()) }
 
     suspend fun reload() {
@@ -108,6 +116,15 @@ fun PatientModeScreen(
     }
 
     LaunchedEffect(Unit) { reload() }
+    LaunchedEffect(pendingDestination) {
+        val destination = pendingDestination as? AppDestination.PatientDiaryTwoForm ?: return@LaunchedEffect
+        val assignment = com.cbtipul.app.data.PatientDiaryTwoNotificationRouting.resolve(destination.payload, patientId) {
+            loadAssignments().also { assignments = it }
+        }
+        nav.popBackStack("home", inclusive = false)
+        if (assignment != null) nav.navigate("diary-two/new") { launchSingleTop = true }
+        onConsumePending()
+    }
     LaunchedEffect(loadState, pendingDestination) {
         if (loadState != TasksLoadState.Loaded) return@LaunchedEffect
         val destination = pendingDestination ?: return@LaunchedEffect
@@ -159,6 +176,7 @@ fun PatientModeScreen(
                 onRefresh = { scope.launch { reload() } },
                 onOpenQuestionnaire = { nav.navigate("questionnaire/$it") },
                 onOpenDiaryOne = { nav.navigate("diary-one") },
+                onOpenDiaryTwo = { nav.navigate("diary-two") },
                 onOpenMessage = { nav.navigate("message/$it") },
                 onOpenAllMessages = { nav.navigate("messages") },
             )
@@ -225,6 +243,61 @@ fun PatientModeScreen(
                 }
             }
         }
+        composable("diary-two") {
+            PatientDiaryTwoHubScreen(
+                patientId = patientId, service = diaryTwo,
+                active = assignments.any { it.type == PatientAssignmentType.DiaryTwo && it.cancelledAt == null },
+                onLoaded = { diaryTwoEntries = it },
+                onAddEntry = { nav.navigate("diary-two/new") },
+                onOpenEntry = { nav.navigate("diary-two/entry/${it.id}") },
+                onBack = { nav.popScreen() },
+            )
+        }
+        composable("diary-two/new") {
+            PatientDiaryTwoEntryScreen(patientId, diaryTwo,
+                onSubmitted = {
+                    nav.popScreen()
+                    didSubmitDiaryTwo = true
+                    scope.launch { reload() }
+                },
+                onDiaryInactive = {
+                    assignments = assignments.filterNot { it.type == PatientAssignmentType.DiaryTwo }
+                    nav.popScreen()
+                    scope.launch { reload() }
+                },
+                onBack = { nav.popScreen() },
+            )
+        }
+        composable("diary-two/entry/{entryId}", arguments = listOf(navArgument("entryId") { type = NavType.StringType })) { destination ->
+            val id = destination.arguments?.getString("entryId").orEmpty()
+            var detail by remember(id, diaryTwoEntries) { mutableStateOf(diaryTwoEntries.firstOrNull { it.id.equals(id, true) }) }
+            var loading by remember(id) { mutableStateOf(detail == null) }
+            var failed by remember(id) { mutableStateOf(false) }
+            var retry by remember(id) { mutableStateOf(0) }
+            LaunchedEffect(id, retry) {
+                if (detail == null) {
+                    loading = true
+                    try {
+                        val entries = PatientDiaryTwoHistory.visible(diaryTwo.loadPatientCreatedEntries(patientId), patientId)
+                        diaryTwoEntries = entries
+                        detail = entries.firstOrNull { it.id.equals(id, true) }
+                        failed = false
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (_: Exception) { failed = true }
+                    loading = false
+                }
+            }
+            val current = detail
+            if (current != null) PatientDiaryTwoDetailScreen(current) { nav.popScreen() }
+            else Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                TextButton(onClick = { nav.popScreen() }) { Text(stringResource(R.string.back)) }
+                if (loading) CircularProgressIndicator(color = Theme.colors.gold)
+                else {
+                    Text(stringResource(if (failed) R.string.diary_two_load_failed else R.string.notification_target_unavailable), color = Theme.colors.textBody)
+                    if (failed) TextButton(onClick = { retry++ }) { Text(stringResource(R.string.retry_action)) }
+                }
+            }
+        }
         composable("messages") {
             MessageListScreen(
                 title = stringResource(R.string.messages_title),
@@ -253,6 +326,7 @@ fun PatientModeScreen(
         }
     }
     MessageOverlay(visible = didSubmitQuestionnaire, title = stringResource(R.string.patient_questionnaire_submitted), message = "", onDismiss = { didSubmitQuestionnaire = false })
+    MessageOverlay(visible = didSubmitDiaryTwo, title = stringResource(R.string.patient_diary_one_saved), message = "", onDismiss = { didSubmitDiaryTwo = false })
     MessageOverlay(visible = didSubmitDiaryOne, title = stringResource(R.string.patient_diary_one_saved), message = "", onDismiss = { didSubmitDiaryOne = false })
 }
 
@@ -266,11 +340,12 @@ private fun PatientHomeContent(
     onRefresh: () -> Unit,
     onOpenQuestionnaire: (String) -> Unit,
     onOpenDiaryOne: () -> Unit,
+    onOpenDiaryTwo: () -> Unit,
     onOpenMessage: (String) -> Unit,
     onOpenAllMessages: () -> Unit,
 ) {
     val colors = Theme.colors
-    val openAssignments = assignments.filter { it.isOpen }
+    val openAssignments = assignments.filter { if (it.type == PatientAssignmentType.DiaryTwo) it.cancelledAt == null else it.isOpen }
     val unread = PatientHomeMessages.unread(messages)
     val previews = PatientHomeMessages.previews(messages)
     val remaining = PatientHomeMessages.remainingUnreadCount(messages)
@@ -333,7 +408,13 @@ private fun PatientHomeContent(
                                     stringResource(R.string.patient_diary_one_start),
                                     stringResource(R.string.patient_diary_one_ongoing_hint),
                                 ) { onOpenDiaryOne() }
-                                PatientAssignmentType.DiaryTwo, null -> TaskCard(
+                                PatientAssignmentType.DiaryTwo -> TaskCard(
+                                    stringResource(R.string.diary_two_title),
+                                    stringResource(R.string.patient_diary_two_card_body),
+                                    stringResource(R.string.patient_diary_one_start),
+                                    stringResource(R.string.patient_diary_one_ongoing_hint),
+                                ) { onOpenDiaryTwo() }
+                                PatientAssignmentType.DiaryThree, null -> TaskCard(
                                     stringResource(R.string.patient_upcoming_task_title),
                                     stringResource(R.string.patient_upcoming_task_body),
                                     null,

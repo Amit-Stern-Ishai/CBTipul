@@ -9,6 +9,8 @@ struct MyApp: App {
     @State private var therapistProfiles: TherapistProfileService
     @State private var appContext: AppContextService
     @State private var invitationFlow: PatientInvitationFlow
+    @State private var diaryThree: DiaryThreeStore
+    @State private var diaryTwo: DiaryTwoStore
     @State private var diaryOne: DiaryOneStore
     @State private var notificationStore: NotificationStore
 
@@ -34,6 +36,8 @@ struct MyApp: App {
         _appContext = State(initialValue: AppContextService(client: auth.client))
         _invitationFlow = State(initialValue: PatientInvitationFlow())
         _diaryOne = State(initialValue: DiaryOneStore(client: auth.client))
+        _diaryThree = State(initialValue: DiaryThreeStore(client: auth.client))
+        _diaryTwo = State(initialValue: DiaryTwoStore(client: auth.client))
         _notificationStore = State(initialValue: NotificationStore(client: auth.client))
     }
 
@@ -46,6 +50,8 @@ struct MyApp: App {
                 .environment(appContext)
                 .environment(invitationFlow)
                 .environment(diaryOne)
+                .environment(diaryTwo)
+                .environment(diaryThree)
                 .environment(notificationStore)
                 .environment(TherapistNotificationCoordinator.shared)
                 .environment(PatientModeMessageCoordinator.shared)
@@ -351,6 +357,7 @@ struct ContentView: View {
         .environment(AppContextService(client: auth.client))
         .environment(PatientInvitationFlow())
         .environment(DiaryOneStore(client: auth.client))
+        .environment(DiaryTwoStore(client: auth.client))
         .environment(NotificationStore(client: auth.client))
         .environment(TherapistNotificationCoordinator.shared)
 }

@@ -131,6 +131,8 @@ fun PatientDetailScreen(
     onOpenQuestionnaires: () -> Unit,
     onOpenGraphs: () -> Unit = {},
     onOpenDiaryOne: () -> Unit = {},
+    onOpenDiaryTwo: () -> Unit = {},
+    onOpenDiaryThree: () -> Unit = {},
     onInvitePatient: () -> Unit = {},
     isCreatingInvitation: Boolean = false,
     onSendMessage: () -> Unit = {},
@@ -346,8 +348,8 @@ fun PatientDetailScreen(
                 ) {
                     Column {
                     IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_one_title), onClick = onOpenDiaryOne)
-                    IconLabel(stringResource(R.string.diary_two_title) + " · " + stringResource(R.string.coming_soon), Icons.Outlined.Book, color = colors.textFaint, modifier = Modifier.padding(16.dp))
-                    IconLabel(stringResource(R.string.diary_three_title) + " · " + stringResource(R.string.coming_soon), Icons.Outlined.Book, color = colors.textFaint, modifier = Modifier.padding(16.dp))
+                    IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_two_title), onClick = onOpenDiaryTwo)
+                    IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_three_title), onClick = onOpenDiaryThree)
                     }
                 }
                 GroupedListDivider()

@@ -154,6 +154,7 @@ enum L10n {
     static let notificationOpenPatient = "לתיק המטופל/ת"
     static let notificationQuestionnaireCompleted = "השאלון הושלם"
     static let notificationPatientConnected = "התחבר/ה ל-CBTipul"
+    static let notificationDiaryTwoEntryAdded = "הוסיף/ה רשומה חדשה ליומן 2"
     static let notificationDiaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן 1"
     static let notificationGenericTitle = "התראה"
     static let notificationGenericPatient = "מטופל/ת"
@@ -2242,4 +2243,52 @@ amitishai@gmail.com
     static let anonymizationFailedError = "לא ניתן היה להסיר פרטים מזהים ולכן המידע לא נשמר. אפשר לנסות שוב."
     
     static let anonymizingStatusLabel = "הסרת פרטים מזהים…"
+}
+
+extension L10n {
+    static let thinkingErrorTitles = ["הכל או כלום", "הכללה", "מסננת שלילית", "הקטנה בערך תכונות חיוביות", "קפיצה למסקנות", "קריאת מחשבות", "ראיית העתיד", "העצמה או הקטנה", "טיעון רגשי", "הצהרות של מה אמור/חייב/צריך/אסור שיהיה", "שימוש בתוויות", "האשמה עצמית או האשמת אחרים"]
+    static let thinkingErrorExplanations = ["רואה הכל בשחור או לבן ללא גוונים.", "אירוע בודד נראה כדפוס קבוע שלא ישתנה לעולם.", "רואה את השלילי ומתעלם מהחיובי.", "מתעלם מהתכונות החיוביות שלך.", "קפיצה למסקנה חסרת בסיס.", "מנחש ומניח שאנשים חושבים עליך דברים רעים.", "רואה שחורות; מניח שדברים יתפתחו לרעה.", "מוציא דברים מפרופורציה או מקטין בחשיבותם.", "מסיק מסקנות על סמך רגשות ולא עובדות.", "שימוש במילים כמו אסור, חייב, מוכרח, צריך, אמור.", "במקום לומר \"עשיתי טעות\", אתה אומר \"אני דפוק\" או \"אפס\".", "מטיל את כל האחריות על עצמך או על אחרים, בלי להביא בחשבון גורמים נוספים."]
+    static let diaryThinkingErrorsTitle = "טעויות חשיבה"
+    static let diaryAlternativeThoughtsTitle = "מחשבות חלופיות"
+    static let diaryAlternativeThoughtTitle = "מחשבה חלופית"
+    static let diaryTwoValidationErrors = "יש לבחור לפחות טעות חשיבה אחת."
+    static let diaryTwoValidationAlternatives = "יש למלא לפחות מחשבה חלופית אחת."
+    static let diaryTwoEmptyTitle = "אין רשומות ביומן 2 עדיין"
+    static let diaryTwoLoadFailed = "לא ניתן היה לטעון את יומן 2. נסו שוב."
+    static let patientEnableDiaryTwoAction = "פתיחת יומן 2 למטופל"
+    static let patientSendDiaryTwoDescription = "יומן מתמשך לתיעוד אירועים, מחשבות אוטומטיות, רגשות ומחשבות חלופיות."
+    static let diaryTwoSentToPatient = "יומן 2 פתוח כעת למילוי אצל המטופל."
+    static let diaryEntryTherapistSource = "תיעוד המטפל"
+    static let diaryEntryPatientSource = "תיעוד המטופל"
+    static let diaryEntryEdit = "עריכת רשומה"
+}
+
+extension L10n {
+    static let diaryTwoFeelingsTitle = "רגשות ועוצמה"
+    static let diaryTwoDuplicateThinkingError = "יש לבחור כל טעות חשיבה פעם אחת בלבד."
+    static let patientDiaryTwoCardBody = "תיעוד אירוע, מחשבות אוטומטיות ורגשות, זיהוי טעויות חשיבה ובחינת מחשבות חלופיות."
+    static let patientDiaryTwoNotActive = "המטפל/ת סגר/ה את יומן 2 למילוי. הרשומות שכבר נשמרו נשארות ביומן."
+    static let patientDiaryTwoAccessDenied = "החיבור לתיק הטיפולי אינו זמין כרגע. יש לפנות למטפל/ת."
+    static let patientDiaryTwoInvalidFeelings = "יש לבחור לפחות רגש אחד ועוצמה בין 0 ל־100 לכל רגש."
+}
+
+
+extension L10n {
+    static let diaryThreeSituationTitle = "אירוע / מצב"
+    static let diaryThreeBeliefBefore = "אמונה לפני"
+    static let diaryThreeBeliefAfter = "אמונה אחרי"
+    static let diaryThreeIntensityBefore = "עוצמה לפני"
+    static let diaryThreeIntensityAfter = "עוצמה אחרי"
+    static let diaryThreeBelief = "אחוז אמונה"
+    static let diaryThreeFeelingsBefore = "רגשות ועוצמה לפני"
+    static let diaryThreeThoughtsAfter = "הערכה מחדש של המחשבות האוטומטיות"
+    static let diaryThreeFeelingsAfter = "רגשות ועוצמה אחרי"
+    static let diaryThreeRemoveFeeling = "הסרת רגש"
+    static let diaryThreeValidationSituation = "יש לתאר את האירוע או המצב."
+    static let diaryThreeValidationRatings = "יש למלא את כל אחוזי האמונה ועוצמות הרגש לפני ואחרי, בין 0 ל־100."
+    static let diaryThreeEmptyTitle = "אין רשומות ביומן 3 עדיין"
+    static let diaryThreeLoadFailed = "לא ניתן היה לטעון את יומן 3. נסו שוב."
+    static let patientEnableDiaryThreeAction = "פתיחת יומן 3 למטופל"
+    static let patientSendDiaryThreeDescription = "יומן מתמשך לתיעוד מחשבות ורגשות, מחשבות חלופיות והערכה מחדש."
+    static let diaryThreeSentToPatient = "יומן 3 פתוח כעת למילוי אצל המטופל."
 }

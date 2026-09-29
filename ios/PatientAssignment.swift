@@ -9,6 +9,7 @@ enum PatientAssignmentType: String, Codable, Sendable {
     case questionnaire
     case diaryOne = "diary_one"
     case diaryTwo = "diary_two"
+    case diaryThree = "diary_three"
 }
 
 enum PatientQuestionnaireSubmitError: LocalizedError {
@@ -123,8 +124,8 @@ enum PatientDiaryOneActivation {
 
     static func usesDirectInsert(_ type: PatientAssignmentType) -> Bool {
         switch type {
-        case .diaryTwo:
-            true
+        case .diaryTwo, .diaryThree:
+            false
         case .diaryOne, .questionnaire:
             false
         }
@@ -187,6 +188,83 @@ enum PatientDiaryOneActivation {
     }
 }
 
+enum PatientDiaryTwoActivation {
+    static let functionName = "request-patient-diary-two"
+
+    static func usesEdgeFunction(_ type: PatientAssignmentType) -> Bool {
+        type == .diaryTwo
+    }
+
+    static func usesDirectInsert(_ type: PatientAssignmentType) -> Bool {
+        switch type {
+        case .diaryTwo, .diaryThree:
+            false
+        case .diaryOne, .questionnaire:
+            false
+        }
+    }
+
+    static func requestJSON(patientId: UUID) throws -> Data {
+        try JSONEncoder().encode(RequestPatientDiaryOneRequest(patientId: patientId))
+    }
+
+    static func assignment(fromResponseData data: Data) throws -> PatientAssignment {
+        let response = try JSONDecoder().decode(RequestPatientDiaryOneResponse.self, from: data)
+        guard response.success else { throw PatientAssignmentError.invalidIdentifier }
+        let value = try assignment(from: response.assignment)
+        guard value.type == .diaryTwo, value.sessionId == nil, value.cancelledAt == nil else {
+            throw PatientAssignmentError.invalidIdentifier
+        }
+        return value
+    }
+
+    static func mapError(from data: Data, statusCode: Int) -> PatientAssignmentError {
+        let parsed = PatientAssignmentService.edgeErrorFields(from: data)
+        switch parsed.code {
+        case "patient_not_connected":
+            return .patientNotConnected
+        case "unauthorized", "therapist_mode_required":
+            return .notSignedIn
+        case "patient_not_found", "invalid_request":
+            return .invalidIdentifier
+        default:
+            if statusCode == 401 || statusCode == 403 {
+                return .notSignedIn
+            }
+            AppLog.store.error(
+                "request-patient-diary-two mapped to invalidIdentifier code=\(parsed.code, privacy: .public) message=\(parsed.message, privacy: .public)"
+            )
+            return .invalidIdentifier
+        }
+    }
+
+    fileprivate static func assignment(
+        from dto: RequestPatientDiaryOneAssignmentDTO
+    ) throws -> PatientAssignment {
+        guard let createdAt = PatientAssignmentService.parseEdgeTimestamp(dto.createdAt) else {
+            throw PatientAssignmentError.invalidIdentifier
+        }
+        return PatientAssignment(
+            id: dto.id,
+            patientId: dto.patientId,
+            therapistId: dto.therapistId,
+            sessionId: dto.sessionId,
+            typeValue: dto.typeValue,
+            createdAt: createdAt,
+            completedAt: try optionalEdgeDate(dto.completedAt),
+            cancelledAt: try optionalEdgeDate(dto.cancelledAt)
+        )
+    }
+
+    private static func optionalEdgeDate(_ raw: String?) throws -> Date? {
+        guard let raw else { return nil }
+        guard let parsed = PatientAssignmentService.parseEdgeTimestamp(raw) else {
+            throw PatientAssignmentError.invalidIdentifier
+        }
+        return parsed
+    }
+}
+
 private struct SubmitPatientQuestionnaireResponse: Decodable, Sendable {
     let success: Bool?
     let combinedMoodId: Int?
@@ -206,6 +284,30 @@ enum PatientAssignmentError: LocalizedError, Equatable {
         case .invalidIdentifier: L10n.questionnaireAssignmentSendError
         case .patientNotConnected: L10n.patientNotConnectedTitle
         }
+    }
+}
+
+enum PatientDiaryThreeActivation {
+    static let functionName = "request-patient-diary-three"
+    static func usesEdgeFunction(_ type: PatientAssignmentType) -> Bool { type == .diaryThree }
+    static func usesDirectInsert(_ type: PatientAssignmentType) -> Bool { false }
+    static func requestJSON(patientId: UUID) throws -> Data {
+        try JSONEncoder().encode(RequestPatientDiaryOneRequest(patientId: patientId))
+    }
+    static func assignment(fromResponseData data: Data) throws -> PatientAssignment {
+        let response = try JSONDecoder().decode(RequestPatientDiaryOneResponse.self, from: data)
+        guard response.success else { throw PatientAssignmentError.invalidIdentifier }
+        let value = try PatientDiaryTwoActivation.assignment(from: response.assignment)
+        guard value.type == .diaryThree, value.sessionId == nil, value.cancelledAt == nil else {
+            throw PatientAssignmentError.invalidIdentifier
+        }
+        return value
+    }
+    static func mapError(from data: Data, statusCode: Int) -> PatientAssignmentError {
+        let parsed = PatientAssignmentService.edgeErrorFields(from: data)
+        if parsed.code == "patient_not_connected" { return .patientNotConnected }
+        if statusCode == 401 || statusCode == 403 || parsed.code == "therapist_mode_required" { return .notSignedIn }
+        return .invalidIdentifier
     }
 }
 
@@ -237,32 +339,7 @@ nonisolated struct PatientAssignment: Decodable, Sendable {
     var isOpen: Bool { completedAt == nil && cancelledAt == nil }
 }
 
-/// Ongoing diary assignment. `session_id` and completion timestamps stay NULL
-/// until the therapist cancels (`cancelled_at` only).
-private struct NewOngoingPatientAssignment: Encodable {
-    let patientId: UUID
-    let therapistId: UUID
-    let type: PatientAssignmentType
 
-    enum CodingKeys: String, CodingKey {
-        case patientId = "patient_id"
-        case therapistId = "therapist_id"
-        case sessionId = "session_id"
-        case type
-        case completedAt = "completed_at"
-        case cancelledAt = "cancelled_at"
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(patientId, forKey: .patientId)
-        try container.encode(therapistId, forKey: .therapistId)
-        try container.encodeNil(forKey: .sessionId)
-        try container.encode(type, forKey: .type)
-        try container.encodeNil(forKey: .completedAt)
-        try container.encodeNil(forKey: .cancelledAt)
-    }
-}
 
 private struct CancelPatientAssignment: Encodable {
     let cancelledAt: String
@@ -492,7 +569,7 @@ final class PatientAssignmentService {
     }
 
     /// Activates an ongoing assignment. Diary 1 goes through
-    /// `request-patient-diary-one`; other ongoing types insert a row.
+    /// `request-patient-diary-one`; Diary 2 uses its own Edge Function.
     /// Never reopens a cancelled row.
     func activateOngoingAssignment(
         patientId: UUID,
@@ -507,8 +584,12 @@ final class PatientAssignmentService {
         let assignment: PatientAssignment
         if PatientDiaryOneActivation.usesEdgeFunction(type) {
             assignment = try await requestPatientDiaryOne(patientId: patientId)
+        } else if PatientDiaryTwoActivation.usesEdgeFunction(type) {
+            assignment = try await requestPatientDiaryTwo(patientId: patientId)
+        } else if PatientDiaryThreeActivation.usesEdgeFunction(type) {
+            assignment = try await requestPatientDiaryThree(patientId: patientId)
         } else {
-            assignment = try await insertOngoingAssignment(patientId: patientId, type: type)
+            throw PatientAssignmentError.invalidIdentifier
         }
         cacheAssignment(assignment, account: account)
         return assignment
@@ -542,43 +623,33 @@ final class PatientAssignmentService {
         }
     }
 
-    /// Direct insert for non-Diary-1 ongoing types. Never reopens a cancelled row.
-    private func insertOngoingAssignment(
-        patientId: UUID,
-        type: PatientAssignmentType
-    ) async throws -> PatientAssignment {
-        if let existing = try await activeOngoingAssignment(patientId: patientId, type: type) {
-            return existing
-        }
-
-        let therapistId = try await requireTherapistId()
+    private func requestPatientDiaryTwo(patientId: UUID) async throws -> PatientAssignment {
         do {
-            let created: PatientAssignment = try await client.from("patient_assignments")
-                .insert(
-                    NewOngoingPatientAssignment(
-                        patientId: patientId,
-                        therapistId: therapistId,
-                        type: type
-                    )
-                )
-                .select(
-                    "id, patient_id, therapist_id, session_id, type, created_at, completed_at, cancelled_at"
-                )
-                .single()
-                .execute()
-                .value
-            AppLog.store.info("Ongoing assignment created")
-            return created
-        } catch {
-            if Self.isUniqueViolation(error),
-               let existing = try? await activeOngoingAssignment(patientId: patientId, type: type) {
-                AppLog.store.info("Ongoing assignment already active")
-                return existing
-            }
-            AppLog.store.error(
-                "Ongoing assignment create failed: \(error.localizedDescription, privacy: .public)"
+            let data: Data = try await client.functions.invoke(
+                PatientDiaryTwoActivation.functionName,
+                options: FunctionInvokeOptions(body: RequestPatientDiaryOneRequest(patientId: patientId)),
+                decode: { data, _ in data }
             )
-            throw error
+            let assignment = try PatientDiaryTwoActivation.assignment(fromResponseData: data)
+            guard assignment.patientId == patientId else { throw PatientAssignmentError.invalidIdentifier }
+            return assignment
+        } catch let FunctionsError.httpError(code, data) {
+            throw PatientDiaryTwoActivation.mapError(from: data, statusCode: code)
+        }
+    }
+
+    private func requestPatientDiaryThree(patientId: UUID) async throws -> PatientAssignment {
+        do {
+            let data: Data = try await client.functions.invoke(
+                PatientDiaryThreeActivation.functionName,
+                options: FunctionInvokeOptions(body: RequestPatientDiaryOneRequest(patientId: patientId)),
+                decode: { data, _ in data }
+            )
+            let assignment = try PatientDiaryThreeActivation.assignment(fromResponseData: data)
+            guard assignment.patientId == patientId else { throw PatientAssignmentError.invalidIdentifier }
+            return assignment
+        } catch let FunctionsError.httpError(code, data) {
+            throw PatientDiaryThreeActivation.mapError(from: data, statusCode: code)
         }
     }
 
@@ -811,7 +882,7 @@ final class PatientAssignmentService {
 
     private static func requireOngoingType(_ type: PatientAssignmentType) throws {
         switch type {
-        case .diaryOne, .diaryTwo:
+        case .diaryOne, .diaryTwo, .diaryThree:
             return
         case .questionnaire:
             throw PatientAssignmentError.invalidIdentifier

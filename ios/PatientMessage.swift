@@ -153,9 +153,10 @@ enum PatientModePushDestination: Equatable {
     case none
     case messages(PatientMessageDestination)
     case diaryOneAssigned(PatientDiaryOneAssignedDestination)
+    case diaryTwoAssigned(AppNotificationPayload)
 }
 
-/// Patient Mode pending `message_received` / `diary_1_assigned` route. Therapist
+/// Patient Mode pending message and diary-assignment routes. Therapist
 /// routing stays on `TherapistNotificationCoordinator`.
 @Observable
 @MainActor
@@ -202,6 +203,8 @@ final class PatientModeMessageCoordinator {
         switch payload.type {
         case .messageReceived:
             return .messages(PatientMessageRouter.destination(from: payload))
+        case .diaryTwoAssigned:
+            return .diaryTwoAssigned(payload)
         case .diaryOneAssigned:
             return .diaryOneAssigned(PatientDiaryOneAssignedRouter.destination(from: payload))
         default:
@@ -372,5 +375,25 @@ private nonisolated struct MarkPatientMessageReadParams: Encodable {
 
     enum CodingKeys: String, CodingKey {
         case pMessageId = "p_message_id"
+    }
+}
+
+
+/// Resolve only server-loaded assignments for the current Patient Mode identity.
+enum PatientDiaryTwoAssignedRouter {
+    static func matchingAssignment(in assignments: [PatientAssignment], payload: AppNotificationPayload, patientId: UUID) -> PatientAssignment? {
+        guard payload.type == .diaryTwoAssigned, payload.resourceType == "assignment",
+              let raw = payload.assignmentId, let assignmentId = UUID(uuidString: raw),
+              payload.resourceId.flatMap(UUID.init(uuidString:)) == assignmentId,
+              payload.patientId.flatMap(UUID.init(uuidString:)) == patientId else { return nil }
+        return assignments.first {
+            $0.id == assignmentId && $0.type == .diaryTwo && $0.cancelledAt == nil && $0.patientId == patientId
+        }
+    }
+
+    @MainActor static func resolve(payload: AppNotificationPayload, patientId: UUID,
+        load: () async throws -> [PatientAssignment]) async -> PatientAssignment? {
+        guard let assignments = try? await load() else { return nil }
+        return matchingAssignment(in: assignments, payload: payload, patientId: patientId)
     }
 }

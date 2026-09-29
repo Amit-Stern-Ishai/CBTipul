@@ -44,6 +44,8 @@ import com.cbtipul.app.data.PatientAssignmentRepository
 import com.cbtipul.app.data.TherapistProfile
 import com.cbtipul.app.debug.InviteDebugLog
 import com.cbtipul.app.model.CompletedQuestionnaire
+import com.cbtipul.app.ui.diary.TherapistDiaryTwoScreen
+import com.cbtipul.app.ui.diary.TherapistDiaryThreeScreen
 import com.cbtipul.app.ui.diary.TherapistDiaryOneScreen
 import com.cbtipul.app.ui.messages.MessageListScreen
 import com.cbtipul.app.ui.messages.PatientMessageDetailScreen
@@ -199,6 +201,8 @@ fun PatientsNavHost(
                 onOpenQuestionnaires = { navController.navigate("patient/$id/questionnaires") },
                 onOpenGraphs = { navController.navigate("patient/$id/questionnaires?graphs=true") },
                 onOpenDiaryOne = { navController.navigate("patient/$id/diary-one") },
+                onOpenDiaryThree = { navController.navigate("patient/$id/diary-three") },
+                onOpenDiaryTwo = { navController.navigate("patient/$id/diary-two") },
                 onSendMessage = { navController.navigate("patient/$id/message-compose") },
                 onOpenMessages = { navController.navigate("patient/$id/messages") },
                 assignmentRepository = app.assignments,
@@ -454,6 +458,52 @@ fun PatientsNavHost(
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 focusEntryId = focusEntryId,
+                onBack = { navController.popScreen() },
+            )
+        }
+        composable(
+            "patient/{id}/diary-two?entry={entry}",
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+                navArgument("entry") { type = NavType.StringType; defaultValue = ""; nullable = true },
+            ),
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
+            if (patient == null) {
+                NotificationTargetScreen(onBack = { navController.popScreen() })
+                return@composable
+            }
+            TherapistDiaryTwoScreen(
+                patientId = patient.id,
+                patientName = patient.displayName(unnamed),
+                atmosphere = PatientAvatarColor.background(patient.id),
+                diary = app.diaryTwo,
+                focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() },
+                assignments = app.assignments,
+                isDemo = isDemoMode || DemoData.isDemoId(patient.id),
+                onBack = { navController.popScreen() },
+            )
+        }
+        composable(
+            "patient/{id}/diary-three",
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
+            if (patient == null) {
+                NotificationTargetScreen(onBack = { navController.popScreen() })
+                return@composable
+            }
+            TherapistDiaryThreeScreen(
+                patientId = patient.id,
+                patientName = patient.displayName(unnamed),
+                atmosphere = PatientAvatarColor.background(patient.id),
+                diary = app.diaryThree,
+                assignments = app.assignments,
+                isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 onBack = { navController.popScreen() },
             )
         }

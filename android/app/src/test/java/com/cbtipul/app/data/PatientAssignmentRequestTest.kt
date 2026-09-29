@@ -154,7 +154,7 @@ class PatientAssignmentRequestTest {
     fun diaryOneUsesEdgeFunctionNotDirectInsert() {
         assertTrue(PatientAssignmentRepository.usesDiaryOneEdgeFunction(PatientAssignmentType.DiaryOne))
         assertFalse(PatientAssignmentRepository.usesDirectInsert(PatientAssignmentType.DiaryOne))
-        assertTrue(PatientAssignmentRepository.usesDirectInsert(PatientAssignmentType.DiaryTwo))
+        assertFalse(PatientAssignmentRepository.usesDirectInsert(PatientAssignmentType.DiaryTwo))
         val json = PatientAssignmentRepository.encodeDiaryOneRequest("patient-1")
         val obj = EdgePayload.json.parseToJsonElement(json) as JsonObject
         assertEquals("patient-1", obj.getValue("patientId").jsonPrimitive.content)

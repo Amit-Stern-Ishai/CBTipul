@@ -9,6 +9,8 @@ enum AppNotificationType: Hashable, Sendable {
     case messageReceived
     case diaryOneAssigned
     case diaryOneEntryAdded
+    case diaryTwoAssigned
+    case diaryTwoEntryAdded
     case unknown(String)
 
     init(rawValue: String) {
@@ -25,6 +27,8 @@ enum AppNotificationType: Hashable, Sendable {
             self = .diaryOneAssigned
         case "diary_1_entry_added":
             self = .diaryOneEntryAdded
+        case "diary_2_assigned": self = .diaryTwoAssigned
+        case "diary_2_entry_added": self = .diaryTwoEntryAdded
         default:
             self = .unknown(rawValue)
         }
@@ -38,6 +42,8 @@ enum AppNotificationType: Hashable, Sendable {
         case .messageReceived: "message_received"
         case .diaryOneAssigned: "diary_1_assigned"
         case .diaryOneEntryAdded: "diary_1_entry_added"
+        case .diaryTwoAssigned: "diary_2_assigned"
+        case .diaryTwoEntryAdded: "diary_2_entry_added"
         case .unknown(let raw): raw
         }
     }
@@ -45,10 +51,10 @@ enum AppNotificationType: Hashable, Sendable {
     /// Patient Mode APNs taps. Not inferred from `patientId`.
     var routesInPatientMode: Bool {
         switch self {
-        case .messageReceived, .diaryOneAssigned:
+        case .messageReceived, .diaryOneAssigned, .diaryTwoAssigned:
             true
         case .questionnaireAssigned, .questionnaireCompleted, .patientConnected,
-             .diaryOneEntryAdded, .unknown:
+             .diaryOneEntryAdded, .diaryTwoEntryAdded, .unknown:
             false
         }
     }
@@ -191,7 +197,9 @@ enum NotificationInboxCopy {
             L10n.notificationPatientConnected
         case .diaryOneEntryAdded:
             L10n.notificationDiaryOneEntryAdded
-        case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .unknown:
+        case .diaryTwoEntryAdded:
+            L10n.notificationDiaryTwoEntryAdded
+        case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .diaryTwoAssigned, .unknown:
             L10n.notificationGenericTitle
         }
     }
@@ -270,5 +278,13 @@ enum NotificationPatientName {
             return local
         }
         return L10n.notificationGenericPatient
+    }
+}
+
+
+enum DiaryTwoNotificationFocus {
+    static func entryID(resourceType: String?, resourceId: String?) -> UUID? {
+        guard resourceType == "diary_two_entry", let resourceId else { return nil }
+        return UUID(uuidString: resourceId.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }

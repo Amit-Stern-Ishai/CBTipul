@@ -4,6 +4,9 @@ object PatientPushCopy {
     const val APP_TITLE = "CBTipul"
     const val GENERIC_PATIENT_CONNECTED = "המטופל/ת התחבר/ה בהצלחה ל-CBTipul"
     const val GENERIC_QUESTIONNAIRE_COMPLETED = "מטופל/ת מילא/ה שאלון חדש"
+    const val GENERIC_PATIENT = "מטופל/ת"
+    const val GENERIC_DIARY_TWO_ENTRY = "הוסיף/ה רשומה חדשה ליומן 2"
+    const val GENERIC_DIARY_TWO_ASSIGNED = "הופעל יומן 2"
     const val GENERIC_DIARY_ONE_ENTRY = "הוסיף/ה רשומה חדשה ליומן 1"
     const val GENERIC_DIARY_ONE_ASSIGNED = "הופעל יומן 1"
     const val GENERIC_MESSAGE_RECEIVED = "הודעה חדשה מהמטפל/ת"
@@ -19,6 +22,8 @@ object PatientPushPersonalizer {
     const val TYPE_QUESTIONNAIRE_COMPLETED = "questionnaire_completed"
     const val TYPE_QUESTIONNAIRE_ASSIGNED = "questionnaire_assigned"
     const val TYPE_MESSAGE_RECEIVED = "message_received"
+    const val TYPE_DIARY_TWO_ASSIGNED = "diary_2_assigned"
+    const val TYPE_DIARY_TWO_ENTRY_ADDED = "diary_2_entry_added"
     const val TYPE_DIARY_ONE_ASSIGNED = "diary_1_assigned"
     const val TYPE_DIARY_ONE_ENTRY_ADDED = "diary_1_entry_added"
     const val EXTRA_TYPE = "cbtipul.push.type"
@@ -77,6 +82,11 @@ object PatientPushPersonalizer {
             TYPE_QUESTIONNAIRE_COMPLETED -> meta.copy(
                 body = namedOrFallback(name, PatientPushCopy::questionnaireCompletedBody, fallbackBody, PatientPushCopy.GENERIC_QUESTIONNAIRE_COMPLETED),
             )
+            TYPE_DIARY_TWO_ENTRY_ADDED -> meta.copy(
+                title = name ?: PatientPushCopy.GENERIC_PATIENT,
+                body = PatientPushCopy.GENERIC_DIARY_TWO_ENTRY,
+            )
+            TYPE_DIARY_TWO_ASSIGNED -> meta.copy(title = PatientPushCopy.APP_TITLE, body = PatientPushCopy.GENERIC_DIARY_TWO_ASSIGNED)
             TYPE_DIARY_ONE_ENTRY_ADDED -> meta.copy(
                 title = name ?: title,
                 body = PatientPushCopy.GENERIC_DIARY_ONE_ENTRY,

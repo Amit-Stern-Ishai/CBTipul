@@ -39,6 +39,7 @@ enum class PatientAssignmentType(val raw: String) {
     Questionnaire("questionnaire"),
     DiaryOne("diary_one"),
     DiaryTwo("diary_two"),
+    DiaryThree("diary_three"),
     ;
 
     companion object {
@@ -255,26 +256,46 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         if (type == PatientAssignmentType.DiaryOne) {
             return requestPatientDiaryOne(patientId).also { cacheAssignment(it, account) }
         }
-        activeOngoingAssignment(patientId, type)?.let { return it }
-        val therapistId = requireTherapistId()
-        val body = buildJsonObject {
-            put("patient_id", patientId)
-            put("therapist_id", therapistId)
-            put("session_id", JsonNull)
-            put("type", type.raw)
-            put("completed_at", JsonNull)
-            put("cancelled_at", JsonNull)
+        if (type == PatientAssignmentType.DiaryTwo) {
+            return requestPatientDiaryTwo(patientId).also { cacheAssignment(it, account) }
         }
+        if (type == PatientAssignmentType.DiaryThree) {
+            return requestPatientDiaryThree(patientId).also { cacheAssignment(it, account) }
+        }
+        throw PatientAssignmentException.InvalidIdentifier
+    }
+
+    private suspend fun requestPatientDiaryTwo(patientId: String): PatientAssignment {
         return try {
-            client.from("patient_assignments")
-                .insert(body) { select(assignmentColumns) }
-                .decodeSingle<PatientAssignmentRow>()
-                .toDomain().also { cacheAssignment(it, account) }
-        } catch (error: Exception) {
-            if (isUniqueViolation(error)) {
-                activeOngoingAssignment(patientId, type)?.let { return it }
+            val http = client.functions.invoke(
+                function = FUNCTION_REQUEST_DIARY_TWO,
+                body = RequestPatientDiaryOneRequest(patientId),
+                headers = Headers.build { append(HttpHeaders.ContentType, ContentType.Application.Json.toString()) },
+            )
+            assignmentFromDiaryTwoResponse(http.bodyAsText()).also {
+                if (!it.patientId.equals(patientId, ignoreCase = true)) throw PatientAssignmentException.InvalidIdentifier
             }
+        } catch (error: PatientAssignmentException) {
             throw error
+        } catch (error: Exception) {
+            throw mapRequestDiaryOneError(error)
+        }
+    }
+
+    private suspend fun requestPatientDiaryThree(patientId: String): PatientAssignment {
+        return try {
+            val http = client.functions.invoke(
+                function = FUNCTION_REQUEST_DIARY_THREE,
+                body = RequestPatientDiaryOneRequest(patientId),
+                headers = Headers.build { append(HttpHeaders.ContentType, ContentType.Application.Json.toString()) },
+            )
+            assignmentFromDiaryThreeResponse(http.bodyAsText()).also {
+                if (!it.patientId.equals(patientId, ignoreCase = true)) throw PatientAssignmentException.InvalidIdentifier
+            }
+        } catch (error: PatientAssignmentException) {
+            throw error
+        } catch (error: Exception) {
+            throw mapRequestDiaryOneError(error)
         }
     }
 
@@ -432,8 +453,27 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         fun usesDiaryOneEdgeFunction(type: PatientAssignmentType): Boolean =
             type == PatientAssignmentType.DiaryOne
 
-        fun usesDirectInsert(type: PatientAssignmentType): Boolean =
-            type == PatientAssignmentType.DiaryTwo
+        fun usesDirectInsert(type: PatientAssignmentType): Boolean = false
+
+        internal const val FUNCTION_REQUEST_DIARY_TWO = "request-patient-diary-two"
+        fun usesDiaryTwoEdgeFunction(type: PatientAssignmentType) = type == PatientAssignmentType.DiaryTwo
+        internal fun encodeDiaryTwoRequest(patientId: String) = encodeDiaryOneRequest(patientId)
+        internal fun assignmentFromDiaryTwoResponse(json: String): PatientAssignment =
+            assignmentFromDiaryOneResponse(json).also {
+                if (it.type != PatientAssignmentType.DiaryTwo || it.sessionId != null || it.cancelledAt != null) {
+                    throw PatientAssignmentException.InvalidIdentifier
+                }
+            }
+
+        internal const val FUNCTION_REQUEST_DIARY_THREE = "request-patient-diary-three"
+        fun usesDiaryThreeEdgeFunction(type: PatientAssignmentType) = type == PatientAssignmentType.DiaryThree
+        internal fun encodeDiaryThreeRequest(patientId: String) = encodeDiaryOneRequest(patientId)
+        internal fun assignmentFromDiaryThreeResponse(json: String): PatientAssignment =
+            assignmentFromDiaryOneResponse(json).also {
+                if (it.type != PatientAssignmentType.DiaryThree || it.sessionId != null || it.cancelledAt != null) {
+                    throw PatientAssignmentException.InvalidIdentifier
+                }
+            }
 
         fun uuidOrNull(id: DatabaseId): String? =
             runCatching { UUID.fromString(id.queryValue).toString() }.getOrNull()

@@ -77,6 +77,8 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
     val scope = rememberCoroutineScope()
     val sent = stringResource(R.string.questionnaire_sent_to_patient)
     val diarySent = stringResource(R.string.patient_diary_one_activated)
+    val diaryThreeSent = stringResource(R.string.patient_diary_three_activated)
+    val diaryTwoSent = stringResource(R.string.patient_diary_two_activated)
     val failed = stringResource(R.string.questionnaire_assignment_send_error)
     GroupedListCard(accent = PatientAvatarColor.background(patient.id)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -138,8 +140,25 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                         finally { sending = false; sheet = null }
                     }
                 }
-                IconLabel(stringResource(R.string.diary_two_title) + " · " + stringResource(R.string.coming_soon), Icons.Outlined.Book, color = colors.textFaint)
-                IconLabel(stringResource(R.string.diary_three_title) + " · " + stringResource(R.string.coming_soon), Icons.Outlined.Book, color = colors.textFaint)
+                SendChoice(Icons.Outlined.Book, R.string.patient_enable_diary_two_action, R.string.patient_send_diary_two_description, !sending) {
+                    sending = true
+                    scope.launch {
+                        try { repository!!.activateOngoingAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!, PatientAssignmentType.DiaryTwo); feedback = diaryTwoSent }
+                        catch (e: CancellationException) { throw e }
+                        catch (_: Exception) { feedback = failed; refresh() }
+                        finally { sending = false; sheet = null }
+                    }
+                }
+
+                SendChoice(Icons.Outlined.Book, R.string.patient_enable_diary_three_action, R.string.patient_send_diary_three_description, !sending) {
+                    sending = true
+                    scope.launch {
+                        try { repository!!.activateOngoingAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!, PatientAssignmentType.DiaryThree); feedback = diaryThreeSent }
+                        catch (e: CancellationException) { throw e }
+                        catch (_: Exception) { feedback = failed; refresh() }
+                        finally { sending = false; sheet = null }
+                    }
+                }
             } else Text(stringResource(R.string.patient_not_connected_body))
             TextButton(onClick = { sheet = null }, enabled = !sending) { Text(stringResource(R.string.cancel)) }
         }

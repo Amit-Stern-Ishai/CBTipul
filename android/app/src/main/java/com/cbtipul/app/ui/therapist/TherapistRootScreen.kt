@@ -121,7 +121,8 @@ fun TherapistRootScreen(
         val destination = pending ?: return@LaunchedEffect
         if (destination !is AppDestination.PatientDetail &&
             destination !is AppDestination.QuestionnaireResult &&
-            destination !is AppDestination.DiaryOneEntry
+            destination !is AppDestination.DiaryOneEntry &&
+            destination !is AppDestination.DiaryTwoEntry
         ) {
             return@LaunchedEffect
         }

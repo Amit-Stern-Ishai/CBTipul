@@ -219,7 +219,7 @@ private fun DiaryFeelingChip(
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-private fun DiaryFeelingPickerSheet(
+internal fun DiaryFeelingPickerSheet(
     selectedNames: Set<String>,
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,

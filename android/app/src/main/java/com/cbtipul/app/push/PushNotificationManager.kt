@@ -246,6 +246,10 @@ class PushNotificationManager(
     ) {
         ensureChannel()
         val launch = Intent(appContext, MainActivity::class.java).apply {
+            // Intent extras do not participate in PendingIntent identity. A unique URI
+            // prevents different entries from overwriting each other's tap destination.
+            data = android.net.Uri.Builder().scheme("cbtipul").authority("notification")
+                .appendPath(personalized.notificationId ?: messageId ?: java.util.UUID.randomUUID().toString()).build()
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP or
                 Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -274,9 +278,8 @@ class PushNotificationManager(
             .setContentIntent(pending)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
-        val id = (System.currentTimeMillis() and 0x7fffffff).toInt()
         appContext.getSystemService(NotificationManager::class.java)
-            ?.notify(id, notification)
+            ?.notify(launch.data.toString(), 0, notification)
     }
 
     private inline fun debug(message: () -> String) {
