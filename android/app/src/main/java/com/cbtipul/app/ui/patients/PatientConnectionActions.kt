@@ -75,7 +75,6 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
     var sending by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val sent = stringResource(R.string.questionnaire_sent_to_patient)
     val diarySent = stringResource(R.string.patient_diary_one_activated)
     val diaryThreeSent = stringResource(R.string.patient_diary_three_activated)
     val diaryTwoSent = stringResource(R.string.patient_diary_two_activated)
@@ -122,14 +121,8 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
             } else if (connection == ConnectionUi.Connected) {
                 Text(stringResource(R.string.patient_choose_send_action), fontWeight = FontWeight.Bold)
                 SendChoice(Icons.Outlined.MailOutline, R.string.send_patient_message_action, R.string.patient_send_message_description, !sending) { sheet = null; onMessage() }
-                SendChoice(Icons.Outlined.Assignment, R.string.send_questionnaire_to_patient, R.string.patient_questionnaire_request_description, !sending) {
-                    sending = true
-                    scope.launch {
-                        try { repository!!.sendQuestionnaireAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!); feedback = sent }
-                        catch (e: CancellationException) { throw e }
-                        catch (_: Exception) { feedback = failed; refresh() }
-                        finally { sending = false; sheet = null }
-                    }
+                OutlinedCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) { QuestionnaireAccessControl(patient, repository, isDemo, busy || sending) }
                 }
                 SendChoice(Icons.Outlined.Book, R.string.patient_enable_diary_one_action, R.string.patient_send_diary_one_description, !sending) {
                     sending = true

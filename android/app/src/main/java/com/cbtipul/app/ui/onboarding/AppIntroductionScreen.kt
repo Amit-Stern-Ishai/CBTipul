@@ -73,7 +73,7 @@ fun AppIntroductionScreen(
                 Row(Modifier.fillMaxWidth().semantics { contentDescription = progress }.testTag("introduction.page.${page + 1}"),
                     horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     repeat(5) { index ->
-                        Box(Modifier.weight(1f).height(4.dp).background(if (index <= page) colors.gold else colors.borderDefault, RoundedCornerShape(50)))
+                        Box(Modifier.weight(1f).height(4.dp).background(if (index == page) colors.gold else colors.borderDefault, RoundedCornerShape(50)))
                     }
                 }
             }

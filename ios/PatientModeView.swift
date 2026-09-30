@@ -19,7 +19,8 @@ struct PatientModeView: View {
     @State private var messages: [PatientMessage] = []
     @State private var isShowingMessages = false
     @State private var openedMessageID: UUID?
-    @State private var didSubmitQuestionnaire = false
+    @State private var isShowingQuestionnaireHub = false
+    @State private var questionnaireFormRequest: UUID?
     @State private var didSubmitDiaryOne = false
     @State private var isShowingSettings = false
     @State private var isShowingDiaryOneEntry = false
@@ -59,6 +60,12 @@ struct PatientModeView: View {
             .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $isShowingQuestionnaireHub) {
+                if let patientId = appContext.current?.patientId {
+                    PatientQuestionnaireHubView(patientId: patientId, openFormRequest: $questionnaireFormRequest,
+                        onAssignmentsChanged: { await loadAssignments() })
+                }
+            }
             .navigationDestination(isPresented: $isShowingMessages) {
                 if let patientId = appContext.current?.patientId {
                     PatientMessagesInboxView(
@@ -166,9 +173,6 @@ struct PatientModeView: View {
                 guard phase == .active else { return }
                 Task { await refreshPatientHome() }
             }
-            .alert(L10n.patientQuestionnaireSubmittedTitle, isPresented: $didSubmitQuestionnaire) {
-                Button(L10n.ok, role: .cancel) {}
-            }
             .alert(L10n.patientDiaryOneSaved, isPresented: $didSubmitDiaryThree) {
                 Button(L10n.ok, role: .cancel) {}
             }
@@ -219,11 +223,13 @@ struct PatientModeView: View {
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(Theme.textBright)
 
+                questionnaireCard
+
                 if openAssignments.isEmpty {
                     emptyState
                 } else {
                     VStack(spacing: 12) {
-                        ForEach(openAssignments, id: \.id) { assignment in
+                        ForEach(openAssignments.filter { $0.type != .questionnaire }, id: \.id) { assignment in
                             assignmentCard(assignment)
                         }
                     }
@@ -324,7 +330,7 @@ struct PatientModeView: View {
     private func assignmentCard(_ assignment: PatientAssignment) -> some View {
         switch assignment.type {
         case .questionnaire:
-            questionnaireCard(assignment)
+            EmptyView()
         case .diaryOne:
             diaryOneCard
         case .diaryTwo:
@@ -336,22 +342,17 @@ struct PatientModeView: View {
         }
     }
 
-    private func questionnaireCard(_ assignment: PatientAssignment) -> some View {
+    private var questionnaireCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.patientQuestionnaireCardTitle)
                 .font(.headline)
                 .foregroundStyle(Theme.textBright)
-            Text(L10n.patientQuestionnaireCardBody)
+            Text(openAssignments.contains { $0.type == .questionnaire } ? L10n.patientQuestionnaireCardBody : L10n.patientQuestionnaireInactiveHint)
                 .font(.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
-            NavigationLink {
-                PatientQuestionnaireView(assignmentId: assignment.id) {
-                    await loadAssignments()
-                    didSubmitQuestionnaire = true
-                }
-            } label: {
-                Text(L10n.patientQuestionnaireStartAction)
+            Button { isShowingQuestionnaireHub = true } label: {
+                Text(L10n.patientQuestionnaireOpenAction)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity, minHeight: 24)
             }
@@ -476,6 +477,24 @@ struct PatientModeView: View {
         case .messages(let messagesDestination):
             await loadMessages()
             await applyMessageDestination(messagesDestination)
+        case .questionnaireAssigned(let payload):
+            guard let patientId = appContext.current?.patientId else { return }
+            let assignment = await PatientQuestionnaireAssignedRouter.resolve(payload: payload, patientId: patientId) {
+                let loaded = try await PatientAssignmentService(client: auth.client).patientAssignments(patientId: patientId)
+                assignments = loaded
+                return loaded
+            }
+            guard appContext.current?.patientId == patientId, let assignment else { return }
+            openedMessageID = nil
+            isShowingMessages = false
+            isShowingDiaryOneEntry = false
+            isShowingDiaryTwoHub = false
+            isShowingDiaryThreeHub = false
+            isShowingDiaryTwoEntry = false
+            isShowingDiaryThreeEntry = false
+            isShowingSettings = false
+            questionnaireFormRequest = assignment.id
+            isShowingQuestionnaireHub = true
         case .diaryTwoAssigned(let payload):
             guard let patientId = appContext.current?.patientId else { return }
             let assignment = await PatientDiaryTwoAssignedRouter.resolve(payload: payload, patientId: patientId) {
@@ -559,6 +578,7 @@ struct PatientModeView: View {
 struct PatientQuestionnaireView: View {
     let assignmentId: UUID
     var onSubmitted: () async -> Void
+    var onInactive: () async -> Void = {}
 
     @Environment(AuthManager.self) private var auth
     @Environment(\.dismiss) private var dismiss
@@ -567,6 +587,7 @@ struct PatientQuestionnaireView: View {
     @State private var deviceDraft = DeviceFormDraft<CombinedMoodQuestionnaire>()
     @State private var isSubmitting = false
     @State private var didSubmit = false
+    @State private var inactive = false
     @State private var didAttemptSubmit = false
     @State private var isShowingLeaveWarning = false
     @State private var errorMessage: String?
@@ -578,7 +599,7 @@ struct PatientQuestionnaireView: View {
             Form {
                 QuestionnaireSections(
                     questionnaire: $questionnaire,
-                    isEditable: !isSubmitting && !didSubmit,
+                    isEditable: !isSubmitting && !didSubmit && !inactive,
                     previous: nil,
                     accent: Theme.gold,
                     showsTherapistNotes: false,
@@ -628,10 +649,10 @@ struct PatientQuestionnaireView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(didSubmit ? L10n.done : L10n.patientQuestionnaireSubmitAction) {
                         if didSubmit { Task { await finishSuccessfully() } }
-                        else if completion.firstUnanswered == nil { Task { await submit() } }
+                        else if !inactive && completion.firstUnanswered == nil { Task { await submit() } }
                         else { revealUnanswered(using: proxy) }
                     }
-                    .disabled(isSubmitting)
+                    .disabled(isSubmitting || inactive)
                 }
             }
         }
@@ -675,8 +696,11 @@ struct PatientQuestionnaireView: View {
                     interferenceLevel: interference
                 )
             await finishSuccessfully()
-        } catch PatientQuestionnaireSubmitError.alreadyCompleted {
-            await finishSuccessfully()
+        } catch PatientQuestionnaireSubmitError.cancelled {
+            inactive = true
+            errorMessage = L10n.patientQuestionnaireCancelledError
+            isSubmitting = false
+            await onInactive()
         } catch let error as PatientQuestionnaireSubmitError {
             errorMessage = error.errorDescription ?? L10n.patientQuestionnaireSubmitError
             isSubmitting = false
@@ -693,6 +717,7 @@ struct PatientQuestionnaireView: View {
             isSubmitting = false
             return
         }
+        questionnaire = CombinedMoodQuestionnaire()
         await onSubmitted()
         dismiss()
     }

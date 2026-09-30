@@ -80,25 +80,34 @@ fun PatientDiaryThreeEntryScreen(
         R.string.patient_diary_three_step_5, R.string.patient_diary_three_step_6, R.string.patient_diary_three_step_7)
     Box(Modifier.fillMaxSize()) {
         Scaffold(modifier = Modifier.themedScreen(colors.gold).dismissKeyboardOnTap().imePadding(), containerColor = Color.Transparent,
-            topBar = { TopAppBar(title = { Text(stringResource(R.string.diary_three_title)) },
+            topBar = { Column {
+                TopAppBar(title = { Text(stringResource(R.string.diary_three_title)) },
                 navigationIcon = { IconButton(onClick = ::back, enabled = !state.submitting && !unavailable) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back))
                 } },
                 actions = { IconButton(onClick = ::close, enabled = !state.submitting && !unavailable) { Icon(Icons.Outlined.Close, stringResource(R.string.welcome_info_done_action)) } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent))
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.patient_diary_three_progress, draft.currentStep), style = MaterialTheme.typography.labelLarge)
+                    LinearProgressIndicator(progress = { draft.currentStep / 7f }, modifier = Modifier.fillMaxWidth())
+                }
+            } },
             bottomBar = {
-                Button(onClick = { if (didSubmit) finish() else if (draft.currentStep == 7) vm.submit() else vm.next() },
-                    enabled = !state.submitting && !unavailable,
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp).height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
-                    Text(stringResource(if (didSubmit) R.string.done else if (draft.currentStep == 7) R.string.patient_diary_one_save_action else R.string.introduction_next))
+                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    if (draft.currentStep > 1 && !didSubmit) TextButton(onClick = ::back, enabled = !state.submitting && !unavailable) {
+                        Text(stringResource(R.string.diary_previous_step))
+                    }
+                    Button(onClick = { if (didSubmit) finish() else if (draft.currentStep == 7) vm.submit() else vm.next() },
+                        enabled = !state.submitting && !unavailable,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
+                        Text(stringResource(if (didSubmit) R.string.done else if (draft.currentStep == 7) R.string.patient_diary_one_save_action else R.string.introduction_next))
+                    }
                 }
             },
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).editorScroll(scroll).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 DraftStatus(state.draftFailed, state.draftSaved)
-                Text(stringResource(R.string.patient_diary_three_progress, draft.currentStep), style = MaterialTheme.typography.labelLarge)
-                LinearProgressIndicator(progress = { draft.currentStep / 7f }, modifier = Modifier.fillMaxWidth())
                 Text(stringResource(hints[draft.currentStep - 1]), color = colors.textBody)
                 key(draft.currentStep) {
                     DiaryThreeDraftFields(draft.entry, attempted = false, step = draft.currentStep) {

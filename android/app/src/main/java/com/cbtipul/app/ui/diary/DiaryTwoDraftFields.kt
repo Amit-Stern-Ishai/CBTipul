@@ -32,18 +32,7 @@ fun DiaryTwoDraftFields(draft: DiaryTwoEntryDraft, attempted: Boolean, error: In
             DiaryFeelingsEditor(drafts = draft.feelings, highlightIncomplete = attempted, onChange = { onChange(draft.copy(feelings = it)) })
         }
         DiaryTwoCard(stringResource(R.string.diary_thinking_errors_title)) {
-            ThinkingError.entries.forEach { error ->
-                val selected = error in draft.thinkingErrors
-                Row(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Checkbox) {
-                    onChange(draft.copy(thinkingErrors = if (selected) draft.thinkingErrors - error else draft.thinkingErrors + error))
-                }.padding(vertical = 6.dp), verticalAlignment = Alignment.Top) {
-                    Checkbox(checked = selected, onCheckedChange = null)
-                    Column(Modifier.weight(1f).padding(start = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(error.title), fontWeight = FontWeight.SemiBold)
-                        Text(stringResource(error.explanation), style = MaterialTheme.typography.bodySmall, color = Theme.colors.textBody)
-                    }
-                }
-            }
+            DiaryThinkingErrorPicker(draft.thinkingErrors) { onChange(draft.copy(thinkingErrors = it)) }
         }
         DiaryTwoThoughts(stringResource(R.string.diary_alternative_thoughts_title), stringResource(R.string.diary_alternative_thought_title), draft.alternativeThoughts) {
             onChange(draft.copy(alternativeThoughts = it))
@@ -56,6 +45,7 @@ fun DiaryTwoDraftFields(draft: DiaryTwoEntryDraft, attempted: Boolean, error: In
 @Composable
 private fun DiaryTwoThoughts(title: String, placeholder: String, rows: List<DiaryAutomaticThoughtDraft>, onChange: (List<DiaryAutomaticThoughtDraft>) -> Unit) {
     DiaryTwoCard(title) {
+        Text(stringResource(if (title == stringResource(R.string.diary_one_thought_title)) R.string.diary_entry_thought_hint else R.string.diary_entry_alternative_hint), color = Theme.colors.textBody)
         rows.forEach { row -> key(row.id) {
             Row(verticalAlignment = Alignment.Top) {
                 NotesField(row.text, { text -> onChange(rows.map { if (it.id == row.id) it.copy(text = text) else it }) }, placeholder, Modifier.weight(1f))

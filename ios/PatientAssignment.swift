@@ -13,7 +13,6 @@ enum PatientAssignmentType: String, Codable, Sendable {
 }
 
 enum PatientQuestionnaireSubmitError: LocalizedError {
-    case alreadyCompleted
     case cancelled
     case accessDenied
     case invalidAnswers
@@ -21,7 +20,7 @@ enum PatientQuestionnaireSubmitError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .alreadyCompleted, .failed, .invalidAnswers:
+        case .failed, .invalidAnswers:
             L10n.patientQuestionnaireSubmitError
         case .cancelled:
             L10n.patientQuestionnaireCancelledError
@@ -40,26 +39,8 @@ private struct SubmitPatientQuestionnaireRequest: Encodable {
     let interferenceLevel: Int
 }
 
-private struct RequestPatientQuestionnaireRequest: Encodable {
+struct RequestPatientQuestionnaireRequest: Encodable {
     let patientId: UUID
-    let sessionId: UUID?
-
-    enum CodingKeys: String, CodingKey {
-        case patientId
-        case sessionId
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(patientId, forKey: .patientId)
-        // Standalone requests must send JSON null, not omit the key. The Edge
-        // Function forwards this as RPC `p_session_id`.
-        if let sessionId {
-            try container.encode(sessionId, forKey: .sessionId)
-        } else {
-            try container.encodeNil(forKey: .sessionId)
-        }
-    }
 }
 
 private struct RequestPatientQuestionnaireResponse: Decodable {
@@ -72,15 +53,25 @@ private struct RequestPatientQuestionnaireResponse: Decodable {
     let completedAt: String?
     let cancelledAt: String?
 
-    enum CodingKeys: String, CodingKey {
-        case id
-        case patientId = "patient_id"
-        case therapistId = "therapist_id"
-        case sessionId = "session_id"
-        case typeValue = "type"
-        case createdAt = "created_at"
-        case completedAt = "completed_at"
-        case cancelledAt = "cancelled_at"
+    private enum Keys: String, CodingKey {
+        case id, type, success, assignment
+        case patientId, therapistId, sessionId, createdAt, completedAt, cancelledAt
+        case patient_id, therapist_id, session_id, created_at, completed_at, cancelled_at
+    }
+    init(from decoder: Decoder) throws {
+        let root = try decoder.container(keyedBy: Keys.self)
+        if try root.decodeIfPresent(Bool.self, forKey: .success) == false {
+            throw PatientAssignmentError.invalidIdentifier
+        }
+        let c = try root.contains(.assignment) ? root.nestedContainer(keyedBy: Keys.self, forKey: .assignment) : root
+        id = try c.decode(UUID.self, forKey: .id)
+        typeValue = try c.decode(String.self, forKey: .type)
+        patientId = try c.decodeIfPresent(UUID.self, forKey: .patient_id) ?? c.decode(UUID.self, forKey: .patientId)
+        therapistId = try c.decodeIfPresent(UUID.self, forKey: .therapist_id) ?? c.decodeIfPresent(UUID.self, forKey: .therapistId)
+        sessionId = try c.decodeIfPresent(UUID.self, forKey: .session_id) ?? c.decodeIfPresent(UUID.self, forKey: .sessionId)
+        createdAt = try c.decodeIfPresent(String.self, forKey: .created_at) ?? c.decode(String.self, forKey: .createdAt)
+        completedAt = try c.decodeIfPresent(String.self, forKey: .completed_at) ?? c.decodeIfPresent(String.self, forKey: .completedAt)
+        cancelledAt = try c.decodeIfPresent(String.self, forKey: .cancelled_at) ?? c.decodeIfPresent(String.self, forKey: .cancelledAt)
     }
 }
 
@@ -336,7 +327,7 @@ nonisolated struct PatientAssignment: Decodable, Sendable {
 
     var type: PatientAssignmentType? { PatientAssignmentType(rawValue: typeValue) }
 
-    var isOpen: Bool { completedAt == nil && cancelledAt == nil }
+    var isOpen: Bool { cancelledAt == nil && (type == .questionnaire || completedAt == nil) }
 }
 
 
@@ -392,17 +383,10 @@ final class PatientAssignmentService {
         Self.assignmentCache.value(account: client.auth.currentUser?.id, resource: "patient/\(patientId)/\(type.rawValue)")
     }
 
-    func cachedQuestionnaireAssignment(sessionId: UUID) -> AssignmentStatusCache.Snapshot? {
-        Self.assignmentCache.value(account: client.auth.currentUser?.id, resource: "session/\(sessionId)")
-    }
-
     private func cacheAssignment(_ assignment: PatientAssignment, account: UUID?) {
-        guard account == client.auth.currentUser?.id else { return }
-        if assignment.type == .questionnaire, let sessionId = assignment.sessionId {
-            Self.assignmentCache.store(assignment.isOpen ? assignment.id : nil, account: account, resource: "session/\(sessionId)")
-        } else if let type = assignment.type {
-            Self.assignmentCache.store(assignment.cancelledAt == nil ? assignment.id : nil, account: account, resource: "patient/\(assignment.patientId)/\(type.rawValue)")
-        }
+        guard account == client.auth.currentUser?.id, let type = assignment.type else { return }
+        Self.assignmentCache.store(assignment.cancelledAt == nil ? assignment.id : nil, account: account,
+            resource: "patient/\(assignment.patientId)/\(type.rawValue)")
     }
 
     func cachedPatientConnection(patientId: UUID) -> Bool? {
@@ -437,51 +421,11 @@ final class PatientAssignmentService {
         }
     }
 
-    /// Open questionnaire assignment for this session, if one exists.
-    func openQuestionnaireAssignment(sessionId: UUID) async throws -> PatientAssignment? {
+    /// Enables ongoing Patient Mode access; results are standalone, independently of sessions.
+    func sendQuestionnaireAssignment(patientId: UUID) async throws -> PatientAssignment {
         try ensureConfigured()
         let account = client.auth.currentUser?.id
-        let resource = "session/\(sessionId)"
-        let revision = Self.assignmentCache.revision(account: account, resource: resource)
-        do {
-            let rows: [PatientAssignment] = try await client.from("patient_assignments")
-                .select(
-                    "id, patient_id, therapist_id, session_id, type, created_at, completed_at, cancelled_at"
-                )
-                .eq("session_id", value: sessionId)
-                .eq("type", value: PatientAssignmentType.questionnaire.rawValue)
-                .is("completed_at", value: nil)
-                .is("cancelled_at", value: nil)
-                .limit(1)
-                .execute()
-                .value
-            if account == client.auth.currentUser?.id {
-                Self.assignmentCache.store(rows.first?.id, account: account, resource: resource, ifRevision: revision)
-            }
-            return rows.first
-        } catch {
-            AppLog.store.error(
-                "Questionnaire assignment fetch failed: \(error.localizedDescription, privacy: .public)"
-            )
-            throw error
-        }
-    }
-
-    /// Creates a one-time questionnaire assignment via `request-patient-questionnaire`.
-    /// Pass `sessionId` to keep the assignment tied to a session, or `nil` for a
-    /// patient-level request. Duplicate/open handling and connection checks are
-    /// performed by the Edge Function.
-    func sendQuestionnaireAssignment(
-        patientId: UUID,
-        sessionId: UUID? = nil
-    ) async throws -> PatientAssignment {
-        try ensureConfigured()
-        let account = client.auth.currentUser?.id
-        let request = RequestPatientQuestionnaireRequest(
-            patientId: patientId,
-            sessionId: sessionId
-        )
-        Self.logQuestionnaireRequest(request)
+        let request = RequestPatientQuestionnaireRequest(patientId: patientId)
         do {
             let response: RequestPatientQuestionnaireResponse = try await client.functions.invoke(
                 "request-patient-questionnaire",
@@ -519,6 +463,10 @@ final class PatientAssignmentService {
                 completedAt: completedAt,
                 cancelledAt: cancelledAt
             )
+            guard assignment.patientId == patientId, assignment.type == .questionnaire,
+                  assignment.sessionId == nil, assignment.cancelledAt == nil else {
+                throw PatientAssignmentError.invalidIdentifier
+            }
             cacheAssignment(assignment, account: account)
             return assignment
         } catch let error as PatientAssignmentError {
@@ -534,8 +482,7 @@ final class PatientAssignmentService {
         }
     }
 
-    /// Active ongoing diary assignment (`cancelled_at` is NULL). `completed_at`
-    /// is not part of diary active-state.
+    /// Active ongoing access depends only on `cancelled_at`, never `completed_at`.
     func activeOngoingAssignment(
         patientId: UUID,
         type: PatientAssignmentType
@@ -582,7 +529,9 @@ final class PatientAssignmentService {
 
         let account = client.auth.currentUser?.id
         let assignment: PatientAssignment
-        if PatientDiaryOneActivation.usesEdgeFunction(type) {
+        if type == .questionnaire {
+            assignment = try await sendQuestionnaireAssignment(patientId: patientId)
+        } else if PatientDiaryOneActivation.usesEdgeFunction(type) {
             assignment = try await requestPatientDiaryOne(patientId: patientId)
         } else if PatientDiaryTwoActivation.usesEdgeFunction(type) {
             assignment = try await requestPatientDiaryTwo(patientId: patientId)
@@ -794,8 +743,6 @@ final class PatientAssignmentService {
     private static func submitError(from data: Data, statusCode: Int) -> PatientQuestionnaireSubmitError {
         let code = edgeErrorCode(from: data)
         switch code {
-        case "assignment_already_completed", "already_completed":
-            return .alreadyCompleted
         case "assignment_cancelled", "cancelled":
             return .cancelled
         case "access_denied", "forbidden", "unauthorized":
@@ -851,15 +798,6 @@ final class PatientAssignmentService {
         }
     }
 
-    private static func logQuestionnaireRequest(_ request: RequestPatientQuestionnaireRequest) {
-        let encoder = JSONEncoder()
-        let json = (try? encoder.encode(request)).flatMap { String(data: $0, encoding: .utf8) } ?? "<encode-failed>"
-        let session: String = request.sessionId?.uuidString ?? "null"
-        AppLog.store.error(
-            "request-patient-questionnaire sending function=request-patient-questionnaire patientId=\(request.patientId.uuidString, privacy: .public) sessionId=\(session, privacy: .public) json=\(json, privacy: .public)"
-        )
-    }
-
     private static func logQuestionnaireFailure(statusCode: Int, data: Data) {
         let body = String(data: data, encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
         let parsed = edgeErrorFields(from: data)
@@ -882,10 +820,8 @@ final class PatientAssignmentService {
 
     private static func requireOngoingType(_ type: PatientAssignmentType) throws {
         switch type {
-        case .diaryOne, .diaryTwo, .diaryThree:
+        case .questionnaire, .diaryOne, .diaryTwo, .diaryThree:
             return
-        case .questionnaire:
-            throw PatientAssignmentError.invalidIdentifier
         }
     }
 

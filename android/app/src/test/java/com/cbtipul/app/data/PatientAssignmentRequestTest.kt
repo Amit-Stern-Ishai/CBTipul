@@ -12,29 +12,12 @@ import java.util.TimeZone
 
 class PatientAssignmentRequestTest {
     @Test
-    fun questionnaireRequestContainsOnlyPatientIdAndSessionId() {
-        val json = PatientAssignmentRepository.encodeQuestionnaireRequest(
-            patientId = "patient-1",
-            sessionId = "session-1",
-        )
+    fun questionnaireActivationContainsOnlyPatientId() {
+        val json = PatientAssignmentRepository.encodeQuestionnaireRequest(patientId = "patient-1")
         val obj = EdgePayload.json.parseToJsonElement(json) as JsonObject
         assertEquals("patient-1", obj.getValue("patientId").jsonPrimitive.content)
-        assertEquals("session-1", obj.getValue("sessionId").jsonPrimitive.content)
-        assertFalse(obj.containsKey("therapistId"))
-        assertFalse(obj.containsKey("therapist_id"))
-        assertEquals(setOf("patientId", "sessionId"), obj.keys)
-    }
-
-    @Test
-    fun standaloneQuestionnaireRequestSendsSessionIdNull() {
-        val json = PatientAssignmentRepository.encodeQuestionnaireRequest(
-            patientId = "patient-1",
-            sessionId = null,
-        )
-        val obj = EdgePayload.json.parseToJsonElement(json) as JsonObject
-        assertEquals("patient-1", obj.getValue("patientId").jsonPrimitive.content)
-        assertTrue(obj.getValue("sessionId") is kotlinx.serialization.json.JsonNull)
-        assertEquals(setOf("patientId", "sessionId"), obj.keys)
+        assertEquals(setOf("patientId"), obj.keys)
+        assertFalse(obj.containsKey("sessionId"))
     }
 
     @Test

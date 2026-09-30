@@ -84,46 +84,45 @@ struct DiaryFeelingChip: View {
 
 struct DiaryFeelingIntensityControl: View {
     @Binding var intensity: Int?
-    @State private var knob: Double
-    @State private var hasExplicitValue: Bool
-
-    init(intensity: Binding<Int?>) {
-        _intensity = intensity
-        if let value = intensity.wrappedValue, (0...100).contains(value) {
-            _knob = State(initialValue: Double(value))
-            _hasExplicitValue = State(initialValue: true)
-        } else {
-            _knob = State(initialValue: 50)
-            _hasExplicitValue = State(initialValue: false)
-        }
-    }
+    var title: String = L10n.diaryOneFeelingIntensityTitle
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(L10n.diaryOneFeelingIntensityTitle)
+                Text(title).font(.subheadline)
                 Spacer()
-                Text(label)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(hasExplicitValue ? Theme.textBright : Theme.textFaint)
-            }
-            Slider(value: $knob, in: 0...100, step: 1) { isEditing in
-                if isEditing {
-                    hasExplicitValue = true
-                    intensity = Int(knob.rounded())
-                } else if hasExplicitValue {
-                    intensity = Int(knob.rounded())
+                if let intensity {
+                    Text(L10n.diaryOneIntensityValue(intensity))
+                        .fontWeight(.semibold).monospacedDigit()
+                        .environment(\.layoutDirection, .leftToRight)
                 }
             }
-            .tint(Theme.gold)
+            if let current = intensity, (0...100).contains(current) {
+                Slider(value: Binding(get: { Double(intensity ?? current) }, set: { intensity = Int($0.rounded()) }), in: 0...100, step: 1)
+                    .tint(Theme.gold)
+                    .environment(\.layoutDirection, .leftToRight)
+                    .accessibilityLabel(title)
+                HStack {
+                    Text(L10n.diaryOneIntensityValue(0))
+                    Spacer()
+                    Text(L10n.diaryOneIntensityValue(100))
+                }.font(.caption).foregroundStyle(.secondary).environment(\.layoutDirection, .leftToRight)
+            } else {
+                Text(L10n.diaryRatingChoose).font(.footnote).foregroundStyle(.secondary)
+                DiaryFeelingChipFlow(rightToLeft: false) {
+                    ForEach([0, 25, 50, 75, 100], id: \.self) { value in
+                        Button { intensity = value } label: {
+                            Text(L10n.diaryOneIntensityValue(value)).font(.subheadline.weight(.semibold))
+                                .monospacedDigit().frame(minWidth: 44, minHeight: 44)
+                                .padding(.horizontal, 4)
+                                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain).foregroundStyle(Theme.gold)
+                        .accessibilityLabel(title + ": " + L10n.diaryOneIntensityValue(value))
+                    }
+                }.environment(\.layoutDirection, .leftToRight)
+            }
         }
-    }
-
-    private var label: String {
-        if hasExplicitValue {
-            return L10n.diaryOneIntensityValue(Int(knob.rounded()))
-        }
-        return L10n.diaryOneIntensityUnset
     }
 }
 
@@ -271,6 +270,7 @@ struct DiaryFeelingsEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if drafts.isEmpty { Text(L10n.diaryEntryFeelingsHint).font(.subheadline).foregroundStyle(.secondary) }
             ForEach($drafts) { $draft in
                 feelingBlock($draft)
             }
@@ -301,12 +301,12 @@ struct DiaryFeelingsEditor: View {
                 Text(draft.wrappedValue.name)
                     .font(.headline)
                 Spacer()
-                if drafts.count > 1 {
+                if !drafts.isEmpty {
                     Button {
                         drafts.removeAll { $0.id == draft.wrappedValue.id }
                     } label: {
                         Image(systemName: "minus.circle")
-                            .foregroundStyle(Theme.textBody)
+                            .foregroundStyle(Theme.textBody).frame(minWidth: 44, minHeight: 44)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.diaryRemoveFeelingAction)

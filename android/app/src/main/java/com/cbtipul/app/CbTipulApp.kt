@@ -52,6 +52,8 @@ class CbTipulApp : Application() {
         private set
     lateinit var invitationFlow: PatientInvitationFlow
         private set
+    lateinit var patientQuestionnaires: com.cbtipul.app.data.PatientQuestionnaireHistoryRepository
+        private set
     lateinit var assignments: PatientAssignmentRepository
         private set
     lateinit var diaryThree: DiaryThreeRepository
@@ -118,6 +120,7 @@ class CbTipulApp : Application() {
         appContext = AppContextRepository(client)
         invitations = PatientInvitationService(client)
         assignments = PatientAssignmentRepository(client)
+        patientQuestionnaires = com.cbtipul.app.data.PatientQuestionnaireHistoryRepository(client)
         diaryOne = DiaryOneRepository(client)
         diaryThree = DiaryThreeRepository(client)
         diaryTwo = DiaryTwoRepository(client)

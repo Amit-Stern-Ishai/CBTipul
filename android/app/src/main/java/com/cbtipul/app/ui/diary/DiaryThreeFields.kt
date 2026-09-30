@@ -32,6 +32,7 @@ fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error
         }
         if (step == null || step == 2) {
             DiaryThreeSection(stringResource(R.string.diary_one_thought_title)) {
+                if (step == null) Text(stringResource(R.string.diary_entry_thought_hint), color = Theme.colors.textBody)
                 draft.automaticThoughts.forEach { row -> key(row.id) {
                     Row(verticalAlignment = Alignment.Top) {
                         NotesField(row.text, { text -> onChange(draft.copy(automaticThoughts = draft.automaticThoughts.map { if (it.id == row.id) it.copy(text = text) else it })) }, stringResource(R.string.diary_one_thought_singular), Modifier.weight(1f))
@@ -49,6 +50,7 @@ fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error
         }
         if (step == null || step == 3) {
             DiaryThreeSection(stringResource(R.string.diary_three_feelings_before)) {
+                if (draft.feelings.isEmpty()) Text(stringResource(R.string.diary_entry_feelings_hint), color = Theme.colors.textBody)
                 draft.feelings.forEach { row -> key(row.id) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(row.name, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
@@ -64,22 +66,12 @@ fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error
         }
         if (step == null || step == 4) {
             DiaryThreeSection(stringResource(R.string.diary_thinking_errors_title)) {
-                ThinkingError.entries.forEach { thinkingError ->
-                    val selected = thinkingError in draft.thinkingErrors
-                    Row(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Checkbox) {
-                        onChange(draft.copy(thinkingErrors = if (selected) draft.thinkingErrors - thinkingError else draft.thinkingErrors + thinkingError))
-                    }.padding(vertical = 6.dp), verticalAlignment = Alignment.Top) {
-                        Checkbox(selected, onCheckedChange = null)
-                        Column(Modifier.weight(1f).padding(start = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(stringResource(thinkingError.title), fontWeight = FontWeight.SemiBold)
-                            Text(stringResource(thinkingError.explanation), style = MaterialTheme.typography.bodySmall, color = Theme.colors.textBody)
-                        }
-                    }
-                }
+                DiaryThinkingErrorPicker(draft.thinkingErrors) { onChange(draft.copy(thinkingErrors = it)) }
             }
         }
         if (step == null || step == 5) {
             DiaryThreeSection(stringResource(R.string.diary_alternative_thoughts_title)) {
+                if (step == null) Text(stringResource(R.string.diary_entry_alternative_hint), color = Theme.colors.textBody)
                 draft.alternativeThoughts.forEach { row -> key(row.id) {
                     Row(verticalAlignment = Alignment.Top) {
                         NotesField(row.text, { text -> onChange(draft.copy(alternativeThoughts = draft.alternativeThoughts.map { if (it.id == row.id) it.copy(text = text) else it })) }, stringResource(R.string.diary_alternative_thought_title), Modifier.weight(1f))
@@ -122,6 +114,7 @@ fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error
     }
     if (pickingFeelings) DiaryFeelingPickerSheet(draft.feelings.map { it.name }.toSet(), onPick = { name ->
         if (draft.feelings.none { it.name == name }) onChange(draft.copy(feelings = draft.feelings + DiaryThreeFeelingDraft(name = name)))
+        pickingFeelings = false
     }, onDismiss = { pickingFeelings = false })
 }
 
@@ -130,13 +123,7 @@ fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error
 }
 @Composable
 private fun DiaryThreePercentage(label: String, value: Int?, onChange: (Int) -> Unit) {
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            Text(value?.let { "$it%" } ?: stringResource(R.string.diary_one_intensity_unset), color = if (value == null) Theme.colors.textFaint else Theme.colors.textBright)
-        }
-        Slider(value = (value ?: 50).toFloat(), onValueChange = { onChange(it.roundToInt()) }, valueRange = 0f..100f)
-    }
+    DiaryFeelingIntensityControl(intensity = value, title = label, onIntensityChange = onChange)
 }
 
 @Composable

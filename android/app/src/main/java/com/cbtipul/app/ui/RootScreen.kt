@@ -237,6 +237,7 @@ fun RootScreen() {
                         loadAssignments = {
                             app.assignments.patientAssignments(appContext?.patientId)
                         },
+                        loadQuestionnaireHistory = { app.patientQuestionnaires.history(appContext?.patientId.orEmpty()) },
                         submitQuestionnaire = { assignmentId, gad7, phq9, interference ->
                             app.assignments.submitPatientQuestionnaire(
                                 assignmentId,

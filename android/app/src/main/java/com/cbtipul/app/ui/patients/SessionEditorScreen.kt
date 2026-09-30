@@ -104,7 +104,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Date
 
-private enum class QuestionnaireAssignmentUi { Demo, Loading, Connected, NotConnected, Available, Pending, Failed }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -176,64 +175,6 @@ fun SessionEditorScreen(
     val hasText = notes.trim().isNotEmpty()
     val processing = isSaving || isTranscribing || isAnonymizingTranscription || isAnalyzing
     val context = LocalContext.current
-    val assignmentScope = rememberCoroutineScope()
-    fun cachedAssignmentState(): QuestionnaireAssignmentUi? {
-        if (isDemo || patient?.id?.let { DemoData.isDemoId(it) } == true) return QuestionnaireAssignmentUi.Demo
-        val patientId = patient?.id?.let(PatientAssignmentRepository::uuidOrNull) ?: return null
-        val connected = assignmentRepository?.cachedPatientConnection(patientId) ?: return null
-        if (!connected) return QuestionnaireAssignmentUi.NotConnected
-        val sessionId = initial.databaseId?.let(PatientAssignmentRepository::uuidOrNull) ?: return null
-        val snapshot = assignmentRepository.cachedQuestionnaireAssignment(sessionId) ?: return QuestionnaireAssignmentUi.Connected
-        return if (snapshot.assignmentId == null) QuestionnaireAssignmentUi.Available else QuestionnaireAssignmentUi.Pending
-    }
-    var assignmentStatus by remember(initial.id, isDemo) { mutableStateOf(cachedAssignmentState() ?: QuestionnaireAssignmentUi.Loading) }
-    var assignmentError by remember { mutableStateOf<String?>(null) }
-    var isSendingQuestionnaire by remember { mutableStateOf(false) }
-    val connectionError = stringResource(R.string.patient_connection_check_error)
-    val sendError = stringResource(R.string.questionnaire_assignment_send_error)
-
-    suspend fun loadAssignment() {
-        if (isNew || questionnaire != null || assignmentRepository == null) return
-        cachedAssignmentState()?.let { assignmentStatus = it }
-        assignmentError = null
-        if (questionnaireLoading) return
-        if (questionnaireLoadError != null) {
-            assignmentStatus = QuestionnaireAssignmentUi.Failed
-            assignmentError = questionnaireLoadError
-            return
-        }
-        if (isDemo || patient?.id?.let { DemoData.isDemoId(it) } == true) {
-            assignmentStatus = QuestionnaireAssignmentUi.Demo
-            return
-        }
-        val sessionId = initial.databaseId?.let { PatientAssignmentRepository.uuidOrNull(it) }
-        val patientId = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) }
-        if (sessionId == null || patientId == null) {
-            assignmentStatus = QuestionnaireAssignmentUi.Failed
-            assignmentError = connectionError
-            return
-        }
-
-        try {
-            assignmentStatus = if (!assignmentRepository.isPatientConnected(patientId)) {
-                QuestionnaireAssignmentUi.NotConnected
-            } else {
-                assignmentStatus = cachedAssignmentState() ?: QuestionnaireAssignmentUi.Connected
-                assignmentRepository.openQuestionnaireAssignment(sessionId)
-                cachedAssignmentState() ?: QuestionnaireAssignmentUi.Connected
-            }
-        } catch (error: kotlinx.coroutines.CancellationException) { throw error } catch (_: Exception) {
-            val cached = cachedAssignmentState()
-            if (cached != null && cached != QuestionnaireAssignmentUi.Connected) assignmentStatus = cached
-            else {
-                assignmentStatus = QuestionnaireAssignmentUi.Failed
-                assignmentError = connectionError
-            }
-        }
-    }
-    LaunchedEffect(initial.databaseId?.queryValue, questionnaire?.databaseId?.queryValue, questionnaireLoading, questionnaireLoadError) {
-        loadAssignment()
-    }
     var recorderTick by remember { mutableIntStateOf(0) }
     val recorder = remember {
         VoiceNoteRecorder(context.applicationContext).also { it.onChange = { recorderTick++ } }
@@ -256,7 +197,7 @@ fun SessionEditorScreen(
     }
     @Suppress("UNUSED_VARIABLE")
     val observed = recorderTick
-    val busy = processing || requestingRecording || recorder.isRecording || isSendingQuestionnaire
+    val busy = processing || requestingRecording || recorder.isRecording
 
     fun currentSession() = initial.copy(date = date, notes = notes, type = type, structuredNotes = structuredNotes)
 
@@ -605,8 +546,14 @@ fun SessionEditorScreen(
             if (initial.databaseId != null) {
                 Text(stringResource(R.string.questionnaire_local_entry_help), color = colors.textBody)
                 Text(stringResource(R.string.questionnaire_section_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                if (questionnaireLoadError != null) {
+                    Text(questionnaireLoadError, color = colors.error)
+                    TextButton(onClick = onRefreshQuestionnaire, enabled = !questionnaireLoading) { Text(stringResource(R.string.questionnaire_refresh_action)) }
+                }
                 GroupedListCard(accent = accent) {
-                    if (questionnaire != null) {
+                    if (questionnaireLoading && questionnaire == null) {
+                        CircularProgressIndicator(Modifier.padding(16.dp))
+                    } else if (questionnaire != null) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -652,72 +599,10 @@ fun SessionEditorScreen(
                 }
             }
 
-            if (initial.databaseId != null && questionnaire == null && assignmentRepository != null) {
+            if (initial.databaseId != null && patient != null && assignmentRepository != null) {
                 GroupedListCard(accent = accent) {
-                    when (assignmentStatus) {
-                        QuestionnaireAssignmentUi.Demo -> Text(stringResource(R.string.questionnaire_demo_sending_unavailable), modifier = Modifier.padding(16.dp))
-                        QuestionnaireAssignmentUi.Connected -> Text(stringResource(R.string.patient_connected_status), modifier = Modifier.padding(16.dp))
-                        QuestionnaireAssignmentUi.Loading -> {
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(Modifier.size(22.dp), color = colors.gold, strokeWidth = 2.dp)
-                            }
-                        }
-                        QuestionnaireAssignmentUi.NotConnected -> {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(stringResource(R.string.patient_not_connected_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                                Text(stringResource(R.string.patient_not_connected_body), color = colors.textBody, fontSize = 13.sp)
-                            }
-                        }
-                        QuestionnaireAssignmentUi.Available -> {
-                            Text(stringResource(R.string.patient_questionnaire_request_description), modifier = Modifier.padding(16.dp))
-                            IconLabel(
-                                stringResource(R.string.send_questionnaire_to_patient), Icons.AutoMirrored.Outlined.Send,
-                                color = colors.gold,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(enabled = !isSendingQuestionnaire && !busy) {
-                                        assignmentScope.launch {
-                                            val sessionId = initial.databaseId?.let {
-                                                PatientAssignmentRepository.uuidOrNull(it)
-                                            } ?: return@launch
-                                            val patientId = patient?.id?.let { PatientAssignmentRepository.uuidOrNull(it) } ?: return@launch
-                                            isSendingQuestionnaire = true
-                                            try {
-                                                assignmentRepository.sendQuestionnaireAssignment(patientId, sessionId)
-                                                assignmentStatus = QuestionnaireAssignmentUi.Pending
-                                            } catch (_: PatientAssignmentException.PatientNotConnected) {
-                                                assignmentStatus = QuestionnaireAssignmentUi.NotConnected
-                                            } catch (_: Exception) {
-                                                assignmentStatus = QuestionnaireAssignmentUi.Failed
-                                                assignmentError = sendError
-                                            } finally {
-                                                isSendingQuestionnaire = false
-                                            }
-                                        }
-                                    }
-                                    .padding(16.dp),
-                            )
-                        }
-                        QuestionnaireAssignmentUi.Pending -> {
-                            TextButton(onClick = { onRefreshQuestionnaire() }) { Text(stringResource(R.string.questionnaire_refresh_action)) }
-                            IconLabel(
-                                stringResource(R.string.questionnaire_awaiting_patient), Icons.Outlined.Schedule,
-                                color = colors.textBody,
-                                modifier = Modifier.padding(16.dp),
-                            )
-                        }
-                        QuestionnaireAssignmentUi.Failed -> {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(assignmentError ?: sendError, color = colors.error, fontSize = 13.sp)
-                                Text(
-                                    stringResource(R.string.questionnaire_assignment_retry),
-                                    color = colors.gold,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clickable(enabled = !busy) { onRefreshQuestionnaire() },
-                                )
-                            }
-                        }
+                    Column(Modifier.padding(16.dp)) {
+                        QuestionnaireAccessControl(patient, assignmentRepository, isDemo, busy)
                     }
                 }
             }

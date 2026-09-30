@@ -89,6 +89,7 @@ fun PatientModeScreen(
     loadAssignments: suspend () -> List<PatientAssignment>,
     submitQuestionnaire: suspend (String, List<Int>, List<Int>, Int) -> Unit,
     submitDiaryOne: suspend (String, List<String>, List<DiaryFeeling>, String, String?) -> Unit,
+    loadQuestionnaireHistory: suspend () -> List<com.cbtipul.app.model.CompletedQuestionnaire>,
     loadDiaryOneHistory: suspend () -> List<DiaryOneEntry> = { emptyList() },
     loadMessages: suspend () -> List<PatientMessage> = { emptyList() },
     loadMessage: suspend (String) -> PatientMessage? = { null },
@@ -102,6 +103,7 @@ fun PatientModeScreen(
     var loadState by remember { mutableStateOf(TasksLoadState.Loading) }
     var assignments by remember { mutableStateOf<List<PatientAssignment>>(emptyList()) }
     var messages by remember { mutableStateOf<List<PatientMessage>>(emptyList()) }
+    var questionnaireHistory by remember(patientId) { mutableStateOf<List<com.cbtipul.app.model.CompletedQuestionnaire>>(emptyList()) }
     var didSubmitQuestionnaire by remember { mutableStateOf(false) }
     var didSubmitDiaryOne by remember { mutableStateOf(false) }
     var diaryTwoEntries by remember(patientId) { mutableStateOf<List<DiaryTwoEntry>>(emptyList()) }
@@ -144,22 +146,28 @@ fun PatientModeScreen(
         }
         onConsumePending()
     }
+    LaunchedEffect(pendingDestination) {
+        val destination = pendingDestination as? AppDestination.PatientQuestionnaire ?: return@LaunchedEffect
+        val payload = destination.payload ?: run { onConsumePending(); return@LaunchedEffect }
+        val assignment = com.cbtipul.app.data.PatientQuestionnaireNotificationRouting.resolve(payload, patientId) {
+            loadAssignments().also { assignments = it }
+        }
+        if (assignment != null && nav.currentBackStackEntry?.arguments?.getString("assignmentId") != assignment.id) {
+            nav.popBackStack("home", inclusive = false)
+            nav.navigate("questionnaires")
+            nav.navigate("questionnaire/${assignment.id}") { launchSingleTop = true }
+        }
+        onConsumePending()
+    }
     LaunchedEffect(loadState, pendingDestination) {
         if (loadState != TasksLoadState.Loaded) return@LaunchedEffect
         val destination = pendingDestination ?: return@LaunchedEffect
         when (destination) {
-            is AppDestination.PatientQuestionnaire,
             is AppDestination.PatientMessage,
             is AppDestination.PatientDiaryOneForm,
             -> {
                 onConsumePending()
                 when (destination) {
-                    is AppDestination.PatientQuestionnaire -> {
-                        val assignment = NotificationRouting.matchingOpenAssignment(
-                            assignments, destination.assignmentId, PatientAssignmentType.Questionnaire,
-                        )
-                        if (assignment != null) nav.navigate("questionnaire/${assignment.id}")
-                    }
                     is AppDestination.PatientMessage -> {
                         val id = destination.messageId
                         if (id != null) nav.navigate("message/$id") else nav.navigate("messages")
@@ -193,13 +201,27 @@ fun PatientModeScreen(
                 messages = messages,
                 onOpenSettings = onOpenSettings,
                 onRefresh = { scope.launch { reload() } },
-                onOpenQuestionnaire = { nav.navigate("questionnaire/$it") },
+                onOpenQuestionnaire = { nav.navigate("questionnaires") },
                 onOpenDiaryOne = { nav.navigate("diary-one") },
                 onOpenDiaryTwo = { nav.navigate("diary-two") },
                 onOpenDiaryThree = { diaryThreeUnavailable = false; nav.navigate("diary-three") },
                 onOpenMessage = { nav.navigate("message/$it") },
                 onOpenAllMessages = { nav.navigate("messages") },
             )
+        }
+        composable("questionnaires") {
+            PatientQuestionnaireHubScreen(
+                loadAssignments = { loadAssignments().also { assignments = it } },
+                loadHistory = loadQuestionnaireHistory,
+                onNew = { nav.navigate("questionnaire/$it") },
+                onOpen = { nav.navigate("questionnaires/result/${it.databaseId.queryValue}") },
+                onLoaded = { questionnaireHistory = it },
+                onBack = { nav.popScreen() },
+            )
+        }
+        composable("questionnaires/result/{resultId}", arguments = listOf(navArgument("resultId") { type = NavType.StringType })) { entry ->
+            val id = entry.arguments?.getString("resultId")
+            PatientQuestionnaireResultScreen(questionnaireHistory.firstOrNull { it.databaseId.queryValue == id }, onBack = { nav.popScreen() })
         }
         composable("questionnaire/{assignmentId}", arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })) { entry ->
             val assignmentId = entry.arguments?.getString("assignmentId").orEmpty()
@@ -209,8 +231,9 @@ fun PatientModeScreen(
                     submitQuestionnaire(assignmentId, gad7, phq9, interference)
                     didSubmitQuestionnaire = true
                 },
+                onInactive = { scope.launch { reload() } },
                 onBack = {
-                    nav.popScreen()
+                    if (!nav.popBackStack("questionnaires", inclusive = false)) nav.navigate("questionnaires")
                     scope.launch { reload() }
                 },
             )
@@ -466,6 +489,11 @@ private fun PatientHomeContent(
                 ) {
                     Text(stringResource(R.string.app_title), color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 28.sp)
                     Text(stringResource(R.string.patient_tasks_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
+                    TaskCard(
+                        stringResource(R.string.patient_questionnaire_card_title),
+                        stringResource(if (openAssignments.any { it.type == PatientAssignmentType.Questionnaire }) R.string.patient_questionnaire_card_body else R.string.patient_questionnaire_inactive_hint),
+                        stringResource(R.string.patient_questionnaire_open),
+                    ) { onOpenQuestionnaire("") }
                     if (openAssignments.isEmpty()) {
                         GroupedListCard(accent = colors.gold) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -474,13 +502,9 @@ private fun PatientHomeContent(
                             }
                         }
                     } else {
-                        openAssignments.forEach { assignment ->
+                        openAssignments.filter { it.type != PatientAssignmentType.Questionnaire }.forEach { assignment ->
                             when (assignment.type) {
-                                PatientAssignmentType.Questionnaire -> TaskCard(
-                                    stringResource(R.string.patient_questionnaire_card_title),
-                                    stringResource(R.string.patient_questionnaire_card_body),
-                                    stringResource(R.string.patient_questionnaire_start),
-                                ) { onOpenQuestionnaire(assignment.id) }
+                                PatientAssignmentType.Questionnaire -> Unit
                                 PatientAssignmentType.DiaryOne -> TaskCard(
                                     stringResource(R.string.patient_diary_one_card_title),
                                     stringResource(R.string.patient_diary_one_card_body),

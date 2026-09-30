@@ -40,6 +40,9 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,6 +70,7 @@ fun DiaryFeelingsEditor(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (drafts.isEmpty()) Text(stringResource(R.string.diary_entry_feelings_hint), color = colors.textBody)
         drafts.forEach { draft ->
             key(draft.id) {
             val isIncomplete = highlightIncomplete &&
@@ -86,7 +90,7 @@ fun DiaryFeelingsEditor(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
-                    if (drafts.size > 1) {
+                    if (drafts.isNotEmpty()) {
                         IconButton(
                             onClick = { onChange(drafts.filterNot { it.id == draft.id }) },
                         ) {
@@ -150,48 +154,46 @@ fun DiaryFeelingsEditor(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DiaryFeelingIntensityControl(
+internal fun DiaryFeelingIntensityControl(
     intensity: Int?,
+    title: String = stringResource(R.string.diary_one_feeling_intensity_title),
     onIntensityChange: (Int) -> Unit,
 ) {
     val colors = Theme.colors
-    val initial = intensity?.takeIf { it in 0..100 }
-    var knob by remember { mutableFloatStateOf((initial ?: 50).toFloat()) }
-    var hasExplicitValue by remember { mutableStateOf(initial != null) }
-    val label = if (hasExplicitValue) {
-        "${knob.roundToInt()}%"
-    } else {
-        stringResource(R.string.diary_one_intensity_unset)
-    }
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row {
-            Spacer(Modifier.weight(1f))
-            Text(
-                label,
-                color = if (hasExplicitValue) colors.textBright else colors.textFaint,
-                fontWeight = FontWeight.SemiBold,
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, Modifier.weight(1f), color = colors.textBody)
+            if (intensity != null) androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr
+            ) { Text(stringResource(R.string.diary_rating_percent, intensity), fontWeight = FontWeight.SemiBold, color = colors.textBright) }
         }
-        Slider(
-            value = knob,
-            onValueChange = { value ->
-                knob = value
-                hasExplicitValue = true
-                onIntensityChange(value.roundToInt())
-            },
-            onValueChangeFinished = {
-                if (hasExplicitValue) onIntensityChange(knob.roundToInt())
-            },
-            valueRange = 0f..100f,
-            steps = 99,
-            colors = SliderDefaults.colors(
-                thumbColor = colors.gold,
-                activeTrackColor = colors.gold,
-                inactiveTrackColor = colors.gold.copy(alpha = 0.24f),
-            ),
-        )
+        if (intensity != null && intensity in 0..100) {
+            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+                Slider(value = intensity.toFloat(), onValueChange = { onIntensityChange(it.roundToInt()) },
+                    valueRange = 0f..100f, steps = 99,
+                    modifier = Modifier.semantics { contentDescription = title },
+                    colors = SliderDefaults.colors(thumbColor = colors.gold, activeTrackColor = colors.gold, inactiveTrackColor = colors.goldGhost))
+                Row(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.diary_rating_percent, 0), color = colors.textBody)
+                    Spacer(Modifier.weight(1f))
+                    Text(stringResource(R.string.diary_rating_percent, 100), color = colors.textBody)
+                }
+            }
+        } else {
+            Text(stringResource(R.string.diary_rating_choose), color = colors.textBody, fontSize = 13.sp)
+            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(0, 25, 50, 75, 100).forEach { value ->
+                        val label = stringResource(R.string.diary_rating_percent, value)
+                        androidx.compose.material3.OutlinedButton(onClick = { onIntensityChange(value) },
+                            modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "$title: $label" },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) { Text(label) }
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -57,9 +57,9 @@ enum AppNotificationType: Hashable, Sendable {
     /// Patient Mode APNs taps. Not inferred from `patientId`.
     var routesInPatientMode: Bool {
         switch self {
-        case .messageReceived, .diaryOneAssigned, .diaryTwoAssigned, .diaryThreeAssigned:
+        case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .diaryTwoAssigned, .diaryThreeAssigned:
             true
-        case .questionnaireAssigned, .questionnaireCompleted, .patientConnected,
+        case .questionnaireCompleted, .patientConnected,
              .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded, .unknown:
             false
         }

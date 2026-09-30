@@ -155,6 +155,7 @@ enum PatientModePushDestination: Equatable {
     case diaryOneAssigned(PatientDiaryOneAssignedDestination)
     case diaryTwoAssigned(AppNotificationPayload)
     case diaryThreeAssigned(AppNotificationPayload)
+    case questionnaireAssigned(AppNotificationPayload)
 }
 
 /// Patient Mode pending message and diary-assignment routes. Therapist
@@ -202,6 +203,8 @@ final class PatientModeMessageCoordinator {
         lastConsumedFingerprint = payload.routingFingerprint
         pendingPayload = nil
         switch payload.type {
+        case .questionnaireAssigned:
+            return .questionnaireAssigned(payload)
         case .messageReceived:
             return .messages(PatientMessageRouter.destination(from: payload))
         case .diaryTwoAssigned:
@@ -409,6 +412,24 @@ enum PatientDiaryThreeAssignedRouter {
               payload.patientId.flatMap(UUID.init(uuidString:)) == patientId else { return nil }
         return assignments.first {
             $0.id == assignmentId && $0.type == .diaryThree && $0.cancelledAt == nil && $0.patientId == patientId
+        }
+    }
+
+    @MainActor static func resolve(payload: AppNotificationPayload, patientId: UUID,
+        load: () async throws -> [PatientAssignment]) async -> PatientAssignment? {
+        guard let assignments = try? await load() else { return nil }
+        return matchingAssignment(in: assignments, payload: payload, patientId: patientId)
+    }
+}
+
+enum PatientQuestionnaireAssignedRouter {
+    static func matchingAssignment(in assignments: [PatientAssignment], payload: AppNotificationPayload, patientId: UUID) -> PatientAssignment? {
+        guard payload.type == .questionnaireAssigned, payload.resourceType == "assignment",
+              let raw = payload.assignmentId, let assignmentId = UUID(uuidString: raw),
+              payload.resourceId.flatMap(UUID.init(uuidString:)) == assignmentId,
+              payload.patientId.flatMap(UUID.init(uuidString:)) == patientId else { return nil }
+        return assignments.first {
+            $0.id == assignmentId && $0.type == .questionnaire && $0.cancelledAt == nil && $0.patientId == patientId
         }
     }
 

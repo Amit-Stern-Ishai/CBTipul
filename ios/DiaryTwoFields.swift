@@ -11,34 +11,17 @@ struct DiaryTwoDraftFields: View {
                 NotesField(text: $draft.event, placeholder: L10n.diaryOneEventQuestion, minLines: 3, maxLines: 8)
             }
             card(L10n.diaryOneThoughtTitle) {
+                Text(L10n.diaryEntryThoughtHint).font(.subheadline).foregroundStyle(.secondary)
                 thoughts($draft.automaticThoughts, placeholder: L10n.diaryOneThoughtSingularTitle)
             }
             card(L10n.diaryTwoFeelingsTitle) {
                 DiaryFeelingsEditor(drafts: $draft.feelings, highlightIncomplete: didAttemptSave)
             }
             card(L10n.diaryThinkingErrorsTitle) {
-                ForEach(ThinkingError.allCases) { error in
-                    Button {
-                        if draft.thinkingErrors.contains(error) { draft.thinkingErrors.removeAll { $0 == error } }
-                        else { draft.thinkingErrors.append(error) }
-                    } label: {
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: draft.thinkingErrors.contains(error) ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(Theme.gold)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(error.title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textBright)
-                                Text(error.explanation).font(.footnote).foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(draft.thinkingErrors.contains(error) ? .isSelected : [])
-                }
+                DiaryThinkingErrorPicker(selection: $draft.thinkingErrors)
             }
             card(L10n.diaryAlternativeThoughtsTitle) {
+                Text(L10n.diaryEntryAlternativeHint).font(.subheadline).foregroundStyle(.secondary)
                 thoughts($draft.alternativeThoughts, placeholder: L10n.diaryAlternativeThoughtTitle)
             }
             if didAttemptSave, let message = draft.validationMessage() {

@@ -6,6 +6,23 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
+    static let diaryRatingChoose = "בחרו אחוזים. לאחר הבחירה אפשר לדייק בעזרת המחוון."
+    static let diaryThinkingChoose = "אפשר לבחור כמה אפשרויות. להסבר לחצו על ⓘ."
+    static let diaryEntryThoughtHint = "כתבו את המשפט שעבר בראש באותו רגע."
+    static let diaryEntryAlternativeHint = "איזו דרך נוספת ומאוזנת יותר יש לראות את המצב?"
+    static let diaryEntryFeelingsHint = "הוסיפו רגש ובחרו את עוצמתו. אפשר להוסיף כמה רגשות."
+    static let diaryPreviousStep = "לשלב הקודם"
+    static func diaryThinkingAbout(_ name: String) -> String { "הסבר על \(name)" }
+
+    static let patientQuestionnaireInactiveHint = "אפשר לעיין במילויים הקודמים. למילוי חדש נדרשת הפעלה של המטפל/ת."
+    static let questionnairesActive = "שאלונים פעילים"
+    static let questionnairesStop = "הפסקת שאלונים"
+    static let questionnairesStopExplanation = "המטופל/ת לא יוכל/תוכל לשלוח מילויים חדשים. כל התשובות הקודמות יישמרו."
+    static let patientQuestionnaireHistory = "השאלונים שלי"
+    static let patientQuestionnaireHistoryEmpty = "המילויים שלך יופיעו כאן לאחר השליחה."
+    static let patientQuestionnaireHistoryError = "לא ניתן לטעון את השאלונים הקודמים כרגע. אפשר לנסות שוב. מילוי חדש עדיין זמין כשהגישה פעילה."
+    static let patientQuestionnaireOpenAction = "פתיחת שאלונים"
+
     
     // MARK: - Sessions workspace
 
@@ -56,13 +73,13 @@ enum L10n {
     static let diaryTwoTitle = "יומן 2"
     static let diaryThreeTitle = "יומן 3"
     static let diaryComingSoon = "בקרוב"
-    static let patientSendingDescription = "הודעה, בקשה למילוי שאלון או יומן"
+    static let patientSendingDescription = "הודעה, הפעלת שאלונים או יומן"
     static let patientSendingUnavailableTitle = "השליחה אינה זמינה"
     static let patientSendingRequiresConnection = "אפשר לשלוח רק לאחר שהמטופל/ת יפתחו את קישור ההזמנה וישלימו את החיבור לאפליקציה."
     static let patientSendingUnavailableHere = "שליחה זמינה רק למטופל/ת מחובר/ת בתיק אמיתי. במצב הדגמה לא נשלחים תכנים."
-    static let patientChooseSendAction = "בחרו מה לשלוח למטופל/ת באפליקציה."
+    static let patientChooseSendAction = "שליחת הודעה או ניהול גישה לשאלונים וליומנים."
     static let patientSendMessageDescription = "כתבו הודעה ובדקו אותה לפני השליחה. ההודעה תופיע באפליקציית המטופל/ת."
-    static let patientQuestionnaireRequestDescription = "בקשה למלא שאלון מצב רוח פעם אחת באפליקציה. לאחר שליחת התשובות, הבקשה מסתיימת והתשובות יופיעו בתיק. זו אינה בקשה חוזרת."
+    static let patientQuestionnaireRequestDescription = "גישה מתמשכת לשאלוני GAD-7 ו-PHQ-9. כל מילוי נשמר בנפרד בהיסטוריה, ללא שיוך לפגישה. אפשר להפסיק את הגישה בכל עת."
     static let patientEnableDiaryOneAction = "הפעלת יומן 1"
     static let patientSendDiaryOneDescription = "מאפשר למטופל/ת למלא יומן 1 באופן שוטף באפליקציה."
     static let patientDiaryDescription = "עיון ותיעוד של אירועים, מחשבות ורגשות"
@@ -75,11 +92,11 @@ enum L10n {
     static let patientConnectTitle = "חיבור המטופל/ת לאפליקציה"
     static let patientInviteToAppAction = "הזמנה לאפליקציה"
     static let patientInvitationDemoStatus = "לא זמין במצב הדגמה"
-    static let patientConnectDescription = "שליחת קישור הזמנה אישי מאפשרת למטופל/ת לקבל ממך הודעות ושאלונים ולמלא יומנים שהפעלת."
+    static let patientConnectDescription = "שליחת קישור הזמנה אישי מאפשרת למטופל/ת לקבל ממך הודעות ולמלא שאלונים ויומנים שהפעלת."
     static let patientShareInvitationAction = "שיתוף קישור הזמנה"
     static let patientShareInvitationExplanation = "בלחיצה ייפתחו אפשרויות שיתוף, למשל WhatsApp או דוא״ל. יש לבחור איך לשלוח את הקישור. החיבור יושלם רק לאחר שהמטופל/ת יפתחו אותו ויאשרו את ההצטרפות."
     static let patientConnectionOptionalExplanation = "ההזמנה אינה חובה. אפשר לתעד פגישות גם בלי לחבר את המטופל/ת לאפליקציה."
-    static let patientConnectionReadyDescription = "לחצו על ״שליחה למטופל/ת״ כדי לבחור הודעה, בקשה למילוי שאלון או יומן."
+    static let patientConnectionReadyDescription = "לחצו על ״שליחה למטופל/ת״ כדי לבחור הודעה, הפעלת שאלונים או יומן."
     static let patientInvitationUnavailableExplanation = "הזמנה זמינה בתיק של מטופל/ת אמיתי/ת. במצב הדגמה לא נשלחות הזמנות."
     static let stopPatientNotesRecording = "עצירה ותמלול"
 
@@ -255,7 +272,7 @@ enum L10n {
     static let introductionSessionTitle = "מתעדים בדרך שנוחה לכם"
     static let introductionSessionBody = "כתבו או הקליטו סיכום פגישה. כלי AI יכולים לעזור בניסוח ובהכנה לפגישה הבאה — אתם בודקים ומחליטים."
     static let introductionConnectTitle = "הטיפול ממשיך בין הפגישות"
-    static let introductionConnectBody = "הזמינו מטופלים להתחבר לאפליקציה. אחרי החיבור אפשר לשלוח הודעה, בקשה למילוי שאלון או להפעיל יומן."
+    static let introductionConnectBody = "הזמינו מטופלים להתחבר לאפליקציה. אחרי החיבור אפשר לשלוח הודעות ולהפעיל גישה לשאלונים וליומנים."
     static let introductionProgressTitle = "רואים מה משתנה לאורך הדרך"
     static let introductionProgressBody = "גרפים מרכזים את תוצאות השאלונים. בחרו מגמה ושאלה כדי לראות מה השתפר, מה החמיר ומה נשאר יציב."
     static let introductionSampleTitle = "קודם להכיר, אחר כך להתחיל"
@@ -267,7 +284,7 @@ enum L10n {
     static let introductionRecord = "הקלטה ותמלול"
     static let introductionAI = "עזרה בניסוח עם AI"
     static let introductionMessage = "הודעה"
-    static let introductionQuestionnaire = "בקשה למילוי שאלון"
+    static let introductionQuestionnaire = "הפעלת שאלונים"
     static let introductionDiary = "יומן"
     static let introductionConnected = "לאחר חיבור המטופל/ת"
     static let introductionTrend = "מגמה לאורך זמן"
@@ -310,7 +327,7 @@ enum L10n {
     static let sampleDataExploreTitle = "תיקים מוכנים להתנסות"
     static let sampleDataExploreBody = "מטופלים בדויים עם פגישות ושאלונים לדוגמה. אפשר לעיין, לערוך ולהוסיף נתונים בחופשיות."
     static let sampleDataSeparateTitle = "בנפרד מהתיקים שלך"
-    static let sampleDataSeparateBody = "התיקים האמיתיים נשארים ללא שינוי. לא נשלחות הודעות, שאלונים או הזמנות למטופלים."
+    static let sampleDataSeparateBody = "התיקים האמיתיים נשארים ללא שינוי. לא נשלחות הודעות או הזמנות, ולא מופעלת גישה לשאלונים למטופלים."
     static let sampleDataReturnTitle = "חזרה בכל רגע"
     static let sampleDataReturnBody = "לחצו על ״חזרה למטופלים שלי״ בראש המסך. השינויים בנתוני הדוגמה יישמרו במכשיר להתנסות הבאה."
     static let sampleDataStartAction = "התחלת התנסות"
@@ -363,7 +380,7 @@ enum L10n {
     static let emptySessionsPrimaryAction = "הוספת פגישה ראשונה"
     static let emptyQuestionnairesTitle = "עדיין אין שאלונים שמולאו"
     static let emptyQuestionnairesBody =
-        "כאן יופיעו התשובות לאחר מילוי השאלון. אפשר למלא יחד עם המטופל/ת כאן. למילוי עצמאי באפליקציה, חזרו לתיק המטופל/ת ובחרו ״שליחה למטופל/ת״ ואז ״שליחת בקשה חד־פעמית למילוי שאלון״."
+        "כאן יופיעו התשובות לאחר מילוי שאלון חדש. אפשר למלא יחד עם המטופל/ת כאן. למילוי עצמאי באפליקציה, חזרו לתיק המטופל/ת ובחרו ״שליחה למטופל/ת״ ואז ״הפעלת שאלונים״."
     static let emptyQuestionnairesPrimaryAction = "הוספת שאלון"
     static let questionnaireAnsweredDateLabel = "תאריך השאלון"
     static let questionnaireSessionAssociationLabel = "שיוך לפגישה"
@@ -1254,7 +1271,7 @@ amitishai@gmail.com
     }
 
     static let invitePreviewExplanation =
-        "CBTipul מאפשר לך למלא שאלונים וכלים טיפוליים שהמטפל/ת שלך שולח/ת אליך."
+        "CBTipul מאפשר לך למלא שאלונים וכלים טיפוליים שהמטפל/ת שלך מפעיל/ה עבורך."
 
     static let invitePreviewContinueAction = "המשך"
 
@@ -1273,7 +1290,7 @@ amitishai@gmail.com
     static let inviteConsentDataHeading = "המידע שלך"
 
     static let inviteConsentDataBody =
-        "באפליקציה ניתן למלא שאלונים וכלים טיפוליים שהמטפל/ת שולח/ת אליך. המידע שתזין/י נשמר לצורך השימוש בשירות והצגתו למטפל/ת שלך."
+        "באפליקציה ניתן למלא שאלונים וכלים טיפוליים שהמטפל/ת מפעיל/ה עבורך. המידע שתזין/י נשמר לצורך השימוש בשירות והצגתו למטפל/ת שלך."
 
     static let inviteConsentEmergencyHeading = "לא מיועד למצבי חירום"
 
@@ -1308,7 +1325,7 @@ amitishai@gmail.com
     static let patientModeConnectedTitle = "החיבור הושלם בהצלחה"
 
     static let patientModeConnectedBody =
-        "כעת ניתן לקבל מהמטפל/ת שאלונים וכלים טיפוליים."
+        "כעת ניתן למלא שאלונים וכלים טיפוליים שהמטפל/ת יפעיל/תפעיל עבורך."
 
     static let patientTasksTitle = "למילוי ולתרגול"
 
@@ -1319,12 +1336,12 @@ amitishai@gmail.com
     static let patientTasksEmptyBody =
         "שאלונים ויומנים מהמטפל/ת שלך יופיעו כאן כשיהיו זמינים."
 
-    static let patientQuestionnaireCardTitle = "שאלון על ההרגשה שלך"
+    static let patientQuestionnaireCardTitle = "שאלונים"
 
     static let patientQuestionnaireCardBody =
-        "בקשה חד־פעמית מהמטפל/ת. התשובות יישלחו לאחר לחיצה על ״שליחה״."
+        "כל עוד הגישה פעילה, אפשר למלא שאלון חדש בכל פעם. כל מילוי נשמר בנפרד ומשותף עם המטפל/ת."
 
-    static let patientQuestionnaireStartAction = "מילוי השאלון"
+    static let patientQuestionnaireStartAction = "מילוי שאלון חדש"
 
     static let patientUpcomingTaskTitle = "משימה מהמטפל/ת"
 
@@ -1362,7 +1379,7 @@ amitishai@gmail.com
         "לא ניתן היה לשלוח את השאלון. נסו שוב."
 
     static let patientQuestionnaireCancelledError =
-        "המשימה בוטלה, ולכן לא ניתן לשלוח את השאלון."
+        "הגישה לשאלונים אינה פעילה. אפשר לעיין במילויים קודמים, אך לא לשלוח מילוי חדש."
 
     static let patientQuestionnaireAccessDeniedError =
         "לא ניתן לשלוח את השאלון כרגע."
@@ -1674,27 +1691,27 @@ amitishai@gmail.com
     
     static let questionnaireSectionTitle = "שאלון"
 
-    static let sendQuestionnaireToPatientAction = "שליחת בקשה חד־פעמית למילוי שאלון"
+    static let sendQuestionnaireToPatientAction = "הפעלת שאלונים"
     static let fillQuestionnaireHereAction = "מילוי שאלון כאן"
-    static let questionnaireLocalEntryHelp = "התשובות שתמלאו כאן יישמרו בתיק. פעולה זו אינה שולחת שאלון למטופל/ת."
+    static let questionnaireLocalEntryHelp = "התשובות שתמלאו כאן יישמרו בתיק. פעולה זו אינה מפעילה גישה באפליקציית המטופל/ת."
     static let questionnaireSessionEntryHelp = "מילוי כאן שומר את התשובות בתיק ומשייך אותן לפגישה הזו."
-    static let questionnairePatientEntryHelp = "בקשה חד־פעמית למילוי שאלון באפליקציית המטופל/ת. לאחר שליחת התשובות הבקשה מסתיימת, והתשובות יופיעו כאן."
+    static let questionnairePatientEntryHelp = "הפעלת גישה למילוי חוזר באפליקציית המטופל/ת. כל מילוי נשמר בנפרד בהיסטוריית השאלונים, ללא שיוך לפגישה."
     static let questionnaireCompletedLabel = "השאלון מולא — הצגת התשובות"
-    static let questionnairePendingExplanation = "השאלון זמין באפליקציית המטופל/ת. אין צורך לשלוח שוב. התשובות יופיעו כאן לאחר השלמת המילוי ושליחתן."
+    static let questionnairePendingExplanation = "השאלונים פעילים באפליקציית המטופל/ת. כל מילוי נוסף יופיע בהיסטוריית השאלונים."
     static let questionnaireRefreshAction = "בדיקה אם התקבלו תשובות"
-    static let questionnaireSendingLabel = "שולח שאלון…"
-    static let questionnaireDemoSendingUnavailable = "במצב הדגמה אפשר למלא שאלון כאן. לא נשלחים שאלונים למטופלים."
+    static let questionnaireSendingLabel = "מפעילים גישה לשאלונים…"
+    static let questionnaireDemoSendingUnavailable = "במצב הדגמה אפשר למלא שאלון כאן. הפעלת גישה למטופלים זמינה רק בתיקים אמיתיים."
     static let questionnaireRefreshFailed = "לא ניתן היה לעדכן את התשובות. מוצג המידע שנטען קודם."
-    static let questionnaireStatusRefreshFailed = "לא ניתן היה לבדוק אם השאלון כבר מולא. נסו לבדוק שוב לפני שליחה נוספת."
+    static let questionnaireStatusRefreshFailed = "לא ניתן היה לבדוק אם הגישה לשאלונים פעילה. נסו שוב."
 
     static let patientNotConnectedTitle = "המטופל/ת עדיין לא מחובר/ת ל-CBTipul"
 
     static let patientNotConnectedBody =
         "יש לשתף קישור הזמנה ולהשלים את חיבור המטופל/ת ל-CBTipul לפני שליחה."
 
-    static let questionnaireSentToPatient = "נשלחה בקשה חד־פעמית למילוי שאלון"
+    static let questionnaireSentToPatient = "הגישה לשאלונים הופעלה"
 
-    static let questionnaireAwaitingPatient = "הבקשה נשלחה — ממתין למילוי המטופל/ת"
+    static let questionnaireAwaitingPatient = "שאלונים פעילים"
 
     static let patientConnectionCheckError =
         "לא ניתן היה לבדוק את חיבור המטופל/ת. נסו שוב."
@@ -1724,7 +1741,7 @@ amitishai@gmail.com
     static let diaryPatientModeStopFailed = "לא ניתן היה להפסיק את היומן. נסו שוב."
 
     static let questionnaireAssignmentSendError =
-        "לא ניתן היה לשלוח את השאלון. נסו שוב."
+        "לא ניתן היה לעדכן את הגישה לשאלונים. נסו שוב."
 
     static let questionnaireAssignmentRetryAction = "ניסיון חוזר"
     /// One-line GAD-7/PHQ-9 score summary shown next to a questionnaire.

@@ -36,23 +36,7 @@ struct SessionEditorView: View {
     @State private var isRequestingRecording = false
     @State private var isLoadingQuestionnaire = false
     @State private var isRefreshingQuestionnaire = false
-    @State private var refreshedAssignmentStatus: QuestionnaireAssignmentStatus = .loading
-    private var cachedAssignmentStatus: QuestionnaireAssignmentStatus? {
-        guard let patient = storePatient else { return nil }
-        if store.isDemoMode || DemoData.isDemoID(patient.id) { return .demo }
-        guard let patientId = patient.id.uuidValue,
-              let connected = assignmentService().cachedPatientConnection(patientId: patientId) else { return nil }
-        guard connected else { return .notConnected }
-        guard let sessionId = session.databaseID?.uuidValue,
-              let snapshot = assignmentService().cachedQuestionnaireAssignment(sessionId: sessionId) else { return .connected }
-        return snapshot.assignmentId == nil ? .available : .pending
-    }
-    private var assignmentStatus: QuestionnaireAssignmentStatus {
-        get { refreshedAssignmentStatus == .loading ? cachedAssignmentStatus ?? .loading : refreshedAssignmentStatus }
-        nonmutating set { refreshedAssignmentStatus = newValue }
-    }
-    @State private var isSendingQuestionnaire = false
-    @State private var didSendQuestionnaire = false
+    @State private var questionnaireRefreshFailed = false
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
     /// True while a fresh transcript is being anonymized, before it may
@@ -78,7 +62,7 @@ struct SessionEditorView: View {
 
     private var isWorking: Bool {
         isSaving || isRequestingRecording || voiceRecorder.isRecording
-            || isTranscribing || isAnonymizingTranscription || isAnalyzing || isSendingQuestionnaire
+            || isTranscribing || isAnonymizingTranscription || isAnalyzing
     }
 
     private var canSave: Bool {
@@ -452,9 +436,6 @@ struct SessionEditorView: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await refreshQuestionnaireState() } }
             }
-            .alert(L10n.questionnaireSentToPatient, isPresented: $didSendQuestionnaire) {
-                Button(L10n.ok, role: .cancel) {}
-            }
             .sheet(isPresented: $isShowingAllFollowUps) {
                 NavigationStack {
                     List {
@@ -758,18 +739,13 @@ struct SessionEditorView: View {
             .max { $0.answeredDate < $1.answeredDate }
     }
 
-    private enum QuestionnaireAssignmentStatus: Equatable {
-        case connected
-        case loading
-        case demo
-        case notConnected
-        case available
-        case pending
-        case failed(String)
-    }
-
     private var questionnaireSection: some View {
         Section(L10n.questionnaireSectionTitle) {
+            if questionnaireRefreshFailed {
+                Text(L10n.questionnaireRefreshFailed).foregroundStyle(Theme.error)
+                Button(L10n.questionnaireRefreshAction) { Task { await refreshQuestionnaireState() } }
+                    .disabled(isRefreshingQuestionnaire)
+            }
             if let patient = storePatient, let questionnaire {
                 // Opens the questionnaire pre-filled with the saved answers,
                 // read-only until Edit is chosen; saving upserts the same row.
@@ -794,8 +770,10 @@ struct SessionEditorView: View {
             } else {
                 therapistQuestionnaireEntryRow
                     .listRowBackground(groupBorderedRow(.first))
-                questionnaireAssignmentRow
-                    .listRowBackground(groupBorderedRow(.last))
+                if let patient = storePatient {
+                    QuestionnaireAccessControl(patient: patient)
+                        .listRowBackground(groupBorderedRow(.last))
+                }
             }
         }
     }
@@ -819,141 +797,11 @@ struct SessionEditorView: View {
         }
     }
 
-    @ViewBuilder
-    private var questionnaireAssignmentRow: some View {
-        switch assignmentStatus {
-        case .connected:
-            Text(L10n.patientConnectedStatus).font(.footnote).foregroundStyle(.secondary)
-        case .loading:
-            ProgressView()
-        case .demo:
-            Text(L10n.questionnaireDemoSendingUnavailable)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        case .notConnected:
-            VStack(alignment: .leading, spacing: 6) {
-                Text(L10n.patientNotConnectedTitle)
-                    .font(.subheadline.weight(.semibold))
-                Text(L10n.patientNotConnectedBody)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        case .available:
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.questionnairePatientEntryHelp)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button {
-                    Task { await sendQuestionnaireToPatient() }
-                } label: {
-                    if isSendingQuestionnaire {
-                        ProgressView(L10n.questionnaireSendingLabel)
-                    } else {
-                        Label(L10n.sendQuestionnaireToPatientAction, systemImage: "paperplane")
-                    }
-                }
-                .disabled(isSendingQuestionnaire || isRefreshingQuestionnaire)
-            }
-        case .pending:
-            VStack(alignment: .leading, spacing: 8) {
-                Label(L10n.questionnaireAwaitingPatient, systemImage: "clock")
-                    .font(.subheadline.weight(.semibold))
-                Text(L10n.questionnairePendingExplanation)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button(L10n.questionnaireRefreshAction) {
-                    Task { await refreshQuestionnaireState() }
-                }
-                .disabled(isRefreshingQuestionnaire)
-            }
-        case .failed(let message):
-            VStack(alignment: .leading, spacing: 8) {
-                Text(message)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.error)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button(L10n.questionnaireAssignmentRetryAction) {
-                    Task { await refreshQuestionnaireState() }
-                }
-            }
-        }
-    }
-
-    private func assignmentService() -> PatientAssignmentService {
-        PatientAssignmentService(client: auth.client)
-    }
-
     private func refreshQuestionnaireState() async {
-        guard !isNew, !isRefreshingQuestionnaire, !isSendingQuestionnaire else { return }
+        guard !isNew, !isRefreshingQuestionnaire else { return }
         isRefreshingQuestionnaire = true
         defer { isRefreshingQuestionnaire = false }
-        guard await loadQuestionnaire() else {
-            assignmentStatus = .failed(L10n.questionnaireStatusRefreshFailed)
-            return
-        }
-        await loadQuestionnaireAssignment()
-    }
-
-    /// Connection and open-assignment state for sending a questionnaire.
-    /// Shows cached connection and assignment state while refreshing in the background.
-    private func loadQuestionnaireAssignment() async {
-        guard !isNew, let patient = storePatient else { return }
-        if let cached = cachedAssignmentStatus { assignmentStatus = cached }
-        guard questionnaire == nil else { return }
-        if store.isDemoMode || DemoData.isDemoID(patient.id) {
-            assignmentStatus = .demo
-            return
-        }
-        guard let sessionId = session.databaseID?.uuidValue,
-              let patientId = patient.id.uuidValue
-        else {
-            assignmentStatus = .failed(L10n.patientConnectionCheckError)
-            return
-        }
-        do {
-            let connected = try await assignmentService().isPatientConnected(patientId: patientId)
-            guard connected else {
-                assignmentStatus = .notConnected
-                return
-            }
-            assignmentStatus = cachedAssignmentStatus ?? .connected
-            _ = try await assignmentService().openQuestionnaireAssignment(sessionId: sessionId)
-            assignmentStatus = cachedAssignmentStatus ?? .connected
-        } catch is CancellationError {
-            return
-        } catch {
-            if let cached = cachedAssignmentStatus, cached != .connected {
-                assignmentStatus = cached
-            } else {
-                assignmentStatus = .failed(L10n.patientConnectionCheckError)
-            }
-        }
-    }
-
-    private func sendQuestionnaireToPatient() async {
-        guard let patient = storePatient, questionnaire == nil, !isSendingQuestionnaire else { return }
-        guard case .available = assignmentStatus else { return }
-        guard let sessionId = session.databaseID?.uuidValue,
-              let patientId = patient.id.uuidValue
-        else {
-            assignmentStatus = .failed(L10n.questionnaireAssignmentSendError)
-            return
-        }
-        isSendingQuestionnaire = true
-        defer { isSendingQuestionnaire = false }
-        do {
-            _ = try await assignmentService().sendQuestionnaireAssignment(
-                patientId: patientId,
-                sessionId: sessionId
-            )
-            assignmentStatus = .pending
-            didSendQuestionnaire = true
-        } catch PatientAssignmentError.patientNotConnected {
-            assignmentStatus = .notConnected
-        } catch {
-            assignmentStatus = .failed(L10n.questionnaireAssignmentSendError)
-        }
+        questionnaireRefreshFailed = !(await loadQuestionnaire())
     }
 
     /// Refreshes the patient's questionnaire cache from the server; the
@@ -969,8 +817,7 @@ struct SessionEditorView: View {
         do {
             _ = try await store.loadQuestionnaires(for: patient)
         } catch {
-            // Preserve cached answers, but don't infer that another request
-            // can be sent until both completion and assignment state are known.
+            // Preserve cached session answers when the background refresh fails.
             return false
         }
         syncSessionQuestionnaire()

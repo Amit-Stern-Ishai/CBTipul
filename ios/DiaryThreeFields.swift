@@ -16,6 +16,7 @@ struct DiaryThreeDraftFields: View {
             }
             if step == nil || step == 2 {
                 card(L10n.diaryOneThoughtTitle) {
+                    if step == nil { Text(L10n.diaryEntryThoughtHint).font(.subheadline).foregroundStyle(.secondary) }
                     ForEach($draft.automaticThoughts) { row in
                         HStack(alignment: .top) {
                             NotesField(text: row.text, placeholder: L10n.diaryOneThoughtSingularTitle, minLines: 2, maxLines: 6)
@@ -31,6 +32,7 @@ struct DiaryThreeDraftFields: View {
             }
             if step == nil || step == 3 {
                 card(L10n.diaryThreeFeelingsBefore) {
+                    if draft.feelings.isEmpty { Text(L10n.diaryEntryFeelingsHint).font(.subheadline).foregroundStyle(.secondary) }
                     ForEach($draft.feelings) { row in
                         HStack {
                             Text(row.wrappedValue.name).fontWeight(.semibold)
@@ -45,25 +47,12 @@ struct DiaryThreeDraftFields: View {
             }
             if step == nil || step == 4 {
                 card(L10n.diaryThinkingErrorsTitle) {
-                    ForEach(ThinkingError.allCases) { error in
-                        Button {
-                            if draft.thinkingErrors.contains(error) { draft.thinkingErrors.removeAll { $0 == error } }
-                            else { draft.thinkingErrors.append(error) }
-                        } label: {
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: draft.thinkingErrors.contains(error) ? "checkmark.circle.fill" : "circle").foregroundStyle(Theme.gold)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(error.title).fontWeight(.semibold).foregroundStyle(Theme.textBright)
-                                    Text(error.explanation).font(.footnote).foregroundStyle(Theme.textBody)
-                                }
-                                Spacer(minLength: 0)
-                            }.frame(minHeight: 44).contentShape(Rectangle())
-                        }.buttonStyle(.plain).accessibilityAddTraits(draft.thinkingErrors.contains(error) ? .isSelected : [])
-                    }
+                    DiaryThinkingErrorPicker(selection: $draft.thinkingErrors)
                 }
             }
             if step == nil || step == 5 {
                 card(L10n.diaryAlternativeThoughtsTitle) {
+                    if step == nil { Text(L10n.diaryEntryAlternativeHint).font(.subheadline).foregroundStyle(.secondary) }
                     ForEach($draft.alternativeThoughts) { row in
                         HStack(alignment: .top) {
                             NotesField(text: row.text, placeholder: L10n.diaryAlternativeThoughtTitle, minLines: 2, maxLines: 6)
@@ -124,16 +113,7 @@ struct DiaryThreePercentageControl: View {
     let title: String
     @Binding var value: Int?
     var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text(title).font(.subheadline)
-                Spacer()
-                Text(value.map { L10n.diaryOneIntensityValue($0) } ?? L10n.diaryOneIntensityUnset)
-                    .monospacedDigit().foregroundStyle(value == nil ? Theme.textFaint : Theme.textBright)
-            }
-            Slider(value: Binding(get: { Double(value ?? 50) }, set: { value = Int($0.rounded()) }), in: 0...100, step: 1)
-                .tint(Theme.gold).accessibilityLabel(title)
-        }
+        DiaryFeelingIntensityControl(intensity: $value, title: title)
     }
 }
 

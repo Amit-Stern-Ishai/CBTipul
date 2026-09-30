@@ -77,7 +77,7 @@ class AppNotificationTest {
         val dest = NotificationRouting.destination(
             NotificationPayload("questionnaire_assigned", null, patient, null, uuid, "assignment", uuid),
         )
-        assertEquals(AppDestination.PatientQuestionnaire(uuid), dest)
+        assertEquals(AppDestination.PatientQuestionnaire(uuid, NotificationPayload("questionnaire_assigned", null, patient, null, uuid, "assignment", uuid)), dest)
     }
 
     @Test

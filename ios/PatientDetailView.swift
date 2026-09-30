@@ -806,7 +806,7 @@ struct PatientDetailView: View {
     }
 
     private enum PatientSendAction {
-        case message, questionnaire, diaryOne, diaryTwo, diaryThree
+        case message, diaryOne, diaryTwo, diaryThree
     }
 
     @ViewBuilder
@@ -871,8 +871,9 @@ struct PatientDetailView: View {
                     if connectionState == .connected {
                         sendOption(.message, icon: "envelope", title: L10n.writePatientMessageAction,
                                    detail: L10n.patientSendMessageDescription)
-                        sendOption(.questionnaire, icon: "list.clipboard", title: L10n.sendQuestionnaireToPatientAction,
-                                   detail: L10n.patientQuestionnaireRequestDescription)
+                        QuestionnaireAccessControl(patient: patient)
+                            .padding(18)
+                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
                         sendOption(.diaryOne, icon: "book.closed", title: L10n.patientEnableDiaryOneAction,
                                    detail: L10n.patientSendDiaryOneDescription)
                         sendOption(.diaryTwo, icon: "book.closed", title: L10n.patientEnableDiaryTwoAction,
@@ -945,7 +946,6 @@ struct PatientDetailView: View {
         }
         switch action {
         case .message: isShowingMessageComposer = true
-        case .questionnaire: sendStandaloneQuestionnaire()
         case .diaryOne: sendDiaryOne()
         case .diaryTwo: sendDiaryTwo()
         case .diaryThree: sendDiaryThree()
@@ -992,49 +992,6 @@ struct PatientDetailView: View {
             return
         } catch {
             refreshedConnectionState = .failed
-        }
-    }
-
-    private func sendStandaloneQuestionnaire() {
-        guard !isSendingToPatient else { return }
-        if store.isDemoMode || DemoData.isDemoID(patient.id) {
-            presentSendFeedback(
-                title: L10n.patientNotConnectedTitle,
-                message: L10n.patientNotConnectedBody
-            )
-            return
-        }
-        guard let patientId = patient.id.uuidValue else {
-            presentSendFeedback(
-                title: L10n.patientInvitationFailedTitle,
-                message: L10n.patientInvitationInvalidPatientError
-            )
-            return
-        }
-        isSendingToPatient = true
-        Task {
-            defer { isSendingToPatient = false }
-            try? await Task.sleep(for: .milliseconds(250))
-            do {
-                _ = try await assignmentService().sendQuestionnaireAssignment(
-                    patientId: patientId,
-                    sessionId: nil
-                )
-                presentSendFeedback(
-                    title: L10n.sendQuestionnaireToPatientAction,
-                    message: L10n.questionnaireSentToPatient
-                )
-            } catch PatientAssignmentError.patientNotConnected {
-                presentSendFeedback(
-                    title: L10n.patientNotConnectedTitle,
-                    message: L10n.patientNotConnectedBody
-                )
-            } catch {
-                presentSendFeedback(
-                    title: L10n.sendQuestionnaireToPatientAction,
-                    message: L10n.questionnaireAssignmentSendError
-                )
-            }
         }
     }
 

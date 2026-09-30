@@ -32,8 +32,6 @@ struct PatientDiaryThreeEntryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 DeviceDraftFeedback(message: deviceDraft.feedback, isError: deviceDraft.hasError)
-                Text(L10n.patientDiaryThreeProgress(draft.currentStep)).font(.subheadline.weight(.semibold))
-                ProgressView(value: Double(draft.currentStep), total: 7).tint(Theme.gold)
                 Text(L10n.patientDiaryThreeStepHints[draft.currentStep - 1])
                     .foregroundStyle(Theme.textBody).fixedSize(horizontal: false, vertical: true)
                 DiaryThreeDraftFields(draft: $draft.entry, step: draft.currentStep, didAttemptSave: false, errorMessage: errorMessage)
@@ -53,20 +51,32 @@ struct PatientDiaryThreeEntryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .busyOverlay(isBusy, label: L10n.patientDiaryOneSubmitting)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L10n.patientDiaryThreeProgress(draft.currentStep)).font(.subheadline.weight(.semibold))
+                ProgressView(value: Double(draft.currentStep), total: 7).tint(Theme.gold)
+            }.padding(.horizontal, 20).padding(.vertical, 12).background(Theme.base)
+        }
         .safeAreaInset(edge: .bottom) {
-            Button {
-                Task {
-                    if didSubmit { await finishSuccessfully() }
-                    else if draft.currentStep < 7 { advance() }
-                    else { await submit() }
+            HStack(spacing: 12) {
+                if draft.currentStep > 1 && !didSubmit {
+                    Button(L10n.diaryPreviousStep) { draft.back(); errorMessage = nil }
+                        .frame(minHeight: 44).disabled(isBusy)
                 }
-            } label: {
-                Text(didSubmit ? L10n.done : (draft.currentStep == 7 ? L10n.patientDiaryOneSaveAction : L10n.introductionNext))
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity, minHeight: 30)
+                Button {
+                    Task {
+                        if didSubmit { await finishSuccessfully() }
+                        else if draft.currentStep < 7 { advance() }
+                        else { await submit() }
+                    }
+                } label: {
+                    Text(didSubmit ? L10n.done : (draft.currentStep == 7 ? L10n.patientDiaryOneSaveAction : L10n.introductionNext))
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                }
+                .buttonStyle(.pressableProminent)
+                .disabled(isBusy)
             }
-            .buttonStyle(.pressableProminent)
-            .disabled(isBusy)
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
             .background(Theme.base.opacity(0.95))

@@ -67,11 +67,13 @@ fun PatientQuestionnaireScreen(
     assignmentId: String,
     onSubmit: suspend (gad7Answers: List<Int>, phq9Answers: List<Int>, interferenceLevel: Int) -> Unit,
     onBack: () -> Unit,
+    onInactive: () -> Unit = {},
 ) {
     val colors = Theme.colors
     val scope = rememberCoroutineScope()
     val savedDraft = com.cbtipul.app.ui.forms.rememberDeviceFormDraft("questionnaire", assignmentId, CombinedMoodQuestionnaire.serializer(), CombinedMoodQuestionnaire())
     val draft = savedDraft.value
+    var inactive by remember { mutableStateOf(false) }
     var didSubmit by remember { mutableStateOf(false) }
     var leavingDraft by remember { mutableStateOf(false) }
     val cleanupFailed = stringResource(R.string.submitted_draft_cleanup)
@@ -119,7 +121,7 @@ fun PatientQuestionnaireScreen(
     )
 
     fun attemptSubmit() {
-        if (isSubmitting) return
+        if (isSubmitting || inactive) return
         if (didSubmit) { finish(); return }
         if (!isReady) {
             showMissingAnswers()
@@ -131,9 +133,9 @@ fun PatientQuestionnaireScreen(
             try {
                 onSubmit(gad7Ready, phq9Ready, interferenceLevel)
                 finish()
-            } catch (_: PatientQuestionnaireSubmitError.AlreadyCompleted) {
-                finish()
             } catch (_: PatientQuestionnaireSubmitError.Cancelled) {
+                inactive = true
+                onInactive()
                 errorMessage = cancelledError
                 isSubmitting = false
             } catch (_: PatientQuestionnaireSubmitError.AccessDenied) {
@@ -175,7 +177,7 @@ fun PatientQuestionnaireScreen(
         bottomBar = {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 QuestionnaireProgress(17 - missingAnswers.size, 17, !isSubmitting, ::showMissingAnswers)
-                Button(onClick = { attemptSubmit() }, enabled = !isSubmitting, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = { attemptSubmit() }, enabled = !isSubmitting && !inactive, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(if (didSubmit) R.string.done else R.string.patient_questionnaire_submit))
                 }
             }
@@ -214,7 +216,7 @@ fun PatientQuestionnaireScreen(
                             text = question,
                             selection = draft.gad7Answers.getOrNull(index),
                             accent = colors.gold,
-                            editable = !isSubmitting && !didSubmit,
+                            editable = !isSubmitting && !didSubmit && !inactive,
                             onSelect = { value ->
                                 savedDraft.value = draft.copy(
                                     gad7Answers = draft.gad7Answers.toMutableList().also { it[index] = value },
@@ -241,7 +243,7 @@ fun PatientQuestionnaireScreen(
                             text = question,
                             selection = draft.phq9Answers.getOrNull(index),
                             accent = colors.gold,
-                            editable = !isSubmitting && !didSubmit,
+                            editable = !isSubmitting && !didSubmit && !inactive,
                             onSelect = { value ->
                                 savedDraft.value = draft.copy(
                                     phq9Answers = draft.phq9Answers.toMutableList().also { it[index] = value },
@@ -255,7 +257,7 @@ fun PatientQuestionnaireScreen(
                         PatientInterferenceBlock(
                         options = interference,
                         selection = draft.interferenceLevel,
-                        editable = !isSubmitting && !didSubmit,
+                        editable = !isSubmitting && !didSubmit && !inactive,
                         onSelect = { savedDraft.value = draft.copy(interferenceLevel = it) },
                     )
                     }

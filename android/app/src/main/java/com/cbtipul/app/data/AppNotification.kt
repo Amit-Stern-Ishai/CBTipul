@@ -97,7 +97,7 @@ sealed class AppDestination {
     data class PatientDiaryTwoForm(val payload: NotificationPayload) : AppDestination()
     data class PatientDiaryThreeForm(val payload: NotificationPayload) : AppDestination()
     data class DiaryOneEntry(val patientId: String, val entryId: String?) : AppDestination()
-    data class PatientQuestionnaire(val assignmentId: String) : AppDestination()
+    data class PatientQuestionnaire(val assignmentId: String, val payload: NotificationPayload? = null) : AppDestination()
     data class PatientMessage(val messageId: String?) : AppDestination()
     data class PatientDiaryOneForm(val assignmentId: String) : AppDestination()
 }
@@ -144,7 +144,7 @@ object NotificationRouting {
                 AppDestination.DiaryOneEntry(it, diaryEntryId(payload.resourceType, payload.resourceId))
             }
         AppNotificationTypes.QUESTIONNAIRE_ASSIGNED ->
-            assignmentId(payload)?.let(AppDestination::PatientQuestionnaire)
+            assignmentId(payload)?.let { AppDestination.PatientQuestionnaire(it, payload) }
         AppNotificationTypes.MESSAGE_RECEIVED ->
             AppDestination.PatientMessage(messageId(payload.resourceType, payload.resourceId))
         AppNotificationTypes.DIARY_ONE_ASSIGNED ->
@@ -291,4 +291,24 @@ object PatientDiaryThreeNotificationRouting {
 object DiaryThreeEntryLookup {
     fun accepted(entry: DiaryThreeEntry?, id: String, patientId: DatabaseId): DiaryThreeEntry? =
         entry?.takeIf { it.id.equals(id, true) && it.patientId.matches(patientId.queryValue) }
+}
+
+object PatientQuestionnaireNotificationRouting {
+    fun matchingAssignment(assignments: List<PatientAssignment>, payload: NotificationPayload, patientId: String): PatientAssignment? {
+        val id = NotificationRouting.diaryThreeUUID(payload.assignmentId) ?: return null
+        val patient = NotificationRouting.diaryThreeUUID(patientId) ?: return null
+        if (payload.type != AppNotificationTypes.QUESTIONNAIRE_ASSIGNED || payload.resourceType != "assignment" ||
+            NotificationRouting.diaryThreeUUID(payload.resourceId) != id || NotificationRouting.diaryThreeUUID(payload.patientId) != patient) return null
+        return assignments.firstOrNull {
+            it.id.equals(id, true) && it.patientId.equals(patient, true) &&
+                it.type == PatientAssignmentType.Questionnaire && it.cancelledAt == null
+        }
+    }
+
+    suspend fun resolve(payload: NotificationPayload, patientId: String, load: suspend () -> List<PatientAssignment>): PatientAssignment? {
+        val assignments = try { load() } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) { return null }
+        return matchingAssignment(assignments, payload, patientId)
+    }
 }

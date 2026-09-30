@@ -58,7 +58,7 @@ data class PatientAssignment(
     val cancelledAt: Date?,
 ) {
     val type: PatientAssignmentType? get() = PatientAssignmentType.fromRaw(typeValue)
-    val isOpen: Boolean get() = completedAt == null && cancelledAt == null
+    val isOpen: Boolean get() = cancelledAt == null && (type == PatientAssignmentType.Questionnaire || completedAt == null)
 }
 
 @Serializable
@@ -76,7 +76,6 @@ private data class PatientAssignmentRow(
 @Serializable
 internal data class RequestPatientQuestionnaireRequest(
     val patientId: String,
-    val sessionId: String? = null,
 )
 
 @Serializable
@@ -119,7 +118,6 @@ private data class SubmitPatientQuestionnaireResponse(
 )
 
 sealed class PatientQuestionnaireSubmitError : Exception() {
-    data object AlreadyCompleted : PatientQuestionnaireSubmitError()
     data object Cancelled : PatientQuestionnaireSubmitError()
     data object AccessDenied : PatientQuestionnaireSubmitError()
     data object InvalidAnswers : PatientQuestionnaireSubmitError()
@@ -154,16 +152,10 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
     private fun currentAccount() = client.auth.currentSessionOrNull()?.user?.id
     fun cachedOngoingAssignment(patientId: String, type: PatientAssignmentType) =
         assignmentCache.value(currentAccount(), "patient/$patientId/${type.raw}")
-    fun cachedQuestionnaireAssignment(sessionId: String) =
-        assignmentCache.value(currentAccount(), "session/$sessionId")
     private fun cacheAssignment(assignment: PatientAssignment, account: String?) {
         if (account != currentAccount()) return
         val type = assignment.type ?: return
-        if (type == PatientAssignmentType.Questionnaire && assignment.sessionId != null) {
-            assignmentCache.store(if (assignment.isOpen) assignment.id else null, account, "session/${assignment.sessionId}")
-        } else {
-            assignmentCache.store(if (assignment.cancelledAt == null) assignment.id else null, account, "patient/${assignment.patientId}/${type.raw}")
-        }
+        assignmentCache.store(if (assignment.cancelledAt == null) assignment.id else null, account, "patient/${assignment.patientId}/${type.raw}")
     }
 
     fun cachedPatientConnection(patientId: String): Boolean? =
@@ -183,31 +175,10 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         return connected
     }
 
-    suspend fun openQuestionnaireAssignment(sessionId: String): PatientAssignment? {
+    suspend fun sendQuestionnaireAssignment(patientId: String): PatientAssignment {
         ensureConfigured()
         val account = currentAccount()
-        val resource = "session/$sessionId"
-        val revision = assignmentCache.revision(account, resource)
-        val rows = client.from("patient_assignments")
-            .select(assignmentColumns) {
-                filter {
-                    eq("session_id", sessionId)
-                    eq("type", PatientAssignmentType.Questionnaire.raw)
-                    exact("completed_at", null)
-                    exact("cancelled_at", null)
-                }
-                limit(1)
-            }
-            .decodeList<PatientAssignmentRow>()
-        if (account == currentAccount()) assignmentCache.store(rows.firstOrNull()?.id, account, resource, revision)
-        return rows.firstOrNull()?.toDomain()
-    }
-
-    suspend fun sendQuestionnaireAssignment(patientId: String, sessionId: String? = null): PatientAssignment {
-        ensureConfigured()
-        val account = currentAccount()
-        val payload = encodeQuestionnaireRequest(patientId, sessionId)
-        InviteDebugLog.d("request-patient-questionnaire sessionIdPresent=${sessionId != null}")
+        val payload = encodeQuestionnaireRequest(patientId)
         return try {
             val http = client.functions.invoke("request-patient-questionnaire") {
                 header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
@@ -215,7 +186,11 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
             }
             val body = http.bodyAsText()
             try {
-                assignmentFromEdgeJson(body).also { cacheAssignment(it, account) }
+                assignmentFromEdgeJson(body).also {
+                    if (!it.patientId.equals(patientId, true) || it.type != PatientAssignmentType.Questionnaire ||
+                        it.sessionId != null || it.cancelledAt != null) throw PatientAssignmentException.InvalidIdentifier
+                    cacheAssignment(it, account)
+                }
             } catch (error: Exception) {
                 InviteDebugLog.e("request-patient-questionnaire-parse", error)
                 throw PatientAssignmentException.InvalidIdentifier
@@ -230,7 +205,6 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
 
     suspend fun activeOngoingAssignment(patientId: String, type: PatientAssignmentType): PatientAssignment? {
         ensureConfigured()
-        requireOngoing(type)
         val account = currentAccount()
         val resource = "patient/$patientId/${type.raw}"
         val revision = assignmentCache.revision(account, resource)
@@ -251,8 +225,8 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
     suspend fun activateOngoingAssignment(patientId: String, type: PatientAssignmentType): PatientAssignment {
         ensureConfigured()
         val account = currentAccount()
-        requireOngoing(type)
         if (!isPatientConnected(patientId)) throw PatientAssignmentException.PatientNotConnected
+        if (type == PatientAssignmentType.Questionnaire) return sendQuestionnaireAssignment(patientId)
         if (type == PatientAssignmentType.DiaryOne) {
             return requestPatientDiaryOne(patientId).also { cacheAssignment(it, account) }
         }
@@ -393,7 +367,6 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         val (code, _) = EdgePayload.codeAndMessage(body)
         val status = EdgePayload.httpStatus(error)
         return when (code) {
-            "assignment_already_completed", "already_completed" -> PatientQuestionnaireSubmitError.AlreadyCompleted
             "assignment_cancelled", "cancelled" -> PatientQuestionnaireSubmitError.Cancelled
             "access_denied", "forbidden", "unauthorized" -> PatientQuestionnaireSubmitError.AccessDenied
             else -> if (status == 401 || status == 403) {
@@ -425,12 +398,6 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
 
     private fun ensureConfigured() {
         if (!SupabaseConfig.isConfigured) throw PatientAssignmentException.NotConfigured
-    }
-
-    private fun requireOngoing(type: PatientAssignmentType) {
-        if (type == PatientAssignmentType.Questionnaire) {
-            throw PatientAssignmentException.InvalidIdentifier
-        }
     }
 
     private fun isUniqueViolation(error: Throwable): Boolean {
@@ -478,15 +445,16 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         fun uuidOrNull(id: DatabaseId): String? =
             runCatching { UUID.fromString(id.queryValue).toString() }.getOrNull()
 
-        internal fun encodeQuestionnaireRequest(patientId: String, sessionId: String?): String =
+        internal fun encodeQuestionnaireRequest(patientId: String): String =
             EdgePayload.json.encodeToString(
                 RequestPatientQuestionnaireRequest.serializer(),
-                RequestPatientQuestionnaireRequest(patientId = patientId, sessionId = sessionId),
+                RequestPatientQuestionnaireRequest(patientId = patientId),
             )
 
         internal fun assignmentFromEdgeJson(json: String): PatientAssignment {
             val root = EdgePayload.json.parseToJsonElement(json)
             val obj = root as? JsonObject ?: throw PatientAssignmentException.InvalidIdentifier
+            if (obj["success"]?.jsonPrimitive?.contentOrNull == "false") throw PatientAssignmentException.InvalidIdentifier
             val assignment = obj["assignment"] as? JsonObject ?: obj
             fun field(vararg keys: String): String? =
                 keys.firstNotNullOfOrNull { key ->

@@ -115,7 +115,7 @@ struct AppIntroductionView: View {
             HStack(spacing: 7) {
                 ForEach(0..<pageCount, id: \.self) { index in
                     Capsule()
-                        .fill(index <= page ? Theme.gold : Theme.borderDefault)
+                        .fill(index == page ? Theme.gold : Theme.borderDefault)
                         .frame(height: 4)
                 }
             }

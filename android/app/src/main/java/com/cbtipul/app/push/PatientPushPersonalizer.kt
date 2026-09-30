@@ -12,7 +12,7 @@ object PatientPushCopy {
     const val GENERIC_DIARY_ONE_ENTRY = "הוסיף/ה רשומה חדשה ליומן 1"
     const val GENERIC_DIARY_ONE_ASSIGNED = "הופעל יומן 1"
     const val GENERIC_MESSAGE_RECEIVED = "הודעה חדשה מהמטפל/ת"
-    const val GENERIC_QUESTIONNAIRE_ASSIGNED = "שאלון חדש למילוי"
+    const val GENERIC_QUESTIONNAIRE_ASSIGNED = "הגישה לשאלונים הופעלה"
 
     fun patientConnectedBody(name: String): String = "$name התחבר/ה בהצלחה ל-CBTipul"
 

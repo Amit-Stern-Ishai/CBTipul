@@ -585,6 +585,7 @@ struct QuestionnaireSections: View {
     var accent: Color? = nil
     /// Therapist-only per-question notes. Patient Mode never shows these.
     var showsTherapistNotes: Bool = true
+    var showsClinicalGuidance: Bool = true
 
     var marksUnanswered = false
     var requiresInterferenceAnswer = false
@@ -695,10 +696,12 @@ struct QuestionnaireSections: View {
             )
             .listRowBackground(rowBackground(.middle))
 
-            Text(L10n.suggestion(for: questionnaire.phq9Severity))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .listRowBackground(rowBackground(.last))
+            if showsClinicalGuidance {
+                Text(L10n.suggestion(for: questionnaire.phq9Severity))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(rowBackground(.last))
+            }
         }
     }
 }
