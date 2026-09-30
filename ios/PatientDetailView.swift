@@ -16,6 +16,7 @@ struct PatientDetailView: View {
     @State private var isShowingNotes = false
     @State private var areDiariesExpanded = false
     @State private var isShowingSendOptions = false
+    @State private var changingPatientAccess = false
     @State private var isShowingConnectionInfo = false
     @State private var pendingInvitationFromInfo = false
     @State private var pendingSendAction: PatientSendAction?
@@ -883,17 +884,18 @@ struct PatientDetailView: View {
                     if connectionState == .connected {
                         sendOption(.message, icon: "envelope", title: L10n.writePatientMessageAction,
                                    detail: L10n.patientSendMessageDescription)
-                        QuestionnaireAccessControl(patient: patient)
-                            .padding(18)
-                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
-                        sendOption(.diaryOne, icon: "book.closed", title: L10n.patientEnableDiaryOneAction,
-                                   detail: L10n.patientSendDiaryOneDescription)
-                        sendOption(.diaryTwo, icon: "book.closed", title: L10n.patientEnableDiaryTwoAction,
-                                   detail: L10n.patientSendDiaryTwoDescription)
-                        if PatientAssignmentType.diaryThreeSendingEnabled {
-                            sendOption(.diaryThree, icon: "book.closed", title: L10n.patientEnableDiaryThreeAction,
-                                       detail: L10n.patientSendDiaryThreeDescription)
-                                .padding(.horizontal, 16)
+                            .disabled(changingPatientAccess)
+                        Divider()
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(L10n.accessToolsTitle).font(.headline)
+                            Text(L10n.accessToolsExplanation).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        ForEach([PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo] +
+                                (PatientAssignmentType.diaryThreeSendingEnabled ? [.diaryThree] : []), id: \.rawValue) { type in
+                            PatientToolAccessControl(patient: patient, type: type, parentBusy: changingPatientAccess,
+                                                     onBusyChanged: { changingPatientAccess = $0 })
+                                .padding(18)
+                                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
                         }
                     } else {
                         sendingUnavailableNotice
@@ -906,10 +908,11 @@ struct PatientDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.cancel) { isShowingSendOptions = false }
+                    Button(L10n.cancel) { isShowingSendOptions = false }.disabled(changingPatientAccess)
                 }
             }
         }
+        .interactiveDismissDisabled(changingPatientAccess)
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .appTextSize()

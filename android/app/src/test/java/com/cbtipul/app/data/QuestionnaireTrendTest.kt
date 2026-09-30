@@ -12,9 +12,9 @@ class QuestionnaireTrendTest {
         assertEquals(QuestionnaireTrend.Unchanged, QuestionnaireTrend.classify(listOf(0, 0)))
     }
     @Test fun checksEveryStepRatherThanOnlyEndpoints() {
-        assertEquals(QuestionnaireTrend.Mixed, QuestionnaireTrend.classify(listOf(3, 1, 2)))
-        assertEquals(QuestionnaireTrend.Mixed, QuestionnaireTrend.classify(listOf(0, 2, 1)))
-        assertEquals(QuestionnaireTrend.Mixed, QuestionnaireTrend.classify(listOf(2, 1, 2)))
+        assertEquals(QuestionnaireTrend.BetterThanBeginning, QuestionnaireTrend.classify(listOf(3, 1, 2)))
+        assertEquals(QuestionnaireTrend.WorseThanBeginning, QuestionnaireTrend.classify(listOf(0, 2, 1)))
+        assertEquals(QuestionnaireTrend.Unchanged, QuestionnaireTrend.classify(listOf(2, 1, 2)))
     }
     @Test fun missingAndInvalidAnswersNeverBecomeZeros() {
         assertEquals(QuestionnaireTrend.Improving, QuestionnaireTrend.classify(listOf(3, null, 2, -1, 4, 1)))

@@ -173,8 +173,8 @@ private fun QuestionCount(count: Int) {
     val description = stringResource(R.string.question_trends_matching_count, count)
     Surface(color = colors.gold.copy(alpha = 0.12f), shape = RoundedCornerShape(50),
         modifier = Modifier.semantics { contentDescription = description }) {
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            Text(count.toString(), color = colors.gold, fontWeight = FontWeight.SemiBold,
+        run {
+            Text(description, color = colors.gold, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
         }
     }
@@ -222,7 +222,8 @@ private val QuestionnaireTrend.icon: ImageVector get() = when (this) {
     QuestionnaireTrend.Improving -> Icons.Outlined.TrendingDown
     QuestionnaireTrend.Worsening -> Icons.Outlined.TrendingUp
     QuestionnaireTrend.Unchanged -> Icons.Outlined.DragHandle
-    QuestionnaireTrend.Mixed -> Icons.Outlined.SwapVert
+    QuestionnaireTrend.BetterThanBeginning -> Icons.Outlined.TrendingDown
+    QuestionnaireTrend.WorseThanBeginning -> Icons.Outlined.TrendingUp
     QuestionnaireTrend.Insufficient -> Icons.Outlined.HelpOutline
 }
 
@@ -230,13 +231,15 @@ private val QuestionnaireTrend.titleRes: Int get() = when (this) {
     QuestionnaireTrend.Improving -> R.string.question_trend_improving
     QuestionnaireTrend.Worsening -> R.string.question_trend_worsening
     QuestionnaireTrend.Unchanged -> R.string.question_trend_unchanged
-    QuestionnaireTrend.Mixed -> R.string.question_trend_mixed
+    QuestionnaireTrend.BetterThanBeginning -> R.string.question_trend_better
+    QuestionnaireTrend.WorseThanBeginning -> R.string.question_trend_worse
     QuestionnaireTrend.Insufficient -> R.string.question_trend_insufficient
 }
 private val QuestionnaireTrend.helpRes: Int get() = when (this) {
     QuestionnaireTrend.Improving -> R.string.question_trend_improving_help
     QuestionnaireTrend.Worsening -> R.string.question_trend_worsening_help
     QuestionnaireTrend.Unchanged -> R.string.question_trend_unchanged_help
-    QuestionnaireTrend.Mixed -> R.string.question_trend_mixed_help
+    QuestionnaireTrend.BetterThanBeginning -> R.string.question_trend_better_help
+    QuestionnaireTrend.WorseThanBeginning -> R.string.question_trend_worse_help
     QuestionnaireTrend.Insufficient -> R.string.question_trend_insufficient_help
 }

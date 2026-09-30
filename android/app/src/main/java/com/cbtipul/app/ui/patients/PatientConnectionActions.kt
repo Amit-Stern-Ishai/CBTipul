@@ -73,12 +73,6 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
     val (connection, refresh) = rememberPatientConnection(patient, repository, isDemo)
     var sheet by remember { mutableStateOf<String?>(null) }
     var sending by remember { mutableStateOf(false) }
-    var feedback by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    val diarySent = stringResource(R.string.patient_diary_one_activated)
-    val diaryThreeSent = stringResource(R.string.patient_diary_three_activated)
-    val diaryTwoSent = stringResource(R.string.patient_diary_two_activated)
-    val failed = stringResource(R.string.questionnaire_assignment_send_error)
     GroupedListCard(accent = PatientAvatarColor.background(patient.id)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             when (connection) {
@@ -111,7 +105,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
         }
     }
     if (sheet != null) ModalBottomSheet(onDismissRequest = { if (!sending) sheet = null },
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !sending })) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(name, fontWeight = FontWeight.Bold)
             if (sheet == "invite") {
@@ -125,36 +119,19 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
             } else if (connection == ConnectionUi.Connected) {
                 Text(stringResource(R.string.patient_choose_send_action), fontWeight = FontWeight.Bold)
                 SendChoice(Icons.Outlined.MailOutline, R.string.send_patient_message_action, R.string.patient_send_message_description, !sending) { sheet = null; onMessage() }
-                OutlinedCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) { QuestionnaireAccessControl(patient, repository, isDemo, busy || sending) }
+                HorizontalDivider()
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.access_tools_title), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.access_tools_explanation), style = MaterialTheme.typography.bodyMedium, color = colors.textBody)
                 }
-                SendChoice(Icons.Outlined.Book, R.string.patient_enable_diary_one_action, R.string.patient_send_diary_one_description, !sending) {
-                    sending = true
-                    scope.launch {
-                        try { repository!!.activateOngoingAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!, PatientAssignmentType.DiaryOne); feedback = diarySent }
-                        catch (e: CancellationException) { throw e }
-                        catch (_: Exception) { feedback = failed; refresh() }
-                        finally { sending = false; sheet = null }
-                    }
-                }
-                SendChoice(Icons.Outlined.Book, R.string.patient_enable_diary_two_action, R.string.patient_send_diary_two_description, !sending) {
-                    sending = true
-                    scope.launch {
-                        try { repository!!.activateOngoingAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!, PatientAssignmentType.DiaryTwo); feedback = diaryTwoSent }
-                        catch (e: CancellationException) { throw e }
-                        catch (_: Exception) { feedback = failed; refresh() }
-                        finally { sending = false; sheet = null }
-                    }
-                }
-
-                if (PatientAssignmentType.diaryThreeSendingEnabled) {
-                    SendChoice(Icons.Outlined.Book, R.string.patient_enable_diary_three_action, R.string.patient_send_diary_three_description, !sending) {
-                        sending = true
-                        scope.launch {
-                            try { repository!!.activateOngoingAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!, PatientAssignmentType.DiaryThree); feedback = diaryThreeSent }
-                            catch (e: CancellationException) { throw e }
-                            catch (_: Exception) { feedback = failed; refresh() }
-                            finally { sending = false; sheet = null }
+                val tools = listOf(PatientAssignmentType.Questionnaire, PatientAssignmentType.DiaryOne, PatientAssignmentType.DiaryTwo) +
+                    if (PatientAssignmentType.diaryThreeSendingEnabled) listOf(PatientAssignmentType.DiaryThree) else emptyList()
+                tools.forEach { type ->
+                    key(type) {
+                        OutlinedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp)) {
+                                PatientToolAccessControl(patient, repository, isDemo, type, busy || sending, onBusyChanged = { sending = it })
+                            }
                         }
                     }
                 }
@@ -162,8 +139,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
             TextButton(onClick = { sheet = null }, enabled = !sending) { Text(stringResource(R.string.cancel)) }
         }
     }
-    if (feedback != null) AlertDialog(onDismissRequest = { feedback = null }, text = { Text(feedback.orEmpty()) },
-        confirmButton = { TextButton(onClick = { feedback = null }) { Text(stringResource(R.string.done)) } })
+
 }
 
 @Composable

@@ -9,9 +9,9 @@ struct QuestionnaireTrendTests {
         #expect(QuestionnaireTrend.classify([0, 0]) == .unchanged)
     }
     @Test func checksEveryStepRatherThanOnlyEndpoints() {
-        #expect(QuestionnaireTrend.classify([3, 1, 2]) == .mixed)
-        #expect(QuestionnaireTrend.classify([0, 2, 1]) == .mixed)
-        #expect(QuestionnaireTrend.classify([2, 1, 2]) == .mixed)
+        #expect(QuestionnaireTrend.classify([3, 1, 2]) == .betterThanBeginning)
+        #expect(QuestionnaireTrend.classify([0, 2, 1]) == .worseThanBeginning)
+        #expect(QuestionnaireTrend.classify([2, 1, 2]) == .unchanged)
     }
     @Test func missingAndInvalidAnswersNeverBecomeZeros() {
         #expect(QuestionnaireTrend.classify([3, nil, 2, -1, 4, 1]) == .improving)

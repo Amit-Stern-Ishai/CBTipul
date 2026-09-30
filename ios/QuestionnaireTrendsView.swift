@@ -151,13 +151,13 @@ struct QuestionnaireTrendsView: View {
     }
 
     private func countBadge(_ count: Int) -> some View {
-        Text(count, format: .number)
+        Text(L10n.questionTrendsMatchingCount(count))
             .font(.subheadline.weight(.semibold).monospacedDigit())
             .foregroundStyle(Theme.gold)
             .frame(minWidth: 28)
             .padding(.horizontal, 8).padding(.vertical, 5)
             .background(Theme.gold.opacity(0.12), in: Capsule())
-            .environment(\.layoutDirection, .leftToRight)
+            .fixedSize(horizontal: true, vertical: false)
             .accessibilityLabel(L10n.questionTrendsMatchingCount(count))
     }
 
@@ -210,7 +210,8 @@ private extension QuestionnaireTrend {
         case .improving: L10n.questionTrendImproving
         case .worsening: L10n.questionTrendWorsening
         case .unchanged: L10n.questionTrendUnchanged
-        case .mixed: L10n.questionTrendMixed
+        case .betterThanBeginning: L10n.questionTrendBetter
+        case .worseThanBeginning: L10n.questionTrendWorse
         case .insufficient: L10n.questionTrendInsufficient
         }
     }
@@ -219,7 +220,8 @@ private extension QuestionnaireTrend {
         case .improving: L10n.questionTrendImprovingHelp
         case .worsening: L10n.questionTrendWorseningHelp
         case .unchanged: L10n.questionTrendUnchangedHelp
-        case .mixed: L10n.questionTrendMixedHelp
+        case .betterThanBeginning: L10n.questionTrendBetterHelp
+        case .worseThanBeginning: L10n.questionTrendWorseHelp
         case .insufficient: L10n.questionTrendInsufficientHelp
         }
     }
@@ -228,7 +230,8 @@ private extension QuestionnaireTrend {
         case .improving: "arrow.down.right"
         case .worsening: "arrow.up.right"
         case .unchanged: "equal"
-        case .mixed: "arrow.up.arrow.down"
+        case .betterThanBeginning: "arrow.down.right"
+        case .worseThanBeginning: "arrow.up.right"
         case .insufficient: "questionmark.circle"
         }
     }

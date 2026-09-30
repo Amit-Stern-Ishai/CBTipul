@@ -6,6 +6,21 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
+    static let questionTrendWorseHelp = "הציון האחרון גבוה מהראשון, אך היו גם ירידות בדרך."
+    static let questionTrendWorse = "גרוע יותר מההתחלה"
+    static let questionTrendBetterHelp = "הציון האחרון נמוך מהראשון, אך היו גם עליות בדרך."
+    static let questionTrendBetter = "טוב יותר מההתחלה"
+    static let accessToolsTitle = "גישה לשאלונים וליומנים"
+    static let accessToolsExplanation = "כלים פעילים זמינים למילוי חוזר באפליקציית המטופל/ת."
+    static let accessActive = "פעיל אצל המטופל/ת"
+    static let accessInactive = "לא פעיל"
+    static let accessActivate = "הפעלת גישה"
+    static let accessStop = "הפסקת גישה"
+    static let accessStopExplanation = "לא ניתן יהיה לשלוח מילויים חדשים בכלי זה. כל המידע שכבר נשלח יישמר."
+    static let accessError = "לא ניתן לעדכן את הגישה כרגע. נסו שוב."
+    static let accessQuestionnairesTitle = "שאלוני מצב רוח"
+    static let accessQuestionnairesDescription = "מעקב אחר תסמיני חרדה ודיכאון לאורך זמן"
+
     static let diaryFivePartsOptional = "5 חלקים · החלק האחרון לבחירה"
     static let diaryEntryGuide = "ממלאים חלק אחד בכל פעם. אפשר לפתוח כל חלק כדי לעיין או לשנות."
     static func diaryEntryProgress(_ completed: Int, _ total: Int) -> String { "הושלמו \(completed) מתוך \(total) חלקים" }
@@ -1714,12 +1729,12 @@ amitishai@gmail.com
     static let questionTrendsTitle = "מגמות לפי שאלה"
     static let questionTrendsHelp = "בחרו מגמה ואז שאלה מהרשימה. הגרף מציג את ציוני השאלה בכל השאלונים שמולאו. ציון נמוך יותר משקף שיפור."
     static let questionTrendsMissing = "נדרשות לפחות שתי תשובות לכל שאלה. תשובות חסרות אינן נחשבות לציון 0 ואינן נכללות בהשוואה."
-    static let questionTrendImproving = "שיפור"
+    static let questionTrendImproving = "שיפור עקבי"
     static let questionTrendImprovingHelp = "הציון לא עלה באף מילוי, וירד לפחות פעם אחת."
-    static let questionTrendWorsening = "החמרה"
+    static let questionTrendWorsening = "החמרה עקבית"
     static let questionTrendWorseningHelp = "הציון לא ירד באף מילוי, ועלה לפחות פעם אחת."
-    static let questionTrendUnchanged = "ללא שינוי"
-    static let questionTrendUnchangedHelp = "אותו ציון בכל המילויים."
+    static let questionTrendUnchanged = "ללא שינוי מההתחלה"
+    static let questionTrendUnchangedHelp = "הציון האחרון זהה לראשון, גם אם היו שינויים בדרך."
     static let questionTrendMixed = "מגמה מעורבת"
     static let questionTrendMixedHelp = "היו גם עליות וגם ירידות בציון."
     static let questionTrendInsufficient = "אין מספיק תשובות"
@@ -1729,7 +1744,7 @@ amitishai@gmail.com
     static let questionnaireGraphSingleShort = "מילוי אחד"
     static let questionnaireGraphUnchangedShort = "ללא שינוי"
     static func questionTrendsOption(_ title: String, count: Int) -> String { "\(title)\u{00A0}(\u{2066}\(count)\u{2069})" }
-    static func questionTrendsMatchingCount(_ count: Int) -> String { "שאלות: \(count)" }
+    static func questionTrendsMatchingCount(_ count: Int) -> String { "\(count) שאלות" }
     static func questionTrendsReference(_ scale: String, number: Int) -> String { "שאלה \(number) · \u{2066}\(scale)\u{2069}" }
     static func questionTrendsCount(_ count: Int) -> String { "\(count) שאלונים" }
     static func questionnaireGraphChangeShort(_ difference: Int) -> String {

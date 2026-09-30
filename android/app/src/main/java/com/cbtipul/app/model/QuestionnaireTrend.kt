@@ -2,7 +2,7 @@ package com.cbtipul.app.model
 
 /** Input is chronological. Missing or invalid answers are not zero scores. */
 enum class QuestionnaireTrend {
-    Improving, Worsening, Unchanged, Mixed, Insufficient;
+    Improving, BetterThanBeginning, Unchanged, WorseThanBeginning, Worsening, Insufficient;
 
     companion object {
         fun classify(answers: List<Int?>): QuestionnaireTrend {
@@ -11,7 +11,9 @@ enum class QuestionnaireTrend {
             if (values.all { it == values.first() }) return Unchanged
             if (values.zipWithNext().all { (previous, next) -> previous >= next }) return Improving
             if (values.zipWithNext().all { (previous, next) -> previous <= next }) return Worsening
-            return Mixed
+            if (values.last() < values.first()) return BetterThanBeginning
+            if (values.last() > values.first()) return WorseThanBeginning
+            return Unchanged
         }
     }
 }

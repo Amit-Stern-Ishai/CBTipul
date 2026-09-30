@@ -2,7 +2,7 @@ import Foundation
 
 /// Input is chronological. Missing or invalid answers are not zero scores.
 enum QuestionnaireTrend: CaseIterable, Hashable {
-    case improving, worsening, unchanged, mixed, insufficient
+    case improving, betterThanBeginning, unchanged, worseThanBeginning, worsening, insufficient
 
     static func classify(_ answers: [Int?]) -> Self {
         let values = answers.compactMap { $0 }.filter { (0...3).contains($0) }
@@ -11,6 +11,8 @@ enum QuestionnaireTrend: CaseIterable, Hashable {
         if values.allSatisfy({ $0 == values[0] }) { return .unchanged }
         if pairs.allSatisfy({ $0.0 >= $0.1 }) { return .improving }
         if pairs.allSatisfy({ $0.0 <= $0.1 }) { return .worsening }
-        return .mixed
+        if values.last! < values[0] { return .betterThanBeginning }
+        if values.last! > values[0] { return .worseThanBeginning }
+        return .unchanged
     }
 }
