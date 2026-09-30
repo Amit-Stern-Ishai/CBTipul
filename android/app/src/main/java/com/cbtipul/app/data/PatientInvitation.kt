@@ -165,6 +165,15 @@ class PatientInvitationService(private val client: SupabaseClient) {
 object PatientInvitationShare {
     const val SUBJECT = "הזמנה להתחבר ל-CBTipul"
 
+    /** Escape dynamic values before placing them into the localized HTML template. */
+    fun emailHtml(template: String, therapistName: String, invitationUrl: String): String {
+        fun escape(value: String) = value.replace("&", "&amp;")
+            .replace("<", "&lt;").replace(">", "&gt;")
+            .replace("\"", "&quot;").replace("'", "&#39;")
+        return String.format(java.util.Locale.ROOT, template, escape(therapistName), escape(invitationUrl))
+    }
+
+
     fun message(therapistName: String, invitationUrl: String): String =
         "היי,\n\n" +
             "$therapistName הזמין/ה אותך להתחבר ל-CBTipul.\n\n" +

@@ -147,13 +147,15 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                     }
                 }
 
-                SendChoice(Icons.Outlined.Book, R.string.patient_enable_diary_three_action, R.string.patient_send_diary_three_description, !sending) {
-                    sending = true
-                    scope.launch {
-                        try { repository!!.activateOngoingAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!, PatientAssignmentType.DiaryThree); feedback = diaryThreeSent }
-                        catch (e: CancellationException) { throw e }
-                        catch (_: Exception) { feedback = failed; refresh() }
-                        finally { sending = false; sheet = null }
+                if (PatientAssignmentType.diaryThreeSendingEnabled) {
+                    SendChoice(Icons.Outlined.Book, R.string.patient_enable_diary_three_action, R.string.patient_send_diary_three_description, !sending) {
+                        sending = true
+                        scope.launch {
+                            try { repository!!.activateOngoingAssignment(PatientAssignmentRepository.uuidOrNull(patient.id)!!, PatientAssignmentType.DiaryThree); feedback = diaryThreeSent }
+                            catch (e: CancellationException) { throw e }
+                            catch (_: Exception) { feedback = failed; refresh() }
+                            finally { sending = false; sheet = null }
+                        }
                     }
                 }
             } else Text(stringResource(R.string.patient_not_connected_body))

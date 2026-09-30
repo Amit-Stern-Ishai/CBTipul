@@ -6,7 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +21,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -94,6 +96,32 @@ fun PatientDiaryTwoHubScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
+        bottomBar = {
+            if (loadState == DiaryTwoHubLoadState.Loaded || entries.isNotEmpty()) {
+                Surface(color = colors.base) {
+                    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
+                        Button(
+                            onClick = onAddEntry,
+                            enabled = active,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colors.accentFill,
+                                contentColor = colors.textOnAccent,
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (entries.isEmpty()) R.string.empty_diary_one_primary_action
+                                    else R.string.diary_one_add_entry,
+                                ),
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                }
+            }
+        },
     ) { padding ->
         when {
             loadState == DiaryTwoHubLoadState.Loading && entries.isEmpty() ->
@@ -119,24 +147,6 @@ fun PatientDiaryTwoHubScreen(
                     .padding(top = 12.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Button(
-                    onClick = onAddEntry,
-                    enabled = active,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.accentFill,
-                        contentColor = colors.textOnAccent,
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Text(
-                        stringResource(
-                            if (entries.isEmpty()) R.string.empty_diary_one_primary_action
-                            else R.string.diary_one_add_entry,
-                        ),
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
                 if (!active) Text(stringResource(R.string.patient_diary_two_not_active), color = colors.textBody)
                 if (state.historyFailed) {
                     Text(stringResource(R.string.diary_two_load_failed), color = colors.error)

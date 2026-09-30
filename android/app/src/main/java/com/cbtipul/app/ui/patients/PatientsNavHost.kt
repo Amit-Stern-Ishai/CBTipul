@@ -1120,6 +1120,9 @@ private suspend fun createAndShareInvitation(
         val share = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, message)
+            putExtra(Intent.EXTRA_HTML_TEXT, PatientInvitationShare.emailHtml(
+                context.getString(R.string.patient_invitation_email_html), therapistName, invitation.invitationUrl,
+            ))
             putExtra(Intent.EXTRA_SUBJECT, PatientInvitationShare.SUBJECT)
         }
         val chooser = Intent.createChooser(share, context.getString(R.string.invite_patient_action))

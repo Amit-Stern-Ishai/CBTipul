@@ -31,7 +31,7 @@ struct PushNotificationPreferenceTests {
     }
 
     @Test func disableRpcEncodesPushToken() throws {
-        let data = try JSONEncoder().encode(DisablePushDeviceParams(pPushToken: "current-token"))
+        let data = try JSONEncoder().encode(DisablePushDeviceParams(p_push_token: "current-token"))
         let json = try JSONSerialization.jsonObject(with: data) as? [String: String]
         #expect(json?["p_push_token"] == "current-token")
         #expect(json?.count == 1)

@@ -103,6 +103,8 @@ enum L10n {
     static let patientEnableDiaryOneAction = "הפעלת יומן 1"
     static let patientSendDiaryOneDescription = "מאפשר למטופל/ת למלא יומן 1 באופן שוטף באפליקציה."
     static let patientDiaryDescription = "עיון ותיעוד של אירועים, מחשבות ורגשות"
+    static let patientDiaryTwoDescription = "זיהוי טעויות חשיבה וניסוח מחשבות חלופיות"
+    static let patientDiaryThreeDescription = "בחינת מחשבות והשוואת רגשות לפני ואחרי"
     static let patientMessagesDescription = "הודעות שנשלחו למטופל/ת ומצב הקריאה שלהן"
     static let patientNotesTitle = "הערות על המטופל/ת"
     static let patientNotesDescription = "רקע והערות כלליות שאינן שייכות לפגישה מסוימת"
@@ -1270,7 +1272,7 @@ amitishai@gmail.com
     static let patientConnectedStatus = "מחובר/ת ל-CBTipul"
     static let patientNotConnectedStatus = "לא מחובר/ת ל-CBTipul"
     static let patientConnectionChecking = "בודק חיבור…"
-    static let diaryOneSentToPatient = "יומן 1 הופעל אצל המטופל/ת"
+    static let diaryOneSentToPatient = "יומן 1 הופעל אצל המטופל/ת."
 
     static let patientInvitationFailedTitle = "לא ניתן היה ליצור הזמנה"
 
@@ -1290,6 +1292,47 @@ amitishai@gmail.com
         \(invitationUrl)
 
         ההזמנה אישית ומיועדת עבורך בלבד.
+        """
+    }
+
+    static func patientInvitationEmailHTML(therapistName: String, invitationUrl: String) -> String {
+        func escape(_ value: String) -> String {
+            value.replacingOccurrences(of: "&", with: "&amp;")
+                .replacingOccurrences(of: "<", with: "&lt;")
+                .replacingOccurrences(of: ">", with: "&gt;")
+                .replacingOccurrences(of: "\"", with: "&quot;")
+                .replacingOccurrences(of: "'", with: "&#39;")
+        }
+        return """
+        <!doctype html>
+        <html lang="he" dir="rtl">
+        <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+        <body dir="rtl" style="margin:0;padding:0;background-color:#f2f5f7;color:#172b43;font-family:Arial,Helvetica,sans-serif;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f2f5f7;">
+        <tr><td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background-color:#ffffff;border:1px solid #dfe6eb;border-radius:20px;">
+        <tr><td dir="rtl" align="right" style="padding:24px;background-color:#172b43;border-radius:20px 20px 0 0;">
+        <p dir="ltr" style="margin:0;text-align:right;color:#ffffff;font-size:24px;font-weight:bold;letter-spacing:0.3px;">CBTipul</p>
+        <p style="margin:8px 0 0;color:#d8e4ed;font-size:14px;">הזמנה אישית מהמטפל/ת שלך</p>
+        </td></tr>
+        <tr><td dir="rtl" align="right" style="padding:28px 24px 24px;">
+        <h1 style="margin:0 0 20px;color:#172b43;font-size:28px;line-height:1.4;">הטיפול ממשיך גם בין הפגישות</h1>
+        <p style="margin:0 0 16px;font-size:17px;line-height:1.8;"><strong>\(escape(therapistName))</strong> הזמין/ה אותך להתחבר ל־<span dir="ltr">CBTipul</span>.</p>
+        <p style="margin:0 0 20px;color:#46596c;font-size:16px;line-height:1.8;">באפליקציה אפשר למלא שאלונים, לתעד מחשבות ורגשות ביומנים ולקרוא הודעות מהמטפל/ת — בהתאם למה שנפתח עבורך.</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr><td align="center" bgcolor="#18766f" style="border-radius:12px;">
+        <a href="\(escape(invitationUrl))" style="display:block;padding:16px 20px;border:1px solid #18766f;border-radius:12px;color:#ffffff;background-color:#18766f;font-size:18px;font-weight:bold;text-decoration:none;text-align:center;">פתיחת ההזמנה</a>
+        </td></tr></table>
+        <p style="margin:16px 0 0;color:#46596c;font-size:14px;line-height:1.8;">מומלץ לפתוח את ההזמנה בטלפון שבו תשתמשו באפליקציה. במסך שייפתח תוכלו לקרוא את פרטי החיבור ולאשר את ההצטרפות.</p>
+        </td></tr>
+        <tr><td dir="rtl" align="right" style="padding:20px 24px;border-top:1px solid #e5ebef;">
+        <p style="margin:0 0 10px;color:#46596c;font-size:13px;line-height:1.7;">הכפתור לא נפתח? אפשר להעתיק את הקישור לדפדפן:</p>
+        <p dir="ltr" style="margin:0;text-align:left;font-size:12px;line-height:1.8;word-break:break-all;overflow-wrap:anywhere;"><a href="\(escape(invitationUrl))" style="color:#176d68;text-decoration:underline;">\(escape(invitationUrl))</a></p>
+        </td></tr>
+        </table>
+        <p dir="rtl" style="margin:16px 12px 0;color:#536578;font-size:12px;line-height:1.8;">ההזמנה אישית ומיועדת עבורך בלבד.</p>
+        </td></tr></table>
+        </body></html>
         """
     }
 
@@ -2322,9 +2365,9 @@ extension L10n {
     static let diaryTwoValidationAlternatives = "יש למלא לפחות מחשבה חלופית אחת."
     static let diaryTwoEmptyTitle = "אין רשומות ביומן 2 עדיין"
     static let diaryTwoLoadFailed = "לא ניתן היה לטעון את יומן 2. נסו שוב."
-    static let patientEnableDiaryTwoAction = "פתיחת יומן 2 למטופל"
-    static let patientSendDiaryTwoDescription = "יומן מתמשך לתיעוד אירועים, מחשבות אוטומטיות, רגשות ומחשבות חלופיות."
-    static let diaryTwoSentToPatient = "יומן 2 פתוח כעת למילוי אצל המטופל."
+    static let patientEnableDiaryTwoAction = "הפעלת יומן 2"
+    static let patientSendDiaryTwoDescription = "מאפשר למטופל/ת למלא יומן 2 באופן שוטף באפליקציה."
+    static let diaryTwoSentToPatient = "יומן 2 הופעל אצל המטופל/ת."
     static let diaryEntryTherapistSource = "תיעוד המטפל"
     static let diaryEntryPatientSource = "תיעוד המטופל"
     static let diaryEntryEdit = "עריכת רשומה"
@@ -2355,12 +2398,13 @@ extension L10n {
     static let diaryThreeValidationRatings = "יש למלא את כל אחוזי האמונה ועוצמות הרגש לפני ואחרי, בין 0 ל־100."
     static let diaryThreeEmptyTitle = "אין רשומות ביומן 3 עדיין"
     static let diaryThreeLoadFailed = "לא ניתן היה לטעון את יומן 3. נסו שוב."
-    static let patientEnableDiaryThreeAction = "פתיחת יומן 3 למטופל"
-    static let patientSendDiaryThreeDescription = "יומן מתמשך לתיעוד מחשבות ורגשות, מחשבות חלופיות והערכה מחדש."
-    static let diaryThreeSentToPatient = "יומן 3 פתוח כעת למילוי אצל המטופל."
+    static let patientEnableDiaryThreeAction = "הפעלת יומן 3"
+    static let patientSendDiaryThreeDescription = "מאפשר למטופל/ת למלא יומן 3 באופן שוטף באפליקציה."
+    static let diaryThreeSentToPatient = "יומן 3 הופעל אצל המטופל/ת."
 }
 
 extension L10n {
+    static let diaryThreeSendingPaused = "שליחת יומן 3 אינה זמינה כרגע. ניתן לצפות ברשומות קודמות."
     static let patientDiaryThreeCardBody = "תרגול מונחה בשבעה שלבים: מחשבות ורגשות לפני, בחינת מחשבות חלופיות והערכה מחדש."
     static let patientDiaryThreeNotActive = "המטפל/ת סגר/ה את יומן 3 למילוי. הרשומות שכבר נשמרו נשארות ביומן."
     static let patientDiaryThreeBeliefNow = "אמונה עכשיו"

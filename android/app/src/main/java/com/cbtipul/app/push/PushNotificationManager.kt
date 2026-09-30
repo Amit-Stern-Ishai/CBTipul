@@ -170,8 +170,8 @@ class PushNotificationManager(
                 lastRegisteredUserId = null
             }
             is PushDeliveryPolicy.TurnOffAction.DisableBackend -> {
-                if (!SupabaseConfig.isConfigured || !auth.hasSession()) {
-                    error("disable_push_device_unavailable")
+                if (!SupabaseConfig.isConfigured) {
+                    throw PushNotificationSettingsException()
                 }
                 client.postgrest.rpc(
                     "disable_push_device",
@@ -392,3 +392,5 @@ class PushNotificationManager(
         private val HEX = Regex("\\b[a-fA-F0-9]{32,}\\b")
     }
 }
+
+class PushNotificationSettingsException : Exception()

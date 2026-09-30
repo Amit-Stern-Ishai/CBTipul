@@ -45,14 +45,11 @@ struct PatientDiaryThreeHubView: View {
             case .loading, .loaded, .failed:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Button { isShowingEntry = true } label: {
-                            Text(L10n.diaryOneAddEntryAction)
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity, minHeight: 24)
+                        if PatientAssignmentType.diaryThreeSendingEnabled {
+                            if !isActive || locallyInactive { Text(L10n.patientDiaryThreeNotActive).foregroundStyle(.secondary) }
+                        } else {
+                            Text(L10n.diaryThreeSendingPaused).foregroundStyle(Theme.textBody)
                         }
-                        .buttonStyle(.pressableProminent)
-                        .disabled(!isActive || locallyInactive)
-                        if !isActive || locallyInactive { Text(L10n.patientDiaryThreeNotActive).foregroundStyle(.secondary) }
                         if loadState == .failed {
                             Text(L10n.diaryThreeLoadFailed).foregroundStyle(Theme.error)
                             Button(L10n.retryAction) { Task { await loadEntries() } }
@@ -88,6 +85,22 @@ struct PatientDiaryThreeHubView: View {
         .themedScreen()
         .navigationTitle(L10n.diaryThreeTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if PatientAssignmentType.diaryThreeSendingEnabled && (loadState == .loaded || !entries.isEmpty) {
+                Button { isShowingEntry = true } label: {
+                    Text(L10n.diaryOneAddEntryAction)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, minHeight: 24)
+                }
+                .buttonStyle(.pressableProminent)
+                .controlSize(.large)
+                .disabled(!isActive || locallyInactive)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(Theme.base)
+            }
+        }
         .navigationDestination(isPresented: $isShowingEntry) {
             PatientDiaryThreeEntryView(
                 onSubmitted: {

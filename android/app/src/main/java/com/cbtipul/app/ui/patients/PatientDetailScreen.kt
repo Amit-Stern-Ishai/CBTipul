@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
@@ -41,7 +42,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -84,6 +84,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -171,6 +172,11 @@ fun PatientDetailScreen(
     }
     var showNotes by remember { mutableStateOf(false) }
     var diariesExpanded by remember { mutableStateOf(false) }
+    val diariesArrowRotation by animateFloatAsState(
+        targetValue = if (diariesExpanded) 180f else 0f,
+        animationSpec = tween(180),
+        label = "diariesExpansion",
+    )
     var closeNotesAfterSave by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
@@ -339,17 +345,20 @@ fun PatientDetailScreen(
                 IconChipRow(Icons.Outlined.DateRange, stringResource(R.string.sessions_title), detail = stringResource(R.string.patient_sessions_description), onClick = onOpenSessions)
                 GroupedListDivider()
                 IconChipRow(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title),
-                    trailing = { Icon(if (diariesExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = colors.gold) },
+                    trailing = { Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = colors.gold, modifier = Modifier.rotate(diariesArrowRotation)) },
                     onClick = { diariesExpanded = !diariesExpanded })
                 AnimatedVisibility(
                     visible = diariesExpanded,
-                    enter = expandVertically(tween(180)) + fadeIn(tween(180)),
-                    exit = shrinkVertically(tween(180)) + fadeOut(tween(120)),
+                    enter = expandVertically(tween(180), expandFrom = Alignment.Top) + fadeIn(tween(180)),
+                    exit = shrinkVertically(tween(180), shrinkTowards = Alignment.Top) + fadeOut(tween(120)),
                 ) {
                     Column {
-                    IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_one_title), onClick = onOpenDiaryOne)
-                    IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_two_title), onClick = onOpenDiaryTwo)
-                    IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_three_title), onClick = onOpenDiaryThree)
+                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_one_title),
+                            detail = stringResource(R.string.patient_diary_one_description), onClick = onOpenDiaryOne)
+                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_two_title),
+                            detail = stringResource(R.string.patient_diary_two_description), onClick = onOpenDiaryTwo)
+                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_three_title),
+                            detail = stringResource(R.string.patient_diary_three_description), onClick = onOpenDiaryThree)
                     }
                 }
                 GroupedListDivider()

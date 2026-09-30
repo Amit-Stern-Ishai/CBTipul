@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -36,9 +37,9 @@ import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
 import com.cbtipul.app.push.OsNotificationAuthorization
 import com.cbtipul.app.push.PushDeliveryPolicy
-import com.cbtipul.app.ui.patients.MessageOverlay
 import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.Theme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
@@ -142,6 +143,8 @@ internal fun NotificationsSettingsSection(@StringRes explanationRes: Int) {
                                         }
                                     }
                                 }
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
                             } catch (_: Exception) {
                                 errorMessage = if (wantOn) enableFailed else disableFailed
                             } finally {
@@ -172,10 +175,16 @@ internal fun NotificationsSettingsSection(@StringRes explanationRes: Int) {
         }
     }
 
-    MessageOverlay(
-        visible = errorMessage != null,
-        title = stringResource(R.string.settings_notifications_receive_title),
-        message = errorMessage.orEmpty(),
-        onDismiss = { errorMessage = null },
-    )
+    errorMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { errorMessage = null },
+            title = { Text(stringResource(R.string.settings_notifications_receive_title)) },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { errorMessage = null }) {
+                    Text(stringResource(R.string.ok), color = colors.gold)
+                }
+            },
+        )
+    }
 }

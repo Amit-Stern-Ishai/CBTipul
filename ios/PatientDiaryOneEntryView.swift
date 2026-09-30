@@ -39,22 +39,6 @@ struct PatientDiaryOneHubView: View {
             case .loading, .loaded, .failed:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        NavigationLink {
-                            PatientDiaryOneEntryView(
-                                onSubmitted: {
-                                    await onEntrySubmitted()
-                                    await loadEntries()
-                                },
-                                onDiaryInactive: {
-                                    await onEntrySubmitted()
-                                }
-                            )
-                        } label: {
-                            Text(entries.isEmpty ? L10n.emptyDiaryOnePrimaryAction : L10n.diaryOneAddEntryAction)
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity, minHeight: 24)
-                        }
-                        .buttonStyle(.pressableProminent)
 
                         Text(L10n.diaryOneMyEntriesTitle)
                             .font(.headline)
@@ -86,6 +70,31 @@ struct PatientDiaryOneHubView: View {
         .themedScreen()
         .navigationTitle(L10n.diaryOneTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if loadState == .loaded || !entries.isEmpty {
+                NavigationLink {
+                    PatientDiaryOneEntryView(
+                        onSubmitted: {
+                            await onEntrySubmitted()
+                            await loadEntries()
+                        },
+                        onDiaryInactive: {
+                            await onEntrySubmitted()
+                        }
+                    )
+                } label: {
+                    Text(entries.isEmpty ? L10n.emptyDiaryOnePrimaryAction : L10n.diaryOneAddEntryAction)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, minHeight: 24)
+                }
+                .buttonStyle(.pressableProminent)
+                .controlSize(.large)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(Theme.base)
+            }
+        }
         .task { await loadEntries() }
     }
 

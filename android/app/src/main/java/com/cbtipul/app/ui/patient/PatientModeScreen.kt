@@ -139,10 +139,11 @@ fun PatientModeScreen(
         val assignment = com.cbtipul.app.data.PatientDiaryThreeNotificationRouting.resolve(destination.payload, patientId) {
             loadAssignments().also { assignments = it }
         }
-        // Keep the currently mounted normal wizard and its ViewModel when already editing.
-        if (assignment == null || nav.currentDestination?.route != "diary-three/new") {
+        val route = if (PatientAssignmentType.diaryThreeSendingEnabled) "diary-three/new" else "diary-three"
+        // Preserve the current screen when the same notification is opened again.
+        if (assignment == null || nav.currentDestination?.route != route) {
             nav.popBackStack("home", inclusive = false)
-            if (assignment != null) nav.navigate("diary-three/new") { launchSingleTop = true }
+            if (assignment != null) nav.navigate(route) { launchSingleTop = true }
         }
         onConsumePending()
     }
@@ -353,20 +354,30 @@ fun PatientModeScreen(
             )
         }
         composable("diary-three/new") {
-            PatientDiaryThreeEntryScreen(patientId, diaryThree,
-                onSubmitted = {
-                    nav.popScreen()
-                    didSubmitDiaryThree = true
-                    scope.launch { reload() }
-                },
-                onAccessInvalidated = {
-                    diaryThreeUnavailable = true
-                    assignments = assignments.filterNot { it.type == PatientAssignmentType.DiaryThree }
-                    scope.launch { reload() }
-                },
-                onDiaryInactive = { nav.popScreen() },
-                onBack = { nav.popScreen() },
-            )
+            if (!PatientAssignmentType.diaryThreeSendingEnabled) {
+                // A back stack restored after an app update may still contain the entry form.
+                LaunchedEffect(Unit) {
+                    nav.navigate("diary-three") {
+                        popUpTo("home")
+                        launchSingleTop = true
+                    }
+                }
+            } else {
+                PatientDiaryThreeEntryScreen(patientId, diaryThree,
+                    onSubmitted = {
+                        nav.popScreen()
+                        didSubmitDiaryThree = true
+                        scope.launch { reload() }
+                    },
+                    onAccessInvalidated = {
+                        diaryThreeUnavailable = true
+                        assignments = assignments.filterNot { it.type == PatientAssignmentType.DiaryThree }
+                        scope.launch { reload() }
+                    },
+                    onDiaryInactive = { nav.popScreen() },
+                    onBack = { nav.popScreen() },
+                )
+            }
         }
         composable("diary-three/entry/{entryId}", arguments = listOf(navArgument("entryId") { type = NavType.StringType })) { destination ->
             val id = destination.arguments?.getString("entryId").orEmpty()
@@ -519,9 +530,9 @@ private fun PatientHomeContent(
                                 ) { onOpenDiaryTwo() }
                                 PatientAssignmentType.DiaryThree -> TaskCard(
                                     stringResource(R.string.diary_three_title),
-                                    stringResource(R.string.patient_diary_three_card_body),
-                                    stringResource(R.string.patient_diary_one_start),
-                                    stringResource(R.string.patient_diary_one_ongoing_hint),
+                                    stringResource(if (PatientAssignmentType.diaryThreeSendingEnabled) R.string.patient_diary_three_card_body else R.string.diary_three_sending_paused),
+                                    stringResource(if (PatientAssignmentType.diaryThreeSendingEnabled) R.string.patient_diary_one_start else R.string.diary_one_my_entries),
+                                    if (PatientAssignmentType.diaryThreeSendingEnabled) stringResource(R.string.patient_diary_one_ongoing_hint) else null,
                                 ) { onOpenDiaryThree() }
                                 null -> TaskCard(
                                     stringResource(R.string.patient_upcoming_task_title),

@@ -3,6 +3,7 @@ package com.cbtipul.app.ui.patient
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
@@ -55,15 +56,32 @@ fun PatientQuestionnaireHubScreen(
     Scaffold(modifier = Modifier.themedScreen(Theme.colors.gold), containerColor = Color.Transparent,
         topBar = { TopAppBar(title = { Text(stringResource(R.string.patient_questionnaire_card_title)) },
             navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) } },
-            actions = { TextButton(onClick = { revision++ }) { Text(stringResource(R.string.patient_tasks_refresh)) } }) }) { padding ->
+            actions = { TextButton(onClick = { revision++ }) { Text(stringResource(R.string.patient_tasks_refresh)) } }) },
+        bottomBar = {
+            assignment?.let { current ->
+                Surface(color = Theme.colors.base) {
+                    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
+                        Button(
+                            onClick = { onNew(current.id) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Theme.colors.accentFill,
+                                contentColor = Theme.colors.textOnAccent,
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                        ) {
+                            Icon(Icons.Outlined.Add, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.patient_questionnaire_start))
+                        }
+                    }
+                }
+            }
+        }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
             item { Text(stringResource(R.string.patient_questionnaire_card_body), color = Theme.colors.textBody) }
-            item {
-                val current = assignment
+            if (assignment == null) item {
                 when {
-                    current != null -> Button(onClick = { onNew(current.id) }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.patient_questionnaire_start))
-                    }
                     loading -> CircularProgressIndicator()
                     accessFailed -> Text(stringResource(R.string.patient_tasks_load_error), color = Theme.colors.error)
                     else -> Text(stringResource(R.string.patient_questionnaire_cancelled_error), color = Theme.colors.textBody)

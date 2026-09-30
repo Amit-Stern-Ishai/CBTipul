@@ -118,10 +118,15 @@ final class PushNotificationManager {
                 _ = try await client.auth.session
                 try await client.rpc(
                     "disable_push_device",
-                    params: DisablePushDeviceParams(pPushToken: token)
+                    params: DisablePushDeviceParams(p_push_token: token)
                 )
                 .execute()
             } catch {
+                #if DEBUG
+                AppLog.push.error(
+                    "disable_push_device failed: \(error.localizedDescription, privacy: .public)"
+                )
+                #endif
                 throw PushNotificationSettingsError.disableFailed
             }
             PushNotificationPreference.setEnabled(false)
@@ -317,11 +322,7 @@ private struct RegisterPushDeviceParams: Encodable {
 }
 
 struct DisablePushDeviceParams: Encodable {
-    let pPushToken: String
-
-    enum CodingKeys: String, CodingKey {
-        case pPushToken = "p_push_token"
-    }
+    let p_push_token: String
 }
 
 private struct UnregisterPushDeviceParams: Encodable {

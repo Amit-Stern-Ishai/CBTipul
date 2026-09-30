@@ -1,6 +1,7 @@
 package com.cbtipul.app
 
 import android.app.Application
+import android.app.NotificationManager
 import com.cbtipul.app.auth.AuthRepository
 import com.cbtipul.app.data.AiConsentStore
 import com.cbtipul.app.data.AiService
@@ -91,7 +92,9 @@ class CbTipulApp : Application() {
         authRepository = AuthRepository(client) {
             if (::pushManager.isInitialized) pushManager.unregisterCurrentToken()
         }
-        notifications = NotificationRepository(client)
+        notifications = NotificationRepository(client, onInboxSeen = {
+            getSystemService(NotificationManager::class.java)?.cancelAll()
+        })
         messages = PatientMessageRepository(client)
         pendingDestinations = PendingDestinationStore()
         pushManager = PushNotificationManager(

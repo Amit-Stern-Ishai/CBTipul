@@ -18,16 +18,14 @@ struct PatientQuestionnaireHubView: View {
         List {
             Section {
                 Text(L10n.patientQuestionnaireCardBody).foregroundStyle(.secondary)
-                if let assignment = activeAssignment {
-                    Button { formAssignmentID = assignment.id } label: {
-                        Label(L10n.patientQuestionnaireStartAction, systemImage: "plus.circle.fill")
+                if activeAssignment == nil {
+                    if loading {
+                        ProgressView()
+                    } else if accessFailed {
+                        Text(L10n.patientTasksLoadError).foregroundStyle(Theme.error)
+                    } else {
+                        Text(L10n.patientQuestionnaireCancelledError).foregroundStyle(.secondary)
                     }
-                } else if loading {
-                    ProgressView()
-                } else if accessFailed {
-                    Text(L10n.patientTasksLoadError).foregroundStyle(Theme.error)
-                } else {
-                    Text(L10n.patientQuestionnaireCancelledError).foregroundStyle(.secondary)
                 }
                 if submitted { Label(L10n.patientQuestionnaireSubmittedTitle, systemImage: "checkmark.circle") }
             }
@@ -56,6 +54,20 @@ struct PatientQuestionnaireHubView: View {
             }
         }
         .themedScreen()
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if let assignment = activeAssignment {
+                Button { formAssignmentID = assignment.id } label: {
+                    Label(L10n.patientQuestionnaireStartAction, systemImage: "plus.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.pressableProminent)
+                .controlSize(.large)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(Theme.base)
+            }
+        }
         .navigationTitle(L10n.patientQuestionnaireCardTitle)
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await refresh() }

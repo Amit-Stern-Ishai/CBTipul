@@ -32,7 +32,10 @@ private data class NotificationRow(
     @SerialName("read_at") val readAt: String? = null,
 )
 
-class NotificationRepository(private val client: SupabaseClient) {
+class NotificationRepository(
+    private val client: SupabaseClient,
+    private val onInboxSeen: () -> Unit = {},
+) {
     private val _items = MutableStateFlow<List<AppNotification>>(emptyList())
     val items: StateFlow<List<AppNotification>> = _items.asStateFlow()
     private val _unseenCount = MutableStateFlow(0)
@@ -99,11 +102,12 @@ class NotificationRepository(private val client: SupabaseClient) {
 
     suspend fun markInboxSeen() {
         if (isDemoInbox || !SupabaseConfig.isConfigured) return
-        if (NotificationInbox.unseenCount(_items.value) == 0 && _unseenCount.value == 0) return
         try {
             client.postgrest.rpc("mark_notifications_seen")
             _items.value = NotificationInbox.applyingSeen(_items.value, Date())
             _unseenCount.value = 0
+            // A previously seen inbox can still have notifications in the system tray.
+            onInboxSeen()
         } catch (_: Exception) {
             // Keep unseen until the next successful refresh.
         }

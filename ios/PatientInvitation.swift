@@ -148,10 +148,12 @@ struct ActivityShareSheet: UIViewControllerRepresentable {
 final class InvitationShareActivityItem: NSObject, UIActivityItemSource {
     let body: String
     let subject: String
+    let htmlBody: String?
 
-    init(body: String, subject: String) {
+    init(body: String, subject: String, htmlBody: String? = nil) {
         self.body = body
         self.subject = subject
+        self.htmlBody = htmlBody
     }
 
     func activityViewControllerPlaceholderItem(
@@ -164,7 +166,14 @@ final class InvitationShareActivityItem: NSObject, UIActivityItemSource {
         _ activityViewController: UIActivityViewController,
         itemForActivityType activityType: UIActivity.ActivityType?
     ) -> Any? {
-        body
+        activityType == .mail ? (htmlBody ?? body) : body
+    }
+
+    func activityViewController(
+        _ activityViewController: UIActivityViewController,
+        dataTypeIdentifierForActivityType activityType: UIActivity.ActivityType?
+    ) -> String {
+        activityType == .mail && htmlBody != nil ? "public.html" : "public.plain-text"
     }
 
     func activityViewController(

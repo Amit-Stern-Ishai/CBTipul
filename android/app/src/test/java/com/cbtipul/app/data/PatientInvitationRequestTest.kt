@@ -60,4 +60,17 @@ class PatientInvitationRequestTest {
         assertFalse(body.contains("patient_id"))
         assertFalse(body.contains("Supabase"))
     }
+
+    @Test
+    fun emailEscapesDynamicValuesWithoutChangingTheLink() {
+        val html = PatientInvitationShare.emailHtml(
+            "<p dir=\"rtl\">%1\$s</p><a href=\"%2\$s\">Open</a>",
+            "דנה <כהן> & \"צוות\"",
+            "https://cbtipul.com/invite/example?first=1&second=2",
+        )
+        assertTrue(html.contains("דנה &lt;כהן&gt; &amp; &quot;צוות&quot;"))
+        assertTrue(html.contains("href=\"https://cbtipul.com/invite/example?first=1&amp;second=2\""))
+        assertFalse(html.contains("<כהן>"))
+    }
+
 }

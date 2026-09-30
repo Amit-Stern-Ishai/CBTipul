@@ -122,9 +122,11 @@ struct PatientDiaryThreeView: View {
 
     private var entryList: some View {
         List {
-            Section {
-                patientModeControl
-                    .listRowBackground(groupBorderedRow(.only))
+            if PatientAssignmentType.diaryThreeSendingEnabled {
+                Section {
+                    patientModeControl
+                        .listRowBackground(groupBorderedRow(.only))
+                }
             }
 
             if loadState == .loading && entries.isEmpty {
@@ -196,17 +198,21 @@ struct PatientDiaryThreeView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             case .inactive:
-                Text(L10n.diaryPatientModeInactiveBody)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button {
-                    Task { await activateDiaryThree() }
-                } label: {
-                    Text(L10n.diaryPatientModeActivateAction)
-                        .fontWeight(.semibold)
+                if PatientAssignmentType.diaryThreeSendingEnabled {
+                    Text(L10n.diaryPatientModeInactiveBody)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        Task { await activateDiaryThree() }
+                    } label: {
+                        Text(L10n.diaryPatientModeActivateAction)
+                            .fontWeight(.semibold)
+                    }
+                    .disabled(isUpdatingAssignment)
+                } else {
+                    Text(L10n.diaryThreeSendingPaused).font(.footnote).foregroundStyle(.secondary)
                 }
-                .disabled(isUpdatingAssignment)
             case .active:
                 HStack(spacing: 8) {
                     Circle()

@@ -208,11 +208,13 @@ struct PatientDetailView: View {
                     NavigationLink {
                         PatientDiaryTwoView(patient: patient)
                     } label: {
-                        Label(L10n.diaryTwoTitle, systemImage: "book.closed")
+                        workspaceRow("book.closed", title: L10n.diaryTwoTitle,
+                                     detail: L10n.patientDiaryTwoDescription)
                     }
                     .accessibilityIdentifier("patient.diaryTwo")
                     NavigationLink { PatientDiaryThreeView(patient: patient) } label: {
-                        Label(L10n.diaryThreeTitle, systemImage: "book.closed")
+                        workspaceRow("book.closed", title: L10n.diaryThreeTitle,
+                                     detail: L10n.patientDiaryThreeDescription)
                     }
                     .accessibilityIdentifier("patient.diaryThree")
                 } label: {
@@ -489,7 +491,7 @@ struct PatientDetailView: View {
         }) { payload in
             ActivityShareSheet(
                 items: [
-                    InvitationShareActivityItem(body: payload.text, subject: payload.subject)
+                    InvitationShareActivityItem(body: payload.text, subject: payload.subject, htmlBody: payload.html)
                 ]
             )
                 .presentationDetents([.medium])
@@ -888,9 +890,11 @@ struct PatientDetailView: View {
                                    detail: L10n.patientSendDiaryOneDescription)
                         sendOption(.diaryTwo, icon: "book.closed", title: L10n.patientEnableDiaryTwoAction,
                                    detail: L10n.patientSendDiaryTwoDescription)
-                        sendOption(.diaryThree, icon: "book.closed", title: L10n.patientEnableDiaryThreeAction,
-                                   detail: L10n.patientSendDiaryThreeDescription)
-                            .padding(.horizontal, 16)
+                        if PatientAssignmentType.diaryThreeSendingEnabled {
+                            sendOption(.diaryThree, icon: "book.closed", title: L10n.patientEnableDiaryThreeAction,
+                                       detail: L10n.patientSendDiaryThreeDescription)
+                                .padding(.horizontal, 16)
+                        }
                     } else {
                         sendingUnavailableNotice
                     }
@@ -1391,6 +1395,7 @@ struct PatientDetailView: View {
     private struct InvitationSharePayload: Identifiable {
         let id = UUID()
         let text: String
+        let html: String
         let subject: String
     }
 
@@ -1434,6 +1439,10 @@ struct PatientDetailView: View {
             isCreatingInvitation = false
             invitationShare = InvitationSharePayload(
                 text: L10n.patientInvitationShareMessage(
+                    therapistName: therapistName,
+                    invitationUrl: invitation.invitationUrl
+                ),
+                html: L10n.patientInvitationEmailHTML(
                     therapistName: therapistName,
                     invitationUrl: invitation.invitationUrl
                 ),

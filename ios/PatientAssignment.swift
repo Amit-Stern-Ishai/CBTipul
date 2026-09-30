@@ -10,6 +10,9 @@ enum PatientAssignmentType: String, Codable, Sendable {
     case diaryOne = "diary_one"
     case diaryTwo = "diary_two"
     case diaryThree = "diary_three"
+
+    // Temporary UI pause; keep existing assignments and history intact.
+    static let diaryThreeSendingEnabled = false
 }
 
 enum PatientQuestionnaireSubmitError: LocalizedError {

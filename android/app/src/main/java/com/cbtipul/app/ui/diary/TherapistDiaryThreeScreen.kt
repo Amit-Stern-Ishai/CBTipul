@@ -70,22 +70,28 @@ fun TherapistDiaryThreeScreen(
                     Icon(Icons.Outlined.Add, null); Text(stringResource(R.string.diary_one_add_entry))
                 }
             }) {
-                DiaryThreeCard(stringResource(R.string.diary_patient_mode_title)) {
-                    when (state.connection) {
-                        DiaryThreeConnection.Loading -> CircularProgressIndicator()
-                        DiaryThreeConnection.Connected -> Text(stringResource(R.string.patient_connected_status))
-                        DiaryThreeConnection.NotConnected -> Text(stringResource(R.string.diary_patient_mode_not_connected))
-                        DiaryThreeConnection.Inactive -> {
-                            Text(stringResource(R.string.diary_patient_mode_inactive_body))
-                            TextButton(onClick = vm::activate, enabled = !state.busy) { Text(stringResource(R.string.diary_patient_mode_activate)) }
-                        }
-                        DiaryThreeConnection.Active -> {
-                            Text(stringResource(R.string.diary_patient_mode_active), color = Theme.colors.success)
-                            TextButton(onClick = { stop = true }, enabled = !state.busy) { Text(stringResource(R.string.diary_patient_mode_stop)) }
-                        }
-                        DiaryThreeConnection.Failed -> {
-                            Text(stringResource(R.string.patient_connection_check_error))
-                            TextButton(onClick = vm::refreshConnection) { Text(stringResource(R.string.retry_action)) }
+                if (PatientAssignmentType.diaryThreeSendingEnabled) {
+                    DiaryThreeCard(stringResource(R.string.diary_patient_mode_title)) {
+                        when (state.connection) {
+                            DiaryThreeConnection.Loading -> CircularProgressIndicator()
+                            DiaryThreeConnection.Connected -> Text(stringResource(R.string.patient_connected_status))
+                            DiaryThreeConnection.NotConnected -> Text(stringResource(R.string.diary_patient_mode_not_connected))
+                            DiaryThreeConnection.Inactive -> {
+                                if (PatientAssignmentType.diaryThreeSendingEnabled) {
+                                    Text(stringResource(R.string.diary_patient_mode_inactive_body))
+                                    TextButton(onClick = vm::activate, enabled = !state.busy) { Text(stringResource(R.string.diary_patient_mode_activate)) }
+                                } else {
+                                    Text(stringResource(R.string.diary_three_sending_paused))
+                                }
+                            }
+                            DiaryThreeConnection.Active -> {
+                                Text(stringResource(R.string.diary_patient_mode_active), color = Theme.colors.success)
+                                TextButton(onClick = { stop = true }, enabled = !state.busy) { Text(stringResource(R.string.diary_patient_mode_stop)) }
+                            }
+                            DiaryThreeConnection.Failed -> {
+                                Text(stringResource(R.string.patient_connection_check_error))
+                                TextButton(onClick = vm::refreshConnection) { Text(stringResource(R.string.retry_action)) }
+                            }
                         }
                     }
                 }

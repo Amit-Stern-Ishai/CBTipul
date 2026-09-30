@@ -692,6 +692,9 @@
     <string name="patient_notes_title">הערות על המטופל/ת</string>
     <string name="patient_notes_description">רקע והערות כלליות שאינן שייכות לפגישה מסוימת</string>
     <string name="patient_diaries_title">יומנים</string>
+    <string name="patient_diary_one_description">עיון ותיעוד של אירועים, מחשבות ורגשות</string>
+    <string name="patient_diary_two_description">זיהוי טעויות חשיבה וניסוח מחשבות חלופיות</string>
+    <string name="patient_diary_three_description">בחינת מחשבות והשוואת רגשות לפני ואחרי</string>
     <string name="diary_two_title">יומן 2</string>
     <string name="diary_three_title">יומן 3</string>
     <string name="coming_soon">בקרוב</string>
@@ -862,9 +865,9 @@
     <string name="diary_two_validation_alternatives">יש למלא לפחות מחשבה חלופית אחת.</string>
     <string name="diary_two_empty_title">אין רשומות ביומן 2 עדיין</string>
     <string name="diary_two_load_failed">לא ניתן היה לטעון את יומן 2. נסו שוב.</string>
-    <string name="patient_enable_diary_two_action">פתיחת יומן 2 למטופל</string>
-    <string name="patient_send_diary_two_description">יומן מתמשך לתיעוד אירועים, מחשבות אוטומטיות, רגשות ומחשבות חלופיות.</string>
-    <string name="patient_diary_two_activated">יומן 2 פתוח כעת למילוי אצל המטופל.</string>
+    <string name="patient_enable_diary_two_action">הפעלת יומן 2</string>
+    <string name="patient_send_diary_two_description">מאפשר למטופל/ת למלא יומן 2 באופן שוטף באפליקציה.</string>
+    <string name="patient_diary_two_activated">יומן 2 הופעל אצל המטופל/ת.</string>
     <string name="diary_entry_therapist_source">תיעוד המטפל</string>
     <string name="diary_entry_patient_source">תיעוד המטופל</string>
     <string name="diary_entry_edit">עריכת רשומה</string>
@@ -913,9 +916,10 @@
     <string name="diary_three_validation_ratings">יש למלא את כל אחוזי האמונה ועוצמות הרגש לפני ואחרי, בין 0 ל־100.</string>
     <string name="diary_three_empty_title">אין רשומות ביומן 3 עדיין</string>
     <string name="diary_three_load_failed">לא ניתן היה לטעון את יומן 3. נסו שוב.</string>
-    <string name="patient_enable_diary_three_action">פתיחת יומן 3 למטופל</string>
-    <string name="patient_send_diary_three_description">יומן מתמשך לתיעוד מחשבות ורגשות, מחשבות חלופיות והערכה מחדש.</string>
-    <string name="patient_diary_three_activated">יומן 3 פתוח כעת למילוי אצל המטופל.</string>
+    <string name="patient_enable_diary_three_action">הפעלת יומן 3</string>
+    <string name="patient_send_diary_three_description">מאפשר למטופל/ת למלא יומן 3 באופן שוטף באפליקציה.</string>
+    <string name="patient_diary_three_activated">יומן 3 הופעל אצל המטופל/ת.</string>
+    <string name="diary_three_sending_paused">Sending Diary 3 is temporarily unavailable. Previous entries are still available to view.</string>
     <string name="patient_diary_three_card_body">A guided seven-step exercise: thoughts and feelings before, alternative thoughts, then a fresh rating.</string>
     <string name="patient_diary_three_not_active">Your therapist has closed Diary 3 for new entries. Previously saved entries are kept.</string>
     <string name="patient_diary_three_belief_now">Belief now</string>
@@ -968,4 +972,35 @@
     <string name="diary_feelings_picker_hint">בחרו רגש כדי להוסיף אותו. אפשר להוסיף רגשות נוספים בהמשך.</string>
     <string name="diary_rating_adjust">אפשר לגרור את המחוון כדי לדייק.</string>
     <string name="diary_five_parts_optional">5 חלקים · החלק האחרון לבחירה</string>
+    <string name="patient_invitation_email_html"><![CDATA[
+<!doctype html>
+<html lang=\"he\" dir=\"rtl\">
+<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>
+<body dir=\"rtl\" style=\"margin:0;padding:0;background-color:#f2f5f7;color:#172b43;font-family:Arial,Helvetica,sans-serif;\">
+<table role=\"presentation\" width=\"100%%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color:#f2f5f7;\">
+<tr><td align=\"center\" style=\"padding:24px 12px;\">
+<table role=\"presentation\" width=\"100%%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"max-width:560px;background-color:#ffffff;border:1px solid #dfe6eb;border-radius:20px;\">
+<tr><td dir=\"rtl\" align=\"right\" style=\"padding:24px;background-color:#172b43;border-radius:20px 20px 0 0;\">
+<p dir=\"ltr\" style=\"margin:0;text-align:right;color:#ffffff;font-size:24px;font-weight:bold;letter-spacing:0.3px;\">CBTipul</p>
+<p style=\"margin:8px 0 0;color:#d8e4ed;font-size:14px;\">הזמנה אישית מהמטפל/ת שלך</p>
+</td></tr>
+<tr><td dir=\"rtl\" align=\"right\" style=\"padding:28px 24px 24px;\">
+<h1 style=\"margin:0 0 20px;color:#172b43;font-size:28px;line-height:1.4;\">הטיפול ממשיך גם בין הפגישות</h1>
+<p style=\"margin:0 0 16px;font-size:17px;line-height:1.8;\"><strong>%1$s</strong> הזמין/ה אותך להתחבר ל־<span dir=\"ltr\">CBTipul</span>.</p>
+<p style=\"margin:0 0 20px;color:#46596c;font-size:16px;line-height:1.8;\">באפליקציה אפשר למלא שאלונים, לתעד מחשבות ורגשות ביומנים ולקרוא הודעות מהמטפל/ת — בהתאם למה שנפתח עבורך.</p>
+<table role=\"presentation\" width=\"100%%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">
+<tr><td align=\"center\" bgcolor=\"#18766f\" style=\"border-radius:12px;\">
+<a href=\"%2$s\" style=\"display:block;padding:16px 20px;border:1px solid #18766f;border-radius:12px;color:#ffffff;background-color:#18766f;font-size:18px;font-weight:bold;text-decoration:none;text-align:center;\">פתיחת ההזמנה</a>
+</td></tr></table>
+<p style=\"margin:16px 0 0;color:#46596c;font-size:14px;line-height:1.8;\">מומלץ לפתוח את ההזמנה בטלפון שבו תשתמשו באפליקציה. במסך שייפתח תוכלו לקרוא את פרטי החיבור ולאשר את ההצטרפות.</p>
+</td></tr>
+<tr><td dir=\"rtl\" align=\"right\" style=\"padding:20px 24px;border-top:1px solid #e5ebef;\">
+<p style=\"margin:0 0 10px;color:#46596c;font-size:13px;line-height:1.7;\">הכפתור לא נפתח? אפשר להעתיק את הקישור לדפדפן:</p>
+<p dir=\"ltr\" style=\"margin:0;text-align:left;font-size:12px;line-height:1.8;word-break:break-all;overflow-wrap:anywhere;\"><a href=\"%2$s\" style=\"color:#176d68;text-decoration:underline;\">%2$s</a></p>
+</td></tr>
+</table>
+<p dir=\"rtl\" style=\"margin:16px 12px 0;color:#536578;font-size:12px;line-height:1.8;\">ההזמנה אישית ומיועדת עבורך בלבד.</p>
+</td></tr></table>
+</body></html>
+]]></string>
 </resources>

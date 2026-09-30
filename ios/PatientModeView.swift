@@ -409,10 +409,12 @@ struct PatientModeView: View {
     private var diaryThreeCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.diaryThreeTitle).font(.headline).foregroundStyle(Theme.textBright)
-            Text(L10n.patientDiaryThreeCardBody).foregroundStyle(Theme.textBody)
-            Text(L10n.patientDiaryOneOngoingHint).font(.footnote).foregroundStyle(Theme.textBody)
+            Text(PatientAssignmentType.diaryThreeSendingEnabled ? L10n.patientDiaryThreeCardBody : L10n.diaryThreeSendingPaused).foregroundStyle(Theme.textBody)
+            if PatientAssignmentType.diaryThreeSendingEnabled {
+                Text(L10n.patientDiaryOneOngoingHint).font(.footnote).foregroundStyle(Theme.textBody)
+            }
             Button { isShowingDiaryThreeHub = true } label: {
-                Text(L10n.patientDiaryOneStartAction).fontWeight(.semibold)
+                Text(PatientAssignmentType.diaryThreeSendingEnabled ? L10n.patientDiaryOneStartAction : L10n.diaryOneMyEntriesTitle).fontWeight(.semibold)
                     .frame(maxWidth: .infinity, minHeight: 24)
             }.buttonStyle(.pressableProminent)
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading).themedCard()
@@ -517,15 +519,15 @@ struct PatientModeView: View {
                 return loaded
             }
             guard appContext.current?.patientId == patientId else { return }
-            if assignment != nil && isDiaryThreeWizardVisible { return }
+            if PatientAssignmentType.diaryThreeSendingEnabled && assignment != nil && isDiaryThreeWizardVisible { return }
             openedMessageID = nil
             isShowingMessages = false
             isShowingDiaryOneEntry = false
             isShowingDiaryTwoEntry = false
             isShowingDiaryTwoHub = false
-            isShowingDiaryThreeHub = false
             isShowingSettings = false
-            isShowingDiaryThreeEntry = assignment != nil
+            isShowingDiaryThreeEntry = assignment != nil && PatientAssignmentType.diaryThreeSendingEnabled
+            isShowingDiaryThreeHub = assignment != nil && !PatientAssignmentType.diaryThreeSendingEnabled
         case .diaryOneAssigned(let diaryDestination):
             await loadAssignments()
             applyDiaryOneAssignedDestination(diaryDestination)

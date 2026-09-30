@@ -43,6 +43,8 @@ enum class PatientAssignmentType(val raw: String) {
     ;
 
     companion object {
+        // Temporary UI pause; keep existing assignments and history intact.
+        const val diaryThreeSendingEnabled = false
         fun fromRaw(value: String): PatientAssignmentType? = entries.find { it.raw == value }
     }
 }

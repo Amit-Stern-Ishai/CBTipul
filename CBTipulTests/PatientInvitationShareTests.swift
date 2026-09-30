@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 @testable import CBTipul
 
 struct PatientInvitationShareTests {
@@ -55,4 +56,29 @@ struct PatientInvitationShareTests {
         #expect(L10n.invitePreviewTherapistLine(therapistName).contains(therapistName))
         #expect(L10n.invitePreviewExplanation.contains("שאלונים ויומנים"))
     }
+
+    @Test func emailEscapesDynamicContentAndPreservesLinkQuery() {
+        let html = L10n.patientInvitationEmailHTML(
+            therapistName: "דנה <כהן> & \"צוות\"",
+            invitationUrl: "https://cbtipul.com/invite/example?first=1&second=2"
+        )
+        #expect(html.contains("דנה &lt;כהן&gt; &amp; &quot;צוות&quot;"))
+        #expect(html.contains("href=\"https://cbtipul.com/invite/example?first=1&amp;second=2\""))
+        #expect(html.contains("dir=\"rtl\""))
+        #expect(html.contains("פתיחת ההזמנה"))
+        #expect(!html.contains("<כהן>"))
+    }
+
+    @Test @MainActor func onlyMailReceivesHTML() {
+        let html = L10n.patientInvitationEmailHTML(therapistName: therapistName, invitationUrl: invitationUrl)
+        let item = InvitationShareActivityItem(body: "plain invitation", subject: "subject", htmlBody: html)
+        let controller = UIActivityViewController(activityItems: [], applicationActivities: nil)
+        #expect(item.activityViewController(controller, itemForActivityType: .mail) as? String == html)
+        #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: .mail) == "public.html")
+        for target: UIActivity.ActivityType? in [.message, .copyToPasteboard, nil] {
+            #expect(item.activityViewController(controller, itemForActivityType: target) as? String == "plain invitation")
+            #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: target) == "public.plain-text")
+        }
+    }
+
 }

@@ -43,25 +43,6 @@ struct PatientDiaryTwoHubView: View {
             case .loading, .loaded, .failed:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        NavigationLink {
-                            PatientDiaryTwoEntryView(
-                                onSubmitted: {
-                                    didSave = true
-                                    await loadEntries()
-                                    await onAssignmentsRefresh()
-                                },
-                                onDiaryInactive: {
-                                    locallyInactive = true
-                                    await onDiaryInactive()
-                                }
-                            )
-                        } label: {
-                            Text(entries.isEmpty ? L10n.emptyDiaryOnePrimaryAction : L10n.diaryOneAddEntryAction)
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity, minHeight: 24)
-                        }
-                        .buttonStyle(.pressableProminent)
-                        .disabled(!isActive || locallyInactive)
                         if !isActive || locallyInactive { Text(L10n.patientDiaryTwoNotActive).foregroundStyle(.secondary) }
                         if loadState == .failed {
                             Text(L10n.diaryTwoLoadFailed).foregroundStyle(Theme.error)
@@ -98,6 +79,34 @@ struct PatientDiaryTwoHubView: View {
         .themedScreen()
         .navigationTitle(L10n.diaryTwoTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if loadState == .loaded || !entries.isEmpty {
+                NavigationLink {
+                    PatientDiaryTwoEntryView(
+                        onSubmitted: {
+                            didSave = true
+                            await loadEntries()
+                            await onAssignmentsRefresh()
+                        },
+                        onDiaryInactive: {
+                            locallyInactive = true
+                            await onDiaryInactive()
+                        }
+                    )
+                } label: {
+                    Text(entries.isEmpty ? L10n.emptyDiaryOnePrimaryAction : L10n.diaryOneAddEntryAction)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, minHeight: 24)
+                }
+                .buttonStyle(.pressableProminent)
+                .controlSize(.large)
+                .disabled(!isActive || locallyInactive)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(Theme.base)
+            }
+        }
         .safeAreaInset(edge: .top) {
             if didSave {
                 Text(L10n.patientDiaryOneSaved).font(.subheadline.weight(.semibold))
