@@ -22,13 +22,21 @@ class PatientDiaryTwoTest {
             draft.copy(feelings = emptyList()),
             draft.copy(feelings = listOf(DiaryFeelingDraft(name = "עצוב", intensity = -1))),
             draft.copy(feelings = listOf(DiaryFeelingDraft(name = "עצוב", intensity = 101))),
-            draft.copy(feelings = listOf(DiaryFeelingDraft(name = "עצוב"))),
+            draft.copy(feelings = listOf(DiaryFeelingDraft(name = "עצוב", intensity = null))),
             draft.copy(feelings = draft.feelings + draft.feelings),
             draft.copy(thinkingErrors = emptyList()),
             draft.copy(alternativeThoughts = emptyList()),
             draft.copy(alternativeThoughts = listOf(DiaryAutomaticThoughtDraft(text = " "))),
         ).forEach { assertNotNull(it.validationError()) }
         assertNull(draft.copy(automaticThoughts = listOf(DiaryAutomaticThoughtDraft(text = "one"))).validationError())
+    }
+    @Test fun defaultFeelingIntensityIsAcceptedWithoutMovingTheSlider() {
+        val draft = valid().copy(feelings = listOf(DiaryFeelingDraft(name = "עצוב")))
+        assertNull(draft.validationError())
+        assertEquals(80, draft.persistedFeelings().single().intensity)
+        assertEquals(0, DiaryFeelingDraft(DiaryFeeling("עצוב", 0)).intensity)
+        assertEquals(80, DiaryThreeFeelingDraft(name = "עצוב").intensityBefore)
+        assertEquals(80, DiaryThreeFeelingDraft(name = "עצוב").intensityAfter)
     }
     @Test fun requestContainsExactlyFiveClinicalKeysAndStableCodes() {
         val request = SubmitDiaryTwoEntryRequest.from(valid())

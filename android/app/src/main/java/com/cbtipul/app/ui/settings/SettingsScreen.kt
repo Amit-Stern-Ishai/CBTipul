@@ -216,6 +216,8 @@ fun SettingsScreen(
                         )
                     }
 
+                    NotificationsSettingsSection(R.string.settings_notifications_therapist_explanation)
+
                     Text(
                         stringResource(R.string.settings_accessibility_section_title),
                         color = colors.textBright,

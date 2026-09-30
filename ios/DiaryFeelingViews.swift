@@ -69,7 +69,7 @@ struct DiaryFeelingChip: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(isEnabled ? Theme.textBright : Theme.textFaint)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .frame(minHeight: 44)
                 .background(
                     Capsule().fill(isEnabled ? Theme.elevated : Theme.elevated.opacity(0.5))
                 )
@@ -85,28 +85,30 @@ struct DiaryFeelingChip: View {
 struct DiaryFeelingIntensityControl: View {
     @Binding var intensity: Int?
     var title: String = L10n.diaryOneFeelingIntensityTitle
+    var requiresExplicitChoice = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title).font(.subheadline)
                 Spacer()
-                if let intensity {
-                    Text(L10n.diaryOneIntensityValue(intensity))
+                if let current = intensity ?? (requiresExplicitChoice ? nil : 80) {
+                    Text(L10n.diaryOneIntensityValue(current))
                         .fontWeight(.semibold).monospacedDigit()
                         .environment(\.layoutDirection, .leftToRight)
                 }
             }
-            if let current = intensity, (0...100).contains(current) {
+            if let current = intensity ?? (requiresExplicitChoice ? nil : 80), (0...100).contains(current) {
                 Slider(value: Binding(get: { Double(intensity ?? current) }, set: { intensity = Int($0.rounded()) }), in: 0...100, step: 1)
                     .tint(Theme.gold)
-                    .environment(\.layoutDirection, .leftToRight)
+                    .environment(\.layoutDirection, .rightToLeft)
                     .accessibilityLabel(title)
                 HStack {
-                    Text(L10n.diaryOneIntensityValue(0))
+                    Text(L10n.diaryOneIntensityValue(0)).environment(\.layoutDirection, .leftToRight)
                     Spacer()
-                    Text(L10n.diaryOneIntensityValue(100))
-                }.font(.caption).foregroundStyle(.secondary).environment(\.layoutDirection, .leftToRight)
+                    Text(L10n.diaryOneIntensityValue(100)).environment(\.layoutDirection, .leftToRight)
+                }.font(.caption).foregroundStyle(.secondary).environment(\.layoutDirection, .rightToLeft)
+                Text(L10n.diaryRatingAdjust).font(.caption).foregroundStyle(Theme.textBody)
             } else {
                 Text(L10n.diaryRatingChoose).font(.footnote).foregroundStyle(.secondary)
                 DiaryFeelingChipFlow(rightToLeft: false) {
@@ -138,11 +140,13 @@ struct DiaryFeelingPickerSheet: View {
     @State private var isEnteringCustom = false
     @State private var customText = ""
     @State private var customError: String?
+    @FocusState private var customFocused: Bool
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    Text(L10n.diaryFeelingsPickerHint).font(.subheadline).foregroundStyle(Theme.textBody)
                     if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         groupedVocabulary
                     } else {
@@ -154,6 +158,7 @@ struct DiaryFeelingPickerSheet: View {
                 .padding(.vertical, 16)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Theme.base.ignoresSafeArea())
             .navigationTitle(L10n.diaryFeelingPickTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -213,7 +218,9 @@ struct DiaryFeelingPickerSheet: View {
     private var customFeelingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button {
+                customText = query.trimmingCharacters(in: .whitespacesAndNewlines)
                 isEnteringCustom = true
+                customFocused = true
             } label: {
                 Label(L10n.diaryOtherFeelingAction, systemImage: "plus")
                     .fontWeight(.semibold)
@@ -221,6 +228,10 @@ struct DiaryFeelingPickerSheet: View {
             if isEnteringCustom {
                 TextField(L10n.diaryCustomFeelingPlaceholder, text: $customText)
                     .textFieldStyle(.roundedBorder)
+                    .focused($customFocused)
+                    .submitLabel(.done)
+                    .onSubmit { submitCustom() }
+                    .onChange(of: customText) { _, _ in customError = nil }
                 if let customError {
                     Text(customError)
                         .font(.footnote)
@@ -280,7 +291,11 @@ struct DiaryFeelingsEditor: View {
                 Label(L10n.diaryAddFeelingAction, systemImage: "plus")
                     .font(.body.weight(.semibold))
             }
+            .buttonStyle(.bordered)
             .padding(.top, drafts.isEmpty ? 0 : 4)
+        }
+        .onAppear {
+            for index in drafts.indices where drafts[index].intensity == nil { drafts[index].intensity = 80 }
         }
         .sheet(isPresented: $isShowingPicker) {
             DiaryFeelingPickerSheet(selectedNames: selectedNames) { name in
@@ -335,135 +350,56 @@ struct DiaryOneDraftFields: View {
     @Binding var draft: DiaryOneEntryDraft
     var didAttemptSave: Bool
     var errorMessage: String? = nil
+    @State private var active = 1
+
+    private var issues: [String?] {
+        var feelingIssue: String?
+        if draft.feelings.isEmpty { feelingIssue = L10n.diaryOneValidationFeelingsRequired }
+        else if let missing = draft.feelings.first(where: { $0.trimmedName.isEmpty || $0.intensity.map { !(0...100).contains($0) } ?? true }) {
+            feelingIssue = L10n.diaryOneValidationFeelingIntensity(missing.trimmedName)
+        } else if Set(draft.feelings.map(\.trimmedName)).count != draft.feelings.count { feelingIssue = L10n.diaryFeelingAlreadySelected }
+        return [
+            draft.event.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? L10n.diaryOneValidationEvent : nil,
+            draft.persistedAutomaticThoughts.isEmpty ? L10n.diaryOneValidationThought : nil,
+            feelingIssue,
+            draft.behaviour.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? L10n.diaryOneValidationBehaviour : nil
+        ]
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            stepCard(
-                title: L10n.diaryOneEventTitle,
-                question: L10n.diaryOneEventQuestion,
-                text: $draft.event,
-                incompleteMessage: didAttemptSave && draft.event.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? L10n.diaryOneValidationEvent : nil
-            )
-            automaticThoughtsCard
-            feelingsCard
-            stepCard(
-                title: L10n.diaryOneBehaviourTitle,
-                question: L10n.diaryOneBehaviourQuestion,
-                text: $draft.behaviour,
-                incompleteMessage: didAttemptSave && draft.behaviour.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? L10n.diaryOneValidationBehaviour : nil
-            )
-            stepCard(
-                title: L10n.diaryOnePhysicalSymptomsTitle,
-                question: L10n.diaryOnePhysicalSymptomsQuestion,
-                text: $draft.physicalSymptoms,
-                optionalHint: L10n.diaryOneOptionalHint
-            )
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.error)
-                    .padding(.horizontal, 4)
-            }
-        }
-    }
-
-    private var automaticThoughtsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.diaryOneThoughtTitle)
-                .font(.headline)
-            Text(L10n.diaryOneThoughtQuestion)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            ForEach($draft.automaticThoughts) { $thought in
-                HStack(alignment: .top, spacing: 8) {
-                    NotesField(
-                        text: $thought.text,
-                        placeholder: L10n.diaryOneThoughtSingularTitle,
-                        minLines: 2,
-                        maxLines: 6
-                    )
-                    if draft.automaticThoughts.count > 1 {
-                        Button {
-                            draft.removeAutomaticThought(id: thought.id)
-                        } label: {
-                            Image(systemName: "minus.circle")
-                                .foregroundStyle(Theme.textBody)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(L10n.diaryOneRemoveThoughtAction)
-                        .padding(.top, 8)
-                    }
+        ScrollViewReader { proxy in
+            VStack(alignment: .leading, spacing: 16) {
+                DiaryEntryProgress(completed: issues.filter { $0 == nil }.count, total: 5, lastPartOptional: true)
+                section(1, L10n.diaryOneEventTitle, draft.event) {
+                    NotesField(text: $draft.event, placeholder: L10n.diaryOneEventQuestion, minLines: 3, maxLines: 8)
                 }
-            }
-            Button {
-                draft.addAutomaticThought()
-            } label: {
-                Text(L10n.diaryOneAddThoughtAction)
-                    .fontWeight(.semibold)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.gold)
-            if didAttemptSave, draft.persistedAutomaticThoughts.isEmpty {
-                Text(L10n.diaryOneValidationThought)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.error)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .themedCard()
-    }
-
-    private var feelingsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.diaryFeelingsTitle)
-                .font(.headline)
-            DiaryFeelingsEditor(
-                drafts: $draft.feelings,
-                highlightIncomplete: didAttemptSave
-            )
-            if didAttemptSave, draft.feelings.isEmpty {
-                Text(L10n.diaryOneValidationFeelingsRequired)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.error)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .themedCard()
-    }
-
-    private func stepCard(
-        title: String,
-        question: String,
-        text: Binding<String>,
-        optionalHint: String? = nil,
-        incompleteMessage: String? = nil
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(title)
-                    .font(.headline)
-                if let optionalHint {
-                    Text(optionalHint)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.textFaint)
+                section(2, L10n.diaryOneThoughtTitle, draft.persistedAutomaticThoughts.joined(separator: " · ")) {
+                    Text(L10n.diaryEntryThoughtHint).font(.subheadline).foregroundStyle(Theme.textBody)
+                    DiaryThoughtsEditor(rows: $draft.automaticThoughts, title: L10n.diaryOneThoughtSingularTitle, addTitle: L10n.diaryOneAddThoughtAction)
                 }
+                section(3, L10n.diaryFeelingsTitle, draft.feelings.map(\.name).joined(separator: " · ")) {
+                    DiaryFeelingsEditor(drafts: $draft.feelings, highlightIncomplete: didAttemptSave)
+                }
+                section(4, L10n.diaryOneBehaviourTitle, draft.behaviour) {
+                    NotesField(text: $draft.behaviour, placeholder: L10n.diaryOneBehaviourQuestion, minLines: 3, maxLines: 8)
+                }
+                DiaryEntrySection(number: 5, title: L10n.diaryOnePhysicalSymptomsTitle, summary: draft.physicalSymptoms,
+                    issue: nil, optional: true, active: $active) {
+                    NotesField(text: $draft.physicalSymptoms, placeholder: L10n.diaryOnePhysicalSymptomsQuestion, minLines: 2, maxLines: 8)
+                }
+                if let errorMessage { Text(errorMessage).font(.footnote).foregroundStyle(Theme.error) }
             }
-            Text(question)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            NotesField(text: text, placeholder: question, minLines: 3, maxLines: 8)
-            if let incompleteMessage {
-                Text(incompleteMessage)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.error)
+            .onChange(of: didAttemptSave) { _, attempted in
+                if attempted, let missing = issues.firstIndex(where: { $0 != nil }) { active = missing + 1 }
+            }
+            .onChange(of: active) { _, section in
+                if section > 0 { proxy.scrollTo(section, anchor: .top) }
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .themedCard()
+    }
+
+    private func section<C: View>(_ number: Int, _ title: String, _ summary: String, @ViewBuilder content: @escaping () -> C) -> some View {
+        DiaryEntrySection(number: number, title: title, summary: summary, issue: issues[number - 1],
+            attempted: didAttemptSave, active: $active, next: number < 5 ? { active = number + 1 } : nil, content: content)
     }
 }

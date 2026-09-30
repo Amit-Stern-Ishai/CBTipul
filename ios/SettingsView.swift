@@ -96,6 +96,86 @@ extension View {
     }
 }
 
+struct NotificationsSettingsSection: View {
+    let explanation: String
+
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var preferenceOn = PushNotificationPreference.isEnabled()
+    @State private var osAllowed = true
+    @State private var osDenied = false
+    @State private var isBusy = false
+    @State private var errorMessage: String?
+
+    private var effectiveOn: Bool {
+        PushDeliveryPolicy.toggleShowsOn(userPreferenceEnabled: preferenceOn, osAllowed: osAllowed)
+    }
+
+    var body: some View {
+        Section {
+            Toggle(L10n.settingsNotificationsReceiveTitle, isOn: Binding(
+                get: { effectiveOn },
+                set: { newValue in
+                    Task { await apply(wantOn: newValue) }
+                }
+            ))
+            .disabled(isBusy)
+            .accessibilityIdentifier("settings.notifications.toggle")
+            if osDenied {
+                Button(L10n.settingsNotificationsOpenSystemSettings) {
+                    PushNotificationManager.shared.openSystemNotificationSettings()
+                }
+                .accessibilityIdentifier("settings.notifications.openSystemSettings")
+            }
+        } header: {
+            Text(L10n.settingsNotificationsSectionTitle)
+        } footer: {
+            Text(explanation)
+        }
+        .task { await refreshAuthorization() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await refreshAuthorization() }
+            }
+        }
+        .alert(
+            L10n.settingsNotificationsReceiveTitle,
+            isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )
+        ) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private func refreshAuthorization() async {
+        let status = await PushNotificationManager.shared.osAuthorizationStatus()
+        preferenceOn = PushNotificationPreference.isEnabled()
+        osAllowed = status == .allowed
+        osDenied = status == .denied
+    }
+
+    private func apply(wantOn: Bool) async {
+        if isBusy { return }
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            if wantOn, preferenceOn, !osAllowed {
+                PushNotificationManager.shared.openSystemNotificationSettings()
+                await refreshAuthorization()
+                return
+            }
+            try await PushNotificationManager.shared.setUserNotificationsEnabled(wantOn)
+            await refreshAuthorization()
+        } catch {
+            errorMessage = error.localizedDescription
+            await refreshAuthorization()
+        }
+    }
+}
+
 /// App-wide settings.
 struct SettingsView: View {
     @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
@@ -202,6 +282,8 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.introduction")
                 }
                 .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
+
+                NotificationsSettingsSection(explanation: L10n.settingsNotificationsTherapistExplanation)
 
                 Section(L10n.settingsAccessibilitySectionTitle) {
                     NavigationLink {

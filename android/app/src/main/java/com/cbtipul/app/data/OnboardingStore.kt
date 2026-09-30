@@ -3,7 +3,6 @@ package com.cbtipul.app.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import com.cbtipul.app.BuildConfig
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
@@ -21,7 +20,7 @@ class OnboardingStore internal constructor(
     private val dataStore: DataStore<Preferences>,
     private val repeatIntroductionEachLaunch: Boolean,
 ) {
-    constructor(context: Context) : this(context.applicationContext.onboardingDataStore, BuildConfig.DEBUG)
+    constructor(context: Context) : this(context.applicationContext.onboardingDataStore, false)
 
     private val introductionsFinishedThisLaunch = mutableSetOf<String>()
     private val _shouldShowIntroduction = MutableStateFlow(false)

@@ -41,10 +41,104 @@ final class PushNotificationManager {
         self.client = client
     }
 
+    func currentPushToken() -> String? { persistedToken }
+
+    func osAuthorizationStatus() async -> OsNotificationAuthorization {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .notDetermined: return .notDetermined
+        case .denied: return .denied
+        case .authorized, .provisional, .ephemeral: return .allowed
+        @unknown default: return .denied
+        }
+    }
+
+    func openSystemNotificationSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
+
+    func setUserNotificationsEnabled(_ enabled: Bool) async throws {
+        if enabled {
+            try await enableFromSettings()
+        } else {
+            try await disableFromSettings()
+        }
+    }
+
+    private func enableFromSettings() async throws {
+        let status = await osAuthorizationStatus()
+        switch PushDeliveryPolicy.actionForTurningOn(osStatus: status) {
+        case .remainOffAndOfferSettings:
+            throw PushNotificationSettingsError.needsSystemSettings
+        case .requestPermission:
+            let granted: Bool
+            do {
+                granted = try await UNUserNotificationCenter.current()
+                    .requestAuthorization(options: [.alert, .badge, .sound])
+            } catch {
+                throw PushNotificationSettingsError.enableFailed
+            }
+            if !granted {
+                throw PushNotificationSettingsError.permissionDenied
+            }
+            PushNotificationPreference.setEnabled(true)
+            UIApplication.shared.registerForRemoteNotifications()
+            do {
+                try await registerPersistedTokenWithBackendThrowing()
+            } catch {
+                throw PushNotificationSettingsError.enableFailed
+            }
+        case .persistOnAndRegister:
+            PushNotificationPreference.setEnabled(true)
+            UIApplication.shared.registerForRemoteNotifications()
+            do {
+                try await registerPersistedTokenWithBackendThrowing()
+            } catch {
+                throw PushNotificationSettingsError.enableFailed
+            }
+        }
+    }
+
+    private func disableFromSettings() async throws {
+        guard !AuthManager.isUITesting else {
+            PushNotificationPreference.setEnabled(false)
+            lastRegisteredUserId = nil
+            return
+        }
+        switch PushDeliveryPolicy.actionForTurningOff(currentToken: persistedToken) {
+        case .persistOffOnly:
+            PushNotificationPreference.setEnabled(false)
+            lastRegisteredUserId = nil
+        case .disableBackend(let token):
+            guard let client, SupabaseConfig.isConfigured else {
+                throw PushNotificationSettingsError.disableFailed
+            }
+            do {
+                _ = try await client.auth.session
+                try await client.rpc(
+                    "disable_push_device",
+                    params: DisablePushDeviceParams(pPushToken: token)
+                )
+                .execute()
+            } catch {
+                throw PushNotificationSettingsError.disableFailed
+            }
+            PushNotificationPreference.setEnabled(false)
+            lastRegisteredUserId = nil
+        }
+    }
+
     /// System permission + APNs registration after the user is in therapist
     /// home or active Patient Mode. Does not present a custom prompt.
     func startAfterEnteringAuthenticatedMode() async {
         guard !AuthManager.isUITesting else { return }
+        guard PushDeliveryPolicy.shouldRegisterWithBackend(userPreferenceEnabled: PushNotificationPreference.isEnabled()) else {
+            #if DEBUG
+            AppLog.push.debug("Push start skipped: user preference off")
+            #endif
+            return
+        }
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         #if DEBUG
@@ -89,6 +183,9 @@ final class PushNotificationManager {
             lastRegisteredUserId = nil
             return
         }
+        guard PushDeliveryPolicy.shouldRegisterWithBackend(
+            userPreferenceEnabled: PushNotificationPreference.isEnabled()
+        ) else { return }
         if lastRegisteredUserId == userId { return }
         await registerPersistedTokenWithBackend()
     }
@@ -145,7 +242,27 @@ final class PushNotificationManager {
     }
 
     private func registerPersistedTokenWithBackend() async {
+        do {
+            try await registerPersistedTokenWithBackendThrowing()
+        } catch {
+            #if DEBUG
+            AppLog.push.error(
+                "Backend push token registration failed: \(error.localizedDescription, privacy: .public)"
+            )
+            #endif
+        }
+    }
+
+    private func registerPersistedTokenWithBackendThrowing() async throws {
         guard !AuthManager.isUITesting else { return }
+        guard PushDeliveryPolicy.shouldRegisterWithBackend(
+            userPreferenceEnabled: PushNotificationPreference.isEnabled()
+        ) else {
+            #if DEBUG
+            AppLog.push.debug("Push backend register skipped: user preference off")
+            #endif
+            return
+        }
         guard let token = persistedToken else { return }
         guard let client, SupabaseConfig.isConfigured else { return }
         do {
@@ -156,31 +273,23 @@ final class PushNotificationManager {
             #endif
             return
         }
-        do {
-            try await client.rpc(
-                "register_push_device",
-                params: RegisterPushDeviceParams(
-                    pPlatform: "ios",
-                    pPushToken: token,
-                    pEnvironment: pushEnvironment
-                )
+        try await client.rpc(
+            "register_push_device",
+            params: RegisterPushDeviceParams(
+                pPlatform: "ios",
+                pPushToken: token,
+                pEnvironment: pushEnvironment
             )
-            .execute()
-            if let uid = try? await client.auth.session.user.id.uuidString {
-                lastRegisteredUserId = uid
-            }
-            #if DEBUG
-            AppLog.push.debug(
-                "Backend push token registration succeeded (\(self.pushEnvironment, privacy: .public))"
-            )
-            #endif
-        } catch {
-            #if DEBUG
-            AppLog.push.error(
-                "Backend push token registration failed: \(error.localizedDescription, privacy: .public)"
-            )
-            #endif
+        )
+        .execute()
+        if let uid = try? await client.auth.session.user.id.uuidString {
+            lastRegisteredUserId = uid
         }
+        #if DEBUG
+        AppLog.push.debug(
+            "Backend push token registration succeeded (\(self.pushEnvironment, privacy: .public))"
+        )
+        #endif
     }
 
     private static func statusLabel(_ status: UNAuthorizationStatus) -> String {
@@ -207,11 +316,35 @@ private struct RegisterPushDeviceParams: Encodable {
     }
 }
 
+struct DisablePushDeviceParams: Encodable {
+    let pPushToken: String
+
+    enum CodingKeys: String, CodingKey {
+        case pPushToken = "p_push_token"
+    }
+}
+
 private struct UnregisterPushDeviceParams: Encodable {
     let pPushToken: String
 
     enum CodingKeys: String, CodingKey {
         case pPushToken = "p_push_token"
+    }
+}
+
+enum PushNotificationSettingsError: LocalizedError {
+    case disableFailed
+    case enableFailed
+    case permissionDenied
+    case needsSystemSettings
+
+    var errorDescription: String? {
+        switch self {
+        case .disableFailed: L10n.settingsNotificationsDisableFailed
+        case .enableFailed: L10n.settingsNotificationsEnableFailed
+        case .permissionDenied, .needsSystemSettings:
+            L10n.settingsNotificationsPermissionDeniedMessage
+        }
     }
 }
 

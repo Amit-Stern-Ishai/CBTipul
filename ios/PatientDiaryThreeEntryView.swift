@@ -141,6 +141,7 @@ struct PatientDiaryThreeEntryView: View {
                 draft.currentStep = min(7, max(1, saved.currentStep))
             }
         }
+        .onChange(of: draft.currentStep) { _, _ in resignCurrentKeyboard() }
         .onChange(of: draft) { _, _ in
             if deviceDraft.hasLoaded, !didSubmit { persistDraft() }
         }

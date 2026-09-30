@@ -41,6 +41,7 @@ import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
 import com.cbtipul.app.data.DemoData
 import com.cbtipul.app.data.PatientAssignmentRepository
+import com.cbtipul.app.data.PatientInvitationShare
 import com.cbtipul.app.data.TherapistProfile
 import com.cbtipul.app.debug.InviteDebugLog
 import com.cbtipul.app.model.CompletedQuestionnaire
@@ -1112,15 +1113,14 @@ private suspend fun createAndShareInvitation(
             onNeedDisplayName(uuid)
             return
         }
-        val invitation = app.invitations.createPatientInvitation(uuid)
-        val message = context.getString(
-            R.string.patient_invitation_share_message,
-            therapistName,
-            invitation.invitationUrl,
-        )
+        val connected = app.assignments.isPatientConnected(uuid)
+        val invitation = app.invitations.createPatientInvitation(uuid,
+            kind = if (connected) com.cbtipul.app.data.InvitationKind.Replacement else com.cbtipul.app.data.InvitationKind.Initial)
+        val message = PatientInvitationShare.message(therapistName, invitation.invitationUrl)
         val share = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, message)
+            putExtra(Intent.EXTRA_SUBJECT, PatientInvitationShare.SUBJECT)
         }
         val chooser = Intent.createChooser(share, context.getString(R.string.invite_patient_action))
         if (context !is Activity) {

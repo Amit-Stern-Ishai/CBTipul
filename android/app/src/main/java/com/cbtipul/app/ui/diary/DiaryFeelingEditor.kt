@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -43,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +67,9 @@ fun DiaryFeelingsEditor(
 ) {
     val colors = Theme.colors
     var showPicker by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(drafts) {
+        if (drafts.any { it.intensity == null }) onChange(drafts.map { if (it.intensity == null) it.copy(intensity = 80) else it })
+    }
     val selectedNames = remember(drafts) {
         drafts.map { it.trimmedName }.filter { it.isNotEmpty() }.toSet()
     }
@@ -126,7 +131,7 @@ fun DiaryFeelingsEditor(
             }
             }
         }
-        TextButton(
+        OutlinedButton(
             onClick = { showPicker = true },
             modifier = Modifier.padding(top = if (drafts.isEmpty()) 0.dp else 4.dp),
         ) {
@@ -159,28 +164,31 @@ fun DiaryFeelingsEditor(
 internal fun DiaryFeelingIntensityControl(
     intensity: Int?,
     title: String = stringResource(R.string.diary_one_feeling_intensity_title),
+    requiresExplicitChoice: Boolean = false,
     onIntensityChange: (Int) -> Unit,
 ) {
     val colors = Theme.colors
+    val current = intensity ?: if (requiresExplicitChoice) null else 80
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), color = colors.textBody)
-            if (intensity != null) androidx.compose.runtime.CompositionLocalProvider(
+            if (current != null) androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr
-            ) { Text(stringResource(R.string.diary_rating_percent, intensity), fontWeight = FontWeight.SemiBold, color = colors.textBright) }
+            ) { Text(stringResource(R.string.diary_rating_percent, current), fontWeight = FontWeight.SemiBold, color = colors.textBright) }
         }
-        if (intensity != null && intensity in 0..100) {
-            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
-                Slider(value = intensity.toFloat(), onValueChange = { onIntensityChange(it.roundToInt()) },
+        if (current != null && current in 0..100) {
+            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
+                Slider(value = current.toFloat(), onValueChange = { onIntensityChange(it.roundToInt()) },
                     valueRange = 0f..100f, steps = 99,
                     modifier = Modifier.semantics { contentDescription = title },
                     colors = SliderDefaults.colors(thumbColor = colors.gold, activeTrackColor = colors.gold, inactiveTrackColor = colors.goldGhost))
                 Row(Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.diary_rating_percent, 0), color = colors.textBody)
+                    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) { Text(stringResource(R.string.diary_rating_percent, 0), color = colors.textBody) }
                     Spacer(Modifier.weight(1f))
-                    Text(stringResource(R.string.diary_rating_percent, 100), color = colors.textBody)
+                    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) { Text(stringResource(R.string.diary_rating_percent, 100), color = colors.textBody) }
                 }
             }
+            Text(stringResource(R.string.diary_rating_adjust), color = colors.textBody, fontSize = 12.sp)
         } else {
             Text(stringResource(R.string.diary_rating_choose), color = colors.textBody, fontSize = 13.sp)
             androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
@@ -211,7 +219,8 @@ private fun DiaryFeelingChip(
             .clip(RoundedCornerShape(50))
             .background(if (enabled) colors.elevated else colors.elevated.copy(alpha = 0.5f))
             .border(1.dp, colors.gold.copy(alpha = 0.35f), RoundedCornerShape(50))
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled, role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         color = if (enabled) colors.textBright else colors.textFaint,
         fontWeight = FontWeight.SemiBold,
@@ -231,6 +240,8 @@ internal fun DiaryFeelingPickerSheet(
     var isEnteringCustom by remember { mutableStateOf(false) }
     var customText by remember { mutableStateOf("") }
     var customError by remember { mutableStateOf<String?>(null) }
+    val customFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(isEnteringCustom) { if (isEnteringCustom) customFocus.requestFocus() }
     val emptyCustom = stringResource(R.string.diary_custom_feeling_empty)
     val alreadySelected = stringResource(R.string.diary_feeling_already_selected)
     val trimmedQuery = query.trim()
@@ -265,6 +276,7 @@ internal fun DiaryFeelingPickerSheet(
                     Text(stringResource(R.string.cancel), color = colors.gold)
                 }
             }
+            Text(stringResource(R.string.diary_feelings_picker_hint), color = colors.textBody, fontSize = 14.sp)
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -306,7 +318,7 @@ internal fun DiaryFeelingPickerSheet(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        TextButton(onClick = { isEnteringCustom = true }) {
+                        TextButton(onClick = { customText = query.trim(); isEnteringCustom = true }) {
                             Icon(Icons.Outlined.Add, contentDescription = null, tint = colors.gold)
                             Spacer(Modifier.padding(start = 8.dp))
                             Text(
@@ -322,7 +334,7 @@ internal fun DiaryFeelingPickerSheet(
                                     customText = it
                                     customError = null
                                 },
-                                modifier = Modifier.editorFocus().fillMaxWidth(),
+                                modifier = Modifier.focusRequester(customFocus).editorFocus().fillMaxWidth(),
                                 singleLine = true,
                                 placeholder = {
                                     Text(

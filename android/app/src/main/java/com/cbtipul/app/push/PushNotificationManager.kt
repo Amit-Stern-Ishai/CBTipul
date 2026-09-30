@@ -9,7 +9,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -22,6 +24,7 @@ import com.cbtipul.app.auth.AuthSession
 import com.cbtipul.app.data.PatientIdentityStore
 import com.cbtipul.app.data.SupabaseConfig
 import com.cbtipul.app.model.DatabaseId
+import com.cbtipul.app.settings.AppPreferences
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.RemoteMessage
 import io.github.jan.supabase.SupabaseClient
@@ -31,8 +34,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 
 /**
  * Native FCM registration against `register_push_device` /
@@ -43,6 +44,7 @@ class PushNotificationManager(
     private val client: SupabaseClient,
     private val auth: AuthRepository,
     private val identityStore: PatientIdentityStore,
+    private val preferences: AppPreferences,
     private val scope: CoroutineScope,
     private val onPushReceived: () -> Unit = {},
 ) {
@@ -76,6 +78,19 @@ class PushNotificationManager(
         requestPermission: () -> Unit,
     ) {
         ensureChannel()
+        scope.launch {
+            if (!PushDeliveryPolicy.shouldRegisterWithBackend(preferences.isNotificationsEnabledByUser())) {
+                debug { "Push start skipped: user preference off" }
+                return@launch
+            }
+            startAuthenticatedRegistration(activity, requestPermission)
+        }
+    }
+
+    private fun startAuthenticatedRegistration(
+        activity: Activity,
+        requestPermission: () -> Unit,
+    ) {
         if (Build.VERSION.SDK_INT >= 33) {
             val granted = ContextCompat.checkSelfPermission(
                 activity,
@@ -103,12 +118,83 @@ class PushNotificationManager(
 
     fun onNotificationPermissionResult(granted: Boolean) {
         debug { "Notification permission result: ${if (granted) "granted" else "denied"}" }
-        scope.launch { fetchAndRegisterToken() }
+        scope.launch {
+            if (!PushDeliveryPolicy.shouldRegisterWithBackend(preferences.isNotificationsEnabledByUser())) {
+                debug { "Push permission result ignored: user preference off" }
+                return@launch
+            }
+            fetchAndRegisterToken()
+        }
+    }
+
+    fun osAuthorization(): OsNotificationAuthorization {
+        val manager = appContext.getSystemService(NotificationManager::class.java)
+        if (manager?.areNotificationsEnabled() == false) return OsNotificationAuthorization.Denied
+        if (Build.VERSION.SDK_INT < 33) return OsNotificationAuthorization.Allowed
+        val granted = ContextCompat.checkSelfPermission(
+            appContext,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) return OsNotificationAuthorization.Allowed
+        if (!prefs.getBoolean(KEY_PERMISSION_ASKED, false)) {
+            return OsNotificationAuthorization.NotDetermined
+        }
+        return OsNotificationAuthorization.Denied
+    }
+
+    fun osNotificationsAllowed(): Boolean = osAuthorization() == OsNotificationAuthorization.Allowed
+
+    fun markOsPermissionAsked() {
+        prefs.edit { putBoolean(KEY_PERMISSION_ASKED, true) }
+    }
+
+    fun openSystemNotificationSettings() {
+        val intent = Intent().apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                putExtra(Settings.EXTRA_APP_PACKAGE, appContext.packageName)
+            } else {
+                action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                data = Uri.fromParts("package", appContext.packageName, null)
+            }
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        appContext.startActivity(intent)
+    }
+
+    suspend fun disableNotifications() {
+        val token = persistedToken ?: fetchTokenOrNull()
+        when (val action = PushDeliveryPolicy.actionForTurningOff(token)) {
+            is PushDeliveryPolicy.TurnOffAction.PersistOffOnly -> {
+                preferences.setNotificationsEnabledByUser(false)
+                lastRegisteredUserId = null
+            }
+            is PushDeliveryPolicy.TurnOffAction.DisableBackend -> {
+                if (!SupabaseConfig.isConfigured || !auth.hasSession()) {
+                    error("disable_push_device_unavailable")
+                }
+                client.postgrest.rpc(
+                    "disable_push_device",
+                    PushDeviceRpc.disable(action.token),
+                )
+                preferences.setNotificationsEnabledByUser(false)
+                lastRegisteredUserId = null
+            }
+        }
+    }
+
+    suspend fun enableNotificationsAfterOsAllowed() {
+        preferences.setNotificationsEnabledByUser(true)
+        lastRegisteredUserId = null
+        fetchAndRegisterToken()
     }
 
     suspend fun registerPersistedTokenForCurrentIdentity(userId: String?) {
         if (userId == null) {
             lastRegisteredUserId = null
+            return
+        }
+        if (!PushDeliveryPolicy.shouldRegisterWithBackend(preferences.isNotificationsEnabledByUser())) {
             return
         }
         if (lastRegisteredUserId == userId && persistedToken != null) return
@@ -161,7 +247,7 @@ class PushNotificationManager(
         try {
             client.postgrest.rpc(
                 "unregister_push_device",
-                buildJsonObject { put("p_push_token", token) },
+                PushDeviceRpc.unregister(token),
             )
             lastRegisteredUserId = null
             debug { "Push unregister succeeded" }
@@ -193,6 +279,10 @@ class PushNotificationManager(
     private suspend fun registerTokenWithBackend(token: String?) {
         if (token.isNullOrBlank()) return
         persistedToken = token
+        if (!PushDeliveryPolicy.shouldRegisterWithBackend(preferences.isNotificationsEnabledByUser())) {
+            debug { "Push backend register skipped: user preference off" }
+            return
+        }
         if (!SupabaseConfig.isConfigured) return
         if (!auth.hasSession()) {
             debug { "Push backend register skipped: no Auth session" }
@@ -205,11 +295,7 @@ class PushNotificationManager(
             }
             client.postgrest.rpc(
                 "register_push_device",
-                buildJsonObject {
-                    put("p_platform", PushRegistration.PLATFORM)
-                    put("p_push_token", token)
-                    put("p_environment", PushRegistration.ENVIRONMENT)
-                },
+                PushDeviceRpc.register(token, PushRegistration.PLATFORM, PushRegistration.ENVIRONMENT),
             )
             lastRegisteredUserId = auth.currentUserId()
             debug { "[Push] register_push_device succeeded" }

@@ -22,6 +22,8 @@ struct PatientSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                NotificationsSettingsSection(explanation: L10n.settingsNotificationsPatientExplanation)
+
                 Section(L10n.settingsAccessibilitySectionTitle) {
                     NavigationLink {
                         TextSizePickerView()

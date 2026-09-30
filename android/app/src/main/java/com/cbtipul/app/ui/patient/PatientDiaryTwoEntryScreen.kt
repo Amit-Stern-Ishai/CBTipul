@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -108,7 +108,7 @@ fun PatientDiaryTwoEntryScreen(
             bottomBar = {
                 Button(onClick = { attempted = true; if (didSubmit) finish() else if (draft.validationError() != null) showValidation = true else vm.submit(draft) },
                     enabled = !state.submitting,
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp).height(48.dp),
+                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp).heightIn(min = 48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
                 ) { Text(stringResource(if (didSubmit) R.string.done else R.string.patient_diary_one_save_action)) }
             },

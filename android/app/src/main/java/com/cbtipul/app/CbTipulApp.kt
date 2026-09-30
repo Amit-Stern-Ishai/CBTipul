@@ -99,6 +99,7 @@ class CbTipulApp : Application() {
             client = client,
             auth = authRepository,
             identityStore = identityStore,
+            preferences = preferences,
             scope = applicationScope,
             onPushReceived = { applicationScope.launch { notifications.refresh() } },
         )

@@ -13,10 +13,10 @@ final class OnboardingStore {
     private var introductionFinishedThisLaunch: Set<String> = []
     private let repeatsIntroductionEachLaunch: Bool
 
-    /// Debug launches replay the introduction, but background/foreground does not.
+    /// Only the dedicated UI-test launch can force a replay; normal launches show it once.
     static var repeatIntroductionForDevelopment: Bool {
         #if DEBUG
-        !AuthManager.isUITesting || ProcessInfo.processInfo.arguments.contains("-UITestingIntroduction")
+        AuthManager.isUITesting && ProcessInfo.processInfo.arguments.contains("-UITestingIntroduction")
         #else
         false
         #endif

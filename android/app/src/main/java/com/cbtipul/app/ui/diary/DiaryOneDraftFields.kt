@@ -1,188 +1,52 @@
 package com.cbtipul.app.ui.diary
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.RemoveCircleOutline
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.cbtipul.app.R
 import com.cbtipul.app.data.DiaryOneEntryDraft
 import com.cbtipul.app.ui.patients.NotesField
-import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.Theme
 
 @Composable
-fun DiaryOneDraftFields(
-    draft: DiaryOneEntryDraft,
-    didAttemptSave: Boolean,
-    errorMessage: String? = null,
-    onChange: (DiaryOneEntryDraft) -> Unit,
-) {
-    val colors = Theme.colors
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        DraftStepCard(
-            title = stringResource(R.string.diary_one_event_title),
-            question = stringResource(R.string.diary_one_event_question),
-            value = draft.event,
-            onValueChange = { onChange(draft.copy(event = it)) },
-            incompleteMessage = if (didAttemptSave && draft.event.trim().isEmpty()) {
-                stringResource(R.string.diary_one_validation_event)
-            } else {
-                null
-            },
-        )
-        GroupedListCard(accent = colors.gold) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    stringResource(R.string.diary_one_thought_title),
-                    color = colors.textBright,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    stringResource(R.string.diary_one_thought_question),
-                    color = colors.textBody,
-                    fontSize = 14.sp,
-                )
-                draft.automaticThoughts.forEach { thought ->
-                    Row(verticalAlignment = Alignment.Top) {
-                        NotesField(
-                            value = thought.text,
-                            onValueChange = { value ->
-                                onChange(
-                                    draft.copy(
-                                        automaticThoughts = draft.automaticThoughts.map {
-                                            if (it.id == thought.id) it.copy(text = value) else it
-                                        },
-                                    ),
-                                )
-                            },
-                            placeholder = stringResource(R.string.diary_one_thought_singular),
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (draft.automaticThoughts.size > 1) {
-                            IconButton(
-                                onClick = { onChange(draft.withoutThought(thought.id)) },
-                            ) {
-                                Icon(
-                                    Icons.Outlined.RemoveCircleOutline,
-                                    contentDescription = stringResource(R.string.diary_one_remove_thought),
-                                    tint = colors.textBody,
-                                )
-                            }
-                        }
-                    }
-                }
-                TextButton(onClick = { onChange(draft.withAddedThought()) }) {
-                    Text(stringResource(R.string.diary_one_add_thought), color = colors.gold)
-                }
-                if (didAttemptSave && draft.persistedAutomaticThoughts.isEmpty()) {
-                    Text(
-                        stringResource(R.string.diary_one_validation_thought),
-                        color = colors.error,
-                        fontSize = 13.sp,
-                    )
-                }
-            }
-        }
-        GroupedListCard(accent = colors.gold) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    stringResource(R.string.diary_feelings_title),
-                    color = colors.textBright,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                DiaryFeelingsEditor(
-                    drafts = draft.feelings,
-                    highlightIncomplete = didAttemptSave,
-                    onChange = { onChange(draft.copy(feelings = it)) },
-                )
-                if (didAttemptSave && draft.feelings.isEmpty()) {
-                    Text(
-                        stringResource(R.string.diary_one_validation_feelings),
-                        color = colors.error,
-                        fontSize = 13.sp,
-                    )
-                }
-            }
-        }
-        DraftStepCard(
-            title = stringResource(R.string.diary_one_behaviour_title),
-            question = stringResource(R.string.diary_one_behaviour_question),
-            value = draft.behaviour,
-            onValueChange = { onChange(draft.copy(behaviour = it)) },
-            incompleteMessage = if (didAttemptSave && draft.behaviour.trim().isEmpty()) {
-                stringResource(R.string.diary_one_validation_behaviour)
-            } else {
-                null
-            },
-        )
-        DraftStepCard(
-            title = stringResource(R.string.diary_one_physical_title),
-            question = stringResource(R.string.diary_one_physical_question),
-            value = draft.physicalSymptoms,
-            onValueChange = { onChange(draft.copy(physicalSymptoms = it)) },
-            optionalHint = stringResource(R.string.diary_one_optional_hint),
-        )
-        errorMessage?.let {
-            Text(it, color = colors.error, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 4.dp))
-        }
+fun DiaryOneDraftFields(draft: DiaryOneEntryDraft, didAttemptSave: Boolean, errorMessage: String? = null, onChange: (DiaryOneEntryDraft) -> Unit) {
+    var active by rememberSaveable { mutableIntStateOf(1) }
+    val attempted = didAttemptSave
+    val feelingIssue = when {
+        draft.feelings.isEmpty() -> R.string.diary_one_validation_feelings
+        draft.feelings.any { it.name.isBlank() || it.intensity == null || it.intensity !in 0..100 } -> R.string.diary_one_validation_feeling_intensity
+        draft.feelings.map { it.name.trim() }.distinct().size != draft.feelings.size -> R.string.diary_feeling_already_selected
+        else -> null
     }
-}
-
-@Composable
-private fun DraftStepCard(
-    title: String,
-    question: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    optionalHint: String? = null,
-    incompleteMessage: String? = null,
-) {
-    val colors = Theme.colors
-    GroupedListCard(accent = colors.gold) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                if (optionalHint != null) {
-                    Text(
-                        optionalHint,
-                        color = colors.textFaint,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-            }
-            Text(question, color = colors.textBody, fontSize = 14.sp)
-            NotesField(value = value, onValueChange = onValueChange, placeholder = question)
-            incompleteMessage?.let {
-                Text(it, color = colors.error, fontSize = 13.sp)
-            }
+    val issues = listOf(
+        if (draft.event.isBlank()) R.string.diary_one_validation_event else null,
+        if (draft.persistedAutomaticThoughts.isEmpty()) R.string.diary_one_validation_thought else null,
+        feelingIssue,
+        if (draft.behaviour.isBlank()) R.string.diary_one_validation_behaviour else null,
+    )
+    LaunchedEffect(attempted) { if (attempted) issues.indexOfFirst { it != null }.takeIf { it >= 0 }?.let { active = it + 1 } }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        DiaryEntryProgress(issues.count { it == null }, 5, lastPartOptional = true)
+        DiaryEntrySection(1, stringResource(R.string.diary_one_event_title), draft.event, issues[0]?.let { stringResource(it) }, active, { active = it }, attempted, next = { active = 2 }) {
+            NotesField(draft.event, { onChange(draft.copy(event = it)) }, stringResource(R.string.diary_one_event_question))
         }
+        DiaryEntrySection(2, stringResource(R.string.diary_one_thought_title), draft.persistedAutomaticThoughts.joinToString(" · "), issues[1]?.let { stringResource(it) }, active, { active = it }, attempted, next = { active = 3 }) {
+            Text(stringResource(R.string.diary_entry_thought_hint), color = Theme.colors.textBody)
+            DiaryThoughtsEditor(draft.automaticThoughts, stringResource(R.string.diary_one_thought_singular), stringResource(R.string.diary_one_add_thought)) { onChange(draft.copy(automaticThoughts = it)) }
+        }
+        DiaryEntrySection(3, stringResource(R.string.diary_feelings_title), draft.feelings.joinToString(" · ") { it.name }, issues[2]?.let { stringResource(it) }, active, { active = it }, attempted, next = { active = 4 }) {
+            DiaryFeelingsEditor(draft.feelings, attempted) { onChange(draft.copy(feelings = it)) }
+        }
+        DiaryEntrySection(4, stringResource(R.string.diary_one_behaviour_title), draft.behaviour, issues[3]?.let { stringResource(it) }, active, { active = it }, attempted, next = { active = 5 }) {
+            NotesField(draft.behaviour, { onChange(draft.copy(behaviour = it)) }, stringResource(R.string.diary_one_behaviour_question))
+        }
+        DiaryEntrySection(5, stringResource(R.string.diary_one_physical_title), draft.physicalSymptoms, null, active, { active = it }, attempted, optional = true) {
+            NotesField(draft.physicalSymptoms, { onChange(draft.copy(physicalSymptoms = it)) }, stringResource(R.string.diary_one_physical_question))
+        }
+        errorMessage?.let { Text(it, color = Theme.colors.error) }
     }
 }

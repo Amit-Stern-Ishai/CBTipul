@@ -74,7 +74,8 @@ fun PatientDiaryThreeEntryScreen(
         onCancel = { leaving = false },
     )
     val scroll = rememberScrollState()
-    LaunchedEffect(draft.currentStep) { scroll.scrollTo(0) }
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    LaunchedEffect(draft.currentStep) { focus.clearFocus(); scroll.scrollTo(0) }
     val hints = listOf(R.string.patient_diary_three_step_1, R.string.patient_diary_three_step_2,
         R.string.patient_diary_three_step_3, R.string.patient_diary_three_step_4,
         R.string.patient_diary_three_step_5, R.string.patient_diary_three_step_6, R.string.patient_diary_three_step_7)

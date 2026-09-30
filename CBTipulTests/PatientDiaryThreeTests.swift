@@ -53,7 +53,9 @@ struct PatientDiaryThreeTests {
         #expect(d.entry.automaticThoughts == [remainingThought]); #expect(d.entry.feelings == [remainingFeeling])
         d.entry.automaticThoughts.append(.init(text: "new", beliefBefore: 80))
         d.entry.feelings.append(.init(name: "כועס", intensityBefore: 50))
-        #expect(d.validationMessage(for: 6) != nil); #expect(d.validationMessage(for: 7) != nil)
+        #expect(d.validationMessage(for: 6) != nil)
+        #expect(d.validationMessage(for: 7) == nil)
+        #expect(d.entry.feelings.last?.intensityAfter == 80)
     }
     @Test func backForwardAndDraftSerializationPreserveAllWork() throws {
         var d = valid; d.currentStep = 5

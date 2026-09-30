@@ -85,6 +85,9 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                 ConnectionUi.Checking -> Text(stringResource(R.string.patient_connection_checking), color = colors.textBody)
                 ConnectionUi.Connected -> {
                     IconLabel(stringResource(R.string.patient_connected_status), Icons.Filled.CheckCircle, color = colors.success)
+                    OutlinedButton(onClick = { sheet = "invite" }, enabled = !busy && !sending) {
+                        IconLabel(stringResource(R.string.patient_reinvite_action), Icons.Outlined.PersonAdd)
+                    }
                     TextButton(onClick = { sheet = "send" }, enabled = !busy && !sending) {
                         Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
@@ -112,12 +115,13 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(name, fontWeight = FontWeight.Bold)
             if (sheet == "invite") {
-                Text(stringResource(R.string.patient_connect_description))
-                if (connection == ConnectionUi.NotConnected) {
-                    Text(stringResource(R.string.patient_share_invitation_explanation))
-                    Button(onClick = { sheet = null; onInvite() }, modifier = Modifier.fillMaxWidth()) { IconLabel(stringResource(R.string.patient_share_invitation_action), Icons.Outlined.Share) }
+                val connected = connection == ConnectionUi.Connected
+                Text(stringResource(if (connected) R.string.patient_reinvite_action else R.string.patient_connect_description))
+                if (connection == ConnectionUi.NotConnected || connected) {
+                    Text(stringResource(if (connected) R.string.patient_reinvite_explanation else R.string.patient_share_invitation_explanation))
+                    Button(onClick = { sheet = null; onInvite() }, enabled = !busy && !sending, modifier = Modifier.fillMaxWidth()) { IconLabel(stringResource(R.string.patient_share_invitation_action), Icons.Outlined.Share) }
                 } else Text(stringResource(R.string.patient_invitation_unavailable_explanation))
-                Text(stringResource(R.string.patient_connection_optional_explanation))
+                if (!connected) Text(stringResource(R.string.patient_connection_optional_explanation))
             } else if (connection == ConnectionUi.Connected) {
                 Text(stringResource(R.string.patient_choose_send_action), fontWeight = FontWeight.Bold)
                 SendChoice(Icons.Outlined.MailOutline, R.string.send_patient_message_action, R.string.patient_send_message_description, !sending) { sheet = null; onMessage() }

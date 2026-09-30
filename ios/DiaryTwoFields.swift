@@ -4,57 +4,60 @@ struct DiaryTwoDraftFields: View {
     @Binding var draft: DiaryTwoEntryDraft
     var didAttemptSave: Bool
     var errorMessage: String? = nil
+    @State private var active = 1
+
+    private var issues: [String?] {
+        var feelingIssue: String?
+        if draft.feelings.isEmpty { feelingIssue = L10n.diaryOneValidationFeelingsRequired }
+        else if let missing = draft.feelings.first(where: { $0.trimmedName.isEmpty || $0.intensity.map { !(0...100).contains($0) } ?? true }) {
+            feelingIssue = L10n.diaryOneValidationFeelingIntensity(missing.trimmedName)
+        } else if Set(draft.feelings.map(\.trimmedName)).count != draft.feelings.count { feelingIssue = L10n.diaryFeelingAlreadySelected }
+        return [
+            draft.event.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? L10n.diaryOneValidationEvent : nil,
+            draft.persistedAutomaticThoughts.isEmpty ? L10n.diaryOneValidationThought : nil,
+            feelingIssue,
+            draft.thinkingErrors.isEmpty ? L10n.diaryTwoValidationErrors : nil,
+            draft.persistedAlternativeThoughts.isEmpty ? L10n.diaryTwoValidationAlternatives : nil
+        ]
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            card(L10n.diaryOneEventTitle) {
-                NotesField(text: $draft.event, placeholder: L10n.diaryOneEventQuestion, minLines: 3, maxLines: 8)
-            }
-            card(L10n.diaryOneThoughtTitle) {
-                Text(L10n.diaryEntryThoughtHint).font(.subheadline).foregroundStyle(.secondary)
-                thoughts($draft.automaticThoughts, placeholder: L10n.diaryOneThoughtSingularTitle)
-            }
-            card(L10n.diaryTwoFeelingsTitle) {
-                DiaryFeelingsEditor(drafts: $draft.feelings, highlightIncomplete: didAttemptSave)
-            }
-            card(L10n.diaryThinkingErrorsTitle) {
-                DiaryThinkingErrorPicker(selection: $draft.thinkingErrors)
-            }
-            card(L10n.diaryAlternativeThoughtsTitle) {
-                Text(L10n.diaryEntryAlternativeHint).font(.subheadline).foregroundStyle(.secondary)
-                thoughts($draft.alternativeThoughts, placeholder: L10n.diaryAlternativeThoughtTitle)
-            }
-            if didAttemptSave, let message = draft.validationMessage() {
-                Text(message).font(.footnote).foregroundStyle(Theme.error)
-            }
-            if let errorMessage { Text(errorMessage).font(.footnote).foregroundStyle(Theme.error) }
-        }
-    }
-
-    private func thoughts(_ rows: Binding<[DiaryAutomaticThoughtDraft]>, placeholder: String) -> some View {
-        VStack(spacing: 12) {
-            ForEach(rows) { row in
-                HStack(alignment: .top) {
-                    NotesField(text: row.text, placeholder: placeholder, minLines: 2, maxLines: 6)
-                    if rows.wrappedValue.count > 1 {
-                        Button {
-                            rows.wrappedValue.removeAll { $0.id == row.wrappedValue.id }
-                        } label: { Image(systemName: "minus.circle") }
-                        .accessibilityLabel(L10n.diaryOneRemoveThoughtAction)
-                    }
+        ScrollViewReader { proxy in
+            VStack(alignment: .leading, spacing: 16) {
+                DiaryEntryProgress(completed: issues.filter { $0 == nil }.count, total: issues.count)
+                section(1, L10n.diaryOneEventTitle, draft.event) {
+                    NotesField(text: $draft.event, placeholder: L10n.diaryOneEventQuestion, minLines: 3, maxLines: 8)
                 }
+                section(2, L10n.diaryOneThoughtTitle, draft.persistedAutomaticThoughts.joined(separator: " · ")) {
+                    Text(L10n.diaryEntryThoughtHint).font(.subheadline).foregroundStyle(Theme.textBody)
+                    DiaryThoughtsEditor(rows: $draft.automaticThoughts, title: L10n.diaryOneThoughtSingularTitle, addTitle: L10n.diaryOneAddThoughtAction)
+                }
+                section(3, L10n.diaryFeelingsTitle, draft.feelings.map(\.name).joined(separator: " · ")) {
+                    DiaryFeelingsEditor(drafts: $draft.feelings, highlightIncomplete: didAttemptSave)
+                }
+                section(4, L10n.diaryThinkingErrorsTitle, draft.thinkingErrors.map(\.title).joined(separator: " · ")) {
+                    DiaryOriginalThoughts(thoughts: draft.persistedAutomaticThoughts)
+                    DiaryThinkingErrorPicker(selection: $draft.thinkingErrors)
+                }
+                section(5, L10n.diaryAlternativeThoughtsTitle, draft.persistedAlternativeThoughts.joined(separator: " · ")) {
+                    Text(L10n.diaryEntryAlternativeHint).font(.subheadline).foregroundStyle(Theme.textBody)
+                    DiaryOriginalThoughts(thoughts: draft.persistedAutomaticThoughts)
+                    DiaryThoughtsEditor(rows: $draft.alternativeThoughts, title: L10n.diaryAlternativeThoughtTitle, addTitle: L10n.diaryAddAlternativeThought)
+                }
+                if let errorMessage { Text(errorMessage).font(.footnote).foregroundStyle(Theme.error) }
             }
-            Button(L10n.diaryOneAddThoughtAction) { rows.wrappedValue.append(DiaryAutomaticThoughtDraft()) }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            .onChange(of: didAttemptSave) { _, attempted in
+                if attempted, let missing = issues.firstIndex(where: { $0 != nil }) { active = missing + 1 }
+            }
+            .onChange(of: active) { _, section in
+                if section > 0 { proxy.scrollTo(section, anchor: .top) }
+            }
         }
     }
 
-    private func card<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.headline)
-            content()
-        }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading).themedCard()
+    private func section<C: View>(_ number: Int, _ title: String, _ summary: String, @ViewBuilder content: @escaping () -> C) -> some View {
+        DiaryEntrySection(number: number, title: title, summary: summary, issue: issues[number - 1],
+            attempted: didAttemptSave, active: $active, next: number < 5 ? { active = number + 1 } : nil, content: content)
     }
 }
 

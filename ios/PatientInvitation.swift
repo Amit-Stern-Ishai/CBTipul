@@ -5,6 +5,7 @@ import SwiftUI
 
 enum InvitationKind: String, Encodable, Sendable {
     case initial
+    case replacement
 }
 
 /// Response from the `create-patient-invitation` Edge Function.
@@ -140,4 +141,36 @@ struct ActivityShareSheet: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+/// Supplies invitation body to all share targets, and a subject where the
+/// destination supports it (Mail). WhatsApp/SMS ignore the subject.
+final class InvitationShareActivityItem: NSObject, UIActivityItemSource {
+    let body: String
+    let subject: String
+
+    init(body: String, subject: String) {
+        self.body = body
+        self.subject = subject
+    }
+
+    func activityViewControllerPlaceholderItem(
+        _ activityViewController: UIActivityViewController
+    ) -> Any {
+        body
+    }
+
+    func activityViewController(
+        _ activityViewController: UIActivityViewController,
+        itemForActivityType activityType: UIActivity.ActivityType?
+    ) -> Any? {
+        body
+    }
+
+    func activityViewController(
+        _ activityViewController: UIActivityViewController,
+        subjectForActivityType activityType: UIActivity.ActivityType?
+    ) -> String {
+        subject
+    }
 }

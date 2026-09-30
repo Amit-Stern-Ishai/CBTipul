@@ -18,6 +18,7 @@ import kotlinx.serialization.json.contentOrNull
 @Serializable
 enum class InvitationKind {
     @kotlinx.serialization.SerialName("initial") Initial,
+    @kotlinx.serialization.SerialName("replacement") Replacement,
 }
 
 @Serializable
@@ -66,9 +67,9 @@ sealed class PatientInvitationClaimError : Exception() {
 }
 
 class PatientInvitationService(private val client: SupabaseClient) {
-    suspend fun createPatientInvitation(patientId: String): PatientInvitation {
+    suspend fun createPatientInvitation(patientId: String, kind: InvitationKind = InvitationKind.Initial): PatientInvitation {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-        val payload = encodeCreateRequest(patientId)
+        val payload = encodeCreateRequest(patientId, kind)
         try {
             val http = client.functions.invoke("create-patient-invitation") {
                 header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
@@ -131,12 +132,12 @@ class PatientInvitationService(private val client: SupabaseClient) {
     }
 
     companion object {
-        internal fun encodeCreateRequest(patientId: String): String =
+        internal fun encodeCreateRequest(patientId: String, kind: InvitationKind = InvitationKind.Initial): String =
             EdgePayload.json.encodeToString(
                 CreatePatientInvitationRequest.serializer(),
                 CreatePatientInvitationRequest(
                     patientId = patientId,
-                    kind = InvitationKind.Initial,
+                    kind = kind,
                 ),
             )
 
@@ -159,4 +160,16 @@ class PatientInvitationService(private val client: SupabaseClient) {
             )
         }
     }
+}
+
+object PatientInvitationShare {
+    const val SUBJECT = "הזמנה להתחבר ל-CBTipul"
+
+    fun message(therapistName: String, invitationUrl: String): String =
+        "היי,\n\n" +
+            "$therapistName הזמין/ה אותך להתחבר ל-CBTipul.\n\n" +
+            "דרך האפליקציה ניתן למלא שאלונים ויומנים ולצפות בתכנים שנשלחו אליך כחלק מהטיפול.\n\n" +
+            "לפתיחת ההזמנה:\n" +
+            "$invitationUrl\n\n" +
+            "ההזמנה אישית ומיועדת עבורך בלבד."
 }

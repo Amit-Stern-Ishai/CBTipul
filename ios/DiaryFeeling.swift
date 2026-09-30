@@ -7,14 +7,14 @@ nonisolated struct DiaryFeeling: Codable, Equatable, Hashable, Sendable {
     var intensity: Int
 }
 
-/// Editor row. A newly added feeling has no intensity until the therapist
-/// moves the slider. A persisted feeling keeps its saved intensity.
+/// Editor row. New feelings start with an accepted 80% intensity.
+/// A persisted feeling keeps its saved intensity, including 0%.
 struct DiaryFeelingDraft: Identifiable, Equatable, Codable {
     let id: UUID
     var name: String
     var intensity: Int?
 
-    init(id: UUID = UUID(), name: String, intensity: Int? = nil) {
+    init(id: UUID = UUID(), name: String, intensity: Int? = 80) {
         self.id = id
         self.name = name
         self.intensity = intensity

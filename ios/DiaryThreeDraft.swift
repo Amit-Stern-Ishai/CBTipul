@@ -15,8 +15,8 @@ struct DiaryThreeAutomaticThoughtDraft: Identifiable, Equatable, Codable {
 struct DiaryThreeFeelingDraft: Identifiable, Equatable, Codable {
     var id = UUID()
     var name: String
-    var intensityBefore: Int?
-    var intensityAfter: Int?
+    var intensityBefore: Int? = 80
+    var intensityAfter: Int? = 80
 }
 struct DiaryThreeAlternativeThoughtDraft: Identifiable, Equatable, Codable {
     var id = UUID()

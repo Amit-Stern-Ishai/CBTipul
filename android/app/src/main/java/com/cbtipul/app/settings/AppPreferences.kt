@@ -13,6 +13,10 @@ private val Context.dataStore by preferencesDataStore(name = "cbtipul_settings")
 
 class AppPreferences(private val context: Context) {
 
+    val notificationsEnabledByUser: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[Keys.NOTIFICATIONS_ENABLED] ?: true
+    }
+
     val appearance: Flow<AppAppearance> = context.dataStore.data.map { prefs ->
         AppAppearance.fromStorage(prefs[Keys.APPEARANCE])
     }
@@ -32,6 +36,15 @@ class AppPreferences(private val context: Context) {
 
     suspend fun setAppearance(value: AppAppearance) {
         context.dataStore.edit { it[Keys.APPEARANCE] = value.storageValue }
+    }
+
+    suspend fun isNotificationsEnabledByUser(): Boolean =
+        context.dataStore.data.map { prefs ->
+            prefs[Keys.NOTIFICATIONS_ENABLED] ?: true
+        }.first()
+
+    suspend fun setNotificationsEnabledByUser(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.NOTIFICATIONS_ENABLED] = enabled }
     }
 
     suspend fun setTextSize(value: AppTextSize) {
@@ -81,5 +94,6 @@ class AppPreferences(private val context: Context) {
         val APPEARANCE = stringPreferencesKey("appAppearance")
         val TEXT_SIZE = stringPreferencesKey("appTextSize")
         val AI_RESPONSE_STYLE = stringPreferencesKey("aiResponseStyle")
+        val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notificationsEnabledByUser")
     }
 }

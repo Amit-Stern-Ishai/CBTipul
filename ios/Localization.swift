@@ -6,7 +6,27 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
+    static let diaryFivePartsOptional = "5 חלקים · החלק האחרון לבחירה"
+    static let diaryEntryGuide = "ממלאים חלק אחד בכל פעם. אפשר לפתוח כל חלק כדי לעיין או לשנות."
+    static func diaryEntryProgress(_ completed: Int, _ total: Int) -> String { "הושלמו \(completed) מתוך \(total) חלקים" }
+    static let diarySectionNext = "לחלק הבא"
+    static let diarySectionComplete = "הושלם"
+    static let diarySectionOpen = "פתיחת החלק"
+    static let diarySectionClose = "סגירת החלק"
+    static let diaryReadyToSave = "הכול מוכן. בדקו את הפרטים ולחצו על שמירה."
+    static let diaryOriginalThoughts = "המחשבות שכתבתי"
+    static let diaryRemoveThoughtConfirm = "להסיר את המחשבה שכתבתם?"
+    static let diaryRemoveThoughtAction = "הסרת המחשבה"
+    static let diaryFeelingsPickerHint = "בחרו רגש כדי להוסיף אותו. אפשר להוסיף רגשות נוספים בהמשך."
+    static let diaryRatingAdjust = "אפשר לגרור את המחוון כדי לדייק."
+
     static let diaryRatingChoose = "בחרו אחוזים. לאחר הבחירה אפשר לדייק בעזרת המחוון."
+    static func diaryThoughtNumber(_ title: String, _ number: Int) -> String { "\(title) \u{2066}\(number)\u{2069}" }
+    static func diaryRemoveThoughtNumber(_ title: String, _ number: Int) -> String { "הסרת \(diaryThoughtNumber(title, number))" }
+    static let diaryAddAlternativeThought = "הוספת מחשבה חלופית"
+    static let diaryChooseThinkingErrors = "בחירת טעויות חשיבה"
+    static let diaryEditThinkingErrors = "שינוי הבחירה"
+    static func diaryRemoveThinkingError(_ name: String) -> String { "הסרת \(name)" }
     static let diaryThinkingChoose = "אפשר לבחור כמה אפשרויות. להסבר לחצו על ⓘ."
     static let diaryEntryThoughtHint = "כתבו את המשפט שעבר בראש באותו רגע."
     static let diaryEntryAlternativeHint = "איזו דרך נוספת ומאוזנת יותר יש לראות את המצב?"
@@ -94,6 +114,8 @@ enum L10n {
     static let patientInvitationDemoStatus = "לא זמין במצב הדגמה"
     static let patientConnectDescription = "שליחת קישור הזמנה אישי מאפשרת למטופל/ת לקבל ממך הודעות ולמלא שאלונים ויומנים שהפעלת."
     static let patientShareInvitationAction = "שיתוף קישור הזמנה"
+    static let patientReinviteAction = "שליחת הזמנה חדשה"
+    static let patientReinviteExplanation = "אפשר לשלוח קישור חדש כדי להתחבר מחדש, למשל לאחר החלפת טלפון. החיבור הנוכחי יישאר פעיל עד לאישור ההזמנה החדשה, ואז יוחלף בחיבור החדש."
     static let patientShareInvitationExplanation = "בלחיצה ייפתחו אפשרויות שיתוף, למשל WhatsApp או דוא״ל. יש לבחור איך לשלוח את הקישור. החיבור יושלם רק לאחר שהמטופל/ת יפתחו אותו ויאשרו את ההצטרפות."
     static let patientConnectionOptionalExplanation = "ההזמנה אינה חובה. אפשר לתעד פגישות גם בלי לחבר את המטופל/ת לאפליקציה."
     static let patientConnectionReadyDescription = "לחצו על ״שליחה למטופל/ת״ כדי לבחור הודעה, הפעלת שאלונים או יומן."
@@ -1254,13 +1276,20 @@ amitishai@gmail.com
 
     static let patientInvitationInvalidPatientError = "לא ניתן להזמין מטופל/ת זה/ו."
 
+    static let patientInvitationShareSubject = "הזמנה להתחבר ל-CBTipul"
+
     static func patientInvitationShareMessage(therapistName: String, invitationUrl: String) -> String {
         """
         היי,
-        הוזמנת להתחבר ל-CBTipul על ידי \(therapistName).
 
-        להתחברות:
+        \(therapistName) הזמין/ה אותך להתחבר ל-CBTipul.
+
+        דרך האפליקציה ניתן למלא שאלונים ויומנים ולצפות בתכנים שנשלחו אליך כחלק מהטיפול.
+
+        לפתיחת ההזמנה:
         \(invitationUrl)
+
+        ההזמנה אישית ומיועדת עבורך בלבד.
         """
     }
 
@@ -1271,7 +1300,7 @@ amitishai@gmail.com
     }
 
     static let invitePreviewExplanation =
-        "CBTipul מאפשר לך למלא שאלונים וכלים טיפוליים שהמטפל/ת שלך מפעיל/ה עבורך."
+        "דרך האפליקציה ניתן למלא שאלונים ויומנים ולצפות בתכנים שנשלחו אליך כחלק מהטיפול."
 
     static let invitePreviewContinueAction = "המשך"
 
@@ -1431,6 +1460,27 @@ amitishai@gmail.com
         "מחיקת החשבון וכל המידע שלו — מטופלים, פגישות, שאלונים והערות — תהיה לצמיתות. לא ניתן לבטל פעולה זו."
 
     static let deleteAccountFailedTitle = "מחיקת החשבון נכשלה"
+
+    static let settingsNotificationsSectionTitle = "התראות"
+
+    static let settingsNotificationsReceiveTitle = "קבלת התראות"
+
+    static let settingsNotificationsTherapistExplanation =
+        "קבלת עדכונים על פעילות של מטופלים/ות באפליקציה."
+
+    static let settingsNotificationsPatientExplanation =
+        "קבלת עדכונים על שאלונים, יומנים והודעות מהמטפל/ת."
+
+    static let settingsNotificationsOpenSystemSettings = "פתיחת הגדרות"
+
+    static let settingsNotificationsPermissionDeniedMessage =
+        "כדי לקבל התראות, יש לאשר אותן בהגדרות המערכת."
+
+    static let settingsNotificationsDisableFailed =
+        "לא ניתן היה לכבות את ההתראות. נסו שוב."
+
+    static let settingsNotificationsEnableFailed =
+        "לא ניתן היה להפעיל את ההתראות. נסו שוב."
 
     static let settingsAccessibilitySectionTitle = "נגישות"
     

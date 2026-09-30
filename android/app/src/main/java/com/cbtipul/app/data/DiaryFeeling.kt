@@ -13,7 +13,7 @@ data class DiaryFeeling(
 data class DiaryFeelingDraft(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val intensity: Int? = null,
+    val intensity: Int? = 80,
 ) {
     constructor(persisted: DiaryFeeling) : this(
         name = persisted.name,

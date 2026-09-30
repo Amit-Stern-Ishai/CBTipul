@@ -474,7 +474,7 @@ struct PatientDetailView: View {
         .sheet(isPresented: $isShowingConnectionInfo, onDismiss: {
             guard pendingInvitationFromInfo else { return }
             pendingInvitationFromInfo = false
-            guard connectionState == .notConnected else { return }
+            guard connectionState == .notConnected || connectionState == .connected else { return }
             startPatientInvitation()
         }) {
             connectionInfoSheet
@@ -487,7 +487,11 @@ struct PatientDetailView: View {
         .sheet(item: $invitationShare, onDismiss: {
             Task { await refreshConnectionState() }
         }) { payload in
-            ActivityShareSheet(items: [payload.text])
+            ActivityShareSheet(
+                items: [
+                    InvitationShareActivityItem(body: payload.text, subject: payload.subject)
+                ]
+            )
                 .presentationDetents([.medium])
         }
         .subtleAnimation(value: areDiariesExpanded)
@@ -714,6 +718,12 @@ struct PatientDetailView: View {
             case .connected:
                 Label(L10n.patientConnectedStatus, systemImage: "checkmark.circle.fill")
                     .font(.headline)
+                Button { isShowingConnectionInfo = true } label: {
+                    Label(L10n.patientReinviteAction, systemImage: "person.crop.circle.badge.plus")
+                }
+                .buttonStyle(.bordered)
+                .disabled(isCreatingInvitation || isSaving)
+                .accessibilityIdentifier("patient.reinvite")
             case .notConnected, .unavailable:
                 Button {
                     isShowingConnectionInfo = true
@@ -758,10 +768,10 @@ struct PatientDetailView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(patient.displayName)
                         .font(.title2.bold())
-                    Text(L10n.patientConnectDescription)
+                    if connectionState != .connected { Text(L10n.patientConnectDescription) }
                     switch connectionState {
-                    case .notConnected:
-                        Text(L10n.patientShareInvitationExplanation)
+                    case .notConnected, .connected:
+                        Text(connectionState == .connected ? L10n.patientReinviteExplanation : L10n.patientShareInvitationExplanation)
                             .foregroundStyle(.secondary)
                         Button {
                             pendingInvitationFromInfo = true
@@ -775,23 +785,23 @@ struct PatientDetailView: View {
                     case .unavailable:
                         Text(L10n.patientInvitationUnavailableExplanation)
                             .foregroundStyle(.secondary)
-                    case .connected:
-                        Label(L10n.patientConnectedStatus, systemImage: "checkmark.circle.fill")
                     case .checking:
                         ProgressView(L10n.patientConnectionChecking)
                     case .failed:
                         Text(L10n.patientConnectionCheckError)
                         Button(L10n.retry) { Task { await refreshConnectionState() } }
                     }
-                    Text(L10n.patientConnectionOptionalExplanation)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    if connectionState != .connected {
+                        Text(L10n.patientConnectionOptionalExplanation)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(24)
             }
             .themedScreen()
-            .navigationTitle(L10n.patientInviteToAppAction)
+            .navigationTitle(connectionState == .connected ? L10n.patientReinviteAction : L10n.patientInviteToAppAction)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -1381,6 +1391,7 @@ struct PatientDetailView: View {
     private struct InvitationSharePayload: Identifiable {
         let id = UUID()
         let text: String
+        let subject: String
     }
 
     private func startPatientInvitation() {
@@ -1417,14 +1428,16 @@ struct PatientDetailView: View {
                 return
             }
 
+            let connected = try await assignmentService().isPatientConnected(patientId: patientId)
             let invitation = try await PatientInvitationService(client: auth.client)
-                .createPatientInvitation(patientId: patientId)
+                .createPatientInvitation(patientId: patientId, kind: connected ? .replacement : .initial)
             isCreatingInvitation = false
             invitationShare = InvitationSharePayload(
                 text: L10n.patientInvitationShareMessage(
                     therapistName: therapistName,
                     invitationUrl: invitation.invitationUrl
-                )
+                ),
+                subject: L10n.patientInvitationShareSubject
             )
         } catch {
             isCreatingInvitation = false

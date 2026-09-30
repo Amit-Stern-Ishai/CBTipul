@@ -47,6 +47,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.cbtipul.app.BuildConfig
 import com.cbtipul.app.R
 import com.cbtipul.app.ui.settings.AppearancePicker
+import com.cbtipul.app.ui.settings.NotificationsSettingsSection
 import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 import com.cbtipul.app.ui.legal.TermsScreen
@@ -131,6 +132,8 @@ fun PatientSettingsScreen(
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
+                    NotificationsSettingsSection(R.string.settings_notifications_patient_explanation)
+
                     Text(
                         stringResource(R.string.settings_accessibility_section_title),
                         color = colors.textBright,

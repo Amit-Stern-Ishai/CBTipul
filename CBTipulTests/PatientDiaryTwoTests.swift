@@ -33,6 +33,16 @@ struct PatientDiaryTwoTests {
         draft = value; draft.thinkingErrors = []; #expect(draft.validationMessage() != nil)
         draft = value; draft.alternativeThoughts = [.init(text: " ")]; #expect(draft.validationMessage() != nil)
     }
+    @Test func defaultFeelingIntensityIsAcceptedWithoutMovingTheSlider() {
+        var draft = valid
+        draft.feelings = [.init(name: "עצוב")]
+        #expect(draft.validationMessage() == nil)
+        #expect(draft.persistedFeelings()?.first?.intensity == 80)
+        #expect(DiaryFeelingDraft(persisted: .init(name: "עצוב", intensity: 0)).intensity == 0)
+        let feeling = DiaryThreeFeelingDraft(name: "עצוב")
+        #expect(feeling.intensityBefore == 80)
+        #expect(feeling.intensityAfter == 80)
+    }
     @Test func submissionUsesOnlyEdgeFunctionAndExactClinicalBody() async throws {
         DiaryTwoHTTPStub.reset(body: Data("{\"success\":true,\"entryId\":\"\(entryId)\"}".utf8))
         let service = makeService()

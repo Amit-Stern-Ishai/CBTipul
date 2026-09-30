@@ -51,7 +51,9 @@ class PatientDiaryThreeTest {
         assertEquals(rated.entry.automaticThoughts[1], removed.entry.automaticThoughts.single())
         assertEquals(rated.entry.feelings[1], removed.entry.feelings.single())
         val added = removed.copy(entry = removed.entry.copy(automaticThoughts = removed.entry.automaticThoughts + DiaryThreeAutomaticThoughtDraft(text = "new", beliefBefore = 0), feelings = removed.entry.feelings + DiaryThreeFeelingDraft(name = "כועס", intensityBefore = 100)))
-        assertNotNull(added.validationError(6)); assertNotNull(added.validationError(7))
+        assertNotNull(added.validationError(6))
+        assertNull(added.validationError(7))
+        assertEquals(80, added.entry.feelings.last().intensityAfter)
     }
     @Test fun backwardForwardAndSerializationKeepOrderRatingsAndIds() {
         val d = valid().copy(currentStep = 5)

@@ -8,7 +8,7 @@ import java.util.UUID
 @Serializable
 data class DiaryThreeAutomaticThoughtDraft(val id: String = UUID.randomUUID().toString(), val text: String = "", val beliefBefore: Int? = null, val beliefAfter: Int? = null)
 @Serializable
-data class DiaryThreeFeelingDraft(val id: String = UUID.randomUUID().toString(), val name: String, val intensityBefore: Int? = null, val intensityAfter: Int? = null)
+data class DiaryThreeFeelingDraft(val id: String = UUID.randomUUID().toString(), val name: String, val intensityBefore: Int? = 80, val intensityAfter: Int? = 80)
 @Serializable
 data class DiaryThreeAlternativeThoughtDraft(val id: String = UUID.randomUUID().toString(), val text: String = "", val belief: Int? = null)
 
