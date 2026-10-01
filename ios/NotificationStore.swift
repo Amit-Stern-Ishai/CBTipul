@@ -12,6 +12,7 @@ final class NotificationStore {
     private let client: SupabaseClient
     private(set) var notifications: [AppNotification] = []
     private(set) var isLoading = false
+    private var isRefreshing = false
     private(set) var didFailLastLoad = false
     /// Demo clinic must not show live therapist notifications.
     var isDemoInbox = false
@@ -59,7 +60,10 @@ final class NotificationStore {
     }
     #endif
 
-    func refresh() async {
+    func refresh(silently: Bool = false) async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         guard !AuthManager.isUITesting else { return }
         if isDemoInbox {
             notifications = []
@@ -68,8 +72,10 @@ final class NotificationStore {
             await synchronizeAppIconBadge()
             return
         }
-        isLoading = true
-        didFailLastLoad = false
+        if !silently {
+            isLoading = true
+            didFailLastLoad = false
+        }
         defer { isLoading = false }
         guard SupabaseConfig.isConfigured else {
             notifications = []
@@ -79,6 +85,9 @@ final class NotificationStore {
         do {
             _ = try await client.auth.session
         } catch {
+            // A cancelled or transiently failed silent refresh must keep the
+            // last successful inbox and badge, including during backgrounding.
+            guard !silently, !Task.isCancelled else { return }
             notifications = []
             await synchronizeAppIconBadge()
             return
@@ -89,11 +98,12 @@ final class NotificationStore {
                 .order("created_at", ascending: false)
                 .execute()
                 .value
-            guard !isDemoInbox else { return }
+            guard !Task.isCancelled, !isDemoInbox else { return }
+            didFailLastLoad = false
             notifications = rows.map(\.asAppNotification)
             await synchronizeAppIconBadge()
         } catch {
-            didFailLastLoad = true
+            if !silently && !Task.isCancelled { didFailLastLoad = true }
             await synchronizeAppIconBadge()
             #if DEBUG
             AppLog.push.debug(

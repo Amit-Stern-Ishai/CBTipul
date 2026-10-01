@@ -43,7 +43,7 @@ struct MyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppVersionGateView { ContentView() }
                 .environment(auth)
                 .environment(store)
                 .environment(therapistProfiles)
@@ -85,6 +85,7 @@ struct MyApp: App {
 /// Root view that shows the sign-in screen or the patient list depending on
 /// authentication state.
 struct ContentView: View {
+    @Environment(AppVersionManager.self) private var appVersion
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(TherapistProfileService.self) private var therapistProfiles
@@ -121,6 +122,12 @@ struct ContentView: View {
             if isShowingSplash {
                 SplashView()
                     .transition(.opacity)
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if appVersion.optionalVisible && !isShowingSplash && !invitationFlow.isActive
+                && !auth.isRecoveringPassword && (pushRegistrationContext != nil || !auth.hasSession) {
+                AppUpdateNotice(required: false)
             }
         }
         .appTextSize()
@@ -351,6 +358,7 @@ struct ContentView: View {
 #Preview {
     let auth = AuthManager()
     ContentView()
+        .environment(AppVersionManager())
         .environment(auth)
         .environment(PatientStore(client: auth.client))
         .environment(TherapistProfileService(client: auth.client))

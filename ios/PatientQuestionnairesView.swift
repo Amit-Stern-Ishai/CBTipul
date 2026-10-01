@@ -117,7 +117,7 @@ struct PatientQuestionnairesView: View {
         .demoModeChrome()
         .navigationTitleWithSubtitle(
             startsOnGraphs ? L10n.graphsAndTrendsTitle : L10n.questionnaireHistoryTitle,
-            subtitle: patient.displayName
+            subtitle: patient.displayName, patient: patient
         )
         .onAppear {
             if let cached = store.cachedQuestionnaires(for: patient) {

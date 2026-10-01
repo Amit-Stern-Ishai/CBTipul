@@ -668,6 +668,7 @@ private fun DisplayNameEditor(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .editorScroll()
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {

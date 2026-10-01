@@ -31,6 +31,7 @@ struct PatientDiaryThreeEntryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                Text(L10n.patientSharingHelp).font(.subheadline).foregroundStyle(Theme.textBody)
                 DeviceDraftFeedback(message: deviceDraft.feedback, isError: deviceDraft.hasError)
                 Text(L10n.patientDiaryThreeStepHints[draft.currentStep - 1])
                     .foregroundStyle(Theme.textBody).fixedSize(horizontal: false, vertical: true)

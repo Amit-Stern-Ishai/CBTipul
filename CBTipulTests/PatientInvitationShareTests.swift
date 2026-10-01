@@ -69,13 +69,20 @@ struct PatientInvitationShareTests {
         #expect(!html.contains("<כהן>"))
     }
 
-    @Test @MainActor func onlyMailReceivesHTML() {
+    @Test @MainActor func mailReceivesHTMLAndGmailReceivesNonemptyText() {
         let html = L10n.patientInvitationEmailHTML(therapistName: therapistName, invitationUrl: invitationUrl)
         let item = InvitationShareActivityItem(body: "plain invitation", subject: "subject", htmlBody: html)
         let controller = UIActivityViewController(activityItems: [], applicationActivities: nil)
         #expect(item.activityViewController(controller, itemForActivityType: .mail) as? String == html)
         #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: .mail) == "public.html")
-        for target: UIActivity.ActivityType? in [.message, .copyToPasteboard, nil] {
+        let gmail = UIActivity.ActivityType(rawValue: "com.google.Gmail.ShareExtension")
+        #expect(item.activityViewController(controller, itemForActivityType: gmail) as? String == "plain invitation")
+        #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: gmail) == "public.plain-text")
+        #expect(item.activityViewController(controller, subjectForActivityType: gmail) == "subject")
+        let plain = InvitationShareActivityItem(body: "plain invitation", subject: "subject")
+        #expect(plain.activityViewController(controller, itemForActivityType: gmail) as? String == "plain invitation")
+        #expect(plain.activityViewController(controller, dataTypeIdentifierForActivityType: gmail) == "public.plain-text")
+        for target: UIActivity.ActivityType? in [.message, .copyToPasteboard, UIActivity.ActivityType(rawValue: "net.whatsapp.WhatsApp.ShareExtension"), nil] {
             #expect(item.activityViewController(controller, itemForActivityType: target) as? String == "plain invitation")
             #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: target) == "public.plain-text")
         }

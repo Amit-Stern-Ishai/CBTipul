@@ -114,6 +114,7 @@ fun PatientDiaryTwoEntryScreen(
             },
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).editorScroll().padding(20.dp)) {
+                com.cbtipul.app.ui.diary.PatientDiaryGuide(isDiaryTwo = true)
                 com.cbtipul.app.ui.forms.DraftStatus(savedDraft.failed, savedDraft.hasSaved)
                 DiaryTwoDraftFields(draft, attempted, state.error?.messageRes) {
                     if (!state.submitting && !didSubmit) savedDraft.value = it

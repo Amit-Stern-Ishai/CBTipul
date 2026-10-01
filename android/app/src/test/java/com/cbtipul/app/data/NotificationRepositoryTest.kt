@@ -12,13 +12,14 @@ import java.util.concurrent.atomic.AtomicInteger
 class NotificationRepositoryTest {
     @Test fun clearsTrayOnlyAfterSuccessfulAcknowledgement() = runBlocking {
         val markStatus = AtomicInteger(500)
+        val loadStatus = AtomicInteger(200)
         val markRequests = AtomicInteger(0)
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/") { exchange ->
             val path = exchange.requestURI.path
             val isMark = path.endsWith("mark_notifications_seen")
             if (isMark) markRequests.incrementAndGet()
-            val status = if (isMark) markStatus.get() else 200
+            val status = if (isMark) markStatus.get() else loadStatus.get()
             val body = when {
                 status != 200 -> """{"message":"acknowledgement failed","code":"XX000"}"""
                 isMark -> "null"
@@ -39,8 +40,16 @@ class NotificationRepositoryTest {
                 assertTrue(repository.items.value.none { it.isUnseen })
                 trayClears++
             })
-            repository.refresh()
+            repository.refresh(silently = true)
             assertEquals(1, repository.unseenCount.value)
+            assertFalse(repository.isLoading.value)
+            assertEquals(0, markRequests.get())
+            loadStatus.set(500)
+            repository.refresh(silently = true)
+            assertEquals(1, repository.unseenCount.value)
+            assertFalse(repository.failed.value)
+            assertEquals(0, trayClears)
+            loadStatus.set(200)
 
             repository.markInboxSeen()
             assertEquals(0, trayClears)

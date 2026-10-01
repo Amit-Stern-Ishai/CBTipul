@@ -18,6 +18,12 @@ struct DeviceDraftStorage {
         try JSONEncoder().encode([userID, kind, target]).base64EncodedString()
     }
 
+    func contains(key: String) -> Bool {
+        var attributes = query(key)
+        attributes[kSecMatchLimit as String] = kSecMatchLimitOne
+        return SecItemCopyMatching(attributes as CFDictionary, nil) == errSecSuccess
+    }
+
     func load<Value: Decodable>(_ type: Value.Type, key: String) throws -> Value? {
         var attributes = query(key)
         attributes[kSecReturnData as String] = true

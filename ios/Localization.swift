@@ -6,6 +6,47 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
+    static let updateRequiredTitle = "נדרש עדכון"
+    static let updateRequiredBody = "כדי להמשיך להשתמש ב-CBTipul, יש לעדכן לגרסה החדשה."
+    static let updateRequiredAction = "עדכון האפליקציה"
+    static let updateOptionalTitle = "קיימת גרסה חדשה"
+    static let updateOptionalBody = "גרסה חדשה של CBTipul זמינה להורדה."
+    static let updateOptionalAction = "עדכון עכשיו"
+    static let updateLaterAction = "מאוחר יותר"
+    static let updateStoreFailed = "לא ניתן לפתוח את החנות. נסו שוב."
+    static let patientDiaryOnePurpose = "מה קרה ואיך הרגשתי"
+    static let patientDiaryTwoPurpose = "בחינת מחשבות ומציאת חלופה"
+    static let patientAttentionTitle = "להמשך ולקריאה"
+    static let patientToolEnabled = "פתוח למילוי"
+    static let patientToolDisabled = "לא פתוח למילוי"
+    static let patientToolActivationHelp = "המילוי יהיה זמין לאחר הפעלה על ידי המטפל/ת."
+    static let patientQuestionnaireHistoryAction = "צפייה במילויים קודמים"
+    static let patientAvailableTitle = "שאלונים ויומנים"
+    static let patientAvailableHelp = "למילוי בהתאם למה שסיכמתם עם המטפל/ת."
+    static let patientResumeAction = "המשך מילוי"
+    static let patientLocalOnly = "נשמר במכשיר בלבד · עדיין לא נשלח"
+    static let patientSharingHelp = "בלחיצה על שליחה, הרשומה תשותף עם המטפל/ת. עד אז היא נשמרת במכשיר בלבד."
+    static let patientSharedHelp = "הרשומה זמינה למטפל/ת. אין בכך אישור שהיא כבר נקראה."
+    static let patientViewEntries = "לרשומות שלי"
+    static let patientReturnHome = "חזרה למסך הראשי"
+    static let patientExampleAction = "דוגמה למילוי"
+    static let patientDiaryOneExample = "מה קרה? שלחתי הודעה ולא קיבלתי תשובה.\nמה חשבתי? אולי כועסים עליי.\nמה הרגשתי? דאגה.\nמה עשיתי? בדקתי שוב את הטלפון.\nמה הרגשתי בגוף? מתח בכתפיים (לבחירה)."
+    static let patientDiaryTwoExample = "מה קרה? שלחתי הודעה ולא קיבלתי תשובה.\nמה חשבתי? אולי כועסים עליי.\nמה הרגשתי? דאגה.\nאיזו טעות חשיבה זיהיתי? קריאת מחשבות.\nאיך אפשר לחשוב אחרת? אולי האדם עסוק כרגע; עדיין איני יודע/ת מדוע לא ענה."
+    static func patientLastQuestionnaire(_ date: Date) -> String { "מילוי אחרון: \(hebrewDate(date))" }
+
+    static let sessionWriteNotes = "כתיבת סיכום"
+    static let sessionReadNotes = "קריאה ועריכה"
+    static let sessionAIHint = "יצירת סיכום בעזרת AI על בסיס הטקסט שכתבתם."
+    static let sessionDraftReviewHint = "בדקו את הניסוח וערכו לפי הצורך. הטקסט המקורי נשמר בנפרד."
+    static let sessionUseDraft = "שימוש בסיכום הזה"
+
+    static let sessionOpenNotes = "פתיחה לקריאה ועריכה"
+    static let sessionAIDraftTitle = "סיכום בעזרת AI"
+    static let sessionAcceptDraft = "הוספת הסיכום לפגישה"
+    static let sessionReturnToNotes = "חזרה לטקסט"
+    static let sessionRegenerate = "יצירת סיכום מחדש"
+    static let sessionViewEditSummary = "צפייה ועריכה"
+
     static let questionTrendWorseHelp = "הציון האחרון גבוה מהראשון, אך היו גם ירידות בדרך."
     static let questionTrendWorse = "גרוע יותר מההתחלה"
     static let questionTrendBetterHelp = "הציון האחרון נמוך מהראשון, אך היו גם עליות בדרך."
@@ -49,7 +90,7 @@ enum L10n {
     static let diaryPreviousStep = "לשלב הקודם"
     static func diaryThinkingAbout(_ name: String) -> String { "הסבר על \(name)" }
 
-    static let patientQuestionnaireInactiveHint = "אפשר לעיין במילויים הקודמים. למילוי חדש נדרשת הפעלה של המטפל/ת."
+    static let patientQuestionnaireInactiveHint = "שני שאלונים קצרים על חרדה ומצב רוח בתקופה האחרונה, למעקב לאורך הטיפול. אפשר לצפות במילויים קודמים; מילוי חדש דורש הפעלה של המטפל/ת."
     static let questionnairesActive = "שאלונים פעילים"
     static let questionnairesStop = "הפסקת שאלונים"
     static let questionnairesStopExplanation = "המטופל/ת לא יוכל/תוכל לשלוח מילויים חדשים. כל התשובות הקודמות יישמרו."
@@ -276,7 +317,7 @@ enum L10n {
     static let sessionNotesSaveHelp = "בסיום העריכה לחצו על ״שמירת הפגישה״."
     static let sessionOptionalDetails = "סוג פגישה (לא חובה)"
     static let sessionOptionalAI = "סיכום מובנה בעזרת AI"
-    static let sessionAIHelp = "אפשר ליצור סיכום מובנה מהטקסט שכתבתם. מומלץ לקרוא ולבדוק אותו. אפשר גם לשמור את הפגישה בלי ליצור סיכום כזה."
+    static let sessionAIHelp = "יצירת סיכום בעזרת AI על בסיס הטקסט שכתבתם."
     static let sessionPendingRecording = "ההקלטה עדיין לא נוספה לטקסט. כדי לשמור את הפגישה, נסו לתמלל שוב או מחקו את ההקלטה."
     static let sessionNotCreated = "הפגישה עדיין לא נשמרה"
     static let sessionNotSaved = "יש שינויים שטרם נשמרו"
@@ -391,7 +432,7 @@ enum L10n {
         "סמנו בחירה לכל שאלה, ולחצו על ״שמירה״ למעלה מצד שמאל."
     static let tutorialCoachHintRecordNotes =
         "הקלידו סיכום לדוגמה או לחצו על ״הקלטת סיכום הפגישה״. בסיום ההקלטה לחצו על ״עצירה ותמלול״."
-    static let tutorialCoachHintAISummary = "לחצו על ״יצירת סיכום AI מובנה״"
+    static let tutorialCoachHintAISummary = "לחצו על ״ארגון הטקסט בעזרת AI״"
     static let tutorialCoachHintReturnSessions = "חזרו למסך הפגישות כדי להמשיך"
     static let tutorialCoachHintFollowGlow = "עקבו אחרי הכפתור המסומן"
 
@@ -471,7 +512,7 @@ enum L10n {
     
     static let analyzingLabel = "בניתוח…"
     
-    static let aiSummaryAction = "יצירת סיכום AI מובנה"
+    static let aiSummaryAction = "יצירת סיכום בעזרת AI"
     
     static let showStructuredSummaryAction = "הצגת סיכום AI מובנה בשלמותו"
     
@@ -1426,7 +1467,7 @@ amitishai@gmail.com
     static let patientQuestionnaireCardTitle = "שאלונים"
 
     static let patientQuestionnaireCardBody =
-        "כל עוד הגישה פעילה, אפשר למלא שאלון חדש בכל פעם. כל מילוי נשמר בנפרד ומשותף עם המטפל/ת."
+        "שני שאלונים קצרים על חרדה ומצב רוח בתקופה האחרונה. התשובות משותפות עם המטפל/ת ועוזרות לעקוב אחר שינויים לאורך הטיפול."
 
     static let patientQuestionnaireStartAction = "מילוי שאלון חדש"
 
@@ -1442,13 +1483,13 @@ amitishai@gmail.com
 
     static let patientDiaryOneOngoingHint = "היומן נשאר זמין. בכל פעם אפשר להוסיף אירוע חדש."
 
-    static let patientDiaryOneSaveAction = "שמירת הרשומה"
+    static let patientDiaryOneSaveAction = "שליחה למטפל/ת"
 
-    static let patientDiaryOneSaved = "הרשומה נשמרה"
+    static let patientDiaryOneSaved = "הרשומה נשלחה למטפל/ת"
 
-    static let patientDiaryOneSubmitting = "שומרים את הרשומה…"
+    static let patientDiaryOneSubmitting = "שולחים למטפל/ת…"
 
-    static let patientDiaryOneSubmitError = "לא ניתן היה לשמור את הרשומה. נסו שוב."
+    static let patientDiaryOneSubmitError = "הרשומה לא נשלחה. התוכן נשאר כאן — נסו שוב."
 
     static let patientDiaryOneNotActiveTitle = "היומן אינו פעיל"
 
@@ -1456,9 +1497,9 @@ amitishai@gmail.com
 
     static let patientTasksLoadError = "לא ניתן היה לטעון את המשימות. נסו שוב."
 
-    static let patientQuestionnaireSubmitAction = "שליחה"
+    static let patientQuestionnaireSubmitAction = "שליחה למטפל/ת"
 
-    static let patientQuestionnaireSubmittedTitle = "השאלון נשלח בהצלחה"
+    static let patientQuestionnaireSubmittedTitle = "השאלון נשלח למטפל/ת"
 
     static let patientQuestionnaireSubmitting = "שולחים…"
 

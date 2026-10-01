@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +65,7 @@ fun PatientSessionsScreen(
     unnamed: String,
     questionnaires: List<CompletedQuestionnaire>,
     onBack: () -> Unit,
+    onOpenPatient: () -> Unit,
     onAdd: () -> Unit,
     onOpenSession: (Session) -> Unit,
     onLoadQuestionnaires: () -> Unit,
@@ -98,7 +100,7 @@ fun PatientSessionsScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.sessions_title), color = colors.textBright) },
+                title = { PatientContextTitle(stringResource(R.string.sessions_title), patient.displayName(unnamed), onOpenPatient) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
@@ -277,4 +279,22 @@ private fun sessionScores(
         records.firstOrNull { it.sessionId?.queryValue == earlierId }
     }
     return record.questionnaire to previous?.questionnaire
+}
+
+/** The patient context is a link; list rows retain their own record navigation. */
+@Composable
+internal fun PatientContextTitle(title: String, name: String, onOpenPatient: () -> Unit) {
+    androidx.compose.material3.TextButton(onClick = onOpenPatient,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+        Column {
+            Text(title, color = Theme.colors.textBright, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, color = Theme.colors.gold, fontSize = 13.sp, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false))
+                Icon(androidx.compose.material.icons.Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                    contentDescription = null, tint = Theme.colors.gold)
+            }
+        }
+    }
 }

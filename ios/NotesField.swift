@@ -70,6 +70,7 @@ struct NotesField: UIViewRepresentable {
         if uiView.font != font {
             uiView.font = font
             label.font = font
+            context.coordinator.cachedMeasurement = nil
         }
         if label.text != placeholder {
             label.text = placeholder
@@ -77,10 +78,13 @@ struct NotesField: UIViewRepresentable {
         label.isHidden = !text.isEmpty
         guard uiView.text != text else { return }
         uiView.text = text
+        context.coordinator.cachedMeasurement = nil
         // Idle fields show the latest notes, i.e. the end of the text.
         // Deferred so the jump happens after the new text is laid out.
         if isEditable && !uiView.isFirstResponder {
             DispatchQueue.main.async {
+                // Focus may have changed since this update was scheduled.
+                guard uiView.isEditable, !uiView.isFirstResponder else { return }
                 Self.jumpToEnd(uiView)
             }
         }
@@ -97,22 +101,32 @@ struct NotesField: UIViewRepresentable {
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         guard let width = proposal.width, width.isFinite, width > 0 else { return nil }
+        // Keyboard/focus changes can propose the same width repeatedly. Reuse
+        // the height until text, font, width, or line limits actually change.
+        if let cached = context.coordinator.cachedMeasurement,
+           cached.width == width, cached.minLines == minLines, cached.maxLines == maxLines {
+            return cached.size
+        }
         let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
         let lineHeight = uiView.font?.lineHeight ?? 22
         let minHeight = ceil(lineHeight * CGFloat(minLines))
         let maxHeight = ceil(lineHeight * CGFloat(maxLines))
-        return CGSize(width: width, height: min(max(fitting.height, minHeight), maxHeight))
+        let size = CGSize(width: width, height: min(max(fitting.height, minHeight), maxHeight))
+        context.coordinator.cachedMeasurement = (width, minLines, maxLines, size)
+        return size
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {
         let text: Binding<String>
         let placeholderLabel = UILabel()
+        var cachedMeasurement: (width: CGFloat, minLines: Int, maxLines: Int, size: CGSize)?
 
         init(text: Binding<String>) {
             self.text = text
         }
 
         func textViewDidChange(_ textView: UITextView) {
+            cachedMeasurement = nil
             text.wrappedValue = textView.text
             placeholderLabel.isHidden = !textView.text.isEmpty
         }

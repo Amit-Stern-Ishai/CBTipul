@@ -31,6 +31,8 @@ struct SessionEditorView: View {
     @State private var isShowingDeleteCodeChallenge = false
     @State private var initialDate: Date?
     @State private var initialNotes: String?
+    @State private var acceptedAnalysisSource: String?
+    @State private var generatedAnalysisSource: String?
     @State private var initialType: SessionType?
     @State private var initialStructuredNotes: WhisperService.CBTSessionAnalysis?
     @State private var isRequestingRecording = false
@@ -45,6 +47,8 @@ struct SessionEditorView: View {
     @State private var isAnalyzing = false
     @State private var analysisResult: SessionAnalysisResult?
     @State private var isShowingAllFollowUps = false
+    @State private var showingNotesEditor = false
+    @FocusState private var notesEditorFocused: Bool
 
     /// Whether anything would be lost by dismissing without saving: an edited
     /// date or notes, or a voice note that hasn't been transcribed into the
@@ -206,13 +210,44 @@ struct SessionEditorView: View {
 
                 Section(L10n.sessionSummarySection) {
                     VStack(alignment: .leading, spacing: 16) {
-                        NotesField(text: $session.notes, placeholder: L10n.sessionSummaryFieldPlaceholder,
-                                   minLines: 4, maxLines: 10, isEditable: !isWorking)
+                        Button { showingNotesEditor = true } label: {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(session.notes.isEmpty ? L10n.sessionSummaryFieldPlaceholder : session.notes)
+                                    .foregroundStyle(session.notes.isEmpty ? Theme.textBody : Theme.textBright)
+                                    .lineLimit(6)
+                                    .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
+                                    .padding(16)
+                                    .background(Theme.base, in: RoundedRectangle(cornerRadius: 12))
+                                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.borderFaint, lineWidth: 1))
+                                Label(session.notes.isEmpty ? L10n.sessionWriteNotes : L10n.sessionReadNotes, systemImage: session.notes.isEmpty ? "square.and.pencil" : "arrow.up.left.and.arrow.down.right")
+                                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.gold)
+                            }.contentShape(Rectangle())
+                        }.buttonStyle(.plain).disabled(isWorking)
                             .accessibilityIdentifier("session.notes")
+                        Divider()
                         recordControl
-                        Text(L10n.sessionRecordingHelp)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        if session.notes.isEmpty {
+                            Text(L10n.sessionRecordingHelp).font(.footnote).foregroundStyle(.secondary)
+                        }
+                        if !session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (session.structuredNotes == nil || session.notes != acceptedAnalysisSource) {
+                            Divider()
+                            if isAnalyzing {
+                                HStack { ProgressView(); Text(L10n.analyzingLabel).font(.subheadline) }
+                            } else {
+                                Button { analyze() } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "sparkles").font(.title3)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(L10n.aiSummaryAction).font(.subheadline.weight(.semibold))
+                                            Text(L10n.sessionAIHint).font(.caption).foregroundStyle(.secondary)
+                                        }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "chevron.forward").font(.caption)
+                                    }.padding(.vertical, 6).contentShape(Rectangle())
+                                }.buttonStyle(.plain).foregroundStyle(Theme.gold)
+                                    .disabled(isWorking || voiceRecorder.recordingURL != nil)
+                            }
+                        }
                     }
                     .listRowBackground(groupBorderedRow(.first))
                     // Transcription starts automatically when recording
@@ -262,50 +297,29 @@ struct SessionEditorView: View {
                             .listRowBackground(groupBorderedRow(.middle))
                     }
 
-                    Text(L10n.sessionNotesSaveHelp)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .listRowBackground(groupBorderedRow(.last))
-                }
-
-                Section(L10n.sessionOptionalAI) {
-                    Text(L10n.sessionAIHelp)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .listRowBackground(groupBorderedRow(.first))
-                    if isAnalyzing {
-                        HStack {
-                            ProgressView()
-                            Text(L10n.analyzingLabel)
-                                .foregroundStyle(.secondary)
-                        }
-                        .listRowBackground(groupBorderedRow(.last))
-                    } else {
-                        Button {
-                            analyze()
-                        } label: {
-                            Label(L10n.aiSummaryAction, systemImage: "sparkles")
-                        }
-                        .disabled(session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                  || isWorking || voiceRecorder.recordingURL != nil)
-                        .tutorialPulse(gettingStartedRouter.shouldPulse(.aiSummary))
-                        .listRowBackground(groupBorderedRow(.last))
-                    }
-
                 }
 
                 if let structuredNotes = session.structuredNotes {
                     Section(L10n.structuredSummarySection) {
-                        NotesField(text: .constant(structuredNotes.sessionSummary),
-                                   placeholder: "",
-                                   minLines: 3, maxLines: 8,
-                                   isEditable: false)
-                            .listRowBackground(groupBorderedRow(.first))
+                        HStack(alignment: .top, spacing: 12) {
+                            Button {
+                                analysisResult = SessionAnalysisResult(analysis: structuredNotes, requiresSaveDecision: false)
+                            } label: {
+                                Text(structuredNotes.sessionSummary).lineLimit(6)
+                                    .foregroundStyle(Theme.textBright)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }.buttonStyle(.plain).disabled(isWorking)
+                            Menu {
+                                Button(L10n.sessionRegenerate) { analyze() }
+                                    .disabled(isWorking || session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || voiceRecorder.recordingURL != nil)
+                            } label: { Image(systemName: "ellipsis").padding(8) }
+                                .accessibilityLabel(L10n.sessionRegenerate)
+                        }.listRowBackground(groupBorderedRow(.first))
                         Button {
                             analysisResult = SessionAnalysisResult(analysis: structuredNotes,
                                                                    requiresSaveDecision: false)
                         } label: {
-                            Label(L10n.showStructuredSummaryAction, systemImage: "doc.text.magnifyingglass")
+                            Label(L10n.sessionViewEditSummary, systemImage: "doc.text.magnifyingglass")
                         }
                         .disabled(isWorking)
                         .listRowBackground(groupBorderedRow(.last))
@@ -417,6 +431,54 @@ struct SessionEditorView: View {
                 }
                 Button(L10n.keepEditingAction, role: .cancel) {}
             }
+            .fullScreenCover(isPresented: $showingNotesEditor) {
+                NavigationStack {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            Text(storePatient?.displayName ?? "")
+                                .font(.subheadline.weight(.medium))
+                            Spacer()
+                            Text(L10n.hebrewDate(session.date)).font(.caption)
+                        }
+                        .foregroundStyle(Theme.textBody)
+                        .padding(.horizontal, 24).padding(.vertical, 14)
+                        Divider().overlay(Theme.borderFaint)
+                        ZStack(alignment: .topLeading) {
+                            if session.notes.isEmpty {
+                                Text(L10n.sessionSummaryFieldPlaceholder)
+                                    .font(.body).foregroundStyle(Theme.textFaint)
+                                    .padding(.horizontal, 29).padding(.top, 24)
+                                    .allowsHitTesting(false)
+                            }
+                            TextEditor(text: $session.notes)
+                                .font(.body).lineSpacing(7)
+                                .foregroundStyle(Theme.textBright)
+                                .tint(Theme.gold)
+                                .focused($notesEditorFocused)
+                                .onAppear { notesEditorFocused = true }
+                                .onDisappear { notesEditorFocused = false }
+                                .scrollContentBackground(.hidden)
+                                .scrollDismissesKeyboard(.interactively)
+                                .padding(.horizontal, 24).padding(.vertical, 16)
+                        }
+                        Text(L10n.sessionNotesSaveHelp)
+                            .font(.caption).foregroundStyle(Theme.textBody)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 24).padding(.vertical, 12)
+                    }
+                    .background(Theme.surface)
+                    .navigationTitle(L10n.sessionSummarySection)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbarBackground(Theme.surface, for: .navigationBar)
+                    .toolbarBackground(.visible, for: .navigationBar)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) {
+                        Button(L10n.done) { showingNotesEditor = false }.fontWeight(.semibold)
+                    } }
+                    .demoModeChrome()
+                }
+                .environment(\.layoutDirection, .rightToLeft)
+                .appTextSize()
+            }
             .interactiveDismissDisabled(hasUnsavedChanges || isWorking)
             .busyOverlay(isSaving, label: busyLabel)
             .subtleAnimation(value: errorMessage)
@@ -426,6 +488,7 @@ struct SessionEditorView: View {
                 if initialDate == nil {
                     initialDate = session.date
                     initialNotes = session.notes
+                    acceptedAnalysisSource = session.notes
                     initialType = session.type
                     initialStructuredNotes = session.structuredNotes
                 }
@@ -605,15 +668,8 @@ struct SessionEditorView: View {
                 // unedited skips anonymization; only fields the therapist
                 // edits afterwards go through the Edge Function.
                 store.registerAIAnalysis(analysis)
-                // Finish persistence before opening the editable review, so
-                // a second save cannot race the generated summary's save.
-                session.structuredNotes = analysis
-                if session.databaseID != nil {
-                    isSaving = true
-                    await autosaveSession()
-                }
-                analysisResult = SessionAnalysisResult(analysis: analysis,
-                                                       requiresSaveDecision: false)
+                generatedAnalysisSource = anonymizedNotes
+                analysisResult = SessionAnalysisResult(analysis: analysis, requiresSaveDecision: true)
                 gettingStartedRouter.refresh(using: store)
                 gettingStartedRouter.beginShowcaseCountdownIfNeeded(using: store)
             } catch {
@@ -712,13 +768,13 @@ struct SessionEditorView: View {
         }
     }
 
-    /// Keeps a generated summary on the session and persists it. For a new
-    /// session the summary is inserted together with the session on Save.
+    /// Accepts the review into the editor draft; Save Session persists it.
     private func saveStructuredNotes(_ analysis: WhisperService.CBTSessionAnalysis) {
+        if analysisResult?.requiresSaveDecision == true {
+            acceptedAnalysisSource = generatedAnalysisSource
+        }
         session.structuredNotes = analysis
-        guard session.databaseID != nil else { return }
-        isSaving = true
-        Task { await autosaveSession() }
+
     }
 
     private func appendNotesBlock(_ block: String) {

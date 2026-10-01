@@ -418,21 +418,35 @@ extension View {
     ///
     /// Used instead of `navigationSubtitle` (iOS 26-only) so title/subtitle
     /// pairs keep working on the app's deployment SDK.
-    func navigationTitleWithSubtitle(_ title: String, subtitle: String) -> some View {
+    func navigationTitleWithSubtitle(_ title: String, subtitle: String, patient: Patient? = nil) -> some View {
         navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    VStack(spacing: 1) {
-                        Text(title)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        Text(subtitle)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                    if let patient {
+                        NavigationLink {
+                            PatientDetailView(patient: patient)
+                        } label: {
+                            VStack(spacing: 1) {
+                                Text(title).font(.headline).foregroundStyle(.primary).lineLimit(1)
+                                HStack(spacing: 4) {
+                                    Text(subtitle).lineLimit(1)
+                                    Image(systemName: "chevron.forward")
+                                }.font(.caption).foregroundStyle(Theme.gold)
+                            }.frame(minHeight: 44)
+                        }.buttonStyle(.plain)
+                    } else {
+                        VStack(spacing: 1) {
+                            Text(title)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            Text(subtitle)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        .accessibilityElement(children: .combine)
                     }
-                    .accessibilityElement(children: .combine)
                 }
             }
     }

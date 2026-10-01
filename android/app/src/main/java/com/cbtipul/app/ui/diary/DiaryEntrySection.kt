@@ -95,3 +95,19 @@ internal fun DiaryOriginalThoughts(thoughts: List<String>) {
         }
     }
 }
+
+@Composable
+fun PatientDiaryGuide(isDiaryTwo: Boolean = false) {
+    var showExample by rememberSaveable { mutableStateOf(false) }
+    GroupedListCard(accent = Theme.colors.gold) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(if (isDiaryTwo) R.string.patient_diary_two_purpose else R.string.patient_diary_one_purpose), style = MaterialTheme.typography.titleMedium, color = Theme.colors.textBright)
+            Text(stringResource(R.string.patient_sharing_help), color = Theme.colors.textBody)
+            TextButton(onClick = { showExample = !showExample }) {
+                Text(stringResource(R.string.patient_example_action))
+                Icon(if (showExample) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
+            }
+            if (showExample) Text(stringResource(if (isDiaryTwo) R.string.patient_diary_two_example else R.string.patient_diary_one_example), color = Theme.colors.textBody)
+        }
+    }
+}

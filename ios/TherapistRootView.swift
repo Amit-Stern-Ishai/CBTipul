@@ -82,6 +82,14 @@ struct TherapistRootView: View {
             }
             coordinator.processPending(patients: store.patients)
         }
+        .task(id: "\(scenePhase)-\(store.isDemoMode)") {
+            guard scenePhase == .active, !store.isDemoMode else { return }
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(60)) } catch { return }
+                guard !Task.isCancelled else { return }
+                await notificationStore.refresh(silently: true)
+            }
+        }
         .onDisappear {
             coordinator.markTherapistRootNotReady()
         }

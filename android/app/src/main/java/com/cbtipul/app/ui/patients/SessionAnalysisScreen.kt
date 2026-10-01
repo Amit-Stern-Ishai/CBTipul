@@ -1,5 +1,9 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
+import com.cbtipul.app.ui.theme.editorScroll
+import com.cbtipul.app.ui.theme.editorFocus
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -78,26 +82,39 @@ fun SessionAnalysisScreen(
 
     fun requestBack() {
         if (isSaving) return
-        if (needsDecision) showLeave = true else onBack()
+        if (!persisted) onDiscard() else if (needsDecision) showLeave = true else onBack()
     }
 
     BackHandler(enabled = !isSaving) { requestBack() }
 
     Scaffold(
-        modifier = Modifier.themedScreen(atmosphere),
+        modifier = Modifier.themedScreen(atmosphere).dismissKeyboardOnTap(),
         containerColor = Color.Transparent,
+        bottomBar = {
+            if (!persisted) {
+                Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                    androidx.compose.material3.Button(onClick = { onSave(edited) }, enabled = !isSaving,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.session_use_draft))
+                    }
+                    TextButton(onClick = onDiscard, enabled = !isSaving) {
+                        Text(stringResource(R.string.session_return_to_notes))
+                    }
+                }
+            }
+        },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.session_summary_title), color = colors.textBright) },
+                title = { Text(stringResource(if (!persisted) R.string.session_ai_draft_title else R.string.session_summary_title), color = colors.textBright) },
                 navigationIcon = {
                     IconButton(onClick = { requestBack() }, enabled = !isSaving) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
                 actions = {
-                    if (needsDecision) {
+                    if (needsDecision && persisted) {
                         TextButton(onClick = { onSave(edited) }, enabled = !isSaving) {
-                            Text(stringResource(R.string.save), color = colors.gold)
+                            Text(stringResource(if (!persisted) R.string.session_accept_draft else R.string.done), color = colors.gold)
                         }
                     }
                 },
@@ -109,10 +126,11 @@ fun SessionAnalysisScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .editorScroll()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(28.dp),
         ) {
+            if (!persisted) Text(stringResource(R.string.session_draft_review_hint), color = colors.textBody, fontSize = 14.sp)
             AnalysisField(
                 value = edited.sessionSummary,
                 onValueChange = { edited = edited.copy(sessionSummary = it) },
@@ -238,7 +256,7 @@ private fun AnalysisField(
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.editorFocus().fillMaxWidth(),
         textStyle = style,
         cursorBrush = SolidColor(colors.gold),
         minLines = minLines,

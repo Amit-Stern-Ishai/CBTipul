@@ -3,6 +3,9 @@ import SwiftUI
 
 /// Patient Mode Diary 1 hub: history of patient-created entries, plus new entry.
 struct PatientDiaryOneHubView: View {
+    var isActive: Bool
+    var onAssignmentsRefresh: () async -> Void
+    @State private var locallyInactive = false
     var onEntrySubmitted: () async -> Void
 
     @Environment(AuthManager.self) private var auth
@@ -45,6 +48,9 @@ struct PatientDiaryOneHubView: View {
                             .foregroundStyle(Theme.textBright)
                             .padding(.top, 8)
 
+                        if !isActive || locallyInactive {
+                            Text(L10n.patientDiaryOneNotActive).foregroundStyle(Theme.textBody)
+                        }
                         if entries.isEmpty {
                             Text(L10n.diaryOneEmptyTitle)
                                 .font(.body)
@@ -79,7 +85,8 @@ struct PatientDiaryOneHubView: View {
                             await loadEntries()
                         },
                         onDiaryInactive: {
-                            await onEntrySubmitted()
+                            locallyInactive = true
+                            await onAssignmentsRefresh()
                         }
                     )
                 } label: {
@@ -87,6 +94,7 @@ struct PatientDiaryOneHubView: View {
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity, minHeight: 24)
                 }
+                .disabled(!isActive || locallyInactive)
                 .buttonStyle(.pressableProminent)
                 .controlSize(.large)
                 .padding(.horizontal, 20)
@@ -95,7 +103,7 @@ struct PatientDiaryOneHubView: View {
                 .background(Theme.base)
             }
         }
-        .task { await loadEntries() }
+        .task { await onAssignmentsRefresh(); await loadEntries() }
     }
 
     private func patientHistoryRow(_ entry: DiaryOneEntry) -> some View {
@@ -219,6 +227,7 @@ struct PatientDiaryOneEntryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                PatientDiaryGuide(isDiaryTwo: false)
                 DeviceDraftFeedback(message: deviceDraft.feedback, isError: deviceDraft.hasError)
                 DiaryOneDraftFields(
                 draft: $draft,

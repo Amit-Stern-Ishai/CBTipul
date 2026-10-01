@@ -207,6 +207,7 @@ fun PatientDiaryOneEntryScreen(
                     .padding(horizontal = 20.dp)
                     .padding(top = 12.dp, bottom = 28.dp),
             ) {
+                com.cbtipul.app.ui.diary.PatientDiaryGuide(isDiaryTwo = false)
                 com.cbtipul.app.ui.forms.DraftStatus(savedDraft.failed, savedDraft.hasSaved)
                 DiaryOneDraftFields(
                     draft = draft,

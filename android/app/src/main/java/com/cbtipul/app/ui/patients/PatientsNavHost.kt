@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.theme.editorScroll
+import com.cbtipul.app.ui.theme.editorFocus
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.Icons
 import com.cbtipul.app.ui.theme.IconLabel
@@ -396,6 +398,9 @@ fun PatientsNavHost(
                 patient = patient,
                 unnamed = unnamed,
                 questionnaires = questionnaires[id].orEmpty(),
+                onOpenPatient = {
+                    navController.navigate("patient/$id") { launchSingleTop = true }
+                },
                 onBack = { navController.popScreen() },
                 onAdd = { navController.navigate("patient/$id/session/new") },
                 onOpenSession = { session ->
@@ -423,6 +428,9 @@ fun PatientsNavHost(
                 isLoading = ui.isLoadingQuestionnaires && questionnaires[id].isNullOrEmpty(),
                 loadError = ui.questionnairesError,
                 onRetry = { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } },
+                onOpenPatient = {
+                    navController.navigate("patient/$id") { launchSingleTop = true }
+                },
                 onBack = { navController.popScreen() },
                 onOpen = { record ->
                     navController.navigate("patient/$id/questionnaire-result/${record.databaseId.queryValue}")
@@ -434,6 +442,9 @@ fun PatientsNavHost(
             QuestionnaireTrendsScreen(
                 records = questionnaires[id].orEmpty(),
                 patientName = viewModel.patient(id)?.displayName(unnamed).orEmpty(),
+                onOpenPatient = {
+                    navController.navigate("patient/$id") { launchSingleTop = true }
+                },
                 onBack = { navController.popScreen() },
             )
         }
@@ -612,13 +623,14 @@ fun PatientsNavHost(
                         emptyAi,
                         onNotes = onNotes,
                         onAnalysis = { analysis ->
-                            onAnalysis(analysis)
+                            draft.generatedAnalysisSource = draft.notes
                             val key = edited.databaseId?.queryValue ?: edited.id.toString()
                             navController.navigate("patient/$id/session/$key/analysis")
                         },
                     )
                 },
                 onOpenAnalysis = {
+                    viewModel.clearPendingAnalysis()
                     val key = session?.databaseId?.queryValue ?: session?.id?.toString() ?: return@SessionEditorScreen
                     navController.navigate("patient/$id/session/$key/analysis")
                 },
@@ -664,9 +676,9 @@ fun PatientsNavHost(
             val session = editorDraft?.snapshot() ?: viewModel.session(id, sessionId)
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             SessionAnalysisScreen(
-                analysis = session?.structuredNotes ?: ui.pendingAnalysis,
+                analysis = ui.pendingAnalysis ?: session?.structuredNotes,
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
-                persisted = session?.databaseId != null,
+                persisted = ui.pendingAnalysis == null,
                 isSaving = ui.isSavingSession,
                 errorMessage = ui.sessionError,
                 onBack = {
@@ -675,7 +687,12 @@ fun PatientsNavHost(
                 },
                 onSave = { analysis ->
                     val target = session
-                    if (target?.databaseId != null) {
+                    if (editorDraft != null) {
+                        editorDraft.acceptAnalysis(analysis, generated = ui.pendingAnalysis != null)
+                        viewModel.clearPendingAnalysis()
+                        viewModel.clearSessionError()
+                        navController.popScreen()
+                    } else if (target?.databaseId != null) {
                         viewModel.saveAnalysis(
                             target,
                             analysis,
@@ -695,10 +712,7 @@ fun PatientsNavHost(
                     }
                 },
                 onDiscard = {
-                    if (session?.databaseId == null) {
-                        editorDraft?.structuredNotes = null
-                        viewModel.clearPendingAnalysis()
-                    }
+                    viewModel.clearPendingAnalysis()
                     viewModel.clearSessionError()
                     navController.popScreen()
                 },
@@ -988,7 +1002,7 @@ fun PatientsNavHost(
                 },
                 title = { Text(stringResource(R.string.therapist_display_name_prompt_title)) },
                 text = {
-                    Column {
+                    Column(Modifier.editorScroll()) {
                         Text(stringResource(R.string.therapist_display_name_prompt_explanation))
                         OutlinedTextField(
                             value = displayNameDraft,
@@ -996,7 +1010,7 @@ fun PatientsNavHost(
                                 displayNameDraft = it
                                 displayNameError = null
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.editorFocus().fillMaxWidth(),
                             enabled = !isSavingDisplayName,
                             singleLine = true,
                             label = { Text(stringResource(R.string.therapist_display_name_placeholder)) },

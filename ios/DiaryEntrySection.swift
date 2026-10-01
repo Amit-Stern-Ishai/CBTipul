@@ -97,3 +97,19 @@ struct DiaryOriginalThoughts: View {
         }
     }
 }
+
+/// Patient-facing guidance is separate from the therapist's clinical form.
+struct PatientDiaryGuide: View {
+    var isDiaryTwo = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(isDiaryTwo ? L10n.patientDiaryTwoPurpose : L10n.patientDiaryOnePurpose).font(.headline)
+            Text(L10n.patientSharingHelp).font(.subheadline).foregroundStyle(Theme.textBody)
+            DisclosureGroup(L10n.patientExampleAction) {
+                Text(isDiaryTwo ? L10n.patientDiaryTwoExample : L10n.patientDiaryOneExample)
+                    .font(.subheadline).foregroundStyle(Theme.textBody)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+            }
+        }.padding(16).themedCard()
+    }
+}

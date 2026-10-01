@@ -36,6 +36,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class CbTipulApp : Application() {
+    val appVersion by lazy { com.cbtipul.app.data.AppVersionManager.create(this) }
     val formDrafts by lazy { com.cbtipul.app.data.DeviceFormDraftStore(this) }
     lateinit var preferences: AppPreferences
         private set
@@ -86,6 +87,7 @@ class CbTipulApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        applicationScope.launch { appVersion.check(coldLaunch = true) }
         preferences = AppPreferences(this)
         val client = createCbTipulSupabaseClient()
         val identityStore = PatientIdentityStore(this)

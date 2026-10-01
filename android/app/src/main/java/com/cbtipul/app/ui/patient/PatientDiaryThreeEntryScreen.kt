@@ -108,6 +108,7 @@ fun PatientDiaryThreeEntryScreen(
             },
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).editorScroll(scroll).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.patient_sharing_help), color = colors.textBody)
                 DraftStatus(state.draftFailed, state.draftSaved)
                 Text(stringResource(hints[draft.currentStep - 1]), color = colors.textBody)
                 key(draft.currentStep) {

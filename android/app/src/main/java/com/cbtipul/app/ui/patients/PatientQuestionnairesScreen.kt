@@ -96,6 +96,7 @@ fun PatientQuestionnairesScreen(
     loadError: String?,
     onRetry: () -> Unit,
     onBack: () -> Unit,
+    onOpenPatient: () -> Unit,
     onOpen: (CompletedQuestionnaire) -> Unit,
     onOpenTrends: () -> Unit = {},
 ) {
@@ -109,12 +110,10 @@ fun PatientQuestionnairesScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(stringResource(if (graphsMode) R.string.graphs_and_trends_title else R.string.questionnaire_history_title), color = colors.textBright)
-                        if (patientName.isNotBlank()) {
-                            Text(patientName, color = colors.textBody, fontSize = 13.sp)
-                        }
-                    }
+                    PatientContextTitle(
+                        stringResource(if (graphsMode) R.string.graphs_and_trends_title else R.string.questionnaire_history_title),
+                        patientName, onOpenPatient,
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

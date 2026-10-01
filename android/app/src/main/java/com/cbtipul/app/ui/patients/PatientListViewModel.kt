@@ -480,8 +480,6 @@ class PatientListViewModel(
                 _ui.update { it.copy(isAnonymizingTranscription = false, isAnalyzing = true) }
                 val analysis = repository.analyzeSessionNotes(notes)
                 repository.registerAIAnalysis(analysis)
-                val updated = session.copy(notes = notes, structuredNotes = analysis)
-                if (updated.databaseId != null) repository.updateSession(updated)
                 _ui.update { it.copy(isAnalyzing = false, pendingAnalysis = analysis) }
                 onAnalysis(analysis)
                 refreshGettingStartedProgress()

@@ -88,7 +88,7 @@ struct QuestionnaireTrendsView: View {
         }
         .themedScreen()
         .demoModeChrome()
-        .navigationTitleWithSubtitle(L10n.questionTrendsTitle, subtitle: patient.displayName)
+        .navigationTitleWithSubtitle(L10n.questionTrendsTitle, subtitle: patient.displayName, patient: patient)
         .sheet(isPresented: $showingTrends) {
             NavigationStack {
                 List {

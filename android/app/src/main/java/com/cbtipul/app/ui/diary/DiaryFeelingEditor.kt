@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.diary
 
+import androidx.compose.foundation.layout.imePadding
+import com.cbtipul.app.ui.theme.editorScroll
 import androidx.compose.material.icons.outlined.RemoveCircleOutline
 import com.cbtipul.app.ui.theme.editorFocus
 import androidx.compose.foundation.background
@@ -261,6 +263,8 @@ internal fun DiaryFeelingPickerSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.92f)
+                .imePadding()
+                .editorScroll()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -288,9 +292,7 @@ internal fun DiaryFeelingPickerSheet(
                 colors = feelingFieldColors(),
             )
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 if (trimmedQuery.isEmpty()) {

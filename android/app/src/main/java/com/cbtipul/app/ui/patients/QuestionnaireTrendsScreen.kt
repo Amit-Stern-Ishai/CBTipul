@@ -45,7 +45,7 @@ private data class TrendQuestion(val id: String, val title: String, val scale: S
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuestionnaireTrendsScreen(records: List<CompletedQuestionnaire>, patientName: String, onBack: () -> Unit) {
+fun QuestionnaireTrendsScreen(records: List<CompletedQuestionnaire>, patientName: String, onOpenPatient: () -> Unit, onBack: () -> Unit) {
     val colors = Theme.colors
     val chronological = remember(records) { records.sortedBy { it.answeredDate.time } }
     val gadNames = stringArrayResource(R.array.gad7_questions)
@@ -70,10 +70,7 @@ fun QuestionnaireTrendsScreen(records: List<CompletedQuestionnaire>, patientName
     Scaffold(modifier = Modifier.themedScreen(colors.gold), containerColor = Color.Transparent,
         topBar = {
             TopAppBar(title = {
-                Column {
-                    Text(stringResource(R.string.question_trends_title), color = colors.textBright)
-                    Text(patientName, color = colors.textBody, fontSize = 13.sp)
-                }
+                PatientContextTitle(stringResource(R.string.question_trends_title), patientName, onOpenPatient)
             }, navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)

@@ -72,7 +72,16 @@ class NotificationRepository(
         _isLoading.value = false
     }
 
-    suspend fun refresh(showLoading: Boolean = false) {
+    private val refreshMutex = kotlinx.coroutines.sync.Mutex()
+
+    suspend fun refresh(showLoading: Boolean = false, silently: Boolean = false) {
+        if (!refreshMutex.tryLock()) return
+        try {
+            refreshInbox(showLoading, silently)
+        } finally { refreshMutex.unlock() }
+    }
+
+    private suspend fun refreshInbox(showLoading: Boolean, silently: Boolean) {
         if (com.cbtipul.app.BuildConfig.DEBUG && isDemoInbox && uiTestItems != null) {
             _items.value = uiTestItems.orEmpty()
             return
@@ -81,8 +90,10 @@ class NotificationRepository(
             clear()
             return
         }
-        _isLoading.value = showLoading || !hasLoaded
-        _failed.value = false
+        if (!silently) {
+            _isLoading.value = showLoading || !hasLoaded
+            _failed.value = false
+        }
         try {
             val rows = client.from("notifications")
                 .select(columns) { order("created_at", Order.DESCENDING) }
@@ -90,11 +101,12 @@ class NotificationRepository(
             if (isDemoInbox) { clear(); return }
             _items.value = rows.map { it.toDomain() }
             hasLoaded = true
+            _failed.value = false
             _unseenCount.value = fetchUnseenCount() ?: NotificationInbox.unseenCount(_items.value)
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            _failed.value = true
+            if (!silently) _failed.value = true
         } finally {
             _isLoading.value = false
         }

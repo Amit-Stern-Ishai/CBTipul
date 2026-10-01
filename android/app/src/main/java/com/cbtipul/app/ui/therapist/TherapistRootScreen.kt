@@ -9,6 +9,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.flow.MutableSharedFlow
 import androidx.compose.foundation.layout.Box
@@ -97,6 +101,16 @@ fun TherapistRootScreen(
     val unnamed = stringResource(R.string.unnamed_patient)
     var tab by remember { mutableStateOf(TherapistRootTab.Patients) }
     val colors = Theme.colors
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner, isDemoMode) {
+        if (isDemoMode) return@LaunchedEffect
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (isActive) {
+                delay(60_000)
+                app.notifications.refresh(silently = true)
+            }
+        }
+    }
     LaunchedEffect(currentEntry) {
         if (returnToInbox && currentEntry?.destination?.route == "list") {
             returnToInbox = false

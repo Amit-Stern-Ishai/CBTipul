@@ -98,6 +98,8 @@ private final class KeyboardDismissGesture: NSObject, UIGestureRecognizerDelegat
         guard !(window.gestureRecognizers ?? []).contains(where: { $0 is DismissTap }) else { return }
         let tap = DismissTap(target: self, action: #selector(handleTap(_:)))
         tap.cancelsTouchesInView = false
+        tap.delaysTouchesBegan = false
+        tap.delaysTouchesEnded = false
         tap.delegate = self
         window.addGestureRecognizer(tap)
     }

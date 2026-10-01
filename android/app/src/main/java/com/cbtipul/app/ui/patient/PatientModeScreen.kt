@@ -1,5 +1,10 @@
 package com.cbtipul.app.ui.patient
 
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.cbtipul.app.data.DeviceFormDraftStore
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.MailOutline
@@ -20,6 +25,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
@@ -76,6 +83,7 @@ import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.hebrewDateTime
 import com.cbtipul.app.ui.theme.themedScreen
 import kotlinx.coroutines.launch
+import com.cbtipul.app.ui.theme.hebrewDate
 import java.util.Date
 
 private enum class TasksLoadState { Loading, Loaded, Failed }
@@ -105,6 +113,7 @@ fun PatientModeScreen(
     var messages by remember { mutableStateOf<List<PatientMessage>>(emptyList()) }
     var questionnaireHistory by remember(patientId) { mutableStateOf<List<com.cbtipul.app.model.CompletedQuestionnaire>>(emptyList()) }
     var didSubmitQuestionnaire by remember { mutableStateOf(false) }
+    var pendingDiaryOneSuccess by remember { mutableStateOf(false) }
     var didSubmitDiaryOne by remember { mutableStateOf(false) }
     var diaryTwoEntries by remember(patientId) { mutableStateOf<List<DiaryTwoEntry>>(emptyList()) }
     var diaryThreeEntries by remember(patientId) { mutableStateOf<List<DiaryThreeEntry>>(emptyList()) }
@@ -119,6 +128,7 @@ fun PatientModeScreen(
             assignments = loadAssignments()
             messages = runCatching { loadMessages() }.getOrDefault(emptyList())
             loadState = TasksLoadState.Loaded
+            runCatching { loadQuestionnaireHistory() }.onSuccess { questionnaireHistory = it }
         } catch (_: Exception) {
             loadState = TasksLoadState.Failed
         }
@@ -200,6 +210,16 @@ fun PatientModeScreen(
                 loadState = loadState,
                 assignments = assignments,
                 messages = messages,
+                patientId = patientId,
+                lastQuestionnaire = questionnaireHistory.maxByOrNull { it.answeredDate }?.answeredDate,
+                onResume = { assignment ->
+                    when (assignment.type) {
+                        PatientAssignmentType.Questionnaire -> { nav.navigate("questionnaires"); nav.navigate("questionnaire/${assignment.id}") }
+                        PatientAssignmentType.DiaryOne -> nav.navigate("diary-one/new")
+                        PatientAssignmentType.DiaryTwo -> nav.navigate("diary-two/new")
+                        else -> Unit
+                    }
+                },
                 onOpenSettings = onOpenSettings,
                 onRefresh = { scope.launch { reload() } },
                 onOpenQuestionnaire = { nav.navigate("questionnaires") },
@@ -241,6 +261,7 @@ fun PatientModeScreen(
         }
         composable("diary-one") {
             PatientDiaryOneHubScreen(
+                active = assignments.any { it.type == PatientAssignmentType.DiaryOne && it.isOpen },
                 loadEntries = {
                     val loaded = loadDiaryOneHistory()
                     diaryEntries = loaded
@@ -256,11 +277,14 @@ fun PatientModeScreen(
                 draftTarget = assignments.firstOrNull { it.type == PatientAssignmentType.DiaryOne }?.patientId ?: "diary-one",
                 onSubmit = { event, automaticThoughts, feelings, behaviour, physicalSymptoms ->
                     submitDiaryOne(event, automaticThoughts, feelings, behaviour, physicalSymptoms)
-                    didSubmitDiaryOne = true
+                    pendingDiaryOneSuccess = true
                     reload()
                 },
-                onDiaryInactive = { scope.launch { reload() } },
-                onBack = { nav.popScreen() },
+                onDiaryInactive = {
+                    assignments = assignments.filterNot { it.type == PatientAssignmentType.DiaryOne }
+                    scope.launch { reload() }
+                },
+                onBack = { nav.popScreen(); if (pendingDiaryOneSuccess) { pendingDiaryOneSuccess = false; didSubmitDiaryOne = true } },
             )
         }
         composable(
@@ -437,9 +461,24 @@ fun PatientModeScreen(
         }
     }
     MessageOverlay(visible = didSubmitQuestionnaire, title = stringResource(R.string.patient_questionnaire_submitted), message = "", onDismiss = { didSubmitQuestionnaire = false })
-    MessageOverlay(visible = didSubmitDiaryThree, title = stringResource(R.string.patient_diary_one_saved), message = "", onDismiss = { didSubmitDiaryThree = false })
-    MessageOverlay(visible = didSubmitDiaryTwo, title = stringResource(R.string.patient_diary_one_saved), message = "", onDismiss = { didSubmitDiaryTwo = false })
-    MessageOverlay(visible = didSubmitDiaryOne, title = stringResource(R.string.patient_diary_one_saved), message = "", onDismiss = { didSubmitDiaryOne = false })
+    if (didSubmitDiaryThree) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { didSubmitDiaryThree = false },
+        title = { Text(stringResource(R.string.patient_diary_one_saved)) },
+        text = { Text(stringResource(R.string.patient_shared_help)) },
+        confirmButton = { TextButton(onClick = { didSubmitDiaryThree = false; nav.navigate("diary-three") { launchSingleTop = true } }) { Text(stringResource(R.string.patient_view_entries)) } },
+        dismissButton = { TextButton(onClick = { didSubmitDiaryThree = false; nav.popBackStack("home", false) }) { Text(stringResource(R.string.patient_return_home)) } })
+    if (didSubmitDiaryTwo) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { didSubmitDiaryTwo = false },
+        title = { Text(stringResource(R.string.patient_diary_one_saved)) },
+        text = { Text(stringResource(R.string.patient_shared_help)) },
+        confirmButton = { TextButton(onClick = { didSubmitDiaryTwo = false; nav.navigate("diary-two") { launchSingleTop = true } }) { Text(stringResource(R.string.patient_view_entries)) } },
+        dismissButton = { TextButton(onClick = { didSubmitDiaryTwo = false; nav.popBackStack("home", false) }) { Text(stringResource(R.string.patient_return_home)) } })
+    if (didSubmitDiaryOne) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { didSubmitDiaryOne = false },
+        title = { Text(stringResource(R.string.patient_diary_one_saved)) },
+        text = { Text(stringResource(R.string.patient_shared_help)) },
+        confirmButton = { TextButton(onClick = { didSubmitDiaryOne = false; nav.navigate("diary-one") { launchSingleTop = true } }) { Text(stringResource(R.string.patient_view_entries)) } },
+        dismissButton = { TextButton(onClick = { didSubmitDiaryOne = false; nav.popBackStack("home", false) }) { Text(stringResource(R.string.patient_return_home)) } })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -448,6 +487,9 @@ private fun PatientHomeContent(
     loadState: TasksLoadState,
     assignments: List<PatientAssignment>,
     messages: List<PatientMessage>,
+    patientId: String,
+    lastQuestionnaire: Date?,
+    onResume: (PatientAssignment) -> Unit,
     onOpenSettings: () -> Unit,
     onRefresh: () -> Unit,
     onOpenQuestionnaire: (String) -> Unit,
@@ -459,6 +501,25 @@ private fun PatientHomeContent(
 ) {
     val colors = Theme.colors
     val openAssignments = assignments.filter { if (it.type == PatientAssignmentType.DiaryTwo || it.type == PatientAssignmentType.DiaryThree) it.cancelledAt == null else it.isOpen }
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+    val account = app.authRepository.currentUserId()
+    var draftRevision by remember { mutableStateOf(0) }
+    var resumable by remember(account, patientId) { mutableStateOf<List<PatientAssignment>>(emptyList()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { draftRevision++ }
+    LaunchedEffect(account, patientId, assignments, draftRevision) {
+        resumable = withContext(Dispatchers.IO) {
+            if (account == null) emptyList() else openAssignments.filter { assignment ->
+                val kind = when (assignment.type) {
+                    PatientAssignmentType.Questionnaire -> "questionnaire"
+                    PatientAssignmentType.DiaryOne -> "diary-one"
+                    PatientAssignmentType.DiaryTwo -> "diary-two"
+                    else -> return@filter false
+                }
+                val target = if (assignment.type == PatientAssignmentType.Questionnaire) assignment.id else patientId
+                runCatching { app.formDrafts.read(DeviceFormDraftStore.key(account, kind, target)) != null }.getOrDefault(false)
+            }
+        }
+    }
     val unread = PatientHomeMessages.unread(messages)
     val previews = PatientHomeMessages.previews(messages)
     val remaining = PatientHomeMessages.remainingUnreadCount(messages)
@@ -499,49 +560,18 @@ private fun PatientHomeContent(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     Text(stringResource(R.string.app_title), color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 28.sp)
-                    Text(stringResource(R.string.patient_tasks_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
-                    TaskCard(
-                        stringResource(R.string.patient_questionnaire_card_title),
-                        stringResource(if (openAssignments.any { it.type == PatientAssignmentType.Questionnaire }) R.string.patient_questionnaire_card_body else R.string.patient_questionnaire_inactive_hint),
-                        stringResource(R.string.patient_questionnaire_open),
-                    ) { onOpenQuestionnaire("") }
-                    if (openAssignments.isEmpty()) {
-                        GroupedListCard(accent = colors.gold) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(stringResource(R.string.patient_tasks_empty_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                                Text(stringResource(R.string.patient_tasks_empty_body), color = colors.textBody)
+                    if (resumable.isNotEmpty()) {
+                        Text(stringResource(R.string.patient_attention_title), color = colors.textBright, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                        resumable.forEach { assignment ->
+                            val title = when (assignment.type) {
+                                PatientAssignmentType.DiaryOne -> R.string.patient_diary_one_purpose
+                                PatientAssignmentType.DiaryTwo -> R.string.patient_diary_two_purpose
+                                else -> R.string.patient_questionnaire_card_title
                             }
-                        }
-                    } else {
-                        openAssignments.filter { it.type != PatientAssignmentType.Questionnaire }.forEach { assignment ->
-                            when (assignment.type) {
-                                PatientAssignmentType.Questionnaire -> Unit
-                                PatientAssignmentType.DiaryOne -> TaskCard(
-                                    stringResource(R.string.patient_diary_one_card_title),
-                                    stringResource(R.string.patient_diary_one_card_body),
-                                    stringResource(R.string.patient_diary_one_start),
-                                    stringResource(R.string.patient_diary_one_ongoing_hint),
-                                ) { onOpenDiaryOne() }
-                                PatientAssignmentType.DiaryTwo -> TaskCard(
-                                    stringResource(R.string.diary_two_title),
-                                    stringResource(R.string.patient_diary_two_card_body),
-                                    stringResource(R.string.patient_diary_one_start),
-                                    stringResource(R.string.patient_diary_one_ongoing_hint),
-                                ) { onOpenDiaryTwo() }
-                                PatientAssignmentType.DiaryThree -> TaskCard(
-                                    stringResource(R.string.diary_three_title),
-                                    stringResource(if (PatientAssignmentType.diaryThreeSendingEnabled) R.string.patient_diary_three_card_body else R.string.diary_three_sending_paused),
-                                    stringResource(if (PatientAssignmentType.diaryThreeSendingEnabled) R.string.patient_diary_one_start else R.string.diary_one_my_entries),
-                                    if (PatientAssignmentType.diaryThreeSendingEnabled) stringResource(R.string.patient_diary_one_ongoing_hint) else null,
-                                ) { onOpenDiaryThree() }
-                                null -> TaskCard(
-                                    stringResource(R.string.patient_upcoming_task_title),
-                                    stringResource(R.string.patient_upcoming_task_body),
-                                    null,
-                                ) {}
-                            }
+                            TaskCard(stringResource(title), stringResource(R.string.patient_local_only), stringResource(R.string.patient_resume_action)) { onResume(assignment) }
                         }
                     }
+                    if (unread.isNotEmpty()) {
                     Text(stringResource(R.string.patient_messages_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
                     if (unread.isEmpty()) {
                         IconLabel(stringResource(if (messages.isEmpty()) R.string.patient_messages_empty else R.string.no_new_messages), Icons.Outlined.MailOutline, color = colors.textBody, fontSize = 14.sp)
@@ -576,6 +606,79 @@ private fun PatientHomeContent(
                             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.gold)
                         }
                     }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(stringResource(R.string.patient_available_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
+                        Text(stringResource(R.string.patient_available_help), color = colors.textBody)
+                    }
+                    TaskCard(
+                        stringResource(R.string.patient_questionnaire_card_title),
+                        stringResource(if (openAssignments.any { it.type == PatientAssignmentType.Questionnaire }) R.string.patient_questionnaire_card_body else R.string.patient_questionnaire_inactive_hint),
+                        stringResource(if (openAssignments.any { it.type == PatientAssignmentType.Questionnaire }) R.string.patient_questionnaire_open else R.string.patient_questionnaire_history_action),
+                        lastQuestionnaire?.let { stringResource(R.string.patient_last_questionnaire, hebrewDate(it)) },
+                        available = openAssignments.any { it.type == PatientAssignmentType.Questionnaire },
+                    ) { onOpenQuestionnaire("") }
+                    listOf(PatientAssignmentType.DiaryOne, PatientAssignmentType.DiaryTwo).forEach { type ->
+                        val active = openAssignments.any { it.type == type }
+                        val diaryOne = type == PatientAssignmentType.DiaryOne
+                        TaskCard(
+                            stringResource(if (diaryOne) R.string.patient_diary_one_purpose else R.string.patient_diary_two_purpose),
+                            stringResource(if (diaryOne) R.string.diary_one_title else R.string.diary_two_title) + "\n" +
+                                stringResource(if (!active) R.string.patient_tool_activation_help else if (diaryOne) R.string.patient_diary_one_card_body else R.string.patient_diary_two_card_body),
+                            action = stringResource(if (active) R.string.patient_diary_one_start else R.string.diary_one_my_entries),
+                            hint = if (active) stringResource(R.string.patient_diary_one_ongoing_hint) else null,
+                            available = active,
+                        ) { if (diaryOne) onOpenDiaryOne() else onOpenDiaryTwo() }
+                    }
+                    run {
+                        val active = PatientAssignmentType.diaryThreeSendingEnabled && openAssignments.any { it.type == PatientAssignmentType.DiaryThree }
+                        TaskCard(
+                            stringResource(R.string.diary_three_title),
+                            stringResource(if (PatientAssignmentType.diaryThreeSendingEnabled) R.string.patient_diary_three_card_body else R.string.diary_three_sending_paused),
+                            stringResource(if (active) R.string.patient_diary_one_start else R.string.diary_one_my_entries),
+                            available = active,
+                        ) { onOpenDiaryThree() }
+                    }
+                    if (openAssignments.any { it.type == null }) {
+                        TaskCard(stringResource(R.string.patient_upcoming_task_title),
+                            stringResource(R.string.patient_upcoming_task_body), null) {}
+                    }
+                    if (unread.isEmpty()) {
+                    Text(stringResource(R.string.patient_messages_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
+                    if (unread.isEmpty()) {
+                        IconLabel(stringResource(if (messages.isEmpty()) R.string.patient_messages_empty else R.string.no_new_messages), Icons.Outlined.MailOutline, color = colors.textBody, fontSize = 14.sp)
+                    } else {
+                        previews.forEach { message ->
+                            GroupedListCard(accent = colors.gold) {
+                                Column(Modifier.fillMaxWidth().clickable { onOpenMessage(message.id) }.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(message.body, color = colors.textBright, fontWeight = FontWeight.SemiBold, maxLines = 3, modifier = Modifier.weight(1f))
+                                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
+                                    }
+                                    Text(hebrewDateTime(message.createdAt), color = colors.textFaint, fontSize = 13.sp)
+                                }
+                            }
+                        }
+                        if (remaining > 0) {
+                            Text(
+                                if (remaining == 1) stringResource(R.string.more_unread_messages_one)
+                                else stringResource(R.string.more_unread_messages, remaining),
+                                color = colors.gold,
+                                modifier = Modifier.clickable(onClick = onOpenAllMessages),
+                            )
+                        }
+                    }
+                    if (messages.isNotEmpty()) {
+                        TextButton(onClick = onOpenAllMessages) {
+                            Text(
+                                if (unread.isEmpty()) stringResource(R.string.all_messages_action)
+                                else stringResource(R.string.all_messages_action_with_count, unread.size),
+                                color = colors.gold,
+                            )
+                            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.gold)
+                        }
+                    }
+                    }
                 }
             }
         }
@@ -583,14 +686,22 @@ private fun PatientHomeContent(
 }
 
 @Composable
-private fun TaskCard(title: String, body: String, action: String?, hint: String? = null, onStart: () -> Unit) {
+private fun TaskCard(title: String, body: String, action: String?, hint: String? = null, available: Boolean? = null, onStart: () -> Unit) {
     val colors = Theme.colors
     GroupedListCard(accent = colors.gold) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+            available?.let {
+                IconLabel(stringResource(if (it) R.string.patient_tool_enabled else R.string.patient_tool_disabled),
+                    if (it) Icons.Outlined.CheckCircle else Icons.Outlined.Lock,
+                    color = if (it) colors.textBright else colors.textBody, fontSize = 14.sp)
+            }
             Text(body, color = colors.textBody)
             hint?.let { Text(it, color = colors.textFaint, fontSize = 13.sp) }
-            if (action != null) GoldActionButton(action, onStart)
+            if (action != null) {
+                if (available == false) TextButton(onClick = onStart) { Text(action, color = colors.gold) }
+                else GoldActionButton(action, onStart)
+            }
         }
     }
 }

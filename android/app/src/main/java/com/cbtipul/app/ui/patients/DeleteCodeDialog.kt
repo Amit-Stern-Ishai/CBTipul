@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.foundation.layout.imePadding
+import com.cbtipul.app.ui.theme.editorScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.cbtipul.app.ui.theme.editorFocus
@@ -192,7 +194,7 @@ fun AppDialogOverlay(
 ) {
     val colors = Theme.colors
     BackHandler(enabled = dismissOnBack, onBack = onDismiss)
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().imePadding()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -208,7 +210,7 @@ fun AppDialogOverlay(
             color = colors.elevated,
         ) {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
+                modifier = Modifier.editorScroll().padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 content = content,
             )

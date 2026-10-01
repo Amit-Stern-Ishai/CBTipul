@@ -70,6 +70,9 @@ struct SessionAnalysisView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
+                    if requiresSaveDecision {
+                        Text(L10n.sessionDraftReviewHint).font(.subheadline).foregroundStyle(.secondary)
+                    }
                     TextField(L10n.sessionSummaryPlaceholder, text: $edited.sessionSummary, axis: .vertical)
                         .font(.body)
                         .lineSpacing(4)
@@ -146,34 +149,46 @@ struct SessionAnalysisView: View {
             .patientAtmosphere(accent)
             .background(Theme.base)
             .demoModeChrome()
-            .navigationTitle(L10n.sessionSummaryTitle)
+            .navigationTitle(requiresSaveDecision ? L10n.sessionAIDraftTitle : L10n.sessionSummaryTitle)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
-                        if needsSaveDecision {
+                        if requiresSaveDecision {
+                            dismiss()
+                        } else if needsSaveDecision {
                             isShowingSaveAsk = true
                         } else {
                             dismiss()
                         }
                     } label: {
-                        Label(L10n.back, systemImage: "chevron.backward")
+                        Label(requiresSaveDecision ? L10n.sessionReturnToNotes : L10n.back, systemImage: "chevron.backward")
                             .labelStyle(.titleAndIcon)
                     }
                 }
                 // No Save when just viewing an already-saved summary; it
                 // appears for fresh results and the moment anything is edited.
-                if needsSaveDecision {
+                if needsSaveDecision && !requiresSaveDecision {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(L10n.save) {
+                        Button(requiresSaveDecision ? L10n.sessionAcceptDraft : L10n.done) {
                             onSave?(edited)
                             dismiss()
                         }
                     }
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                if requiresSaveDecision {
+                    VStack(spacing: 8) {
+                        Button { onSave?(edited); dismiss() } label: {
+                            Text(L10n.sessionUseDraft).frame(maxWidth: .infinity, minHeight: 30)
+                        }.buttonStyle(.borderedProminent)
+                        Button(L10n.sessionReturnToNotes) { dismiss() }.font(.subheadline)
+                    }.padding().background(.regularMaterial)
+                }
+            }
             .alert(L10n.saveSummaryPrompt,
                    isPresented: $isShowingSaveAsk) {
-                Button(L10n.save) {
+                Button(requiresSaveDecision ? L10n.sessionAcceptDraft : L10n.done) {
                     onSave?(edited)
                     dismiss()
                 }

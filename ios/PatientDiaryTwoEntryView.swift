@@ -32,6 +32,7 @@ struct PatientDiaryTwoEntryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                PatientDiaryGuide(isDiaryTwo: true)
                 DeviceDraftFeedback(message: deviceDraft.feedback, isError: deviceDraft.hasError)
                 DiaryTwoDraftFields(
                 draft: $draft,

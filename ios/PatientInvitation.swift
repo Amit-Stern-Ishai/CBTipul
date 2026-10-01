@@ -166,7 +166,9 @@ final class InvitationShareActivityItem: NSObject, UIActivityItemSource {
         _ activityViewController: UIActivityViewController,
         itemForActivityType activityType: UIActivity.ActivityType?
     ) -> Any? {
-        activityType == .mail ? (htmlBody ?? body) : body
+        // Gmail's iOS extension can discard HTML data and open an empty body.
+        // Keep a String payload for third-party targets, matching the placeholder.
+        return activityType == .mail ? (htmlBody ?? body) : body
     }
 
     func activityViewController(

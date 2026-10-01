@@ -55,6 +55,7 @@ private enum class DiaryHubLoadState { Loading, Loaded, Failed }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PatientDiaryOneHubScreen(
+    active: Boolean,
     loadEntries: suspend () -> List<DiaryOneEntry>,
     onAddEntry: () -> Unit,
     onOpenEntry: (DiaryOneEntry) -> Unit,
@@ -104,6 +105,7 @@ fun PatientDiaryOneHubScreen(
                     Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
                         Button(
                             onClick = onAddEntry,
+                            enabled = active,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colors.accentFill,
@@ -148,6 +150,7 @@ fun PatientDiaryOneHubScreen(
                     .padding(top = 12.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                if (!active) Text(stringResource(R.string.patient_diary_one_not_active), color = colors.textBody)
                 Text(
                     stringResource(R.string.diary_one_my_entries),
                     color = colors.textBright,

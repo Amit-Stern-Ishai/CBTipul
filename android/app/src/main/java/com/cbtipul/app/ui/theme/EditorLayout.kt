@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun Modifier.editorScroll(state: ScrollState = rememberScrollState()): Modifier {
     val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    return verticalScroll(state).padding(bottom = if (keyboardOpen) 96.dp else 0.dp)
+    return dismissKeyboardOnTap().verticalScroll(state).padding(bottom = if (keyboardOpen) 96.dp else 0.dp)
 }
 
 /** Request room for the field and its context, rather than just its bottom cursor. */
@@ -40,8 +40,11 @@ fun Modifier.editorFocus(): Modifier {
     val clearance = with(density) { 80.dp.toPx() }
     var focused by remember { mutableStateOf(false) }
     var size by remember { mutableStateOf(IntSize.Zero) }
-    LaunchedEffect(focused, keyboardBottom, size) {
-        if (focused && keyboardBottom > 0 && size.height > 0) {
+    // Do not restart on every IME animation frame or field resize: doing so
+    // can pull the scroll position back while the user is scrolling away.
+    val keyboardOpen = keyboardBottom > 0
+    LaunchedEffect(focused, keyboardOpen) {
+        if (focused && keyboardOpen && size.height > 0) {
             requester.bringIntoView(Rect(0f, 0f, size.width.toFloat(), size.height + clearance))
         }
     }

@@ -20,6 +20,15 @@ class SessionEditorDraft(val initial: Session) {
     var notes by mutableStateOf(initial.notes)
     var type by mutableStateOf(initial.type)
     var structuredNotes by mutableStateOf(initial.structuredNotes)
+    var acceptedAnalysisSource by mutableStateOf(initial.notes)
+    var generatedAnalysisSource: String? = null
+    val canGenerateAnalysis: Boolean
+        get() = notes.isNotBlank() && (structuredNotes == null || notes != acceptedAnalysisSource)
+
+    fun acceptAnalysis(analysis: com.cbtipul.app.model.CBTSessionAnalysis, generated: Boolean) {
+        if (generated) generatedAnalysisSource?.let { acceptedAnalysisSource = it }
+        structuredNotes = analysis
+    }
     var baselineDate by mutableStateOf(initial.date)
     var baselineNotes by mutableStateOf(initial.notes)
     var baselineType by mutableStateOf(initial.type)

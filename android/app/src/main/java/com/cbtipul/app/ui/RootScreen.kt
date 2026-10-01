@@ -197,7 +197,9 @@ fun RootScreen() {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val versionState by app.appVersion.state.collectAsStateWithLifecycle()
+    androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.weight(1f)) {
         when {
             recovering && !invitationActive -> {
                 NewPasswordSheet(
@@ -601,4 +603,11 @@ fun RootScreen() {
             )
         }
     }
+    if (versionState.optionalVisible && !invitationActive && !recovering && !consentPrompt &&
+        !showSettings && !showPatientSettings && !showWelcome && !reviewIntroduction &&
+        (pushRegistrationContext != null || session is AuthSession.SignedOut)) {
+        AppUpdateNotice(app.appVersion, required = false)
+    }
+    }
+
 }

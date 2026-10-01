@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
                 // Own and consume system-bar, cutout and keyboard insets once.
                 // Nested Scaffolds then measure their bars inside this safe viewport.
                 Box(Modifier.fillMaxSize().background(Theme.colors.base).safeDrawingPadding()) {
-                    RootScreen()
+                    com.cbtipul.app.ui.AppVersionGate((application as CbTipulApp).appVersion) { RootScreen() }
                 }
             }
         }

@@ -136,7 +136,7 @@ struct PatientSessionsView: View {
         .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()
         .demoModeChrome()
-        .navigationTitleWithSubtitle(L10n.sessionsTitle, subtitle: patient.displayName)
+        .navigationTitleWithSubtitle(L10n.sessionsTitle, subtitle: patient.displayName, patient: patient)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

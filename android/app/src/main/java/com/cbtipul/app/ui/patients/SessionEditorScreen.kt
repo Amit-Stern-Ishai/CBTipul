@@ -9,11 +9,23 @@ import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.filled.StopCircle
 import com.cbtipul.app.ui.theme.IconLabel
 import com.cbtipul.app.ui.theme.editorScroll
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material3.HorizontalDivider
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -161,6 +173,8 @@ fun SessionEditorScreen(
     var notes by editorDraft::notes
     var type by editorDraft::type
     var structuredNotes by editorDraft::structuredNotes
+    var showingNotesEditor by remember { mutableStateOf(false) }
+    var showingSummaryMenu by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var typeExpanded by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
@@ -263,6 +277,53 @@ fun SessionEditorScreen(
             requestingRecording = true
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
+    }
+
+    if (showingNotesEditor) {
+        // Use the activity's already-safe viewport; a separate dialog window
+        // does not share its keyboard inset handling.
+        BackHandler { showingNotesEditor = false }
+        run {
+            val editorFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { editorFocus.requestFocus() }
+            Scaffold(modifier = Modifier.fillMaxSize().dismissKeyboardOnTap(), containerColor = colors.surface,
+                topBar = {
+                    TopAppBar(title = { Text(stringResource(R.string.session_summary_section), color = colors.textBright) },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.surface),
+                        actions = {
+                            TextButton(onClick = { showingNotesEditor = false }) {
+                                Text(stringResource(R.string.done), color = colors.gold, fontWeight = FontWeight.SemiBold)
+                            }
+                        })
+                }) { padding ->
+                Column(Modifier.fillMaxSize().padding(padding).editorScroll()) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(displayName, color = colors.textBody, fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                        Text(hebrewDate(date), color = colors.textBody, fontSize = 12.sp)
+                    }
+                    HorizontalDivider(color = colors.borderFaint)
+                    BasicTextField(value = notes, onValueChange = { notes = it },
+                        textStyle = TextStyle(color = colors.textBright, fontSize = 18.sp, lineHeight = 28.sp, textAlign = TextAlign.Start),
+                        cursorBrush = SolidColor(colors.gold),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 240.dp)
+                            .padding(horizontal = 24.dp, vertical = 20.dp)
+                            .focusRequester(editorFocus),
+                        decorationBox = { input ->
+                            Box(Modifier.fillMaxWidth()) {
+                                if (notes.isEmpty()) Text(stringResource(R.string.session_summary_field_placeholder),
+                                    color = colors.textFaint, fontSize = 18.sp, lineHeight = 28.sp)
+                                input()
+                            }
+                        })
+                    Text(stringResource(R.string.session_notes_save_help), color = colors.textBody,
+                        fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
+                }
+            }
+        }
+        return
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -386,17 +447,21 @@ fun SessionEditorScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, top = 14.dp, end = 8.dp, bottom = 14.dp),
+                        .padding(16.dp),
                 ) {
-                    NotesField(
-                        value = notes,
-                        onValueChange = { notes = it },
-                        placeholder = stringResource(R.string.session_summary_field_placeholder),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .tutorialPulse(gettingStarted?.shouldPulse(TutorialHighlight.RecordNotes) == true),
-                        enabled = !busy,
-                    )
+                    Column(Modifier.fillMaxWidth().clickable(enabled = !busy) { showingNotesEditor = true }) {
+                        Text(notes.ifEmpty { stringResource(R.string.session_summary_field_placeholder) },
+                            color = if (notes.isEmpty()) colors.textBody else colors.textBright,
+                            maxLines = 6, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
+                                .background(colors.base, RoundedCornerShape(12.dp))
+                                .border(1.dp, colors.borderFaint, RoundedCornerShape(12.dp))
+                                .padding(16.dp).heightIn(min = 88.dp))
+                        TextButton(onClick = { showingNotesEditor = true }, enabled = !busy) {
+                            IconLabel(stringResource(if (notes.isEmpty()) R.string.session_write_notes else R.string.session_read_notes), Icons.Outlined.EditNote)
+                        }
+                    }
+                    GroupedListDivider()
                     if (recorder.isRecording) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
@@ -456,67 +521,47 @@ fun SessionEditorScreen(
                         )
                     }
                 }
+                if (editorDraft.canGenerateAnalysis) {
+                    GroupedListDivider()
+                    Row(Modifier.fillMaxWidth().clickable(enabled = !busy && recorder.recordingFile == null) {
+                        onAnalyze(currentSession(), { notes = it }, { structuredNotes = it })
+                    }.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (isAnalyzing) {
+                            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                            Text(stringResource(R.string.analyzing_label), color = colors.textBody)
+                        } else {
+                            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = colors.gold)
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(stringResource(R.string.ai_summary_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.session_ai_hint), color = colors.textBody, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
                 recorder.errorMessage?.let {
                     GroupedListDivider()
                     Text(it, color = colors.error, modifier = Modifier.padding(16.dp))
                 }
             }
-            Text(stringResource(R.string.session_recording_help), color = colors.textBody)
-            Text(stringResource(R.string.session_optional_ai), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-            Text(stringResource(R.string.session_ai_help), color = colors.textBody)
-            GroupedListCard(accent = accent) {
-                if (isAnalyzing) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
-                        Text(stringResource(R.string.analyzing_label), color = colors.textBody)
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .tutorialPulse(gettingStarted?.shouldPulse(TutorialHighlight.AiSummary) == true)
-                            .clickable(
-                                enabled = !busy && recorder.recordingFile == null && hasText,
-                                onClick = {
-                                    onAnalyze(currentSession(), { notes = it }, { structuredNotes = it })
-                                },
-                            )
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(colors.goldGhost, RoundedCornerShape(7.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
-                        }
-                        Text(
-                            stringResource(R.string.ai_summary_action),
-                            color = if (!busy && recorder.recordingFile == null && hasText) colors.gold else colors.textFaint,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-            }
-
             structuredNotes?.let { analysis ->
                 Text(stringResource(R.string.structured_summary_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                 GroupedListCard(accent = accent) {
-                    NotesField(
-                        value = analysis.sessionSummary,
-                        onValueChange = {},
-                        placeholder = "",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        enabled = !busy,
-                        readOnly = true,
-                    )
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    Text(analysis.sessionSummary, color = colors.textBright, maxLines = 6,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).clickable(enabled = !busy, onClick = onOpenAnalysis).padding(16.dp))
+                    Box {
+                        IconButton(onClick = { showingSummaryMenu = true }, enabled = !busy) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.session_regenerate))
+                        }
+                        DropdownMenu(expanded = showingSummaryMenu, onDismissRequest = { showingSummaryMenu = false }) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.session_regenerate)) },
+                                enabled = !busy && hasText && recorder.recordingFile == null,
+                                onClick = { showingSummaryMenu = false; onAnalyze(currentSession(), { notes = it }, { structuredNotes = it }) })
+                        }
+                    }
+                    }
                     GroupedListDivider()
                     Row(
                         modifier = Modifier
@@ -535,7 +580,7 @@ fun SessionEditorScreen(
                             Icon(Icons.Outlined.FindInPage, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
                         }
                         Text(
-                            stringResource(R.string.show_structured_summary_action),
+                            stringResource(R.string.session_view_edit_summary),
                             color = colors.gold,
                             fontWeight = FontWeight.SemiBold,
                         )

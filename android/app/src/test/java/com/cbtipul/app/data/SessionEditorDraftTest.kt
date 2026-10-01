@@ -9,6 +9,25 @@ import org.junit.Test
 import java.util.Date
 
 class SessionEditorDraftTest {
+    @Test fun editingNotesAllowsRegenerationUntilUpdatedDraftIsAccepted() {
+        val original = CBTSessionAnalysis(sessionSummary = "Original summary")
+        val draft = SessionEditorViewModel().getOrCreate(Session(notes = "Original notes", structuredNotes = original))
+        assertFalse(draft.canGenerateAnalysis)
+        draft.notes = "Updated notes"
+        assertTrue(draft.canGenerateAnalysis)
+        draft.generatedAnalysisSource = draft.notes
+        // Merely generating or leaving review does not replace the accepted summary.
+        assertEquals(original, draft.structuredNotes)
+        assertTrue(draft.canGenerateAnalysis)
+        draft.acceptAnalysis(CBTSessionAnalysis(sessionSummary = "Updated summary"), generated = true)
+        assertFalse(draft.canGenerateAnalysis)
+        draft.notes = "Another edit"
+        draft.markSaved(draft.snapshot())
+        assertTrue(draft.canGenerateAnalysis)
+        draft.notes = ""
+        assertFalse(draft.canGenerateAnalysis)
+    }
+
     @Test fun returningFromDiscardedAiSummaryKeepsTranscriptionAndSessionDetails() {
         val owner = SessionEditorViewModel()
         val original = Session()
