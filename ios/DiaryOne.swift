@@ -191,6 +191,7 @@ final class DiaryOneStore {
         behaviour: String,
         physicalSymptoms: String?
     ) async throws -> DiaryOneEntry {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
         let symptoms = Self.nullIfEmpty(physicalSymptoms)
         if DemoData.isDemoID(patientId) {
             let entry = DiaryOneEntry(
@@ -250,6 +251,8 @@ final class DiaryOneStore {
         behaviour: String,
         physicalSymptoms: String?
     ) async throws -> DiaryOneEntry {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
+        guard !entries(for: patientId).contains(where: { $0.id == id && $0.createdBy == .patient }) else { throw PatientStoreError.updateRejected }
         let symptoms = Self.nullIfEmpty(physicalSymptoms)
         if DemoData.isDemoID(patientId) {
             guard var entry = cached(for: patientId).first(where: { $0.id == id }) else {
@@ -278,6 +281,7 @@ final class DiaryOneStore {
                     )
                 )
                 .eq("id", value: id)
+                .eq("created_by", value: "therapist")
                 .select(diaryOneSelectColumns)
                 .single()
                 .execute()
@@ -294,6 +298,8 @@ final class DiaryOneStore {
     }
 
     func deleteEntry(id: UUID, patientId: DatabaseID) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
+        guard !entries(for: patientId).contains(where: { $0.id == id && $0.createdBy == .patient }) else { throw PatientStoreError.updateRejected }
         if DemoData.isDemoID(patientId) {
             var list = cached(for: patientId)
             list.removeAll { $0.id == id }
@@ -305,6 +311,7 @@ final class DiaryOneStore {
             let deleted: [DeletedDiaryOneRow] = try await client.from("diary_one_entries")
                 .delete()
                 .eq("id", value: id)
+                .eq("created_by", value: "therapist")
                 .select("id")
                 .execute()
                 .value

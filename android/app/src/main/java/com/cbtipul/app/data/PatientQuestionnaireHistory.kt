@@ -26,7 +26,7 @@ internal data class PatientQuestionnaireHistoryRow(
         else PatientAssignmentRepository.parseAssignmentTimestamp(answeredDate),
         CombinedMoodQuestionnaire(
             gad7Answers = List(7) { gad7Answers.getOrNull(it) },
-            phq9Answers = List(9) { phq9Answers.getOrNull(it) }, interferenceLevel = interferenceLevel))
+            phq9Answers = List(9) { phq9Answers.getOrNull(it) }, interferenceLevel = interferenceLevel), createdBy = "patient")
 }
 
 class PatientQuestionnaireHistoryRepository(private val client: SupabaseClient) {

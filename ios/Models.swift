@@ -326,5 +326,8 @@ struct CompletedQuestionnaire: Identifiable, Codable {
     let answeredDate: Date
     let questionnaire: CombinedMoodQuestionnaire
 
+    var createdBy: String? = "therapist"
+    var isPatientSubmitted: Bool { createdBy == "patient" }
+
     var id: DatabaseID { databaseID }
 }

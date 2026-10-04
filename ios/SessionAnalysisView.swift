@@ -73,7 +73,7 @@ struct SessionAnalysisView: View {
                     if requiresSaveDecision {
                         Text(L10n.sessionDraftReviewHint).font(.subheadline).foregroundStyle(.secondary)
                     }
-                    TextField(L10n.sessionSummaryPlaceholder, text: $edited.sessionSummary, axis: .vertical)
+                    TextField(L10n.sessionSummaryPlaceholder, text: $edited.sessionSummary, axis: .vertical).entitlementWriteControl()
                         .font(.body)
                         .lineSpacing(4)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -169,8 +169,8 @@ struct SessionAnalysisView: View {
                 // appears for fresh results and the moment anything is edited.
                 if needsSaveDecision && !requiresSaveDecision {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(requiresSaveDecision ? L10n.sessionAcceptDraft : L10n.done) {
-                            onSave?(edited)
+                        Button(requiresSaveDecision ? L10n.sessionAcceptDraft : L10n.saveChangesAction) {
+                            if EntitlementState.shared.allowMutation() { onSave?(edited) }
                             dismiss()
                         }
                     }
@@ -179,7 +179,7 @@ struct SessionAnalysisView: View {
             .safeAreaInset(edge: .bottom) {
                 if requiresSaveDecision {
                     VStack(spacing: 8) {
-                        Button { onSave?(edited); dismiss() } label: {
+                        Button { if EntitlementState.shared.allowMutation() { onSave?(edited) }; dismiss() } label: {
                             Text(L10n.sessionUseDraft).frame(maxWidth: .infinity, minHeight: 30)
                         }.buttonStyle(.borderedProminent)
                         Button(L10n.sessionReturnToNotes) { dismiss() }.font(.subheadline)
@@ -188,8 +188,8 @@ struct SessionAnalysisView: View {
             }
             .alert(L10n.saveSummaryPrompt,
                    isPresented: $isShowingSaveAsk) {
-                Button(requiresSaveDecision ? L10n.sessionAcceptDraft : L10n.done) {
-                    onSave?(edited)
+                Button(requiresSaveDecision ? L10n.sessionAcceptDraft : L10n.saveChangesAction) {
+                    if EntitlementState.shared.allowMutation() { onSave?(edited) }
                     dismiss()
                 }
                 Button(L10n.dontSaveAction, role: .destructive) { dismiss() }
@@ -207,7 +207,7 @@ struct SessionAnalysisView: View {
         VStack(alignment: .leading, spacing: 10) {
             sourceBadge(for: edited.possibleNats[index].source)
 
-            TextField(L10n.thoughtLabel, text: $edited.possibleNats[index].thought, axis: .vertical)
+            TextField(L10n.thoughtLabel, text: $edited.possibleNats[index].thought, axis: .vertical).entitlementWriteControl()
                 .font(.body.weight(.semibold).italic())
 
             Divider()
@@ -350,7 +350,7 @@ struct SessionAnalysisView: View {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            TextField(title, text: text, axis: .vertical)
+            TextField(title, text: text, axis: .vertical).entitlementWriteControl()
                 .font(.subheadline)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -447,7 +447,7 @@ struct SessionAnalysisView: View {
                     .foregroundStyle(.secondary)
                 TextField(L10n.questionPlaceholder,
                           text: $edited.followUpQuestions[index].question,
-                          axis: .vertical)
+                          axis: .vertical).entitlementWriteControl()
                     .font(.headline)
             }
 
@@ -457,7 +457,7 @@ struct SessionAnalysisView: View {
                     .foregroundStyle(.secondary)
                 TextField(L10n.reasonPlaceholder,
                           text: $edited.followUpQuestions[index].reason,
-                          axis: .vertical)
+                          axis: .vertical).entitlementWriteControl()
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -500,6 +500,7 @@ struct SessionAnalysisView: View {
                             index: Int, color: Color) -> some View {
         let isSelected = edited.followUpQuestions[index].status == status
         return Button {
+            guard EntitlementState.shared.allowMutation() else { return }
             edited.followUpQuestions[index].status = isSelected ? nil : status
         } label: {
             Label(title, systemImage: systemImage)
@@ -516,9 +517,9 @@ struct SessionAnalysisView: View {
 
     private func keySituationCard(index: Int) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            TextField(L10n.situationLabel, text: $edited.keySituations[index].situation, axis: .vertical)
+            TextField(L10n.situationLabel, text: $edited.keySituations[index].situation, axis: .vertical).entitlementWriteControl()
                 .font(.headline)
-            TextField(L10n.whyItMattersLabel, text: $edited.keySituations[index].whyItMatters, axis: .vertical)
+            TextField(L10n.whyItMattersLabel, text: $edited.keySituations[index].whyItMatters, axis: .vertical).entitlementWriteControl()
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

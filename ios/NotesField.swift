@@ -6,6 +6,7 @@ import UIKit
 /// so this wraps `UITextView`. Editing behaves like any text view — the
 /// cursor lands wherever the user taps.
 struct NotesField: UIViewRepresentable {
+    @State private var entitlement = EntitlementState.shared
     @Binding var text: String
     let placeholder: String
     var minLines: Int = 3
@@ -32,7 +33,7 @@ struct NotesField: UIViewRepresentable {
     func makeUIView(context: Context) -> UITextView {
         let view = UITextView()
         view.delegate = context.coordinator
-        view.isEditable = isEditable
+        view.isEditable = isEditable && entitlement.canWrite
         // The app is globally right-to-left (see AppTextSizeModifier); UIKit
         // views don't pick that up from the SwiftUI environment.
         view.semanticContentAttribute = .forceRightToLeft
@@ -62,9 +63,9 @@ struct NotesField: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        if uiView.isEditable != isEditable {
-            if !isEditable { uiView.resignFirstResponder() }
-            uiView.isEditable = isEditable
+        if uiView.isEditable != (isEditable && entitlement.canWrite) {
+            if !isEditable || !entitlement.canWrite { uiView.resignFirstResponder() }
+            uiView.isEditable = isEditable && entitlement.canWrite
         }
         let label = context.coordinator.placeholderLabel
         if uiView.font != font {

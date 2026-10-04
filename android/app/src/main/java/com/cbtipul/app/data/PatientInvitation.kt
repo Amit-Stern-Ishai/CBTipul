@@ -68,6 +68,7 @@ sealed class PatientInvitationClaimError : Exception() {
 
 class PatientInvitationService(private val client: SupabaseClient) {
     suspend fun createPatientInvitation(patientId: String, kind: InvitationKind = InvitationKind.Initial): PatientInvitation {
+        Entitlements.requireWrite()
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
         val payload = encodeCreateRequest(patientId, kind)
         try {
@@ -177,7 +178,7 @@ object PatientInvitationShare {
     fun message(therapistName: String, invitationUrl: String): String =
         "היי,\n\n" +
             "$therapistName הזמין/ה אותך להתחבר ל-CBTipul.\n\n" +
-            "דרך האפליקציה ניתן למלא שאלונים ויומנים ולצפות בתכנים שנשלחו אליך כחלק מהטיפול.\n\n" +
+            "דרך האפליקציה ניתן למלא שאלוני מצב רוח ויומני מחשבות ולצפות בתכנים שנשלחו אליך כחלק מהטיפול.\n\n" +
             "לפתיחת ההזמנה:\n" +
             "$invitationUrl\n\n" +
             "ההזמנה אישית ומיועדת עבורך בלבד."

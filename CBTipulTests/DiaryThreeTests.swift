@@ -97,6 +97,8 @@ struct DiaryThreeTests {
         }
     }
     @Test func therapistCRUDSortsPreservesSourceAndDoesNotChangeAssignments() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let store = DiaryThreeStore(client: SupabaseClient(supabaseURL: URL(string: "https://example.invalid")!, supabaseKey: "test"))
         let patient = DatabaseID.text("demo-diary-three")
         let e = try entry()
@@ -116,6 +118,8 @@ struct DiaryThreeTests {
             options: .init(global: .init(session: URLSession(configuration: config))))
     }
     @Test func actualActivationRequestsOnlyConnectionRPCAndDiaryThreeEdge() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let service = PatientAssignmentService(client: client())
         for created in [true, false] {
             DiaryThreeHTTPStub.reset(body: Data("""
@@ -129,6 +133,8 @@ struct DiaryThreeTests {
         }
     }
     @Test func cancellationPreservesHistoryAndEntryEditDeleteNeverMutateAssignment() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let client = client()
         let store = DiaryThreeStore(client: client)
         let service = PatientAssignmentService(client: client)

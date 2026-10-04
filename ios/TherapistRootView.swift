@@ -96,16 +96,16 @@ struct TherapistRootView: View {
         .onChange(of: coordinator.pendingRevision) { _, _ in
             coordinator.processPending(patients: store.patients)
         }
-        .task(id: coordinator.selectedTab) {
+        .task(id: "\(coordinator.selectedTab)-\(coordinator.isInboxShowingDetail)") {
             guard NotificationInboxSeenPolicy.shouldMarkSeen(
-                isInboxVisible: coordinator.selectedTab == .notifications,
+                isInboxVisible: coordinator.selectedTab == .notifications && !coordinator.isInboxShowingDetail,
                 unseenCount: notificationStore.unseenCount
             ) else { return }
             await notificationStore.markInboxSeen()
         }
         .onChange(of: notificationStore.unseenCount) { _, count in
             guard NotificationInboxSeenPolicy.shouldMarkSeen(
-                isInboxVisible: coordinator.selectedTab == .notifications,
+                isInboxVisible: coordinator.selectedTab == .notifications && !coordinator.isInboxShowingDetail,
                 unseenCount: count
             ) else { return }
             Task { await notificationStore.markInboxSeen() }

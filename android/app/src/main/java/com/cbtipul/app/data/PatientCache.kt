@@ -158,6 +158,7 @@ private data class PatientsCacheSnapshot(
 
 @Serializable
 private data class CachedQuestionnaire(
+    val createdBy: String? = null,
     val databaseID: DatabaseId,
     val sessionID: DatabaseId? = null,
     val answeredMillis: Long,
@@ -169,6 +170,7 @@ private data class CachedQuestionnaire(
     val interferenceNote: String = "",
 ) {
     fun toCompleted() = CompletedQuestionnaire(
+        createdBy = createdBy,
         databaseId = databaseID,
         sessionId = sessionID,
         answeredDate = Date(answeredMillis),
@@ -184,6 +186,7 @@ private data class CachedQuestionnaire(
 
     companion object {
         fun from(record: CompletedQuestionnaire) = CachedQuestionnaire(
+            createdBy = record.createdBy,
             databaseID = record.databaseId,
             sessionID = record.sessionId,
             answeredMillis = record.answeredDate.time,

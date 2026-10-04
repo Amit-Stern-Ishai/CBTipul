@@ -380,6 +380,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
+        if notification.request.trigger is UNPushNotificationTrigger {
+            await MainActor.run { NotificationCenter.default.post(name: .patientModePushReceived, object: nil) }
+        }
         let original = notification.request.content
         // APNs sets `aps.badge` while backgrounded/terminated. Foreground
         // presentation must not apply that badge: the in-app icon follows
@@ -411,6 +414,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
+        await MainActor.run { NotificationCenter.default.post(name: .patientModePushReceived, object: nil) }
         let userInfo = response.notification.request.content.userInfo
         if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             await MainActor.run {
@@ -423,4 +427,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
         await NotificationStore.shared?.refresh()
     }
+}
+
+extension Notification.Name {
+    static let patientModePushReceived = Notification.Name("cbtipul.patientModePushReceived")
 }

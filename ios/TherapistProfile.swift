@@ -98,6 +98,7 @@ final class TherapistProfileService {
     /// Inserts or updates `display_name` for the signed-in therapist.
     /// Empty/whitespace-only names are rejected and not written.
     func saveDisplayName(_ raw: String) async throws -> TherapistProfile {
+        try await EntitlementState.shared.requireWrite()
         try ensureConfigured()
         let trimmed = TherapistProfile.normalized(raw)
         guard TherapistProfile.isValid(trimmed) else {

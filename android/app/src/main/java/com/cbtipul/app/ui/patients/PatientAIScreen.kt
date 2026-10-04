@@ -155,6 +155,7 @@ fun PatientAIScreen(
     }
 
     fun send(question: String) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation(allowLocalDemo = false)) return
         val trimmed = question.trim()
         if (trimmed.isEmpty() || isLoading) return
         prompt = ""
@@ -348,15 +349,13 @@ fun PatientAIScreen(
                             fontSize = 16.sp,
                         )
                     }
-                    BasicTextField(
-                        value = prompt,
+                    BasicTextField(value = prompt,
                         onValueChange = { prompt = it },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         textStyle = TextStyle(color = colors.textBright, fontSize = 16.sp),
                         cursorBrush = SolidColor(colors.gold),
-                        maxLines = 5,
-                    )
+                        maxLines = 5, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
                 }
                 IconButton(
                     onClick = { send(prompt) },

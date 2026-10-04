@@ -30,9 +30,11 @@ class AiService(
     private val consent: AiConsentStore,
 ) {
     suspend fun analyzeSession(notes: String): CBTSessionAnalysis {
+        Entitlements.requireWrite()
         val trimmed = notes.trim()
         if (trimmed.isEmpty()) throw AiException("invalid_input")
         consent.ensureGranted()
+        Entitlements.requireWrite()
         val token = client.auth.currentSessionOrNull()?.accessToken
             ?: throw AiException("invalid_response")
         val payload = json.encodeToString(AnalyzeRequest.serializer(), AnalyzeRequest(sessionNotes = trimmed))
@@ -71,7 +73,9 @@ class AiService(
         context: PatientContext,
         lastSessionAssignments: List<com.cbtipul.app.model.AssignmentForNextWeek>?,
     ): NextSessionPreparation {
+        Entitlements.requireWrite()
         consent.ensureGranted()
+        Entitlements.requireWrite()
         return try {
             val http = client.functions.invoke(
                 function = "prepare-session",
@@ -89,7 +93,9 @@ class AiService(
     }
 
     suspend fun chat(systemPrompt: String, turns: List<ChatTurn>): String {
+        Entitlements.requireWrite()
         consent.ensureGranted()
+        Entitlements.requireWrite()
         return try {
             val http = client.functions.invoke(
                 function = "openai-gateway",
@@ -120,7 +126,9 @@ class AiService(
         context: PatientContext,
         formulation: PatientFormulation,
     ): FormulationSupervision {
+        Entitlements.requireWrite()
         consent.ensureGranted()
+        Entitlements.requireWrite()
         return try {
             val http = client.functions.invoke(
                 function = "challenge-formulation",
@@ -138,7 +146,9 @@ class AiService(
     }
 
     suspend fun whatAmIMissing(context: PatientContext): WhatAmIMissingResponse {
+        Entitlements.requireWrite()
         consent.ensureGranted()
+        Entitlements.requireWrite()
         return try {
             val http = client.functions.invoke(
                 function = "what-am-i-missing",
@@ -156,7 +166,9 @@ class AiService(
     }
 
     suspend fun longitudinalCaseReview(context: PatientContext): LongitudinalCaseReviewResponse {
+        Entitlements.requireWrite()
         consent.ensureGranted()
+        Entitlements.requireWrite()
         return try {
             val http = client.functions.invoke(
                 function = "longitudinal-case-review",

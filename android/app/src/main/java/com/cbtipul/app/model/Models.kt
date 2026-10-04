@@ -163,6 +163,7 @@ data class CompletedQuestionnaire(
     val sessionId: DatabaseId?,
     val answeredDate: Date,
     val questionnaire: CombinedMoodQuestionnaire,
+    val createdBy: String? = "therapist",
 )
 
 @Serializable

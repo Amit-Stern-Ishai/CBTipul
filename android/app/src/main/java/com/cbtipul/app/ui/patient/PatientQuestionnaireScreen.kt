@@ -121,6 +121,7 @@ fun PatientQuestionnaireScreen(
     )
 
     fun attemptSubmit() {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         if (isSubmitting || inactive) return
         if (didSubmit) { finish(); return }
         if (!isReady) {
@@ -178,7 +179,7 @@ fun PatientQuestionnaireScreen(
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 QuestionnaireProgress(17 - missingAnswers.size, 17, !isSubmitting, ::showMissingAnswers)
                 Button(onClick = { attemptSubmit() }, enabled = !isSubmitting && !inactive, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(if (didSubmit) R.string.done else R.string.patient_questionnaire_submit))
+                    Text(stringResource(if (didSubmit) R.string.retry_action else R.string.patient_questionnaire_submit))
                 }
             }
         },
@@ -216,7 +217,7 @@ fun PatientQuestionnaireScreen(
                             text = question,
                             selection = draft.gad7Answers.getOrNull(index),
                             accent = colors.gold,
-                            editable = !isSubmitting && !didSubmit && !inactive,
+                            editable = !isSubmitting && !didSubmit && !inactive && com.cbtipul.app.ui.entitlementCanWrite(),
                             onSelect = { value ->
                                 savedDraft.value = draft.copy(
                                     gad7Answers = draft.gad7Answers.toMutableList().also { it[index] = value },
@@ -243,7 +244,7 @@ fun PatientQuestionnaireScreen(
                             text = question,
                             selection = draft.phq9Answers.getOrNull(index),
                             accent = colors.gold,
-                            editable = !isSubmitting && !didSubmit && !inactive,
+                            editable = !isSubmitting && !didSubmit && !inactive && com.cbtipul.app.ui.entitlementCanWrite(),
                             onSelect = { value ->
                                 savedDraft.value = draft.copy(
                                     phq9Answers = draft.phq9Answers.toMutableList().also { it[index] = value },
@@ -257,7 +258,7 @@ fun PatientQuestionnaireScreen(
                         PatientInterferenceBlock(
                         options = interference,
                         selection = draft.interferenceLevel,
-                        editable = !isSubmitting && !didSubmit && !inactive,
+                        editable = !isSubmitting && !didSubmit && !inactive && com.cbtipul.app.ui.entitlementCanWrite(),
                         onSelect = { savedDraft.value = draft.copy(interferenceLevel = it) },
                     )
                     }

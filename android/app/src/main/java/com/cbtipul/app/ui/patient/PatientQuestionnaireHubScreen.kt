@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patient
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -63,7 +64,7 @@ fun PatientQuestionnaireHubScreen(
                     Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
                         Button(
                             onClick = { onNew(current.id) },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).entitlementCreateControl(),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Theme.colors.accentFill,
                                 contentColor = Theme.colors.textOnAccent,

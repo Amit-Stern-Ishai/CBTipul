@@ -195,7 +195,7 @@ fun PatientDiaryOneEntryScreen(
                     ),
                     shape = RoundedCornerShape(14.dp),
                 ) {
-                    Text(stringResource(if (didSubmit) R.string.done else R.string.patient_diary_one_save_action), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(if (didSubmit) R.string.retry_action else R.string.patient_diary_one_save_action), fontWeight = FontWeight.SemiBold)
                 }
             },
         ) { padding ->

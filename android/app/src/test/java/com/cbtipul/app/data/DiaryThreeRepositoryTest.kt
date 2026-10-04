@@ -19,6 +19,11 @@ import java.util.concurrent.atomic.AtomicReference
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiaryThreeRepositoryTest {
+    @org.junit.Before fun grantFullAccess() {
+        com.cbtipul.app.data.Entitlements.apply(com.cbtipul.app.data.AppContext(role = com.cbtipul.app.data.AppRole.Therapist, entitlement = com.cbtipul.app.data.AppEntitlement(com.cbtipul.app.data.EntitlementAccess.Full)))
+    }
+    @org.junit.After fun clearAccess() { com.cbtipul.app.data.Entitlements.clear() }
+
     private val patient = "22222222-2222-2222-2222-222222222222"
     private val id = "11111111-1111-1111-1111-111111111111"
     private val row = """{"id":"$id","patient_id":"$patient","therapist_id":"33333333-3333-3333-3333-333333333333","created_by":"patient",

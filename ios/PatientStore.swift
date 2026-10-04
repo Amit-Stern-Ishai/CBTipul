@@ -217,6 +217,7 @@ private nonisolated struct UpdatedSessionRecord: Encodable {
 
 /// Row shape for selects from the combined questionnaire table.
 private nonisolated struct QuestionnaireRow: Decodable {
+    let createdBy: String?
     let id: DatabaseID
     let sessionID: DatabaseID?
     let answeredDate: String?
@@ -226,6 +227,7 @@ private nonisolated struct QuestionnaireRow: Decodable {
     let combinedNotes: QuestionnaireNotes?
 
     enum CodingKeys: String, CodingKey {
+        case createdBy = "created_by"
         case id
         case sessionID = "session_id"
         case answeredDate = "answered_date"
@@ -332,6 +334,7 @@ final class PatientStore {
     /// Opens the separate local sample clinic, preserving previous demo edits.
     func enterDemoMode() {
         guard !isDemoMode else { return }
+        EntitlementState.shared.setLocalDemo(true)
         isDemoMode = true
         AIDataSharingConsentStore.shared.setDemoBypass(true)
         showcaseDataLoaded = false
@@ -390,6 +393,7 @@ final class PatientStore {
     func exitDemoMode() async {
         guard isDemoMode else { return }
         persistDemoClinic()
+        EntitlementState.shared.setLocalDemo(false)
         isDemoMode = false
         AIDataSharingConsentStore.shared.setDemoBypass(false)
         showcaseDataLoaded = false
@@ -791,6 +795,7 @@ final class PatientStore {
     func clearAllCaches() {
         if isDemoMode {
             persistDemoClinic()
+            EntitlementState.shared.setLocalDemo(false)
             isDemoMode = false
         }
         clearCachedPatients()
@@ -807,6 +812,7 @@ final class PatientStore {
             SavedPreparation.delete(for: patient.id)
         }
         DemoClinicStore.clearAll()
+        EntitlementState.shared.setLocalDemo(false)
         isDemoMode = false
         clearCachedPatients()
         patients = []
@@ -833,6 +839,7 @@ final class PatientStore {
     }
 
     func addPatient(firstName: String, lastName: String, status: PatientStatus = .active) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: isDemoMode)
         if isDemoMode {
             let name = [firstName, lastName]
                 .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -876,6 +883,7 @@ final class PatientStore {
     /// Renames a patient. Demo names live in `DemoClinicStore`; real names
     /// live in the Keychain identity store — never sent to the backend.
     func renamePatient(_ patient: Patient, firstName: String, lastName: String) throws {
+        try EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id))
         let name = [firstName, lastName]
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
@@ -904,11 +912,10 @@ final class PatientStore {
     /// Inserts the session into the `Sessions` table and, on success, attaches
     /// it to the patient with the database ID returned by Supabase.
     func addSession(_ session: Session, for patient: Patient) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id))
         if DemoData.isDemoID(patient.id) {
-            let anonymizedNotes = try await textGate.prepare(session.notes)
-            let anonymizedAnalysis = try await anonymized(session.structuredNotes)
-            session.notes = anonymizedNotes ?? ""
-            session.structuredNotes = anonymizedAnalysis
+            textGate.markSafe(session.notes)
+            markAnalysisSafe(session.structuredNotes)
             if session.databaseID == nil {
                 session.databaseID = .text("demo-session-\(session.id.uuidString)")
             }
@@ -949,6 +956,7 @@ final class PatientStore {
     /// Persists the therapist's formulation: in memory and the local cache
     /// immediately, then the patient's `patient_formulation` column.
     func saveFormulation(_ formulation: PatientFormulation, for patient: Patient) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id))
         patient.formulation = formulation
         saveCachedPatients()
         if DemoData.isDemoID(patient.id) {
@@ -980,6 +988,7 @@ final class PatientStore {
 
     /// Persists notes changes of an already-saved patient.
     func updatePatientNotes(_ patient: Patient) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id))
         if DemoData.isDemoID(patient.id) {
             textGate.markSafe(patient.notes)
             persistDemoClinic()
@@ -1007,6 +1016,7 @@ final class PatientStore {
 
     /// Persists only the active/inactive flag, without touching notes.
     func updatePatientStatus(_ patient: Patient) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id))
         if DemoData.isDemoID(patient.id) {
             persistDemoClinic()
             return
@@ -1025,6 +1035,7 @@ final class PatientStore {
 
     /// Persists date and notes changes of an already-saved session.
     func updateSession(_ session: Session) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: isDemoMode || session.databaseID.map(DemoData.isDemoID) == true)
         if let id = session.databaseID, DemoData.isDemoID(id) {
             textGate.markSafe(session.notes)
             markAnalysisSafe(session.structuredNotes)
@@ -1072,6 +1083,7 @@ final class PatientStore {
 
     /// Deletes a saved session's row and removes it from its patient.
     func deleteSession(_ session: Session, for patient: Patient) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id) || isDemoMode)
         if DemoData.isDemoID(patient.id) || isDemoMode {
             patient.sessions.removeAll { $0.id == session.id }
             if let sessionID = session.databaseID {
@@ -1105,6 +1117,7 @@ final class PatientStore {
     /// Deletes a patient's row and removes the patient locally, including
     /// the locally stored name and any cached questionnaires and images.
     func deletePatient(_ patient: Patient) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id) || isDemoMode)
         if DemoData.isDemoID(patient.id) || isDemoMode {
             patients.removeAll { $0.id == patient.id }
             questionnairesByPatient[patient.id] = nil
@@ -1145,7 +1158,8 @@ final class PatientStore {
                 databaseID: record.databaseID,
                 sessionID: nil,
                 answeredDate: record.answeredDate,
-                questionnaire: record.questionnaire
+                questionnaire: record.questionnaire,
+                createdBy: record.createdBy
             )
         }
         questionnairesByPatient[patient.id] = cached
@@ -1156,6 +1170,7 @@ final class PatientStore {
     func saveQuestionnaire(_ questionnaire: CombinedMoodQuestionnaire,
                            for patient: Patient,
                            session: Session) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id) || isDemoMode)
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
         let existingID = questionnairesByPatient[patient.id]?
             .first { $0.sessionID == sessionID }?
@@ -1176,12 +1191,16 @@ final class PatientStore {
                            answeredDate: Date,
                            sessionID: DatabaseID?,
                            existingID: DatabaseID? = nil) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id) || isDemoMode)
+        if let existingID, cachedQuestionnaires(for: patient)?.contains(where: { $0.databaseID == existingID && $0.isPatientSubmitted }) == true { throw PatientStoreError.updateRejected }
         let clinicalDate = min(answeredDate, Date.now)
         var anonymizedQuestionnaire = questionnaire
-        anonymizedQuestionnaire.gad7Notes = try await textGate.prepare(notes: questionnaire.gad7Notes)
-        anonymizedQuestionnaire.phq9Notes = try await textGate.prepare(notes: questionnaire.phq9Notes)
-        anonymizedQuestionnaire.interferenceNote =
-            try await textGate.prepare(questionnaire.interferenceNote) ?? ""
+        if !DemoData.isDemoID(patient.id) && !isDemoMode {
+            anonymizedQuestionnaire.gad7Notes = try await textGate.prepare(notes: questionnaire.gad7Notes)
+            anonymizedQuestionnaire.phq9Notes = try await textGate.prepare(notes: questionnaire.phq9Notes)
+            anonymizedQuestionnaire.interferenceNote =
+                try await textGate.prepare(questionnaire.interferenceNote) ?? ""
+        }
 
         if DemoData.isDemoID(patient.id) || isDemoMode {
             let previousSessionID = existingID.flatMap { id in
@@ -1227,6 +1246,7 @@ final class PatientStore {
             let updated: [InsertedRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
                 .update(update)
                 .eq("id", value: existingID.queryValue)
+                .eq("created_by", value: "therapist")
                 .select("id")
                 .execute()
                 .value
@@ -1305,6 +1325,8 @@ final class PatientStore {
 
     /// Deletes a questionnaire by CombinedMood record ID.
     func deleteQuestionnaire(_ record: CompletedQuestionnaire, for patient: Patient) async throws {
+        guard !record.isPatientSubmitted else { throw PatientStoreError.updateRejected }
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id) || isDemoMode)
         if DemoData.isDemoID(patient.id) || isDemoMode {
             questionnairesByPatient[patient.id]?.removeAll { $0.databaseID == record.databaseID }
             if let sessionID = record.sessionID,
@@ -1319,6 +1341,7 @@ final class PatientStore {
         let deleted: [InsertedRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
             .delete()
             .eq("id", value: record.databaseID.queryValue)
+            .eq("created_by", value: "therapist")
             .select("id")
             .execute()
             .value
@@ -1337,6 +1360,7 @@ final class PatientStore {
 
     /// Deletes a session's saved questionnaire row and removes it from the cache.
     func deleteQuestionnaire(for patient: Patient, session: Session) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id) || isDemoMode)
         guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
         guard let record = questionnairesByPatient[patient.id]?.first(where: { $0.sessionID == sessionID }) else {
             throw PatientStoreError.updateRejected
@@ -1354,7 +1378,7 @@ final class PatientStore {
         let patientID = patient.id
 
         let rows: [QuestionnaireRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
-            .select("id, session_id, answered_date, gad7_answers, phq9_answers, interference_level, combined_notes")
+            .select("id, session_id, created_by, answered_date, gad7_answers, phq9_answers, interference_level, combined_notes")
             .eq("patient_id", value: patientID.queryValue)
             .order("answered_date", ascending: false)
             .execute()
@@ -1377,7 +1401,8 @@ final class PatientStore {
                 databaseID: row.id,
                 sessionID: row.sessionID,
                 answeredDate: row.answeredDate.map(parseDate) ?? .now,
-                questionnaire: questionnaire
+                questionnaire: questionnaire,
+                createdBy: row.createdBy
             )
         }
         questionnairesByPatient[patientID] = questionnaires

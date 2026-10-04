@@ -28,10 +28,12 @@ nonisolated struct WhisperService {
         fileURL: URL,
         language: String = "he"
     ) async throws -> String {
+        try await EntitlementState.shared.requireWrite()
 
         // The audio is about to be sent to OpenAI Whisper — the one-time AI
         // data-sharing consent must be granted first.
         try await AIDataSharingConsentStore.ensureGranted()
+        try await EntitlementState.shared.requireWrite()
 
         let audioData: Data
 
@@ -212,6 +214,7 @@ nonisolated struct WhisperService {
         func analyzeSession(
             sessionNotes: String
         ) async throws -> CBTSessionAnalysis {
+        try await EntitlementState.shared.requireWrite()
 
             let notes =
                 sessionNotes.trimmingCharacters(
@@ -223,6 +226,7 @@ nonisolated struct WhisperService {
             }
 
             try await AIDataSharingConsentStore.ensureGranted()
+        try await EntitlementState.shared.requireWrite()
 
             AppLog.ai.info("Session analysis requested, notes characters: \(notes.count)")
 
@@ -512,7 +516,9 @@ nonisolated struct WhisperService {
         patientContext: PatientContext,
         lastSessionAssignments: [AssignmentForNextWeek]? = nil
     ) async throws -> PrepareSessionResponse {
+        try await EntitlementState.shared.requireWrite()
         try await AIDataSharingConsentStore.ensureGranted()
+        try await EntitlementState.shared.requireWrite()
         AppLog.ai.info("Next-session preparation requested")
         do {
             let response: PrepareSessionResponse =
@@ -551,7 +557,9 @@ nonisolated struct WhisperService {
         patientContext: PatientContext,
         formulation: PatientFormulation
     ) async throws -> FormulationSupervision {
+        try await EntitlementState.shared.requireWrite()
         try await AIDataSharingConsentStore.ensureGranted()
+        try await EntitlementState.shared.requireWrite()
         AppLog.ai.info("Formulation supervision requested")
         do {
             let supervision: FormulationSupervision =
@@ -590,7 +598,9 @@ nonisolated struct WhisperService {
     func whatAmIMissing(
         patientContext: PatientContext
     ) async throws -> WhatAmIMissingResponse {
+        try await EntitlementState.shared.requireWrite()
         try await AIDataSharingConsentStore.ensureGranted()
+        try await EntitlementState.shared.requireWrite()
         AppLog.ai.info("What-am-I-missing review requested")
         do {
             let response: WhatAmIMissingResponse =
@@ -625,7 +635,9 @@ nonisolated struct WhisperService {
     func longitudinalCaseReview(
         patientContext: PatientContext
     ) async throws -> LongitudinalCaseReviewResponse {
+        try await EntitlementState.shared.requireWrite()
         try await AIDataSharingConsentStore.ensureGranted()
+        try await EntitlementState.shared.requireWrite()
         AppLog.ai.info("Longitudinal case review requested")
         do {
             let response: LongitudinalCaseReviewResponse =

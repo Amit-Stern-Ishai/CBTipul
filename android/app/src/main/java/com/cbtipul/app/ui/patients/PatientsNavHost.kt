@@ -69,6 +69,7 @@ fun PatientsNavHost(
     onOpenSettings: (() -> Unit)? = null,
     onCloseSettings: (() -> Unit)? = null,
     navController: NavHostController = rememberNavController(),
+    inboxContent: (@Composable () -> Unit)? = null,
 ) {
     val unnamed = stringResource(R.string.unnamed_patient)
     val context = LocalContext.current
@@ -103,6 +104,7 @@ fun PatientsNavHost(
     val atList = backStackEntry?.destination?.route == "list"
 
     LaunchedEffect(routerState.wantsPatientListReset) {
+        if (inboxContent != null) return@LaunchedEffect
         if (!routerState.wantsPatientListReset) return@LaunchedEffect
         if (!viewModel.gettingStarted.consumePatientListReset()) return@LaunchedEffect
         navController.popBackStack(route = "list", inclusive = false)
@@ -110,6 +112,7 @@ fun PatientsNavHost(
     }
 
     LaunchedEffect(isDemoMode) {
+        if (inboxContent != null) return@LaunchedEffect
         navController.popBackStack(route = "list", inclusive = false)
         if (isDemoMode) {
             onCloseSettings?.invoke()
@@ -131,12 +134,12 @@ fun PatientsNavHost(
                 popExitTransition = { AppMotion.exit(navigationDirection, back = true) },
             ) {
         composable("list") {
-            PatientListScreen(
+            if (inboxContent != null) inboxContent() else PatientListScreen(
                 viewModel = viewModel,
                 unnamed = unnamed,
                 onOpenPatient = { navController.navigate("patient/$it") },
                 onOpenSettings = null,
-                onAddPatient = { navController.navigate("add") },
+                onAddPatient = { if (com.cbtipul.app.data.Entitlements.allowMutation()) navController.navigate("add") },
             )
         }
         composable("add") {
@@ -206,7 +209,7 @@ fun PatientsNavHost(
                 onOpenDiaryOne = { navController.navigate("patient/$id/diary-one") },
                 onOpenDiaryThree = { navController.navigate("patient/$id/diary-three") },
                 onOpenDiaryTwo = { navController.navigate("patient/$id/diary-two") },
-                onSendMessage = { navController.navigate("patient/$id/message-compose") },
+                onSendMessage = { if (com.cbtipul.app.data.Entitlements.allowMutation()) navController.navigate("patient/$id/message-compose") },
                 onOpenMessages = { navController.navigate("patient/$id/messages") },
                 assignmentRepository = app.assignments,
                 isDemo = isDemoMode || patient?.id?.let { DemoData.isDemoId(it) } == true,
@@ -402,7 +405,7 @@ fun PatientsNavHost(
                     navController.navigate("patient/$id") { launchSingleTop = true }
                 },
                 onBack = { navController.popScreen() },
-                onAdd = { navController.navigate("patient/$id/session/new") },
+                onAdd = { if (com.cbtipul.app.data.Entitlements.allowMutation()) navController.navigate("patient/$id/session/new") },
                 onOpenSession = { session ->
                     val sessionKey = session.databaseId?.queryValue ?: session.id.toString()
                     navController.navigate("patient/$id/session/$sessionKey")
@@ -421,7 +424,7 @@ fun PatientsNavHost(
             PatientQuestionnairesScreen(
                 graphsMode = entry.arguments?.getBoolean("graphs") == true,
                 onOpenTrends = { navController.navigate("patient/$id/questionnaire-trends") },
-                onAdd = { navController.navigate("patient/$id/questionnaire-result/new") },
+                onAdd = { if (com.cbtipul.app.data.Entitlements.allowMutation()) navController.navigate("patient/$id/questionnaire-result/new") },
                 records = questionnaires[id].orEmpty(),
                 patientName = patient?.displayName(unnamed).orEmpty(),
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
@@ -470,6 +473,7 @@ fun PatientsNavHost(
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 focusEntryId = focusEntryId,
+                returnDirectly = inboxContent != null,
                 onBack = { navController.popScreen() },
             )
         }
@@ -492,6 +496,7 @@ fun PatientsNavHost(
                 atmosphere = PatientAvatarColor.background(patient.id),
                 diary = app.diaryTwo,
                 focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() },
+                returnDirectly = inboxContent != null,
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 onBack = { navController.popScreen() },
@@ -516,6 +521,7 @@ fun PatientsNavHost(
                 atmosphere = PatientAvatarColor.background(patient.id),
                 diary = app.diaryThree,
                 focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() },
+                returnDirectly = inboxContent != null,
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 onBack = { navController.popScreen() },
@@ -787,6 +793,8 @@ fun PatientsNavHost(
             QuestionnaireScreen(
                 session = session,
                 existing = existing,
+                patientSubmitted = records.firstOrNull { it.sessionId?.queryValue == sessionId }?.createdBy == "patient",
+                allowRecordEditing = records.firstOrNull { it.sessionId?.queryValue == sessionId }?.let { it.createdBy == "therapist" } ?: true,
                 previous = previousQuestionnaire(records, session),
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 isSaving = ui.isSavingQuestionnaire,
@@ -860,6 +868,8 @@ fun PatientsNavHost(
             QuestionnaireScreen(
                 session = session,
                 existing = record?.questionnaire,
+                patientSubmitted = record?.createdBy == "patient",
+                allowRecordEditing = record == null || record.createdBy == "therapist",
                 previous = previousQuestionnaire(records, session),
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 isSaving = ui.isSavingQuestionnaire,
@@ -958,7 +968,7 @@ fun PatientsNavHost(
                     Text(stringResource(R.string.therapist_message_delivery_explanation))
                     when (connection) {
                         ConnectionUi.Connected -> androidx.compose.material3.Button(
-                            onClick = { navController.navigate("patient/$id/message-compose") }, modifier = Modifier.fillMaxWidth(),
+                            onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) navController.navigate("patient/$id/message-compose") }, modifier = Modifier.fillMaxWidth(),
                         ) { IconLabel(stringResource(R.string.send_patient_message_action), Icons.Outlined.EditNote) }
                         ConnectionUi.Checking -> Text(stringResource(R.string.patient_connection_checking))
                         ConnectionUi.Failed -> androidx.compose.material3.TextButton(onClick = refreshConnection) { Text(stringResource(R.string.retry_action)) }
@@ -1004,8 +1014,7 @@ fun PatientsNavHost(
                 text = {
                     Column(Modifier.editorScroll()) {
                         Text(stringResource(R.string.therapist_display_name_prompt_explanation))
-                        OutlinedTextField(
-                            value = displayNameDraft,
+                        OutlinedTextField(value = displayNameDraft,
                             onValueChange = {
                                 displayNameDraft = it
                                 displayNameError = null
@@ -1015,8 +1024,7 @@ fun PatientsNavHost(
                             singleLine = true,
                             label = { Text(stringResource(R.string.therapist_display_name_placeholder)) },
                             isError = displayNameError != null,
-                            supportingText = displayNameError?.let { { Text(it) } },
-                        )
+                            supportingText = displayNameError?.let { { Text(it) } }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
                     }
                 },
                 confirmButton = {

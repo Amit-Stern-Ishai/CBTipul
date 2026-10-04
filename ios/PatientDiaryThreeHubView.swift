@@ -95,6 +95,7 @@ struct PatientDiaryThreeHubView: View {
                 .buttonStyle(.pressableProminent)
                 .controlSize(.large)
                 .disabled(!isActive || locallyInactive)
+                .entitlementCreateControl()
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity)

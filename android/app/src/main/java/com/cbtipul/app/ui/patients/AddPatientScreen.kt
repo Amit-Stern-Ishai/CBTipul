@@ -112,20 +112,16 @@ fun AddPatientScreen(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(bottom = 12.dp),
                     )
-                    OutlinedTextField(
-                        value = first,
+                    OutlinedTextField(value = first,
                         onValueChange = { first = it },
                         placeholder = { Text(stringResource(R.string.first_name_placeholder)) },
                         modifier = Modifier.editorFocus().fillMaxWidth(),
-                        enabled = !isSaving,
-                    )
-                    OutlinedTextField(
-                        value = last,
+                        enabled = !isSaving, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
+                    OutlinedTextField(value = last,
                         onValueChange = { last = it },
                         placeholder = { Text(stringResource(R.string.last_name_placeholder)) },
                         modifier = Modifier.editorFocus().fillMaxWidth().padding(top = 8.dp),
-                        enabled = !isSaving,
-                    )
+                        enabled = !isSaving, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
                     ExposedDropdownMenuBox(
                         expanded = statusExpanded,
                         onExpandedChange = { if (!isSaving) statusExpanded = it },

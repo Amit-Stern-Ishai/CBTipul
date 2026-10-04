@@ -44,6 +44,8 @@ struct PatientDiaryTwoTests {
         #expect(feeling.intensityAfter == 80)
     }
     @Test func submissionUsesOnlyEdgeFunctionAndExactClinicalBody() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         DiaryTwoHTTPStub.reset(body: Data("{\"success\":true,\"entryId\":\"\(entryId)\"}".utf8))
         let service = makeService()
         let draft = valid
@@ -66,6 +68,8 @@ struct PatientDiaryTwoTests {
         // No assignment completion/cancellation or table INSERT request is made.
     }
     @Test func patientHistoryQueryFiltersIdentityAndSourceAndSortsNewestFirst() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let rows = "[\(row(id: 1, createdBy: "patient", date: "2026-01-01")),\(row(id: 2, createdBy: "therapist", date: "2026-01-03")),\(row(id: 3, createdBy: "patient", date: "2026-01-02")),\(row(id: 4, createdBy: "patient", date: "2026-01-04", patientId: UUID()))]"
         DiaryTwoHTTPStub.reset(body: Data(rows.utf8))
         let entries = try await makeService().loadPatientCreatedEntries(patientId: patient)
@@ -82,6 +86,8 @@ struct PatientDiaryTwoTests {
         #expect(query.contains { $0.name == "order" && $0.value?.split(separator: ".").prefix(2).joined(separator: ".") == "created_at.desc" })
     }
     @Test func inactiveResponseIsTypedAndLocalized() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         DiaryTwoHTTPStub.reset(body: Data(#"{"error":"diary_two_not_active","message":"internal English"}"#.utf8), status: 400)
         do {
             _ = try await makeService().submitEntry(event: "e", automaticThoughts: ["a"], feelings: [.init(name: "עצוב", intensity: 30)], thinkingErrors: [.blame], alternativeThoughts: ["b"])
@@ -103,6 +109,8 @@ struct PatientDiaryTwoTests {
         }
     }
     @Test func therapistExactLookupQueriesBothIdsAndRejectsMissingWrongPatientAndWrongEntry() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let exactId = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
         let patientId = DatabaseID.text(patient.uuidString)
         let store = DiaryTwoStore(client: makeClient())

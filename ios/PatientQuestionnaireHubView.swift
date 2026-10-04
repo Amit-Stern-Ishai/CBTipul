@@ -56,10 +56,10 @@ struct PatientQuestionnaireHubView: View {
         .themedScreen()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if let assignment = activeAssignment {
-                Button { formAssignmentID = assignment.id } label: {
+                Button { if EntitlementState.shared.allowMutation() { formAssignmentID = assignment.id } } label: {
                     Label(L10n.patientQuestionnaireStartAction, systemImage: "plus.circle.fill")
                         .frame(maxWidth: .infinity)
-                }
+                }.entitlementCreateControl()
                 .buttonStyle(.pressableProminent)
                 .controlSize(.large)
                 .padding(.horizontal, 20)

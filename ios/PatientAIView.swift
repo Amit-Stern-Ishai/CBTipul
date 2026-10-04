@@ -131,7 +131,7 @@ struct PatientAIView: View {
     /// The message field with a send icon, pinned above the keyboard.
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            TextField(L10n.aiPromptPlaceholder(patient.displayName), text: $prompt, axis: .vertical)
+            TextField(L10n.aiPromptPlaceholder(patient.displayName), text: $prompt, axis: .vertical).entitlementWriteControl()
                 .lineLimit(1...5)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
@@ -176,6 +176,7 @@ struct PatientAIView: View {
     /// the whole conversation, so follow-up questions keep their context.
     /// The patient data goes into the system prompt on every turn.
     private func send() {
+        guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         let question = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty else { return }
         typingTask?.cancel()

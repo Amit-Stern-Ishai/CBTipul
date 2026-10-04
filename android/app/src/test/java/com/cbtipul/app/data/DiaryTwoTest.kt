@@ -12,6 +12,11 @@ import org.junit.Test
 import java.util.Date
 
 class DiaryTwoTest {
+    @org.junit.Before fun grantFullAccess() {
+        com.cbtipul.app.data.Entitlements.apply(com.cbtipul.app.data.AppContext(role = com.cbtipul.app.data.AppRole.Therapist, entitlement = com.cbtipul.app.data.AppEntitlement(com.cbtipul.app.data.EntitlementAccess.Full)))
+    }
+    @org.junit.After fun clearAccess() { com.cbtipul.app.data.Entitlements.clear() }
+
     private val raw = """{"id":"e1","patient_id":"p1","therapist_id":"t1","created_by":"patient",
         "event":"event","automatic_thoughts":["one","two"],"feelings":[{"name":"עצוב","intensity":0}],
         "thinking_errors":["mind_reading","all_or_nothing"],"alternative_thoughts":["a","b"],

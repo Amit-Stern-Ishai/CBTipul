@@ -96,6 +96,7 @@ class PatientRepository(
     /** Restore the local sample clinic, seeding examples only on first entry. */
     fun enterDemoMode() {
         if (_isDemoMode.value) return
+        Entitlements.setLocalDemo(true)
         _isDemoMode.value = true
         aiConsentStore.setDemoBypass(true)
         _showcaseDataLoaded.value = false
@@ -147,6 +148,7 @@ class PatientRepository(
     suspend fun exitDemoMode() {
         if (!_isDemoMode.value) return
         persistDemoClinic()
+        Entitlements.setLocalDemo(false)
         _isDemoMode.value = false
         aiConsentStore.setDemoBypass(false)
         _showcaseDataLoaded.value = false
@@ -265,6 +267,7 @@ class PatientRepository(
     }
 
     suspend fun addPatient(firstName: String, lastName: String, status: PatientStatus) {
+        Entitlements.requireWrite(localDemo = _isDemoMode.value)
         if (_isDemoMode.value) {
             val name = listOf(firstName, lastName).map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
             if (name.isEmpty()) return
@@ -299,6 +302,7 @@ class PatientRepository(
     }
 
     fun renamePatient(patientId: DatabaseId, firstName: String, lastName: String) {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
         val name = listOf(firstName, lastName).map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
         if (name.isEmpty()) return
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
@@ -328,6 +332,7 @@ class PatientRepository(
     }
 
     suspend fun deletePatient(patientId: DatabaseId) {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
             _patients.update { it.filterNot { patient -> patient.id.queryValue == patientId.queryValue } }
             _questionnaires.update { it - patientId.queryValue }
@@ -352,6 +357,7 @@ class PatientRepository(
     }
 
     suspend fun addSession(patientId: DatabaseId, session: Session) {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
             // Sample edits stay local, just like updateSession in sample mode.
             textGate.markSafe(session.notes)
@@ -393,6 +399,7 @@ class PatientRepository(
     }
 
     suspend fun updateSession(session: Session) {
+        Entitlements.requireWrite(localDemo = _isDemoMode.value || session.databaseId?.let { DemoData.isDemoId(it) } == true)
         if (_isDemoMode.value || session.databaseId?.let { DemoData.isDemoId(it) } == true) {
             textGate.markSafe(session.notes)
             markAnalysisSafe(session.structuredNotes)
@@ -446,6 +453,7 @@ class PatientRepository(
         val patient = _patients.value.find { p ->
             p.sessions.any { it.id == session.id || it.databaseId?.queryValue == session.databaseId?.queryValue }
         }
+        Entitlements.requireWrite(localDemo = patient != null && (DemoData.isDemoId(patient.id) || _isDemoMode.value))
         if (patient != null && (DemoData.isDemoId(patient.id) || _isDemoMode.value)) {
             val sessionId = session.databaseId
             _patients.update { list ->
@@ -505,6 +513,7 @@ class PatientRepository(
     suspend fun analyzeSessionNotes(notes: String): CBTSessionAnalysis = ai.analyzeSession(notes)
 
     suspend fun prepareNextSession(patientId: DatabaseId): SavedPreparation {
+        Entitlements.requireWrite()
         val patient = patient(patientId.queryValue)
             ?: throw PatientStoreException(PatientStoreException.Kind.PatientNotSaved)
         val questionnaires = cachedQuestionnaires(patientId.queryValue) ?: loadQuestionnaires(patientId)
@@ -528,8 +537,10 @@ class PatientRepository(
     suspend fun chat(systemPrompt: String, turns: List<ChatTurn>): String = ai.chat(systemPrompt, turns)
 
     suspend fun updatePatientNotes(patientId: DatabaseId, notes: String) {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
-            val prepared = textGate.prepare(notes)
+            textGate.markSafe(notes)
+            val prepared = notes
             _patients.update { list ->
                 list.map {
                     if (it.id.queryValue == patientId.queryValue) it.copy(notes = prepared.orEmpty()) else it
@@ -558,6 +569,7 @@ class PatientRepository(
     }
 
     suspend fun updatePatientStatus(patientId: DatabaseId, status: PatientStatus) {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
             _patients.update { list ->
                 list.map {
@@ -586,8 +598,9 @@ class PatientRepository(
     }
 
     suspend fun saveFormulation(patientId: DatabaseId, formulation: PatientFormulation) {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
-            val anonymized = anonymizedFormulation(formulation)
+            val anonymized = formulation
             markFormulationSafe(anonymized)
             _patients.update { list ->
                 list.map {
@@ -617,6 +630,7 @@ class PatientRepository(
     }
 
     suspend fun challengeFormulation(patientId: DatabaseId): FormulationSupervision {
+        Entitlements.requireWrite()
         val patient = patient(patientId.queryValue)
             ?: throw PatientStoreException(PatientStoreException.Kind.PatientNotSaved)
         val formulation = patient.formulation ?: PatientFormulation()
@@ -626,6 +640,7 @@ class PatientRepository(
     }
 
     suspend fun whatAmIMissing(patientId: DatabaseId): WhatAmIMissingResponse {
+        Entitlements.requireWrite()
         val patient = patient(patientId.queryValue)
             ?: throw PatientStoreException(PatientStoreException.Kind.PatientNotSaved)
         val questionnaires = cachedQuestionnaires(patientId.queryValue) ?: loadQuestionnaires(patientId)
@@ -633,6 +648,7 @@ class PatientRepository(
     }
 
     suspend fun longitudinalCaseReview(patientId: DatabaseId): LongitudinalCaseReviewResponse {
+        Entitlements.requireWrite()
         val patient = patient(patientId.queryValue)
             ?: throw PatientStoreException(PatientStoreException.Kind.PatientNotSaved)
         val questionnaires = cachedQuestionnaires(patientId.queryValue) ?: loadQuestionnaires(patientId)
@@ -647,7 +663,7 @@ class PatientRepository(
         }
         ensureConfigured()
         val rows = client.from(CombinedMoodQuestionnaire.TABLE)
-            .select(Columns.raw("id, session_id, answered_date, gad7_answers, phq9_answers, interference_level, combined_notes")) {
+            .select(Columns.raw("id, session_id, created_by, answered_date, gad7_answers, phq9_answers, interference_level, combined_notes")) {
                 filter { eq("patient_id", patientId.queryValue) }
                 order("answered_date", Order.DESCENDING)
             }
@@ -669,6 +685,7 @@ class PatientRepository(
                 sessionId = row.sessionId,
                 answeredDate = row.answeredDate?.let(::parseDate) ?: Date(),
                 questionnaire = questionnaire,
+                createdBy = row.createdBy,
             )
         }
         if (_isDemoMode.value) return loaded
@@ -683,6 +700,8 @@ class PatientRepository(
         session: Session,
         recordId: DatabaseId? = null,
     ) {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
+        if (_questionnaires.value[patientId.queryValue].orEmpty().any { (if (recordId != null) it.databaseId == recordId else session.databaseId != null && it.sessionId == session.databaseId) && it.createdBy == "patient" }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
             val sessionId = session.databaseId
             val completed = CompletedQuestionnaire(
@@ -725,7 +744,7 @@ class PatientRepository(
         val table = client.from(CombinedMoodQuestionnaire.TABLE)
         val saved = when {
             recordId != null -> table.update(payload) {
-                filter { eq("id", recordId.queryValue); eq("patient_id", patientId.queryValue) }
+                filter { eq("created_by", "therapist"); eq("id", recordId.queryValue); eq("patient_id", patientId.queryValue) }
                 select(Columns.raw("id"))
             }
             sessionId != null -> table.upsert(payload) {
@@ -749,6 +768,8 @@ class PatientRepository(
     }
 
     suspend fun deleteQuestionnaire(patientId: DatabaseId, session: Session, recordId: DatabaseId? = null) {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
+        if (_questionnaires.value[patientId.queryValue].orEmpty().any { (if (recordId != null) it.databaseId == recordId else session.databaseId != null && it.sessionId == session.databaseId) && it.createdBy == "patient" }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
             val sessionId = session.databaseId
             _questionnaires.update { cache ->
@@ -765,6 +786,7 @@ class PatientRepository(
         val deleted = client.from(CombinedMoodQuestionnaire.TABLE).delete {
             filter {
                 eq("patient_id", patientId.queryValue)
+                eq("created_by", "therapist")
                 if (recordId != null) eq("id", recordId.queryValue) else eq("session_id", sessionId!!.queryValue)
             }
             select(Columns.raw("id"))
@@ -784,6 +806,10 @@ class PatientRepository(
         patient(patientId)?.sessions?.find { it.id.toString() == sessionId || it.databaseId?.queryValue == sessionId }
 
     fun clearAllCaches() {
+        if (_isDemoMode.value) persistDemoClinic()
+        _isDemoMode.value = false
+        Entitlements.setLocalDemo(false)
+        aiConsentStore.setDemoBypass(false)
         cache.clear()
         _patients.value = emptyList()
         _questionnaires.value = emptyMap()
@@ -792,6 +818,7 @@ class PatientRepository(
     fun wipeLocalData() {
         if (_isDemoMode.value) {
             demoClinicStore.clearAll()
+            Entitlements.setLocalDemo(false)
             _isDemoMode.value = false
             aiConsentStore.setDemoBypass(false)
             _showcaseDataLoaded.value = false
@@ -997,6 +1024,7 @@ private data class NewQuestionnaireRecord(
 
 @Serializable
 private data class QuestionnaireDbRow(
+    @SerialName("created_by") val createdBy: String? = null,
     val id: DatabaseId,
     @SerialName("session_id") val sessionId: DatabaseId? = null,
     @SerialName("answered_date") val answeredDate: String? = null,

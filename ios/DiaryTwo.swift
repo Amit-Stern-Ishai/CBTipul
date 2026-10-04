@@ -171,6 +171,7 @@ final class DiaryTwoStore {
         thinkingErrors: [ThinkingError],
         alternativeThoughts: [String]
     ) async throws -> DiaryTwoEntry {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
         if DemoData.isDemoID(patientId) {
             let entry = DiaryTwoEntry(
                 id: UUID(),
@@ -229,6 +230,8 @@ final class DiaryTwoStore {
         thinkingErrors: [ThinkingError],
         alternativeThoughts: [String]
     ) async throws -> DiaryTwoEntry {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
+        guard !entries(for: patientId).contains(where: { $0.id == id && $0.createdBy == .patient }) else { throw PatientStoreError.updateRejected }
         if DemoData.isDemoID(patientId) {
             guard var entry = cached(for: patientId).first(where: { $0.id == id }) else {
                 throw AuthError.notConfigured
@@ -256,6 +259,7 @@ final class DiaryTwoStore {
                     )
                 )
                 .eq("id", value: id)
+                .eq("created_by", value: "therapist")
                 .eq("patient_id", value: patientId.queryValue)
                 .select(diaryTwoSelectColumns)
                 .single()
@@ -273,6 +277,8 @@ final class DiaryTwoStore {
     }
 
     func deleteEntry(id: UUID, patientId: DatabaseID) async throws {
+        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
+        guard !entries(for: patientId).contains(where: { $0.id == id && $0.createdBy == .patient }) else { throw PatientStoreError.updateRejected }
         if DemoData.isDemoID(patientId) {
             var list = cached(for: patientId)
             list.removeAll { $0.id == id }
@@ -284,6 +290,7 @@ final class DiaryTwoStore {
             let deleted: [DeletedDiaryTwoRow] = try await client.from("diary_two_entries")
                 .delete()
                 .eq("id", value: id)
+                .eq("created_by", value: "therapist")
                 .eq("patient_id", value: patientId.queryValue)
                 .select("id")
                 .execute()

@@ -93,7 +93,7 @@ fun SessionAnalysisScreen(
         bottomBar = {
             if (!persisted) {
                 Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                    androidx.compose.material3.Button(onClick = { onSave(edited) }, enabled = !isSaving,
+                    androidx.compose.material3.Button(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) onSave(edited) }, enabled = !isSaving,
                         modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.session_use_draft))
                     }
@@ -113,8 +113,8 @@ fun SessionAnalysisScreen(
                 },
                 actions = {
                     if (needsDecision && persisted) {
-                        TextButton(onClick = { onSave(edited) }, enabled = !isSaving) {
-                            Text(stringResource(if (!persisted) R.string.session_accept_draft else R.string.done), color = colors.gold)
+                        TextButton(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) onSave(edited) }, enabled = !isSaving) {
+                            Text(stringResource(if (!persisted) R.string.session_accept_draft else R.string.save_changes_action), color = colors.gold)
                         }
                     }
                 },
@@ -219,7 +219,7 @@ fun SessionAnalysisScreen(
         visible = showLeave,
         onSave = {
             showLeave = false
-            onSave(edited)
+            if (com.cbtipul.app.data.Entitlements.allowMutation()) onSave(edited)
         },
         onDiscard = {
             showLeave = false
@@ -253,8 +253,7 @@ private fun AnalysisField(
     minLines: Int = 1,
 ) {
     val colors = Theme.colors
-    BasicTextField(
-        value = value,
+    BasicTextField(value = value,
         onValueChange = onValueChange,
         modifier = modifier.editorFocus().fillMaxWidth(),
         textStyle = style,
@@ -265,8 +264,7 @@ private fun AnalysisField(
                 Text(placeholder, color = colors.textBody, style = style)
             }
             inner()
-        },
-    )
+        }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
 }
 
 @Composable

@@ -3,20 +3,20 @@ package com.cbtipul.app.push
 object PatientPushCopy {
     const val APP_TITLE = "CBTipul"
     const val GENERIC_PATIENT_CONNECTED = "המטופל/ת התחבר/ה בהצלחה ל-CBTipul"
-    const val GENERIC_QUESTIONNAIRE_COMPLETED = "מטופל/ת מילא/ה שאלון חדש"
+    const val GENERIC_QUESTIONNAIRE_COMPLETED = "מטופל/ת מילא/ה שאלוני מצב רוח"
     const val GENERIC_PATIENT = "מטופל/ת"
-    const val GENERIC_DIARY_TWO_ENTRY = "הוסיף/ה רשומה חדשה ליומן 2"
-    const val GENERIC_DIARY_THREE_ENTRY = "הוסיף/ה רשומה חדשה ליומן 3"
-    const val GENERIC_DIARY_TWO_ASSIGNED = "הופעל יומן 2"
-    const val GENERIC_DIARY_THREE_ASSIGNED = "הופעל יומן 3"
-    const val GENERIC_DIARY_ONE_ENTRY = "הוסיף/ה רשומה חדשה ליומן 1"
-    const val GENERIC_DIARY_ONE_ASSIGNED = "הופעל יומן 1"
+    const val GENERIC_DIARY_TWO_ENTRY = "הוסיף/ה רשומה חדשה ליומן מחשבות 2"
+    const val GENERIC_DIARY_THREE_ENTRY = "הוסיף/ה רשומה חדשה ליומן מחשבות 3"
+    const val GENERIC_DIARY_TWO_ASSIGNED = "הופעל יומן מחשבות 2"
+    const val GENERIC_DIARY_THREE_ASSIGNED = "הופעל יומן מחשבות 3"
+    const val GENERIC_DIARY_ONE_ENTRY = "הוסיף/ה רשומה חדשה ליומן מחשבות 1"
+    const val GENERIC_DIARY_ONE_ASSIGNED = "הופעל יומן מחשבות 1"
     const val GENERIC_MESSAGE_RECEIVED = "הודעה חדשה מהמטפל/ת"
-    const val GENERIC_QUESTIONNAIRE_ASSIGNED = "הגישה לשאלונים הופעלה"
+    const val GENERIC_QUESTIONNAIRE_ASSIGNED = "הגישה לשאלוני מצב רוח הופעלה"
 
     fun patientConnectedBody(name: String): String = "$name התחבר/ה בהצלחה ל-CBTipul"
 
-    fun questionnaireCompletedBody(name: String): String = "$name מילא/ה שאלון חדש"
+    fun questionnaireCompletedBody(name: String): String = "$name מילא/ה שאלוני מצב רוח"
 }
 
 object PatientPushPersonalizer {

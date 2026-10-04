@@ -50,7 +50,7 @@ internal fun DiaryThinkingErrorPicker(selection: List<ThinkingError>, onChange: 
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.diary_choose_thinking_errors), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                        TextButton(onClick = { showingPicker = false }) { Text(stringResource(R.string.done)) }
+                        TextButton(onClick = { showingPicker = false }) { Text(stringResource(R.string.confirm_selection_action)) }
                     }
                     Text(stringResource(R.string.diary_thinking_choose), style = MaterialTheme.typography.bodySmall, color = Theme.colors.textBody)
                     LazyColumn(Modifier.weight(1f, fill = false), contentPadding = PaddingValues(vertical = 16.dp)) {

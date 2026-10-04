@@ -70,6 +70,7 @@ class PatientDiaryThreeService(private val client: SupabaseClient) : PatientDiar
     }
 
     override suspend fun submitEntry(request: SubmitDiaryThreeEntryRequest): String {
+        Entitlements.requireWrite()
         try {
             val http = client.functions.invoke(function = FUNCTION_NAME, body = request,
                 headers = Headers.build { append(HttpHeaders.ContentType, ContentType.Application.Json.toString()) })

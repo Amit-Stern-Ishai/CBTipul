@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.Search
 import com.cbtipul.app.ui.theme.PrimaryActionButton
@@ -98,7 +99,7 @@ fun GlobalSessionsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.therapist_tab_sessions), color = colors.textBright) },
                 actions = {
-                    IconButton(onClick = onCreateSession) {
+                    IconButton(onClick = onCreateSession, modifier = Modifier.entitlementCreateControl()) {
                         Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_session_action), tint = colors.gold)
                     }
                 },
@@ -185,7 +186,7 @@ fun GlobalSessionsScreen(
                 label = stringResource(if (groups.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action),
                 icon = Icons.Outlined.Add,
                 onClick = onCreateSession,
-                modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp),
+                modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp).entitlementCreateControl(),
             )
         }
     }

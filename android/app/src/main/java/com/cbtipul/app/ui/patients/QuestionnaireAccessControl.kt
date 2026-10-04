@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Book
@@ -89,7 +90,7 @@ internal fun PatientToolAccessControl(patient: Patient, repository: PatientAssig
             assignmentId != null -> TextButton(onClick = { confirmStop = true }, enabled = !busy && !parentBusy) {
                 Text(stringResource(R.string.access_stop), color = Theme.colors.error)
             }
-            connection == ConnectionUi.Connected -> Button(onClick = ::changeAccess, enabled = !busy && !parentBusy) {
+            connection == ConnectionUi.Connected -> Button(onClick = ::changeAccess, enabled = !busy && !parentBusy, modifier = Modifier.entitlementCreateControl()) {
                 Text(stringResource(R.string.access_activate))
             }
             else -> Text(stringResource(R.string.patient_not_connected_body), color = Theme.colors.textBody)

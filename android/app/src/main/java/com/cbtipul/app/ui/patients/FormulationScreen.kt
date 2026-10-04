@@ -89,46 +89,38 @@ fun FormulationScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(stringResource(R.string.treatment_goal_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-            OutlinedTextField(
-                value = draft.treatmentGoal.orEmpty(),
+            OutlinedTextField(value = draft.treatmentGoal.orEmpty(),
                 onValueChange = { draft = draft.copy(treatmentGoal = it.ifBlank { null }) },
                 modifier = Modifier.editorFocus().fillMaxWidth(),
                 enabled = !busy,
-                minLines = 2,
-            )
+                minLines = 2, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
             Text(stringResource(R.string.core_belief_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-            OutlinedTextField(
-                value = draft.coreBelief.orEmpty(),
+            OutlinedTextField(value = draft.coreBelief.orEmpty(),
                 onValueChange = { draft = draft.copy(coreBelief = it.ifBlank { null }) },
                 modifier = Modifier.editorFocus().fillMaxWidth(),
                 enabled = !busy,
                 placeholder = { Text(stringResource(R.string.no_core_belief_placeholder)) },
-                minLines = 2,
-            )
+                minLines = 2, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
             Text(stringResource(R.string.key_automatic_thoughts_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             draft.keyAutomaticThoughts.forEachIndexed { index, item ->
-                OutlinedTextField(
-                    value = item,
+                OutlinedTextField(value = item,
                     onValueChange = {
                         draft = draft.copy(keyAutomaticThoughts = draft.keyAutomaticThoughts.toMutableList().also { list -> list[index] = it })
                     },
                     modifier = Modifier.editorFocus().fillMaxWidth(),
-                    enabled = !busy,
-                )
+                    enabled = !busy, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
             }
             TextButton(onClick = { draft = draft.copy(keyAutomaticThoughts = draft.keyAutomaticThoughts + "") }, enabled = !busy) {
                 Text(stringResource(R.string.add_thought_action), color = colors.gold)
             }
             Text(stringResource(R.string.maintaining_behaviors_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             draft.maintainingBehaviors.forEachIndexed { index, item ->
-                OutlinedTextField(
-                    value = item,
+                OutlinedTextField(value = item,
                     onValueChange = {
                         draft = draft.copy(maintainingBehaviors = draft.maintainingBehaviors.toMutableList().also { list -> list[index] = it })
                     },
                     modifier = Modifier.editorFocus().fillMaxWidth(),
-                    enabled = !busy,
-                )
+                    enabled = !busy, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
             }
             TextButton(onClick = { draft = draft.copy(maintainingBehaviors = draft.maintainingBehaviors + "") }, enabled = !busy) {
                 Text(stringResource(R.string.add_behavior_action), color = colors.gold)
@@ -141,25 +133,23 @@ fun FormulationScreen(
                     Text(stringResource(R.string.add_cbt_cycle_action), color = colors.gold)
                 }
             } else {
-                OutlinedTextField(cycle.triggerSituation.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(triggerSituation = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.situation_label)) })
-                OutlinedTextField(cycle.automaticThought.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(automaticThought = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.automatic_thought_label)) })
-                OutlinedTextField(cycle.emotion.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(emotion = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.emotion_label)) })
-                OutlinedTextField(cycle.behavior.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(behavior = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.behavior_label)) })
-                OutlinedTextField(cycle.shortTermConsequence.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(shortTermConsequence = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.short_term_consequence_label)) })
-                OutlinedTextField(cycle.longTermConsequence.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(longTermConsequence = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.long_term_consequence_label)) })
+                OutlinedTextField(cycle.triggerSituation.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(triggerSituation = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.situation_label)) }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
+                OutlinedTextField(cycle.automaticThought.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(automaticThought = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.automatic_thought_label)) }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
+                OutlinedTextField(cycle.emotion.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(emotion = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.emotion_label)) }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
+                OutlinedTextField(cycle.behavior.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(behavior = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.behavior_label)) }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
+                OutlinedTextField(cycle.shortTermConsequence.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(shortTermConsequence = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.short_term_consequence_label)) }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
+                OutlinedTextField(cycle.longTermConsequence.orEmpty(), { draft = draft.copy(keyCBTCycle = cycle.copy(longTermConsequence = it.ifBlank { null })) }, Modifier.editorFocus().fillMaxWidth(), enabled = !busy, label = { Text(stringResource(R.string.long_term_consequence_label)) }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
                 TextButton(onClick = { draft = draft.copy(keyCBTCycle = null) }, enabled = !busy) {
                     Text(stringResource(R.string.remove_cycle_action), color = colors.error)
                 }
             }
             Text(stringResource(R.string.therapist_hypothesis_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-            OutlinedTextField(
-                value = draft.therapistHypothesis.orEmpty(),
+            OutlinedTextField(value = draft.therapistHypothesis.orEmpty(),
                 onValueChange = { draft = draft.copy(therapistHypothesis = it.ifBlank { null }) },
                 modifier = Modifier.editorFocus().fillMaxWidth(),
                 enabled = !busy,
                 placeholder = { Text(stringResource(R.string.therapist_hypothesis_placeholder)) },
-                minLines = 3,
-            )
+                minLines = 3, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
             errorMessage?.let { Text(it, color = colors.error) }
             if (busy) CircularProgressIndicator(color = colors.gold)
             Button(

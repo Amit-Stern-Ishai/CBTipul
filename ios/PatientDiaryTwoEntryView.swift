@@ -39,7 +39,7 @@ struct PatientDiaryTwoEntryView: View {
                 didAttemptSave: didAttemptSave,
                 errorMessage: errorMessage
                 )
-                .disabled(isBusy || didSubmit)
+                .disabled(isBusy || didSubmit || !EntitlementState.shared.canPatientWrite)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -60,7 +60,7 @@ struct PatientDiaryTwoEntryView: View {
                     else { await submit() }
                 }
             } label: {
-                Text(didSubmit ? L10n.done : L10n.patientDiaryOneSaveAction)
+                Text(didSubmit ? L10n.retryAction : L10n.patientDiaryOneSaveAction)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity, minHeight: 30)
             }
@@ -139,6 +139,7 @@ struct PatientDiaryTwoEntryView: View {
     }
 
     private func submit() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy, !didSubmit else { return }
         didAttemptSave = true
         if let message = draft.validationMessage() {

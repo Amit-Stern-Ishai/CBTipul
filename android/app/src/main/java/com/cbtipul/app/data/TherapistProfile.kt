@@ -41,6 +41,7 @@ class TherapistProfileRepository(private val client: SupabaseClient) {
     suspend fun hasValidDisplayName(): Boolean = getCurrentProfile()?.hasValidDisplayName == true
 
     suspend fun saveDisplayName(raw: String): TherapistProfile {
+        Entitlements.requireWrite()
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
         val trimmed = TherapistProfile.normalized(raw)
         if (!TherapistProfile.isValid(trimmed)) throw IllegalStateException("empty_display_name")

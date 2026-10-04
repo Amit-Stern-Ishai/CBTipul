@@ -36,6 +36,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class CbTipulApp : Application() {
+    private val pushRevision = kotlinx.coroutines.flow.MutableStateFlow(0L)
+    val patientPushRevision: kotlinx.coroutines.flow.StateFlow<Long> = pushRevision
+
     val appVersion by lazy { com.cbtipul.app.data.AppVersionManager.create(this) }
     val formDrafts by lazy { com.cbtipul.app.data.DeviceFormDraftStore(this) }
     lateinit var preferences: AppPreferences
@@ -87,6 +90,9 @@ class CbTipulApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.cbtipul.app.data.Entitlements.explanation = { patient ->
+            getString(if (patient) R.string.entitlement_patient_unavailable else R.string.entitlement_read_only_explanation)
+        }
         applicationScope.launch { appVersion.check(coldLaunch = true) }
         preferences = AppPreferences(this)
         val client = createCbTipulSupabaseClient()
@@ -106,7 +112,7 @@ class CbTipulApp : Application() {
             identityStore = identityStore,
             preferences = preferences,
             scope = applicationScope,
-            onPushReceived = { applicationScope.launch { notifications.refresh() } },
+            onPushReceived = { applicationScope.launch { pushRevision.value += 1; notifications.refresh() } },
         )
         pushManager.start()
         aiConsentStore = AiConsentStore(preferences)

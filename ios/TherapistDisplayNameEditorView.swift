@@ -57,7 +57,7 @@ struct TherapistDisplayNameEditorView: View {
                     isShown: displayName.isEmpty
                 )
                 .textContentType(.name)
-                .disabled(isLoading || isSaving)
+                .disabled(isLoading || isSaving || EntitlementState.shared.access != .full)
             }
             .listRowBackground(Theme.surface)
 
@@ -98,7 +98,7 @@ struct TherapistDisplayNameEditorView: View {
                     .frame(maxWidth: .infinity, minHeight: 30)
                 }
                 .buttonStyle(.pressableProminent)
-                .disabled(!canSave)
+                .disabled(!canSave || EntitlementState.shared.access != .full)
 
                 if requirement == .optional {
                     Button(action: skip) {
@@ -133,6 +133,7 @@ struct TherapistDisplayNameEditorView: View {
     }
 
     private func save() {
+        guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         errorMessage = nil
         isSaving = true
         Task {

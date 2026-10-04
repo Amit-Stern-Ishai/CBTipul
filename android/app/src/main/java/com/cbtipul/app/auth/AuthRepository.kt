@@ -38,6 +38,8 @@ class AuthRepository(
                 isAnonymous = isAnonymousSession(status.session),
             )
             is SessionStatus.NotAuthenticated -> AuthSession.SignedOut
+        }.also { state ->
+            if (state !is AuthSession.Loading) com.cbtipul.app.data.Entitlements.setIdentity((state as? AuthSession.SignedIn)?.userId)
         }
     }
 

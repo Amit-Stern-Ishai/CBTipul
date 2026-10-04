@@ -15,9 +15,11 @@ class ClinicalTextAnonymizer(
     private val consent: AiConsentStore,
 ) {
     suspend fun anonymize(text: String): String {
+        Entitlements.requireWrite()
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return ""
         consent.ensureGranted()
+        Entitlements.requireWrite()
         val response = try {
             val http = client.functions.invoke(
                 function = "anonymize-clinical-text",

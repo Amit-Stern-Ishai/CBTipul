@@ -86,6 +86,7 @@ internal class PatientDiaryThreeViewModel(
         }
     }
     fun submit() {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         val state = mutable.value
         if (state.submitting || state.submittedId != null || accessUnavailable) return
         val invalidStep = state.draft.firstInvalidStep

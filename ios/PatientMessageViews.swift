@@ -34,7 +34,7 @@ struct SendPatientMessageComposerView: View {
 
                 Section {
                     ZStack(alignment: .topLeading) {
-                        TextEditor(text: $bodyText)
+                        EntitlementTextEditor(text: $bodyText)
                             .frame(minHeight: 180)
                             .disabled(isSending || didSend)
                             .accessibilityIdentifier("message.draft")
@@ -93,7 +93,7 @@ struct SendPatientMessageComposerView: View {
                         if didSend { finishSentMessage() }
                         else { Task { await send() } }
                     } label: {
-                        Text(didSend ? L10n.done : L10n.sendMessageAction)
+                        Text(didSend ? L10n.retryAction : L10n.sendMessageAction)
                             .frame(maxWidth: .infinity, minHeight: 30)
                     }
                     .buttonStyle(.pressableProminent)
@@ -138,6 +138,7 @@ struct SendPatientMessageComposerView: View {
     }
 
     private func send() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isSending, !didSend else { return }
         guard let patientId = patient.id.uuidValue else {
             errorMessage = L10n.patientInvitationInvalidPatientError

@@ -21,6 +21,11 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OngoingQuestionnaireTest {
+    @org.junit.Before fun grantFullAccess() {
+        com.cbtipul.app.data.Entitlements.apply(com.cbtipul.app.data.AppContext(role = com.cbtipul.app.data.AppRole.Therapist, entitlement = com.cbtipul.app.data.AppEntitlement(com.cbtipul.app.data.EntitlementAccess.Full)))
+    }
+    @org.junit.After fun clearAccess() { com.cbtipul.app.data.Entitlements.clear() }
+
     private val patient = "22222222-2222-2222-2222-222222222222"
     private val assignmentId = "11111111-1111-1111-1111-111111111111"
     private fun assignment(cancelled: Boolean = false) = """{"id":"$assignmentId","patient_id":"$patient","type":"questionnaire","created_at":"2026-09-01T12:00:00Z",
@@ -81,6 +86,7 @@ class OngoingQuestionnaireTest {
             val historyBody = "[${row(41, "2026-09-02T12:00:00Z")},${row(42, "2026-09-02T12:00:00Z")},${row(43, "2026-09-03", "therapist")},${row(44, "2026-09-04", owner = "other")}]"
             response.set(historyBody); requests.clear()
             val records = history.history(patient)
+            assertTrue(records.all { it.createdBy == "patient" })
             assertEquals(listOf("42", "41"), records.map { it.databaseId.queryValue })
             assertTrue(records.all { it.questionnaire.gad7Notes.all(String::isEmpty) && it.sessionId == null })
             assertEquals(7, records[0].questionnaire.gad7Score)

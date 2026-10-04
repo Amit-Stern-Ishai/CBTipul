@@ -69,6 +69,8 @@ struct PatientDiaryThreeTests {
         empty.entry.automaticThoughts[0].beliefBefore = 0; #expect(empty.hasMeaningfulContent)
     }
     @Test func submissionUsesEdgeOnlyAndExactNestedClinicalKeys() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         PatientThreeHTTPStub.reset(body: Data("{\"success\":true,\"entryId\":\"\(entryId)\"}".utf8))
         let d = valid.entry
         #expect(try await submit(d) == entryId)
@@ -89,6 +91,8 @@ struct PatientDiaryThreeTests {
         #expect(body["thinkingErrors"] as? [String] == ["mind_reading", "fortune_telling"])
     }
     @Test func historyUsesPatientSessionReadFiltersAndNewestFirstOrder() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         PatientThreeHTTPStub.reset(body: Data("[\(row(1, "patient", "2026-01-01")),\(row(2, "therapist", "2026-01-03")),\(row(3, "patient", "2026-01-02")),\(row(4, "patient", "2026-01-04", patientId: UUID()))]".utf8))
         let entries = try await service().loadPatientCreatedEntries(patientId: patient)
         #expect(entries.map(\.situation) == ["3", "1"])
@@ -104,6 +108,8 @@ struct PatientDiaryThreeTests {
         #expect(query.contains { $0.name == "order" && $0.value?.hasPrefix("created_at.desc") == true })
     }
     @Test func cancellationAndAccessAndClinicalErrorsHaveLocalizedFeedback() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         for code in ["invalid_situation", "invalid_automatic_thoughts", "invalid_feelings", "duplicate_feeling", "invalid_thinking_errors", "duplicate_thinking_error", "invalid_alternative_thoughts"] {
             guard case .invalid(let message) = PatientDiaryThreeService.submitError(from: Data("{\"error\":\"\(code)\"}".utf8), statusCode: 400) else { Issue.record("Wrong error for \(code)"); continue }
             #expect(!message.isEmpty && !message.contains(code))
@@ -116,6 +122,8 @@ struct PatientDiaryThreeTests {
         catch PatientDiaryThreeSubmitError.notActive(let message) { #expect(message == L10n.patientDiaryThreeNotActive) }
     }
     @Test func exactTherapistLookupQueriesBothIdsAndRejectsDeletedMismatchedAndFailedRows() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [PatientThreeHTTPStub.self]
         let client = SupabaseClient(supabaseURL: URL(string: "https://patient-three.invalid")!, supabaseKey: "test", options: .init(global: .init(session: URLSession(configuration: config))))
         let store = DiaryThreeStore(client: client)

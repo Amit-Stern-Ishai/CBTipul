@@ -4,7 +4,13 @@ import android.Manifest
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
@@ -61,6 +67,16 @@ fun RootScreen() {
     )
     val session by authViewModel.session.collectAsStateWithLifecycle()
     val signedIn = session as? AuthSession.SignedIn
+    val entitlement by com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle()
+    val entitlementExplanation by com.cbtipul.app.data.Entitlements.explanationVisible.collectAsStateWithLifecycle()
+    androidx.compose.runtime.DisposableEffect(signedIn?.userId) {
+        com.cbtipul.app.data.Entitlements.setIdentity(signedIn?.userId)
+        onDispose { }
+    }
+    val entitlementScope = rememberCoroutineScope()
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        entitlementScope.launch { app.appContext.refreshOnForeground() }
+    }
     val isAnonymous = signedIn?.isAnonymous == true
     val isTherapist = signedIn != null && !isAnonymous
     val therapistIdentity = signedIn?.email?.takeUnless { it.isBlank() } ?: signedIn?.userId
@@ -91,7 +107,7 @@ fun RootScreen() {
     }
     LaunchedEffect(signedIn?.userId, isAnonymous, invitationActive, session) {
         if (session is AuthSession.Loading) return@LaunchedEffect
-        if (isAnonymous && !invitationActive) {
+        if (signedIn != null && !invitationActive) {
             runCatching { app.appContext.getCurrentAppContext() }
         } else if (signedIn == null && !invitationActive) {
             app.appContext.clear()
@@ -198,7 +214,26 @@ fun RootScreen() {
     }
 
     val versionState by app.appVersion.state.collectAsStateWithLifecycle()
-    androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
+    if (entitlementExplanation) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = com.cbtipul.app.data.Entitlements::dismissExplanation,
+            title = { androidx.compose.material3.Text(stringResource(if (isAnonymous) R.string.entitlement_patient_unavailable else R.string.entitlement_read_only_title)) },
+            text = { if (!isAnonymous) androidx.compose.material3.Text(stringResource(if (entitlement.localDemo) R.string.entitlement_demo_online_unavailable else R.string.entitlement_read_only_explanation)) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = com.cbtipul.app.data.Entitlements::dismissExplanation) { androidx.compose.material3.Text(stringResource(R.string.ok)) } },
+        )
+    }
+    val showReadOnlyNotice = isTherapist && entitlement.access == com.cbtipul.app.data.EntitlementAccess.ReadOnly && !invitationActive
+        && !shouldShowIntroduction && !reviewIntroduction && !showWelcome && !entitlement.localDemo
+    // Consume these insets at the shared parent so child toolbars don't add them again.
+    val noticeInsets = if (showReadOnlyNotice) Modifier.windowInsetsPadding(
+        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+    ) else Modifier
+    androidx.compose.foundation.layout.Column(Modifier.fillMaxSize().then(noticeInsets)) {
+    if (showReadOnlyNotice) {
+        androidx.compose.material3.TextButton(onClick = { com.cbtipul.app.data.Entitlements.allowMutation() }, modifier = Modifier.fillMaxWidth()) {
+            androidx.compose.material3.Text(stringResource(R.string.entitlement_read_only_title))
+        }
+    }
     Box(modifier = Modifier.weight(1f)) {
         when {
             recovering && !invitationActive -> {

@@ -109,6 +109,7 @@ internal class DiaryThreeViewModel(
         assignments.cancelOngoingAssignment(requireNotNull(id))
     }
     private fun assignmentMutation(failureMessage: Int, action: suspend () -> Unit) {
+        if (!Entitlements.allowMutation()) return
         if (mutable.value.busy) return
         revision++
         mutable.value = mutable.value.copy(busy = true, error = null)
@@ -122,6 +123,7 @@ internal class DiaryThreeViewModel(
         }
     }
     fun save(id: String?, onSaved: () -> Unit) {
+        if (!Entitlements.allowMutation()) return
         val value = draft.value
         if (mutable.value.busy || value.validationError() != null) return
         mutate(R.string.diary_one_save_failed, onSaved) {
@@ -136,6 +138,7 @@ internal class DiaryThreeViewModel(
         diary.deleteEntry(id, patientId)
     }
     private fun mutate(error: Int, done: () -> Unit, action: suspend () -> Unit) {
+        if (!Entitlements.allowMutation()) return
         if (mutable.value.busy) return
         mutable.value = mutable.value.copy(busy = true, error = null)
         viewModelScope.launch {

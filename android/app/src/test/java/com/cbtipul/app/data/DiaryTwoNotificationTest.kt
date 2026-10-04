@@ -84,7 +84,7 @@ class DiaryTwoNotificationTest {
             val result = PatientPushPersonalizer.personalize("diary_2_entry_added", patient,
                 "server name", "private clinical text", resourceType = "diary_two_entry", resourceId = target) { name }
             assertEquals(name ?: "מטופל/ת", result.title)
-            assertEquals("הוסיף/ה רשומה חדשה ליומן 2", result.body)
+            assertEquals("הוסיף/ה רשומה חדשה ליומן מחשבות 2", result.body)
             assertEquals(target, result.resourceId)
         }
     }

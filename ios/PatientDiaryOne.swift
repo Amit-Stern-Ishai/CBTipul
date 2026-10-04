@@ -90,6 +90,7 @@ final class PatientDiaryOneService {
         behaviour: String,
         physicalSymptoms: String?
     ) async throws {
+        try await EntitlementState.shared.requireWrite()
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         do {
             let response: SubmitDiaryOneEntryResponse = try await client.functions.invoke(

@@ -54,10 +54,10 @@ struct GlobalSessionsView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        editor = SessionEditorRoute(patient: nil, session: Session(), isNew: true)
+                        if EntitlementState.shared.allowMutation() { editor = SessionEditorRoute(patient: nil, session: Session(), isNew: true) }
                     } label: {
                         Label(L10n.newSessionTitle, systemImage: "plus")
-                    }
+                    }.entitlementCreateControl()
                 }
             }
             .sheet(item: $editor) { route in
@@ -78,8 +78,8 @@ struct GlobalSessionsView: View {
 
     private var addSessionCTA: some View {
         Button(allItems.isEmpty ? L10n.createSessionAction : L10n.addSessionAction) {
-            editor = SessionEditorRoute(patient: nil, session: Session(), isNew: true)
-        }
+            if EntitlementState.shared.allowMutation() { editor = SessionEditorRoute(patient: nil, session: Session(), isNew: true) }
+        }.entitlementCreateControl()
         .buttonStyle(.pressableProminent)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 24)

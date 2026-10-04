@@ -16,7 +16,7 @@ struct NotificationRoutingTests {
         )
         coordinator.selectedTab = .notifications
         coordinator.handleInboxTap(item, patients: [patient])
-        #expect(coordinator.selectedTab == .patients)
+        #expect(coordinator.selectedTab == .notifications)
         #expect(coordinator.consumePatientNavigation()?.questionnairesRoute?.focusQuestionnaireID == .integer(42))
         coordinator.finishInboxNavigation()
         #expect(coordinator.selectedTab == .notifications)
@@ -25,7 +25,7 @@ struct NotificationRoutingTests {
         #expect(coordinator.consumePatientNavigation() != nil)
         coordinator.cancelInboxReturn()
         coordinator.finishInboxNavigation()
-        #expect(coordinator.selectedTab == .patients)
+        #expect(coordinator.selectedTab == .notifications)
         coordinator.handleInboxTap(item, patients: [])
         #expect(coordinator.selectedTab == .notifications)
         #expect(coordinator.unavailableTarget)

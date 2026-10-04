@@ -293,6 +293,7 @@ struct PatientMessageService {
     }
 
     func send(patientId: UUID, rawBody: String) async throws {
+        try await EntitlementState.shared.requireWrite()
         guard let request = SendPatientMessageRequestFactory.make(
             patientId: patientId,
             rawBody: rawBody

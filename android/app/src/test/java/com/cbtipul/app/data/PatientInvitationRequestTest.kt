@@ -49,7 +49,7 @@ class PatientInvitationRequestTest {
         assertTrue(body.contains(name))
         assertTrue(body.contains(url))
         assertEquals(body.indexOf(url), body.lastIndexOf(url))
-        assertTrue(body.contains("דרך האפליקציה ניתן למלא שאלונים ויומנים ולצפות בתכנים שנשלחו אליך כחלק מהטיפול."))
+        assertTrue(body.contains("דרך האפליקציה ניתן למלא שאלוני מצב רוח ויומני מחשבות ולצפות בתכנים שנשלחו אליך כחלק מהטיפול."))
         assertTrue(body.contains("ההזמנה אישית ומיועדת עבורך בלבד."))
         assertTrue(body.contains("$name הזמין/ה אותך להתחבר ל-CBTipul."))
         assertTrue(body.contains("לפתיחת ההזמנה:"))

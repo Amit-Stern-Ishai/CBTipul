@@ -37,7 +37,7 @@ struct PatientDiaryThreeEntryView: View {
                     .foregroundStyle(Theme.textBody).fixedSize(horizontal: false, vertical: true)
                 DiaryThreeDraftFields(draft: $draft.entry, step: draft.currentStep, didAttemptSave: false, errorMessage: errorMessage)
                     .id(draft.currentStep)
-                .disabled(isBusy || didSubmit)
+                .disabled(isBusy || didSubmit || !EntitlementState.shared.canPatientWrite)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -71,7 +71,7 @@ struct PatientDiaryThreeEntryView: View {
                         else { await submit() }
                     }
                 } label: {
-                    Text(didSubmit ? L10n.done : (draft.currentStep == 7 ? L10n.patientDiaryOneSaveAction : L10n.introductionNext))
+                    Text(didSubmit ? L10n.retryAction : (draft.currentStep == 7 ? L10n.patientDiaryOneSaveAction : L10n.introductionNext))
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity, minHeight: 30)
                 }
@@ -176,6 +176,7 @@ struct PatientDiaryThreeEntryView: View {
     }
 
     private func submit() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy, !didSubmit else { return }
         if let step = draft.firstInvalidStep {
             draft.currentStep = step

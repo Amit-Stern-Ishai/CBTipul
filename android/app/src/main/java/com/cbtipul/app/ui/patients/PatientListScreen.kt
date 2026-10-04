@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -117,7 +118,7 @@ fun PatientListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onAddPatient) {
+                    IconButton(onClick = onAddPatient, modifier = Modifier.entitlementCreateControl()) {
                         Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_patient_action), tint = colors.gold)
                     }
                 },
@@ -329,7 +330,7 @@ private fun PersistentAddButton(
         icon = Icons.Outlined.Add,
         onClick = onClick,
         modifier = Modifier.padding(horizontal = 24.dp)
-            .padding(top = 8.dp, bottom = 12.dp).tutorialPulse(pulse),
+            .padding(top = 8.dp, bottom = 12.dp).tutorialPulse(pulse).entitlementCreateControl(),
     )
 }
 

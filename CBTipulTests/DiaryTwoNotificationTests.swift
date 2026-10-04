@@ -83,7 +83,7 @@ struct DiaryTwoNotificationTests {
         seen[0] = seen[0].opened(at: Date())
         #expect(NotificationInboxSections.unread(seen).map(\.id) == [items[1].id])
         #expect(NotificationInboxSections.read(seen).map(\.id) == [items[0].id])
-        #expect(NotificationInboxCopy.message(for: .diaryTwoEntryAdded) == "הוסיף/ה רשומה חדשה ליומן 2")
+        #expect(NotificationInboxCopy.message(for: .diaryTwoEntryAdded) == "הוסיף/ה רשומה חדשה ליומן מחשבות 2")
     }
     @Test func pushCopyUsesLocalNameAndGenericFallbackNeverClinicalServerCopy() {
         for localName in ["דני", nil] as [String?] {
@@ -92,7 +92,7 @@ struct DiaryTwoNotificationTests {
             content.userInfo = ["type": "diary_2_entry_added", "patientId": patient.uuidString, "resourceId": target.uuidString]
             PatientPushPersonalizer.apply(to: content, nameForPatientId: { _ in localName })
             #expect(content.title == (localName ?? "מטופל/ת"))
-            #expect(content.body == "הוסיף/ה רשומה חדשה ליומן 2")
+            #expect(content.body == "הוסיף/ה רשומה חדשה ליומן מחשבות 2")
             #expect(content.subtitle.isEmpty)
             #expect(content.userInfo.count == 3)
         }

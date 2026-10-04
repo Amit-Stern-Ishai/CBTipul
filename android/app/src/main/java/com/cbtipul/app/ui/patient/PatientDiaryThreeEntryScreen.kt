@@ -102,7 +102,7 @@ fun PatientDiaryThreeEntryScreen(
                         enabled = !state.submitting && !unavailable,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
-                        Text(stringResource(if (didSubmit) R.string.done else if (draft.currentStep == 7) R.string.patient_diary_one_save_action else R.string.introduction_next))
+                        Text(stringResource(if (didSubmit) R.string.retry_action else if (draft.currentStep == 7) R.string.patient_diary_one_save_action else R.string.introduction_next))
                     }
                 }
             },

@@ -211,6 +211,7 @@ fun SessionEditorScreen(
     }
     @Suppress("UNUSED_VARIABLE")
     val observed = recorderTick
+    val canWrite = com.cbtipul.app.ui.entitlementCanWrite()
     val busy = processing || requestingRecording || recorder.isRecording
 
     fun currentSession() = initial.copy(date = date, notes = notes, type = type, structuredNotes = structuredNotes)
@@ -218,7 +219,7 @@ fun SessionEditorScreen(
     val hasUnsavedChanges = date != baselineDate || notes != baselineNotes || type != baselineType ||
         structuredNotes != baselineStructured || recorder.recordingFile != null
 
-    val canSave = patient != null && !busy && recorder.recordingFile == null && (isNew || hasUnsavedChanges)
+    val canSave = canWrite && patient != null && !busy && recorder.recordingFile == null && (isNew || hasUnsavedChanges)
     fun persist(leave: Boolean) {
         if (!canSave) return
         onSave(currentSession(), leave)
@@ -271,6 +272,7 @@ fun SessionEditorScreen(
     }
 
     fun startMic() {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation(allowLocalDemo = false)) return
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
         if (granted) recorder.startRecording() else {
@@ -282,17 +284,41 @@ fun SessionEditorScreen(
     if (showingNotesEditor) {
         // Use the activity's already-safe viewport; a separate dialog window
         // does not share its keyboard inset handling.
-        BackHandler { showingNotesEditor = false }
+        var notesAtOpen by remember { mutableStateOf(notes) }
+        var confirmLeavingNotes by remember { mutableStateOf(false) }
+        var observedBaseline by remember { mutableStateOf(baselineNotes) }
+        LaunchedEffect(baselineNotes) {
+            if (baselineNotes != observedBaseline) {
+                notesAtOpen = baselineNotes
+                observedBaseline = baselineNotes
+            }
+        }
+        fun leaveNotes() {
+            if (busy) return
+            if (notes != notesAtOpen) confirmLeavingNotes = true else showingNotesEditor = false
+        }
+        BackHandler { leaveNotes() }
         run {
             val editorFocus = remember { FocusRequester() }
-            LaunchedEffect(Unit) { editorFocus.requestFocus() }
+            LaunchedEffect(Unit) { if (canWrite) editorFocus.requestFocus() }
             Scaffold(modifier = Modifier.fillMaxSize().dismissKeyboardOnTap(), containerColor = colors.surface,
                 topBar = {
                     TopAppBar(title = { Text(stringResource(R.string.session_summary_section), color = colors.textBright) },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.surface),
+                        navigationIcon = {
+                            IconButton(onClick = { leaveNotes() }, enabled = !busy) {
+                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), tint = colors.gold)
+                            }
+                        },
                         actions = {
-                            TextButton(onClick = { showingNotesEditor = false }) {
-                                Text(stringResource(R.string.done), color = colors.gold, fontWeight = FontWeight.SemiBold)
+                            if ((hasUnsavedChanges || isNew) && canWrite) {
+                                TextButton(onClick = { persist(leave = isNew) }, enabled = canSave) {
+                                    Text(stringResource(R.string.save_session_action), fontWeight = FontWeight.SemiBold)
+                                }
+                            } else {
+                                TextButton(onClick = { leaveNotes() }, enabled = !busy) {
+                                    Text(stringResource(R.string.close_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
+                                }
                             }
                         })
                 }) { padding ->
@@ -317,12 +343,21 @@ fun SessionEditorScreen(
                                     color = colors.textFaint, fontSize = 18.sp, lineHeight = 28.sp)
                                 input()
                             }
-                        })
-                    Text(stringResource(R.string.session_notes_save_help), color = colors.textBody,
+                        }, readOnly = !canWrite || busy)
+                    Text(stringResource(if (isSaving) R.string.session_saving else if (hasUnsavedChanges || isNew) R.string.session_not_saved else R.string.session_saved), color = colors.textBody,
                         fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
+                    errorMessage?.let { Text(it, color = colors.error, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
                 }
             }
         }
+        BusyOverlay(isBusy = isSaving)
+        DiscardChangesDialog(
+            visible = confirmLeavingNotes,
+            canSave = canSave,
+            onSave = { confirmLeavingNotes = false; persist(leave = isNew) },
+            onDiscard = { notes = notesAtOpen; confirmLeavingNotes = false; showingNotesEditor = false },
+            onKeepEditing = { confirmLeavingNotes = false },
+        )
         return
     }
 
@@ -351,7 +386,7 @@ fun SessionEditorScreen(
                 },
                 actions = {
                     if (!isNew) {
-                        IconButton(onClick = { overflow = true }, enabled = !busy) {
+                        IconButton(onClick = { overflow = true }, enabled = canWrite && !busy) {
                             Icon(Icons.Filled.MoreVert, contentDescription = null, tint = colors.gold)
                         }
                         DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
@@ -416,7 +451,7 @@ fun SessionEditorScreen(
                 ExposedDropdownMenuBox(expanded, onExpandedChange = { if (!busy) expanded = it }) {
                     OutlinedTextField(value = patient?.displayName(unnamed) ?: stringResource(R.string.session_choose_patient_placeholder),
                         onValueChange = {}, readOnly = true, label = { Text(stringResource(R.string.choose_patient_for_session)) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(), enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().menuAnchor(), enabled = canWrite && !busy,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) })
                     ExposedDropdownMenu(expanded, onDismissRequest = { expanded = false }) {
                         availablePatients.sortedWith(compareBy<Patient> { it.status != com.cbtipul.app.model.PatientStatus.Active }.thenBy { it.displayName(unnamed) }).forEach { option ->
@@ -427,11 +462,11 @@ fun SessionEditorScreen(
                 if (patient == null) Text(stringResource(R.string.session_choose_patient_help), color = colors.textBody)
             } else Text(displayName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.textBright, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Text(stringResource(R.string.session_date_title), color = colors.textBright)
-            TextButton(onClick = { showDatePicker = true }, enabled = !busy) { Text(hebrewDate(date), color = colors.gold) }
-            ExposedDropdownMenuBox(typeExpanded, onExpandedChange = { if (!busy) typeExpanded = it }) {
+            TextButton(onClick = { showDatePicker = true }, enabled = canWrite && !busy) { Text(hebrewDate(date), color = colors.gold) }
+            ExposedDropdownMenuBox(typeExpanded, onExpandedChange = { if (canWrite && !busy) typeExpanded = it }) {
                 OutlinedTextField(value = type?.let { stringResource(it.labelRes()) } ?: stringResource(R.string.session_type_none),
                     onValueChange = {}, readOnly = true, label = { Text(stringResource(R.string.session_type_label)) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(), enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().menuAnchor(), enabled = canWrite && !busy,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(typeExpanded) })
                 ExposedDropdownMenu(typeExpanded, onDismissRequest = { typeExpanded = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.session_type_none)) }, onClick = { type = null; typeExpanded = false })
@@ -473,7 +508,7 @@ fun SessionEditorScreen(
                             }
                         }
                     } else {
-                        TextButton(onClick = { startMic() }, enabled = !busy && recorder.recordingFile == null) {
+                        TextButton(onClick = { startMic() }, enabled = canWrite && !busy && recorder.recordingFile == null) {
                             IconLabel(stringResource(R.string.record_session_notes_action), Icons.Filled.Mic, color = colors.gold)
                         }
                     }
@@ -523,7 +558,7 @@ fun SessionEditorScreen(
                 }
                 if (editorDraft.canGenerateAnalysis) {
                     GroupedListDivider()
-                    Row(Modifier.fillMaxWidth().clickable(enabled = !busy && recorder.recordingFile == null) {
+                    Row(Modifier.fillMaxWidth().clickable(enabled = canWrite && !busy && recorder.recordingFile == null) {
                         onAnalyze(currentSession(), { notes = it }, { structuredNotes = it })
                     }.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -552,12 +587,12 @@ fun SessionEditorScreen(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f).clickable(enabled = !busy, onClick = onOpenAnalysis).padding(16.dp))
                     Box {
-                        IconButton(onClick = { showingSummaryMenu = true }, enabled = !busy) {
+                        IconButton(onClick = { showingSummaryMenu = true }, enabled = canWrite && !busy) {
                             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.session_regenerate))
                         }
                         DropdownMenu(expanded = showingSummaryMenu, onDismissRequest = { showingSummaryMenu = false }) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.session_regenerate)) },
-                                enabled = !busy && hasText && recorder.recordingFile == null,
+                                enabled = canWrite && !busy && hasText && recorder.recordingFile == null,
                                 onClick = { showingSummaryMenu = false; onAnalyze(currentSession(), { notes = it }, { structuredNotes = it }) })
                         }
                     }
@@ -734,12 +769,12 @@ fun SessionEditorScreen(
                     FollowUpEditorRow(
                         question = question.question,
                         reason = question.reason,
-                        enabled = !busy,
+                        enabled = canWrite && !busy,
                         onMarkDiscussed = { onMarkFollowUpDiscussed(previousSession, index) },
                     )
                 }
                 TextButton(onClick = { showAllFollowUps = false }) {
-                    Text(stringResource(R.string.done), color = colors.gold)
+                    Text(stringResource(R.string.close_action), color = colors.gold)
                 }
             }
         }

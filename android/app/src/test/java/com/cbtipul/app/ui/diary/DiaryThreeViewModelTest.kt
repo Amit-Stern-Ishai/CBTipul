@@ -12,6 +12,8 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiaryThreeViewModelTest {
+    @org.junit.Before fun grantAccess() { Entitlements.apply(AppContext(role = AppRole.Therapist, entitlement = AppEntitlement(EntitlementAccess.Full))) }
+    @org.junit.After fun clearAccess() { Entitlements.clear() }
     @Test fun createEditDeleteRefreshHistoryAndDraftSurvivesRecreation() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val client = createSupabaseClient("https://example.invalid", "test") {}

@@ -79,6 +79,8 @@ import com.cbtipul.app.ui.theme.themedScreen
 fun QuestionnaireScreen(
     session: Session?,
     existing: CombinedMoodQuestionnaire?,
+    patientSubmitted: Boolean = false,
+    allowRecordEditing: Boolean = true,
     previous: CompletedQuestionnaire?,
     atmosphere: Color?,
     isSaving: Boolean,
@@ -98,7 +100,7 @@ fun QuestionnaireScreen(
         )
     }
 
-    val canMutate = session != null
+    val canMutate = allowRecordEditing && !patientSubmitted && session != null && com.cbtipul.app.ui.entitlementCanWrite()
     val isExisting = existing != null
     var draft by remember { mutableStateOf(existing ?: CombinedMoodQuestionnaire()) }
     var isEditing by remember { mutableStateOf(!isExisting) }
@@ -122,7 +124,7 @@ fun QuestionnaireScreen(
     val answers = stringArrayResource(R.array.answer_descriptions)
     val interference = stringArrayResource(R.array.phq9_interference_options)
     val accent = atmosphere ?: colors.gold
-    val editable = isEditing && !isSaving
+    val editable = allowRecordEditing && !patientSubmitted && isEditing && !isSaving && com.cbtipul.app.ui.entitlementCanWrite()
 
     fun requestBack() {
         if (isSaving) return
@@ -197,6 +199,7 @@ fun QuestionnaireScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            if (patientSubmitted) Text(stringResource(R.string.patient_submission_read_only), color = colors.textBody)
             Text(stringResource(R.string.gad7_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             GroupedListCard(accent = accent) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -540,8 +543,7 @@ private fun NoteButton(note: String, editable: Boolean, onNote: (String) -> Unit
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Right,
             )
-            OutlinedTextField(
-                value = value,
+            OutlinedTextField(value = value,
                 onValueChange = { value = it },
                 modifier = Modifier.editorFocus().fillMaxWidth(),
                 minLines = 4,
@@ -556,8 +558,7 @@ private fun NoteButton(note: String, editable: Boolean, onNote: (String) -> Unit
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Right,
                     )
-                },
-            )
+                }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = {
                     onNote(value.trim())

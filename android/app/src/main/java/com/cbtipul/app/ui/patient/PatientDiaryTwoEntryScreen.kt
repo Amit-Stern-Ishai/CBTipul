@@ -110,7 +110,7 @@ fun PatientDiaryTwoEntryScreen(
                     enabled = !state.submitting,
                     modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp).heightIn(min = 48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
-                ) { Text(stringResource(if (didSubmit) R.string.done else R.string.patient_diary_one_save_action)) }
+                ) { Text(stringResource(if (didSubmit) R.string.retry_action else R.string.patient_diary_one_save_action)) }
             },
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).editorScroll().padding(20.dp)) {

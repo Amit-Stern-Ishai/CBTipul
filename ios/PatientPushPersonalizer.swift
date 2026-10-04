@@ -9,17 +9,17 @@ enum PatientPushCopy {
         "\(name) התחבר/ה ל-CBTipul"
     }
 
-    static let genericQuestionnaireCompleted = "מטופל/ת מילא/ה שאלון חדש"
+    static let genericQuestionnaireCompleted = "מטופל/ת מילא/ה שאלוני מצב רוח"
 
     static func questionnaireCompletedBody(name: String) -> String {
-        "\(name) מילא/ה שאלון חדש"
+        "\(name) מילא/ה שאלוני מצב רוח"
     }
 
     static let genericPatient = "מטופל/ת"
-    static let diaryTwoEntryAdded = "הוסיף/ה רשומה חדשה ליומן 2"
-    static let diaryThreeEntryAdded = "הוסיף/ה רשומה חדשה ליומן 3"
-    static let diaryThreeAssigned = "הופעל יומן 3"
-    static let diaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן 1"
+    static let diaryTwoEntryAdded = "הוסיף/ה רשומה חדשה ליומן מחשבות 2"
+    static let diaryThreeEntryAdded = "הוסיף/ה רשומה חדשה ליומן מחשבות 3"
+    static let diaryThreeAssigned = "הופעל יומן מחשבות 3"
+    static let diaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן מחשבות 1"
 }
 
 /// Applies device-only patient-name substitution to a notification.

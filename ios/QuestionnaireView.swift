@@ -204,6 +204,7 @@ struct CombinedMoodQuestionnaireView: View {
     }
 
     private func save() {
+        guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
         // Only promise anonymization when there is note text that may
         // actually be sent to the anonymizer; otherwise show a plain spinner.
@@ -225,6 +226,7 @@ struct CombinedMoodQuestionnaireView: View {
     }
 
     private func deleteQuestionnaire() {
+        guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
         busyLabel = nil
         isSaving = true
@@ -294,7 +296,7 @@ struct PatientQuestionnaireEditorView: View {
     }
 
     private var canSave: Bool {
-        questionnaire.isComplete && isEditing && !isSaving
+        (existing == nil || existing?.createdBy == "therapist") && questionnaire.isComplete && isEditing && !isSaving
     }
 
     private var hasUnsavedChanges: Bool {
@@ -340,14 +342,17 @@ struct PatientQuestionnaireEditorView: View {
 
     var body: some View {
         Form {
-            if isEditing {
+            if existing?.isPatientSubmitted == true {
+                Section { Label(L10n.patientSubmissionReadOnly, systemImage: "eye") }
+            }
+            if isEditing && (existing == nil || existing?.createdBy == "therapist") {
                 Section {
                     DatePicker(
                         L10n.questionnaireAnsweredDateLabel,
                         selection: $answeredDate,
                         in: ...Date.now,
                         displayedComponents: .date
-                    )
+                    ).entitlementWriteControl()
                     .listRowBackground(groupBorderedRow(.first, accent: patientColor))
 
                     Picker(L10n.questionnaireSessionAssociationLabel, selection: $sessionChoice) {
@@ -365,7 +370,7 @@ struct PatientQuestionnaireEditorView: View {
 
             QuestionnaireSections(
                 questionnaire: $questionnaire,
-                isEditable: isEditing,
+                isEditable: isEditing && (existing == nil || existing?.createdBy == "therapist"),
                 previous: previousQuestionnaire,
                 accent: patientColor,
                 marksUnanswered: marksUnanswered
@@ -399,7 +404,7 @@ struct PatientQuestionnaireEditorView: View {
                 }
                 .disabled(isSaving)
             }
-            if isEditing {
+            if isEditing && (existing == nil || existing?.createdBy == "therapist") {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.save) {
                         if questionnaire.isComplete {
@@ -411,7 +416,7 @@ struct PatientQuestionnaireEditorView: View {
                     .disabled(isSaving)
                 }
             }
-            if !isEditing || isExisting {
+            if (existing == nil || existing?.createdBy == "therapist") && (!isEditing || isExisting) {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         if !isEditing {
@@ -470,6 +475,7 @@ struct PatientQuestionnaireEditorView: View {
     }
 
     private func save() {
+        guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
         let hasNoteText = (questionnaire.gad7Notes + questionnaire.phq9Notes + [questionnaire.interferenceNote])
             .contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -494,6 +500,7 @@ struct PatientQuestionnaireEditorView: View {
     }
 
     private func deleteQuestionnaire() {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard let existing else { return }
         errorMessage = nil
         busyLabel = nil
@@ -543,6 +550,7 @@ struct CompletedQuestionnaireView: View {
 
     var body: some View {
         Form {
+            if displayed.isPatientSubmitted { Section { Label(L10n.patientSubmissionReadOnly, systemImage: "eye") } }
             QuestionnaireSections(
                 questionnaire: .constant(displayed.questionnaire),
                 isEditable: false,
@@ -554,7 +562,7 @@ struct CompletedQuestionnaireView: View {
         .themedScreen()
         .navigationTitleWithSubtitle(titleName, subtitle: L10n.hebrewDate(displayed.answeredDate))
         .toolbar {
-            if let patient {
+            if let patient, displayed.createdBy == "therapist" {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L10n.editQuestionnaireAction) {
                         isEditingRecord = true
@@ -563,7 +571,7 @@ struct CompletedQuestionnaireView: View {
             }
         }
         .navigationDestination(isPresented: $isEditingRecord) {
-            if let patient {
+            if let patient, displayed.createdBy == "therapist" {
                 PatientQuestionnaireEditorView(patient: patient, existing: displayed)
             }
         }
@@ -578,6 +586,7 @@ struct CompletedQuestionnaireView: View {
 /// The GAD-7 and PHQ-9 form sections shared by the editing and read-only
 /// screens.
 struct QuestionnaireSections: View {
+    @State private var entitlement = EntitlementState.shared
     @Binding var questionnaire: CombinedMoodQuestionnaire
     let isEditable: Bool
     var previous: CompletedQuestionnaire? = nil
@@ -617,7 +626,7 @@ struct QuestionnaireSections: View {
                         text: L10n.gad7Questions[index],
                         selection: $questionnaire.gad7Answers[index],
                         note: $questionnaire.gad7Notes[index],
-                        isEditable: isEditable,
+                        isEditable: isEditable && entitlement.canWrite,
                         previousAnswer: previousAnswer(previous?.questionnaire.gad7Answers, at: index),
                         accent: accent,
                         showsTherapistNotes: showsTherapistNotes
@@ -654,7 +663,7 @@ struct QuestionnaireSections: View {
                         text: L10n.phq9Questions[index],
                         selection: $questionnaire.phq9Answers[index],
                         note: $questionnaire.phq9Notes[index],
-                        isEditable: isEditable,
+                        isEditable: isEditable && entitlement.canWrite,
                         previousAnswer: previousAnswer(previous?.questionnaire.phq9Answers, at: index),
                         accent: accent,
                         showsTherapistNotes: showsTherapistNotes
@@ -674,7 +683,7 @@ struct QuestionnaireSections: View {
                 InterferencePicker(
                     selection: $questionnaire.interferenceLevel,
                     note: $questionnaire.interferenceNote,
-                    isEditable: isEditable,
+                    isEditable: isEditable && entitlement.canWrite,
                     previousSelection: previous?.questionnaire.interferenceLevel,
                     showsTherapistNotes: showsTherapistNotes
                 )

@@ -56,6 +56,7 @@ class PatientDiaryOneService(
         fallbackMessage: String,
         invalidThoughtsMessage: String,
     ) {
+        Entitlements.requireWrite()
         if (!SupabaseConfig.isConfigured) throw PatientDiaryOneSubmitError.Failed(fallbackMessage)
         try {
             val http = client.functions.invoke(

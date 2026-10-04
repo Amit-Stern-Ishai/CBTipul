@@ -15,6 +15,8 @@ struct ReleaseSanityTests {
     }
 
     @Test func demoClinicCRUDAndShowcaseLoadOffline() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         clearDemoDisk()
         defer { clearDemoDisk() }
 

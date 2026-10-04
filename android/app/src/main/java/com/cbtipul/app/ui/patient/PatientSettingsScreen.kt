@@ -81,6 +81,11 @@ fun PatientSettingsScreen(
     onClearLeaveError: () -> Unit,
     onDone: () -> Unit,
 ) {
+    var showIntroduction by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    if (showIntroduction) {
+        com.cbtipul.app.ui.onboarding.AppIntroductionScreen(isReview = true, isPatientMode = true, onTrySample = {}, onContinue = { showIntroduction = false })
+        return
+    }
     val colors = Theme.colors
     var page by remember { mutableStateOf<PatientSettingsPage>(PatientSettingsPage.Main) }
     var confirmLeave by remember { mutableStateOf(false) }
@@ -132,6 +137,9 @@ fun PatientSettingsScreen(
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
+                    GroupedListCard(accent = colors.gold) {
+                        SettingsRow(title = stringResource(R.string.introduction_review), onClick = { showIntroduction = true })
+                    }
                     NotificationsSettingsSection(R.string.settings_notifications_patient_explanation)
 
                     Text(

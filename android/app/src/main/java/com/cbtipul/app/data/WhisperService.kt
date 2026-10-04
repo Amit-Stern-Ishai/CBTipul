@@ -19,7 +19,9 @@ class WhisperService(
     private val consent: AiConsentStore,
 ) {
     suspend fun transcribe(file: File, language: String = "he"): String {
+        Entitlements.requireWrite()
         consent.ensureGranted()
+        Entitlements.requireWrite()
         val audioData = try {
             file.readBytes()
         } catch (error: Exception) {

@@ -48,6 +48,8 @@ struct SessionEditorView: View {
     @State private var analysisResult: SessionAnalysisResult?
     @State private var isShowingAllFollowUps = false
     @State private var showingNotesEditor = false
+    @State private var notesAtEditorOpen = ""
+    @State private var confirmLeavingNotes = false
     @FocusState private var notesEditorFocused: Bool
 
     /// Whether anything would be lost by dismissing without saving: an edited
@@ -70,6 +72,7 @@ struct SessionEditorView: View {
     }
 
     private var canSave: Bool {
+        EntitlementState.shared.canWrite &&
         storePatient != nil && !isWorking && voiceRecorder.recordingURL == nil && (isNew || hasUnsavedChanges)
     }
 
@@ -154,7 +157,7 @@ struct SessionEditorView: View {
                         patientPicker
                             .labelsHidden()
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .disabled(isWorking)
+                            .disabled(isWorking || !EntitlementState.shared.canWrite)
                             .listRowBackground(groupBorderedRow(.only))
                     } header: {
                         Text(L10n.patientSectionTitle)
@@ -181,13 +184,13 @@ struct SessionEditorView: View {
                 }
 
                 Section {
-                    DatePicker(L10n.sessionDateTitle, selection: $session.date, displayedComponents: [.date])
+                    DatePicker(L10n.sessionDateTitle, selection: $session.date, displayedComponents: [.date]).entitlementWriteControl()
                         .environment(\.locale, Locale(identifier: "he_IL"))
-                        .disabled(isWorking)
+                        .disabled(isWorking || !EntitlementState.shared.canWrite)
                         .accessibilityIdentifier("session.date")
                         .listRowBackground(groupBorderedRow(.first))
                     typePicker
-                        .disabled(isWorking)
+                        .disabled(isWorking || !EntitlementState.shared.canWrite)
                         .accessibilityIdentifier("session.type")
                         .listRowBackground(groupBorderedRow(.last))
                 }
@@ -321,14 +324,14 @@ struct SessionEditorView: View {
                         } label: {
                             Label(L10n.sessionViewEditSummary, systemImage: "doc.text.magnifyingglass")
                         }
-                        .disabled(isWorking)
+                        .disabled(isWorking || !EntitlementState.shared.canWrite)
                         .listRowBackground(groupBorderedRow(.last))
                     }
                 }
 
                 if !isNew {
                     questionnaireSection
-                        .disabled(isWorking)
+                        .disabled(isWorking || !EntitlementState.shared.canWrite)
                 }
 
                 if let errorMessage {
@@ -372,7 +375,7 @@ struct SessionEditorView: View {
                             Image(systemName: "ellipsis")
                                 .rotationEffect(.degrees(90))
                         }
-                        .disabled(isWorking)
+                        .disabled(isWorking || !EntitlementState.shared.canWrite)
                     }
                 }
             }
@@ -450,18 +453,19 @@ struct SessionEditorView: View {
                                     .padding(.horizontal, 29).padding(.top, 24)
                                     .allowsHitTesting(false)
                             }
-                            TextEditor(text: $session.notes)
+                            EntitlementTextEditor(text: $session.notes)
                                 .font(.body).lineSpacing(7)
                                 .foregroundStyle(Theme.textBright)
                                 .tint(Theme.gold)
                                 .focused($notesEditorFocused)
-                                .onAppear { notesEditorFocused = true }
+                                .onAppear { notesAtEditorOpen = session.notes; notesEditorFocused = EntitlementState.shared.canWrite }
+                                .disabled(isWorking)
                                 .onDisappear { notesEditorFocused = false }
                                 .scrollContentBackground(.hidden)
                                 .scrollDismissesKeyboard(.interactively)
                                 .padding(.horizontal, 24).padding(.vertical, 16)
                         }
-                        Text(L10n.sessionNotesSaveHelp)
+                        Text(saveStatus)
                             .font(.caption).foregroundStyle(Theme.textBody)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 24).padding(.vertical, 12)
@@ -471,9 +475,44 @@ struct SessionEditorView: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbarBackground(Theme.surface, for: .navigationBar)
                     .toolbarBackground(.visible, for: .navigationBar)
-                    .toolbar { ToolbarItem(placement: .confirmationAction) {
-                        Button(L10n.done) { showingNotesEditor = false }.fontWeight(.semibold)
-                    } }
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(L10n.back) {
+                                if session.notes != notesAtEditorOpen { confirmLeavingNotes = true }
+                                else { showingNotesEditor = false }
+                            }.disabled(isWorking)
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            if (hasUnsavedChanges || isNew) && EntitlementState.shared.canWrite {
+                                Button(L10n.saveSessionAction) { save() }
+                                    .fontWeight(.semibold).disabled(!canSave)
+                            } else {
+                                Button(L10n.closeAction) {
+                                    if session.notes != notesAtEditorOpen { confirmLeavingNotes = true }
+                                    else { showingNotesEditor = false }
+                                }
+                                    .fontWeight(.semibold).disabled(isWorking)
+                            }
+                        }
+                    }
+                    .onChange(of: initialNotes) { _, value in
+                        if let value { notesAtEditorOpen = value }
+                    }
+                    .safeAreaInset(edge: .bottom) {
+                        if let errorMessage {
+                            Text(errorMessage).font(.callout).foregroundStyle(Theme.error).padding()
+                        }
+                    }
+                    .busyOverlay(isSaving, label: busyLabel)
+                    .alert(L10n.saveSummaryPrompt, isPresented: $confirmLeavingNotes) {
+                        Button(L10n.saveSessionAction) { save() }.disabled(!canSave)
+                        Button(L10n.discardChangesAction, role: .destructive) {
+                            session.notes = notesAtEditorOpen
+                            showingNotesEditor = false
+                        }
+                        Button(L10n.keepEditingAction, role: .cancel) {}
+                    }
+                    .interactiveDismissDisabled(session.notes != notesAtEditorOpen || isWorking)
                     .demoModeChrome()
                 }
                 .environment(\.layoutDirection, .rightToLeft)
@@ -510,7 +549,7 @@ struct SessionEditorView: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button(L10n.done) { isShowingAllFollowUps = false }
+                            Button(L10n.closeAction) { isShowingAllFollowUps = false }
                         }
                     }
                 }
@@ -589,6 +628,7 @@ struct SessionEditorView: View {
             }
         } else {
             Button {
+                guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
                 isRequestingRecording = true
                 Task {
                     await voiceRecorder.startRecording()
@@ -612,6 +652,7 @@ struct SessionEditorView: View {
     /// Sends the recorded voice note to Whisper and appends the resulting
     /// text to the notes field, wrapped in marker lines.
     private func transcribe() {
+        guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         guard !isWorking, let fileURL = voiceRecorder.recordingURL else { return }
         let whisperService = WhisperService(client: auth.client)
         voiceRecorder.errorMessage = nil
@@ -647,6 +688,7 @@ struct SessionEditorView: View {
     /// Sends the notes text to the AI analysis Edge Function and presents
     /// the full response in a sheet.
     private func analyze() {
+        guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         guard !isWorking, voiceRecorder.recordingURL == nil else { return }
         isAnalyzing = true
         let whisperService = WhisperService(client: auth.client)
@@ -685,6 +727,7 @@ struct SessionEditorView: View {
     /// without saving. New sessions are skipped — they have no row until
     /// the first explicit save.
     private func autosaveSession() async {
+        guard EntitlementState.shared.canWrite else { return }
         defer { isSaving = false }
         errorMessage = nil
         busyLabel = L10n.anonymizingStatusLabel
@@ -703,6 +746,7 @@ struct SessionEditorView: View {
 
     /// Deletes the session (after the confirmation alert) and closes the editor.
     private func deleteSession() {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard let storePatient else { return }
         errorMessage = nil
         busyLabel = nil
@@ -757,6 +801,7 @@ struct SessionEditorView: View {
     /// persists that session's review; the row leaves this editor's
     /// From Last Session list immediately.
     private func markFollowUpDiscussed(_ item: PendingFollowUp) {
+        guard EntitlementState.shared.allowMutation() else { return }
         item.session.structuredNotes?.followUpQuestions[item.questionIndex].status = .discussed
         guard item.session.databaseID != nil else { return }
         Task {
@@ -770,6 +815,7 @@ struct SessionEditorView: View {
 
     /// Accepts the review into the editor draft; Save Session persists it.
     private func saveStructuredNotes(_ analysis: WhisperService.CBTSessionAnalysis) {
+        guard EntitlementState.shared.allowMutation() else { return }
         if analysisResult?.requiresSaveDecision == true {
             acceptedAnalysisSource = generatedAnalysisSource
         }
@@ -778,6 +824,7 @@ struct SessionEditorView: View {
     }
 
     private func appendNotesBlock(_ block: String) {
+        guard EntitlementState.shared.allowMutation() else { return }
         if session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             session.notes = block
         } else {
@@ -894,6 +941,7 @@ struct SessionEditorView: View {
     /// the leave-without-saving warning (`thenDismiss`), which continues
     /// backing out after a successful save.
     private func save(thenDismiss: Bool = false) {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard canSave, let patient = storePatient else { return }
         errorMessage = nil
         // Only promise anonymization when there is text that may actually be
@@ -906,6 +954,7 @@ struct SessionEditorView: View {
             do {
                 if isNew {
                     try await store.addSession(session, for: patient)
+                    showingNotesEditor = false
                     gettingStartedRouter.refresh(using: store)
                     dismiss()
                 } else {

@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.CheckCircle
@@ -570,7 +572,9 @@ private fun DisplayNameEditor(
     val emptyError = stringResource(R.string.therapist_display_name_empty)
     val saveError = stringResource(R.string.therapist_display_name_save_error)
     val loadError = stringResource(R.string.therapist_display_name_load_error)
-    val canSave = TherapistProfile.isValid(draft) && !isSaving && !isLoading
+    val access by com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle()
+    val canEdit = access.access == com.cbtipul.app.data.EntitlementAccess.Full
+    val canSave = canEdit && TherapistProfile.isValid(draft) && !isSaving && !isLoading
 
     fun requestBack() {
         if (isSaving || isLoading) return
@@ -631,6 +635,7 @@ private fun DisplayNameEditor(
         bottomBar = {
             Button(
                 onClick = {
+                    if (!com.cbtipul.app.data.Entitlements.allowMutation(allowLocalDemo = false)) return@Button
                     val trimmed = TherapistProfile.normalized(draft)
                     if (!TherapistProfile.isValid(trimmed)) {
                         errorMessage = emptyError
@@ -680,6 +685,7 @@ private fun DisplayNameEditor(
                     OutlinedTextField(
                         value = draft,
                         onValueChange = { draft = it },
+                        readOnly = !canEdit,
                         modifier = Modifier.editorFocus().fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                         enabled = !isLoading && !isSaving,
                         singleLine = true,

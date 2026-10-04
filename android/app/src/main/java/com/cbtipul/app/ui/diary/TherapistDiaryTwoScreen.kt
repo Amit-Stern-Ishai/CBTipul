@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.diary
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -40,6 +41,7 @@ fun TherapistDiaryTwoScreen(
     assignments: PatientAssignmentRepository,
     isDemo: Boolean,
     focusEntryId: String? = null,
+    returnDirectly: Boolean = false,
     onBack: () -> Unit,
 ) {
     val vm: DiaryTwoViewModel = viewModel(key = "diary-two-${patientId.queryValue}", factory = viewModelFactory {
@@ -66,7 +68,7 @@ fun TherapistDiaryTwoScreen(
         composable("history") {
             var stop by rememberSaveable { mutableStateOf(false) }
             DiaryTwoFrame(patientName, atmosphere, onBack, bottom = {
-                Button(onClick = { vm.openEditor(null); nav.navigate("new") }, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) { vm.openEditor(null); nav.navigate("new") } }, modifier = Modifier.fillMaxWidth().entitlementCreateControl()) {
                     Icon(Icons.Outlined.Add, null); Text(stringResource(R.string.diary_one_add_entry))
                 }
             }) {
@@ -77,11 +79,11 @@ fun TherapistDiaryTwoScreen(
                         DiaryTwoConnection.NotConnected -> Text(stringResource(R.string.diary_patient_mode_not_connected))
                         DiaryTwoConnection.Inactive -> {
                             Text(stringResource(R.string.diary_patient_mode_inactive_body))
-                            TextButton(onClick = vm::activate, enabled = !state.busy) { Text(stringResource(R.string.diary_patient_mode_activate)) }
+                            TextButton(onClick = vm::activate, enabled = !state.busy, modifier = Modifier.entitlementCreateControl()) { Text(stringResource(R.string.diary_patient_mode_activate)) }
                         }
                         DiaryTwoConnection.Active -> {
                             Text(stringResource(R.string.diary_patient_mode_active), color = Theme.colors.success)
-                            TextButton(onClick = { stop = true }, enabled = !state.busy) { Text(stringResource(R.string.diary_patient_mode_stop)) }
+                            TextButton(onClick = { stop = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !state.busy) { Text(stringResource(R.string.diary_patient_mode_stop)) }
                         }
                         DiaryTwoConnection.Failed -> {
                             Text(stringResource(R.string.patient_connection_check_error))
@@ -114,19 +116,20 @@ fun TherapistDiaryTwoScreen(
         composable("detail/{entryId}") { destination ->
             val id = destination.arguments?.getString("entryId")
             val entry = entries.find { it.id == id }
+            fun closeDetail() { if (returnDirectly && id == focusEntryId) onBack() else nav.popBackStack() }
             var delete by rememberSaveable { mutableStateOf(false) }
-            DiaryTwoFrame(patientName, atmosphere, { if (!state.busy) nav.popBackStack() }, actions = {
-                if (entry != null) {
-                    IconButton(onClick = { vm.openEditor(entry.id); nav.navigate("edit/${entry.id}") }, enabled = !state.busy) {
+            DiaryTwoFrame(patientName, atmosphere, { if (!state.busy) closeDetail() }, actions = {
+                if (entry != null && entry.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Therapist) {
+                    IconButton(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) { vm.openEditor(entry.id); nav.navigate("edit/${entry.id}") } }, enabled = !state.busy) {
                         Icon(Icons.Outlined.Edit, stringResource(R.string.diary_entry_edit))
                     }
-                    IconButton(onClick = { delete = true }, enabled = !state.busy) {
+                    IconButton(onClick = { delete = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !state.busy) {
                         Icon(Icons.Outlined.Delete, stringResource(R.string.diary_one_delete_action))
                     }
                 }
             }) {
                 if (entry != null) {
-                    Text(entryDate(entry)); Text(source(entry), color = Theme.colors.textBody)
+                    Text(entryDate(entry)); Text(if (entry.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Patient) stringResource(R.string.patient_submission_read_only) else source(entry), color = Theme.colors.textBody)
                     DiaryTwoCard(stringResource(R.string.diary_one_event_title)) { Text(entry.event) }
                     DiaryTwoCard(stringResource(R.string.diary_one_thought_title)) { entry.automaticThoughts.forEach { Text(it) } }
                     DiaryTwoCard(stringResource(R.string.diary_two_feelings_title)) { entry.feelings.forEach { Text("${it.name} — ${it.intensity}%") } }
@@ -140,10 +143,10 @@ fun TherapistDiaryTwoScreen(
                 }
                 state.error?.let { Text(stringResource(it), color = Theme.colors.error) }
             }
-            BackHandler(state.busy) {}
+            BackHandler { if (!state.busy) closeDetail() }
             ConfirmDeleteOverlay(visible = delete, title = stringResource(R.string.diary_one_delete_confirm_title),
                 message = stringResource(R.string.diary_one_delete_confirm_message), confirmLabel = stringResource(R.string.diary_one_delete_action),
-                onConfirm = { delete = false; if (id != null) vm.delete(id) { nav.popBackStack() } }, onDismiss = { delete = false })
+                onConfirm = { delete = false; if (id != null) vm.delete(id) { closeDetail() } }, onDismiss = { delete = false })
         }
         composable("new") { DiaryTwoEditor(vm, draft, state, null, patientName, atmosphere) { nav.popBackStack() } }
         composable("edit/{entryId}") { destination ->

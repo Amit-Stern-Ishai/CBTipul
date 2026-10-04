@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Assignment
@@ -79,17 +80,17 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                 ConnectionUi.Checking -> Text(stringResource(R.string.patient_connection_checking), color = colors.textBody)
                 ConnectionUi.Connected -> {
                     IconLabel(stringResource(R.string.patient_connected_status), Icons.Filled.CheckCircle, color = colors.success)
-                    OutlinedButton(onClick = { sheet = "invite" }, enabled = !busy && !sending) {
+                    OutlinedButton(onClick = { sheet = "invite" }, enabled = !busy && !sending, modifier = Modifier.entitlementCreateControl()) {
                         IconLabel(stringResource(R.string.patient_reinvite_action), Icons.Outlined.PersonAdd)
                     }
-                    TextButton(onClick = { sheet = "send" }, enabled = !busy && !sending) {
+                    TextButton(onClick = { sheet = "send" }, enabled = !busy && !sending, modifier = Modifier.entitlementCreateControl()) {
                         Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.send_to_patient_action), fontWeight = FontWeight.SemiBold)
                     }
                 }
                 ConnectionUi.NotConnected, ConnectionUi.Unavailable -> {
-                    TextButton(onClick = { sheet = "invite" }, enabled = !busy) {
+                    TextButton(onClick = { sheet = "invite" }, enabled = !busy, modifier = Modifier.entitlementCreateControl()) {
                         Icon(Icons.Outlined.PersonAdd, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.patient_invite_to_app_action), fontWeight = FontWeight.SemiBold)
@@ -113,7 +114,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                 Text(stringResource(if (connected) R.string.patient_reinvite_action else R.string.patient_connect_description))
                 if (connection == ConnectionUi.NotConnected || connected) {
                     Text(stringResource(if (connected) R.string.patient_reinvite_explanation else R.string.patient_share_invitation_explanation))
-                    Button(onClick = { sheet = null; onInvite() }, enabled = !busy && !sending, modifier = Modifier.fillMaxWidth()) { IconLabel(stringResource(R.string.patient_share_invitation_action), Icons.Outlined.Share) }
+                    Button(onClick = { sheet = null; onInvite() }, enabled = !busy && !sending, modifier = Modifier.fillMaxWidth().entitlementCreateControl()) { IconLabel(stringResource(R.string.patient_share_invitation_action), Icons.Outlined.Share) }
                 } else Text(stringResource(R.string.patient_invitation_unavailable_explanation))
                 if (!connected) Text(stringResource(R.string.patient_connection_optional_explanation))
             } else if (connection == ConnectionUi.Connected) {
@@ -144,7 +145,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
 
 @Composable
 private fun SendChoice(icon: ImageVector, title: Int, description: Int, enabled: Boolean, onClick: () -> Unit) {
-    OutlinedCard(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().entitlementCreateControl()) {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
             Box(Modifier.size(40.dp).background(Theme.colors.goldGhost, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, tint = Theme.colors.gold, modifier = Modifier.size(22.dp))

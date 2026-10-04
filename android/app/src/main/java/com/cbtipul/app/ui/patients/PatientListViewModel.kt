@@ -183,6 +183,7 @@ class PatientListViewModel(
         rejected: String,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingAdd = true, addError = null) }
             try {
@@ -199,10 +200,12 @@ class PatientListViewModel(
     }
 
     fun rename(id: DatabaseId, firstName: String, lastName: String) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         repository.renamePatient(id, firstName, lastName)
     }
 
     fun delete(id: DatabaseId, notConfigured: String, rejected: String, onDone: () -> Unit) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             try {
                 repository.deletePatient(id)
@@ -231,6 +234,7 @@ class PatientListViewModel(
         onSaved: () -> Unit = {},
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingSession = true, sessionError = null) }
             try {
@@ -259,6 +263,7 @@ class PatientListViewModel(
         anonymizationFailed: String,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingSession = true, sessionError = null) }
             try {
@@ -284,6 +289,7 @@ class PatientListViewModel(
         sessionNotSaved: String,
         anonymizationFailed: String,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         val analysis = session.structuredNotes ?: return
         if (questionIndex !in analysis.followUpQuestions.indices) return
         val questions = analysis.followUpQuestions.toMutableList()
@@ -318,6 +324,7 @@ class PatientListViewModel(
         onTranscribed: () -> Unit,
         patientIdForNotes: DatabaseId? = null,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation(allowLocalDemo = false)) return
         viewModelScope.launch {
             _ui.update { it.copy(isTranscribing = true, sessionError = null) }
             try {
@@ -399,6 +406,7 @@ class PatientListViewModel(
         recordId: DatabaseId? = null,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingQuestionnaire = true, sessionError = null) }
             try {
@@ -427,6 +435,7 @@ class PatientListViewModel(
         recordId: DatabaseId? = null,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingQuestionnaire = true, sessionError = null) }
             try {
@@ -472,6 +481,7 @@ class PatientListViewModel(
         onNotes: (String) -> Unit,
         onAnalysis: (CBTSessionAnalysis) -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation(allowLocalDemo = false)) return
         viewModelScope.launch {
             _ui.update { it.copy(isAnonymizingTranscription = true, sessionError = null) }
             try {
@@ -514,6 +524,7 @@ class PatientListViewModel(
         anonymizationFailed: String,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingSession = true, sessionError = null) }
             try {
@@ -542,6 +553,7 @@ class PatientListViewModel(
         emptyAi: String,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation(allowLocalDemo = false)) return
         viewModelScope.launch {
             _ui.update { it.copy(isPreparing = true, sessionError = null) }
             try {
@@ -586,6 +598,7 @@ class PatientListViewModel(
         onAnswer: (String) -> Unit,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(sessionError = null) }
             try {
@@ -620,6 +633,7 @@ class PatientListViewModel(
         anonymizationFailed: String,
         onDone: () -> Unit = {},
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingNotes = true, sessionError = null) }
             try {
@@ -645,6 +659,7 @@ class PatientListViewModel(
         sessionNotSaved: String,
         anonymizationFailed: String,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingStatus = true, sessionError = null) }
             try {
@@ -676,6 +691,7 @@ class PatientListViewModel(
         anonymizationFailed: String,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingFormulation = true, sessionError = null) }
             try {
@@ -704,6 +720,7 @@ class PatientListViewModel(
         emptyAi: String,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isAiBusy = true, sessionError = null) }
             try {
@@ -735,6 +752,7 @@ class PatientListViewModel(
         emptyAi: String,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isAiBusy = true, sessionError = null) }
             try {
@@ -766,6 +784,7 @@ class PatientListViewModel(
         emptyAi: String,
         onDone: () -> Unit,
     ) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isAiBusy = true, sessionError = null) }
             try {

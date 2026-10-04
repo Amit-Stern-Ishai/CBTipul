@@ -47,12 +47,14 @@ nonisolated struct ClinicalTextAnonymizer {
     ///
     /// The clinical text itself — original or anonymized — is never logged.
     func anonymize(_ text: String) async throws -> String {
+        try await EntitlementState.shared.requireWrite()
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "" }
 
         // The text is about to be sent to OpenAI for anonymization — the
         // one-time AI data-sharing consent must be granted first.
         try await AIDataSharingConsentStore.ensureGranted()
+        try await EntitlementState.shared.requireWrite()
 
         AppLog.ai.info("Anonymization requested, characters: \(trimmed.count)")
         let response: Response

@@ -89,10 +89,11 @@ fun TherapistRootScreen(
     val context = LocalContext.current
     val app = context.applicationContext as CbTipulApp
     val patientsNav = rememberNavController()
+    val inboxNav = rememberNavController()
+    val inboxEntry by inboxNav.currentBackStackEntryAsState()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     val reselections = remember { TherapistRootTab.entries.associateWith { MutableSharedFlow<Unit>(extraBufferCapacity = 1) } }
     val currentEntry by patientsNav.currentBackStackEntryAsState()
-    var returnToInbox by rememberSaveable { mutableStateOf(false) }
     val patients by viewModel.patients.collectAsStateWithLifecycle()
     val clinicState by viewModel.ui.collectAsStateWithLifecycle()
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
@@ -111,12 +112,6 @@ fun TherapistRootScreen(
             }
         }
     }
-    LaunchedEffect(currentEntry) {
-        if (returnToInbox && currentEntry?.destination?.route == "list") {
-            returnToInbox = false
-            tab = TherapistRootTab.Notifications
-        }
-    }
 
     LaunchedEffect(isDemoMode) {
         tab = TherapistRootTab.Patients
@@ -132,7 +127,7 @@ fun TherapistRootScreen(
         }
     }
 
-    LaunchedEffect(pending, clinicState.hasLoaded, currentEntry != null) {
+    LaunchedEffect(pending, clinicState.hasLoaded, inboxEntry != null) {
         val destination = pending ?: return@LaunchedEffect
         if (destination is AppDestination.DiaryThreeEntry && (!clinicState.hasLoaded || currentEntry == null)) return@LaunchedEffect
         if (destination !is AppDestination.PatientDetail &&
@@ -143,10 +138,10 @@ fun TherapistRootScreen(
         ) {
             return@LaunchedEffect
         }
+        tab = TherapistRootTab.Notifications
+        if (inboxEntry == null || !clinicState.hasLoaded) return@LaunchedEffect
         app.pendingDestinations.consume()
-        returnToInbox = false
-        tab = TherapistRootTab.Patients
-        navigateTherapistDestination(patientsNav, destination)
+        navigateInboxDestination(inboxNav, destination)
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -184,18 +179,19 @@ fun TherapistRootScreen(
                             patientsNav.navigate("patient/_/session/new")
                         },
                     )
-                    TherapistRootTab.Notifications -> NotificationsInboxScreen(
-                        repository = app.notifications,
-                        patients = patients,
-                        unnamed = unnamed,
-                        onOpen = { item ->
-                            val destination = NotificationRouting.destination(NotificationPayload.from(item))
-                            app.applicationScope.launch { app.notifications.markRead(item) }
-                            if (destination != null) {
-                                tab = TherapistRootTab.Patients
-                                navigateTherapistDestination(patientsNav, destination)
-                                returnToInbox = true
-                            }
+                    TherapistRootTab.Notifications -> PatientsNavHost(
+                        viewModel = viewModel,
+                        onOpenSettings = { tab = TherapistRootTab.Settings },
+                        navController = inboxNav,
+                        inboxContent = {
+                            NotificationsInboxScreen(
+                                repository = app.notifications, patients = patients, unnamed = unnamed,
+                                onOpen = { item ->
+                                    val destination = NotificationRouting.destination(NotificationPayload.from(item))
+                                    app.applicationScope.launch { app.notifications.markRead(item) }
+                                    if (destination != null) navigateInboxDestination(inboxNav, destination)
+                                },
+                            )
                         },
                     )
                     TherapistRootTab.Library -> LibraryPlaceholderScreen()
@@ -210,9 +206,10 @@ fun TherapistRootScreen(
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = {
-                            returnToInbox = false
                             if (tab != item) {
                                 tab = item
+                            } else if (item == TherapistRootTab.Notifications && inboxEntry?.destination?.route != "list") {
+                                backDispatcher?.onBackPressed()
                             } else if (item == TherapistRootTab.Patients && currentEntry?.destination?.route != "list") {
                                 // Ignore taps during transitions, and let editing screens handle
                                 // Back themselves (save/discard, recording and in-flight work).
@@ -284,3 +281,11 @@ fun navigateTherapistDestination(nav: NavHostController, destination: AppDestina
 
 @Suppress("unused")
 fun therapistRootTabIds(): List<String> = TherapistRootTabs.ordered
+
+private fun navigateInboxDestination(nav: NavHostController, destination: AppDestination) {
+    val route = NotificationRouting.inboxRoute(destination) ?: return
+    nav.navigate(route) {
+        popUpTo("list") { inclusive = false }
+        launchSingleTop = true
+    }
+}

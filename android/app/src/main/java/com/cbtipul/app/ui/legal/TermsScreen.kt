@@ -79,7 +79,7 @@ fun TermsScreen(onAgree: (() -> Unit)? = null, onBack: (() -> Unit)? = null) {
                 ),
                 shape = RoundedCornerShape(14.dp),
             ) {
-                Text(stringResource(R.string.done), fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.back), fontWeight = FontWeight.SemiBold)
             }
         }
     }

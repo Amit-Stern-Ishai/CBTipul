@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.diary
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -76,6 +77,7 @@ fun TherapistDiaryOneScreen(
     assignments: PatientAssignmentRepository,
     isDemo: Boolean = false,
     focusEntryId: String? = null,
+    returnDirectly: Boolean = false,
     onBack: () -> Unit,
 ) {
     val colors = Theme.colors
@@ -171,6 +173,14 @@ fun TherapistDiaryOneScreen(
         if (loaded != null) editor = loaded
     }
 
+    val patientEntry = editor?.takeIf { it.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Patient }
+    if (patientEntry != null) {
+        val close = { if (returnDirectly && patientEntry.id == focusEntryId) onBack() else { editor = null } }
+        androidx.activity.compose.BackHandler(onBack = close)
+        com.cbtipul.app.ui.patient.PatientDiaryOneDetailScreen(entry = patientEntry, onBack = close, therapistViewing = true)
+        return
+    }
+
     if (isCreating || editor != null) {
         val existing = editor
         DiaryOneEditorScreen(
@@ -179,6 +189,7 @@ fun TherapistDiaryOneScreen(
             patientName = patientName,
             atmosphere = atmosphere,
             onBack = {
+                if (returnDirectly && existing?.id == focusEntryId) { onBack(); return@DiaryOneEditorScreen }
                 isCreating = false
                 editor = null
                 editorError = null
@@ -210,6 +221,7 @@ fun TherapistDiaryOneScreen(
                         }
                         isCreating = false
                         editor = null
+                        if (returnDirectly && existing?.id == focusEntryId) onBack()
                     } catch (_: Exception) {
                         editorError = saveFailed
                     }
@@ -225,6 +237,7 @@ fun TherapistDiaryOneScreen(
                             diary.deleteEntry(existing.id, patientId)
                             isCreating = false
                             editor = null
+                            if (returnDirectly && existing.id == focusEntryId) onBack()
                         } catch (_: Exception) {
                             editorError = deleteFailed
                         }
@@ -266,8 +279,8 @@ fun TherapistDiaryOneScreen(
                     IconButton(onClick = {
                         editorError = null
                         editor = null
-                        isCreating = true
-                    }) {
+                        if (com.cbtipul.app.data.Entitlements.allowMutation()) isCreating = true
+                    }, modifier = Modifier.entitlementCreateControl()) {
                         Icon(
                             Icons.Outlined.Add,
                             contentDescription = stringResource(R.string.diary_one_add_entry),
@@ -409,12 +422,12 @@ fun TherapistDiaryOneScreen(
             onClick = {
                 editorError = null
                 editor = null
-                isCreating = true
+                if (com.cbtipul.app.data.Entitlements.allowMutation()) isCreating = true
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(top = 8.dp, bottom = 12.dp),
+                .padding(top = 8.dp, bottom = 12.dp).entitlementCreateControl(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = colors.accentFill,
                 contentColor = colors.textOnAccent,
@@ -497,7 +510,7 @@ private fun PatientModeControl(
                     color = colors.textBody,
                     fontSize = 13.sp,
                 )
-                TextButton(onClick = onActivate, enabled = !isUpdating) {
+                TextButton(onClick = onActivate, enabled = !isUpdating, modifier = Modifier.entitlementCreateControl()) {
                     Text(
                         stringResource(R.string.diary_patient_mode_activate),
                         color = colors.gold,
@@ -522,7 +535,7 @@ private fun PatientModeControl(
                         fontSize = 13.sp,
                     )
                 }
-                TextButton(onClick = onStop, enabled = !isUpdating) {
+                TextButton(onClick = onStop, enabled = !isUpdating && com.cbtipul.app.ui.entitlementCanWrite()) {
                     Text(stringResource(R.string.diary_patient_mode_stop), color = colors.error, fontSize = 13.sp)
                 }
             }

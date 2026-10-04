@@ -108,6 +108,7 @@ final class TherapistNotificationCoordinator {
 
     var selectedTab: TherapistRootTab = .patients
     var unavailableTarget = false
+    var isInboxShowingDetail = false
     private(set) var returnsToInbox = false
     private(set) var pendingPatientNavigation: PendingPatientNavigation?
     /// Bumps when a push tap is enqueued so the therapist shell can consume it.
@@ -134,6 +135,7 @@ final class TherapistNotificationCoordinator {
     }
 
     func resetOnLogout() {
+        isInboxShowingDetail = false
         unavailableTarget = false
         returnsToInbox = false
         pendingPayload = nil
@@ -163,7 +165,7 @@ final class TherapistNotificationCoordinator {
             patients: patients,
             waitForPatients: false
         )
-        returnsToInbox = pendingPatientNavigation != nil
+        returnsToInbox = false // The destination now belongs to the inbox stack.
     }
 
     func finishInboxNavigation() {
@@ -210,7 +212,7 @@ final class TherapistNotificationCoordinator {
             ) else { return }
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
-            selectedTab = .patients
+            selectedTab = .notifications
             pendingPatientNavigation = PendingPatientNavigation(
                 token: UUID(),
                 patientID: patient.id,
@@ -231,7 +233,7 @@ final class TherapistNotificationCoordinator {
             ) else { return }
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
-            selectedTab = .patients
+            selectedTab = .notifications
             let focusID = QuestionnaireNotificationFocus.combinedMoodID(
                 resourceType: resourceType,
                 resourceId: resourceId
@@ -260,7 +262,7 @@ final class TherapistNotificationCoordinator {
                 fingerprint: fingerprint, waitForPatients: waitForPatients) else { return }
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
-            selectedTab = .patients
+            selectedTab = .notifications
             pendingPatientNavigation = PendingPatientNavigation(
                 token: UUID(), patientID: patient.id, questionnairesRoute: nil, diaryOneRoute: nil,
                 diaryTwoRoute: PatientDiaryTwoRoute(patientID: patient.id,
@@ -270,7 +272,7 @@ final class TherapistNotificationCoordinator {
                 fingerprint: fingerprint, waitForPatients: waitForPatients) else { return }
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
-            selectedTab = .patients
+            selectedTab = .notifications
             pendingPatientNavigation = PendingPatientNavigation(
                 token: UUID(), patientID: patient.id, questionnairesRoute: nil, diaryOneRoute: nil,
                 diaryThreeRoute: PatientDiaryThreeRoute(patientID: patient.id,
@@ -284,7 +286,7 @@ final class TherapistNotificationCoordinator {
             ) else { return }
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint
-            selectedTab = .patients
+            selectedTab = .notifications
             let focusID = DiaryOneNotificationFocus.entryID(
                 resourceType: resourceType,
                 resourceId: resourceId
@@ -341,7 +343,7 @@ final class TherapistNotificationCoordinator {
     }
 }
 
-struct PendingPatientNavigation: Equatable {
+struct PendingPatientNavigation: Hashable {
     let token: UUID
     let patientID: DatabaseID
     /// When nil, open Patient Detail only (`patient_connected`).

@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.outlined.EditNote
@@ -126,7 +127,7 @@ fun PatientQuestionnairesScreen(
         bottomBar = {
             if (!graphsMode) Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(stringResource(R.string.questionnaire_local_entry_help), color = colors.textBody, fontSize = 13.sp)
-                Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onAdd, modifier = Modifier.fillMaxWidth().entitlementCreateControl()) {
                     IconLabel(stringResource(R.string.fill_questionnaire_here_action), Icons.Outlined.EditNote)
                 }
             }

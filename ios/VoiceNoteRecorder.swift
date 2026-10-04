@@ -20,6 +20,7 @@ final class VoiceNoteRecorder {
     var errorMessage: String?
 
     func startRecording() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
 
         guard await AVAudioApplication.requestRecordPermission() else {

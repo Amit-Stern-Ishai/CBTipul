@@ -281,16 +281,14 @@ internal fun DiaryFeelingPickerSheet(
                 }
             }
             Text(stringResource(R.string.diary_feelings_picker_hint), color = colors.textBody, fontSize = 14.sp)
-            OutlinedTextField(
-                value = query,
+            OutlinedTextField(value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.editorFocus().fillMaxWidth(),
                 singleLine = true,
                 placeholder = {
                     Text(stringResource(R.string.diary_feeling_search), color = colors.textFaint)
                 },
-                colors = feelingFieldColors(),
-            )
+                colors = feelingFieldColors(), readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -330,8 +328,7 @@ internal fun DiaryFeelingPickerSheet(
                             )
                         }
                         if (isEnteringCustom) {
-                            OutlinedTextField(
-                                value = customText,
+                            OutlinedTextField(value = customText,
                                 onValueChange = {
                                     customText = it
                                     customError = null
@@ -344,8 +341,7 @@ internal fun DiaryFeelingPickerSheet(
                                         color = colors.textFaint,
                                     )
                                 },
-                                colors = feelingFieldColors(),
-                            )
+                                colors = feelingFieldColors(), readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
                             customError?.let { Text(it, color = colors.error, fontSize = 13.sp) }
                             Button(
                                 onClick = {

@@ -188,13 +188,13 @@ struct DiaryThreeEntryDetailView: View {
             if let entry {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(entry.createdAt.formatted(date: .numeric, time: .shortened)).font(.subheadline)
-                    Text(entry.createdBy == .patient ? L10n.diaryEntryPatientSource : L10n.diaryEntryTherapistSource).font(.caption).foregroundStyle(.secondary)
+                    Text(entry.createdBy == .patient ? L10n.patientSubmissionReadOnly : L10n.diaryEntryTherapistSource).font(.caption).foregroundStyle(.secondary)
                     DiaryThreeEntryContent(entry: entry)
                 }.padding(20)
             }
         }.themedScreen().demoModeChrome().navigationTitle(L10n.diaryThreeTitle)
         .toolbar {
-            if let entry {
+            if let entry, entry.createdBy == .therapist {
                 ToolbarItem(placement: .primaryAction) {
                     NavigationLink { DiaryThreeEntryFormView(patient: patient, mode: .edit(entry)).id(entry.updatedAt) }
                     label: { Label(L10n.diaryEntryEdit, systemImage: "pencil") }

@@ -87,6 +87,8 @@ struct DiaryTwoTests {
         #expect(PatientDiaryTwoActivation.mapError(from: Data(#"{"error":"patient_not_connected"}"#.utf8), statusCode: 400) == .patientNotConnected)
     }
     @Test func localCRUDUpdatesHistoryWithoutAssignmentOperations() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let store = DiaryTwoStore(client: SupabaseClient(supabaseURL: URL(string: "https://example.invalid")!, supabaseKey: "test"))
         let id = DatabaseID.text("demo-diary-two-test")
         #expect(try await store.loadEntries(for: id).isEmpty)

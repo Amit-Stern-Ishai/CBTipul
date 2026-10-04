@@ -74,6 +74,7 @@ final class PatientInvitationService {
         patientId: UUID,
         kind: InvitationKind = .initial
     ) async throws -> PatientInvitation {
+        try await EntitlementState.shared.requireWrite()
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let invitation: PatientInvitation = try await client.functions.invoke(
             "create-patient-invitation",
@@ -149,11 +150,13 @@ final class InvitationShareActivityItem: NSObject, UIActivityItemSource {
     let body: String
     let subject: String
     let htmlBody: String?
+    let emailBody: String?
 
-    init(body: String, subject: String, htmlBody: String? = nil) {
+    init(body: String, subject: String, htmlBody: String? = nil, emailBody: String? = nil) {
         self.body = body
         self.subject = subject
         self.htmlBody = htmlBody
+        self.emailBody = emailBody
     }
 
     func activityViewControllerPlaceholderItem(
@@ -168,7 +171,9 @@ final class InvitationShareActivityItem: NSObject, UIActivityItemSource {
     ) -> Any? {
         // Gmail's iOS extension can discard HTML data and open an empty body.
         // Keep a String payload for third-party targets, matching the placeholder.
-        return activityType == .mail ? (htmlBody ?? body) : body
+        if activityType == .mail { return htmlBody ?? emailBody ?? body }
+        if activityType?.rawValue == "com.google.Gmail.ShareExtension" { return emailBody ?? body }
+        return body
     }
 
     func activityViewController(

@@ -314,7 +314,7 @@ fun PatientDetailScreen(
                     Spacer(Modifier.size(48.dp))
                     Text(name, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 26.sp,
                         textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false))
-                    IconButton(onClick = { showRename = true }, enabled = !busy, modifier = Modifier.size(48.dp)) {
+                    IconButton(onClick = { showRename = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_patient_name_action), tint = colors.gold)
                     }
                 }
@@ -322,14 +322,14 @@ fun PatientDetailScreen(
                     Spacer(Modifier.size(48.dp))
                     Text(treatmentGoal.ifEmpty { stringResource(R.string.no_treatment_goal_placeholder) },
                         color = colors.textBody, textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false))
-                    IconButton(onClick = { goalDraft = treatmentGoal; showGoal = true }, enabled = !busy, modifier = Modifier.size(48.dp)) {
+                    IconButton(onClick = { goalDraft = treatmentGoal; showGoal = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_treatment_goal_action), tint = colors.gold)
                     }
                 }
             }
 
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                TextButton(onClick = { statusExpanded = true }, enabled = !busy) {
+                TextButton(onClick = { statusExpanded = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy) {
                     Text(stringResource(if (patient.status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive))
                 }
                 DropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
@@ -625,8 +625,7 @@ private fun EditGoalOverlay(
                     color = colors.textBright,
                     fontWeight = FontWeight.SemiBold,
                 )
-                OutlinedTextField(
-                    value = value,
+                OutlinedTextField(value = value,
                     onValueChange = onValueChange,
                     modifier = Modifier.editorFocus().fillMaxWidth(),
                     minLines = 2,
@@ -641,8 +640,7 @@ private fun EditGoalOverlay(
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Right,
                         )
-                    },
-                )
+                    }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -672,8 +670,7 @@ private fun RenameDialog(
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Right,
         )
-        OutlinedTextField(
-            value = first,
+        OutlinedTextField(value = first,
             onValueChange = { first = it },
             modifier = Modifier.editorFocus().fillMaxWidth(),
             textStyle = TextStyle(
@@ -687,10 +684,8 @@ private fun RenameDialog(
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Right,
                 )
-            },
-        )
-        OutlinedTextField(
-            value = last,
+            }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
+        OutlinedTextField(value = last,
             onValueChange = { last = it },
             modifier = Modifier.editorFocus().fillMaxWidth(),
             textStyle = TextStyle(
@@ -704,8 +699,7 @@ private fun RenameDialog(
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Right,
                 )
-            },
-        )
+            }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(
                 onClick = { onSave(first.trim(), last.trim()) },

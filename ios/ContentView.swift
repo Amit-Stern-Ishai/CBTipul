@@ -85,6 +85,8 @@ struct MyApp: App {
 /// Root view that shows the sign-in screen or the patient list depending on
 /// authentication state.
 struct ContentView: View {
+    @State private var entitlement = EntitlementState.shared
+    @Environment(\.scenePhase) private var entitlementScenePhase
     @Environment(AppVersionManager.self) private var appVersion
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
@@ -103,26 +105,48 @@ struct ContentView: View {
     var body: some View {
         @Bindable var auth = auth
         @Bindable var onboarding = onboarding
-        return ZStack {
-            switch AppRootRouting.destination(
-                invitationActive: invitationFlow.isActive,
-                hasSession: auth.hasSession,
-                isAnonymous: auth.isAnonymous
-            ) {
-            case .invitation:
-                PatientInvitationFlowView()
-            case .therapist:
-                therapistSessionRoot
-            case .anonymousPatient:
-                patientSessionRoot
-            case .unauthenticated:
-                AuthView()
+        return VStack(spacing: 0) {
+            // A real layout row keeps the notice outside navigation/toolbar bounds.
+            if auth.isTherapistAuthenticated && entitlement.access == .readOnly
+                && !invitationFlow.isActive && !isShowingSplash
+                && !onboarding.shouldShowIntroduction && !entitlement.isLocalDemo {
+                Button { entitlement.showExplanation = true } label: {
+                    Label(L10n.entitlementReadOnlyTitle, systemImage: "eye")
+                        .font(.footnote).frame(maxWidth: .infinity).padding(8)
+                }
+                .background(Theme.surface)
+                .accessibilityIdentifier("entitlement.readOnlyNotice")
             }
+            ZStack {
+                switch AppRootRouting.destination(
+                    invitationActive: invitationFlow.isActive,
+                    hasSession: auth.hasSession,
+                    isAnonymous: auth.isAnonymous
+                ) {
+                case .invitation:
+                    PatientInvitationFlowView()
+                case .therapist:
+                    therapistSessionRoot
+                case .anonymousPatient:
+                    patientSessionRoot
+                case .unauthenticated:
+                    AuthView()
+                }
 
-            if isShowingSplash {
-                SplashView()
-                    .transition(.opacity)
+                if isShowingSplash {
+                    SplashView()
+                        .transition(.opacity)
+                }
             }
+        }
+        .alert(entitlement.role == .patient ? L10n.entitlementPatientUnavailable : L10n.entitlementReadOnlyTitle,
+               isPresented: $entitlement.showExplanation) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            Text(entitlement.role == .patient ? L10n.entitlementPatientUnavailable : entitlement.isLocalDemo ? L10n.entitlementDemoOnlineUnavailable : L10n.entitlementReadOnlyExplanation)
+        }
+        .onChange(of: entitlementScenePhase) { _, phase in
+            if phase == .active && !AuthManager.isUITesting { Task { await appContext.refreshOnForeground() } }
         }
         .safeAreaInset(edge: .bottom) {
             if appVersion.optionalVisible && !isShowingSplash && !invitationFlow.isActive
@@ -147,6 +171,10 @@ struct ContentView: View {
             AIDataSharingConsentStore.shared.setActiveUser(email: email)
         }
         .onChange(of: auth.currentUserId, initial: true) { _, userId in
+            entitlement.setIdentity(userId)
+            if AuthManager.isUITesting && userId != nil {
+                entitlement.apply(AppContext(version: 1, role: .therapist, activation: nil, patientId: nil, entitlement: AppEntitlement(access: .full)))
+            }
             if userId == nil {
                 therapistProfiles.clearCache()
                 appContext.clear()
@@ -224,7 +252,7 @@ struct ContentView: View {
             }, onContinue: {
                 onboarding.completeIntroduction()
             })
-        } else if showOptionalDisplayNamePrompt && !store.isDemoMode {
+        } else if showOptionalDisplayNamePrompt && !store.isDemoMode && entitlement.access == .full {
             // Full-screen gate (not a second root sheet) so this
             // never races Terms/Welcome or the password-recovery sheet.
             TherapistDisplayNameEditorView(
@@ -311,7 +339,7 @@ struct ContentView: View {
     }
 
     private func resolveAnonymousAppContext() async {
-        guard auth.isAnonymous, !AuthManager.isUITesting else {
+        guard auth.hasSession, !AuthManager.isUITesting else {
             return
         }
         do {

@@ -65,7 +65,7 @@ struct PatientDiaryOneView: View {
         } label: {
             Text(entries.isEmpty ? L10n.emptyDiaryOnePrimaryAction : L10n.diaryOneAddEntryAction)
                 .frame(maxWidth: .infinity)
-        }
+        }.entitlementCreateControl()
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
         .padding(.horizontal, 24)
@@ -100,7 +100,7 @@ struct PatientDiaryOneView: View {
                         .id("diary-one-create-\(patient.id.queryValue)")
                 } label: {
                     Label(L10n.diaryOneAddEntryAction, systemImage: "plus")
-                }
+                }.entitlementCreateControl()
             }
         }
         .task(id: patient.id) {
@@ -207,7 +207,7 @@ struct PatientDiaryOneView: View {
                 } label: {
                     Text(L10n.diaryPatientModeActivateAction)
                         .fontWeight(.semibold)
-                }
+                }.entitlementCreateControl()
                 .disabled(isUpdatingAssignment)
             case .active:
                 HStack(spacing: 8) {
@@ -351,6 +351,7 @@ struct PatientDiaryOneView: View {
     }
 
     private func activateDiaryOne() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isUpdatingAssignment, patientModeStatus == .inactive else { return }
         guard let patientId = patient.id.uuidValue else {
             assignmentError = L10n.diaryPatientModeActivateFailed
@@ -376,6 +377,7 @@ struct PatientDiaryOneView: View {
     }
 
     private func stopDiaryOne() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isUpdatingAssignment, let assignmentId = activeAssignmentId else { return }
         isUpdatingAssignment = true
         modeRefreshRevision += 1
@@ -436,6 +438,12 @@ struct DiaryOneEntryFormView: View {
     }
 
     var body: some View {
+        if let existing, existing.createdBy == .patient {
+            PatientDiaryOneDetailView(entry: existing, therapistViewing: true)
+        } else { editorBody }
+    }
+
+    private var editorBody: some View {
         ScrollView {
             DiaryOneDraftFields(
                 draft: $draft,
@@ -515,6 +523,7 @@ struct DiaryOneEntryFormView: View {
     }
 
     private func save() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy else { return }
         didAttemptSave = true
         if let message = draft.validationMessage() {
@@ -564,6 +573,7 @@ struct DiaryOneEntryFormView: View {
     }
 
     private func deleteEntry() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy, let existing else { return }
         isDeleting = true
         errorMessage = nil

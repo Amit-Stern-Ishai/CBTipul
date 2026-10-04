@@ -1,5 +1,6 @@
 package com.cbtipul.app.data
 
+import com.cbtipul.app.model.PatientStoreException
 import com.cbtipul.app.model.DatabaseId
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -117,6 +118,7 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
         thinkingErrors: List<ThinkingError>,
         alternativeThoughts: List<DiaryThreeAlternativeThought>,
     ): DiaryThreeEntry {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
         if (DemoData.isDemoId(patientId)) {
             val entry = DiaryThreeEntry(
                 id = UUID.randomUUID().toString(),
@@ -157,6 +159,8 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
         thinkingErrors: List<ThinkingError>,
         alternativeThoughts: List<DiaryThreeAlternativeThought>,
     ): DiaryThreeEntry {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
+        if (_entries.value[patientId.queryValue].orEmpty().any { it.id == id && it.createdBy == DiaryOneEntryCreator.Patient }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
         if (DemoData.isDemoId(patientId)) {
             val existing = demoEntries[patientId.queryValue].orEmpty().first { it.id == id }
             val updated = existing.copy(
@@ -174,7 +178,7 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
         val body = updatePayload(situation, automaticThoughts, feelings, thinkingErrors, alternativeThoughts, timestampNow())
         val saved = client.from("diary_three_entries")
             .update(body) {
-                filter { eq("id", id); eq("patient_id", patientId.queryValue) }
+                filter { eq("created_by", "therapist"); eq("id", id); eq("patient_id", patientId.queryValue) }
                 select(columns)
             }
             .decodeSingle<DiaryThreeEntryRow>()
@@ -184,6 +188,8 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
     }
 
     suspend fun deleteEntry(id: String, patientId: DatabaseId) {
+        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
+        if (_entries.value[patientId.queryValue].orEmpty().any { it.id == id && it.createdBy == DiaryOneEntryCreator.Patient }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
         if (DemoData.isDemoId(patientId)) {
             demoEntries[patientId.queryValue] =
                 demoEntries[patientId.queryValue].orEmpty().filterNot { it.id == id }
@@ -193,7 +199,7 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
         val deleted = client.from("diary_three_entries")
             .delete {
-                filter { eq("id", id); eq("patient_id", patientId.queryValue) }
+                filter { eq("created_by", "therapist"); eq("id", id); eq("patient_id", patientId.queryValue) }
                 select(Columns.raw("id"))
             }
             .decodeList<DeletedId>()

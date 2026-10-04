@@ -23,7 +23,7 @@ struct PatientInvitationShareTests {
             therapistName: therapistName,
             invitationUrl: invitationUrl
         )
-        #expect(body.contains("דרך האפליקציה ניתן למלא שאלונים ויומנים ולצפות בתכנים שנשלחו אליך כחלק מהטיפול."))
+        #expect(body.contains("דרך האפליקציה ניתן למלא שאלוני מצב רוח ויומני מחשבות ולצפות בתכנים שנשלחו אליך כחלק מהטיפול."))
         #expect(body.contains("ההזמנה אישית ומיועדת עבורך בלבד."))
         #expect(body.contains("\(therapistName) הזמין/ה אותך להתחבר ל-CBTipul."))
         #expect(!body.contains("הוזמנת להתחבר ל-CBTipul על ידי"))
@@ -54,7 +54,16 @@ struct PatientInvitationShareTests {
         #expect(!body.localizedStandardContains("אבחנה"))
         #expect(!body.localizedStandardContains("שאלון GAD"))
         #expect(L10n.invitePreviewTherapistLine(therapistName).contains(therapistName))
-        #expect(L10n.invitePreviewExplanation.contains("שאלונים ויומנים"))
+        #expect(L10n.invitePreviewExplanation.contains("שאלוני מצב רוח ויומני מחשבות"))
+    }
+
+    @Test func gmailCopyIsPlainTextWithOneExactLink() {
+        let body = L10n.patientInvitationEmailMessage(therapistName: therapistName, invitationUrl: invitationUrl)
+        #expect(body.contains(therapistName))
+        #expect(body.components(separatedBy: invitationUrl).count == 2)
+        #expect(body.contains("\n" + invitationUrl + "\n"))
+        #expect(body.contains("•"))
+        #expect(!body.contains("<html"))
     }
 
     @Test func emailEscapesDynamicContentAndPreservesLinkQuery() {
@@ -71,12 +80,12 @@ struct PatientInvitationShareTests {
 
     @Test @MainActor func mailReceivesHTMLAndGmailReceivesNonemptyText() {
         let html = L10n.patientInvitationEmailHTML(therapistName: therapistName, invitationUrl: invitationUrl)
-        let item = InvitationShareActivityItem(body: "plain invitation", subject: "subject", htmlBody: html)
+        let item = InvitationShareActivityItem(body: "plain invitation", subject: "subject", htmlBody: html, emailBody: "email invitation")
         let controller = UIActivityViewController(activityItems: [], applicationActivities: nil)
         #expect(item.activityViewController(controller, itemForActivityType: .mail) as? String == html)
         #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: .mail) == "public.html")
         let gmail = UIActivity.ActivityType(rawValue: "com.google.Gmail.ShareExtension")
-        #expect(item.activityViewController(controller, itemForActivityType: gmail) as? String == "plain invitation")
+        #expect(item.activityViewController(controller, itemForActivityType: gmail) as? String == "email invitation")
         #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: gmail) == "public.plain-text")
         #expect(item.activityViewController(controller, subjectForActivityType: gmail) == "subject")
         let plain = InvitationShareActivityItem(body: "plain invitation", subject: "subject")

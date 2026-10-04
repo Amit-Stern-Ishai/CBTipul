@@ -36,6 +36,7 @@ class VoiceNoteRecorder(private val context: Context) {
     var onChange: () -> Unit = {}
 
     fun startRecording() {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         errorMessage = null
         stopPlayback()
         discardFile()

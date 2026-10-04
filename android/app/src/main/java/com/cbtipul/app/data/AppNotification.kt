@@ -104,6 +104,9 @@ sealed class AppDestination {
 
 object NotificationRouting {
     /** Root-to-leaf history; Back from a result should reveal its history screen. */
+    /** The inbox itself is the only parent; Back returns directly to it. */
+    fun inboxRoute(destination: AppDestination): String? = therapistRoutes(destination).lastOrNull()
+
     fun therapistRoutes(destination: AppDestination): List<String> = when (destination) {
         is AppDestination.PatientDetail -> listOf("patient/${destination.patientId}")
         is AppDestination.QuestionnaireResult -> buildList {

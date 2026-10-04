@@ -13,6 +13,11 @@ import java.util.Date
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PatientDiaryTwoViewModelTest {
+    @org.junit.Before fun grantFullAccess() {
+        com.cbtipul.app.data.Entitlements.apply(com.cbtipul.app.data.AppContext(role = com.cbtipul.app.data.AppRole.Therapist, entitlement = com.cbtipul.app.data.AppEntitlement(com.cbtipul.app.data.EntitlementAccess.Full)))
+    }
+    @org.junit.After fun clearAccess() { com.cbtipul.app.data.Entitlements.clear() }
+
     private class FakeService : PatientDiaryTwoAccess {
         var calls = 0
         var rows = emptyList<DiaryTwoEntry>()

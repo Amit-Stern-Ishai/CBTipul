@@ -318,6 +318,7 @@ final class AuthManager {
     private func apply(userId: UUID?, email: String?, isAnonymous: Bool) {
         let previousUserId = currentUserId
         isAnonymousUser = isAnonymous
+        EntitlementState.shared.setIdentity(userId?.uuidString)
         currentUserId = userId?.uuidString
         if isAnonymous {
             currentUserEmail = nil

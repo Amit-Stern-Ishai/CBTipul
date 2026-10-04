@@ -59,10 +59,12 @@ struct PatientToolAccessControl: View {
             } else if assignmentID != nil {
                 Button(L10n.accessStop, role: .destructive) { confirmingStop = true }
                     .disabled(busy || parentBusy)
+                .entitlementCreateControl()
             } else if connected {
                 Button { Task { await changeAccess() } } label: {
                     Label(L10n.accessActivate, systemImage: "plus.circle")
                 }.buttonStyle(.borderedProminent).disabled(busy || parentBusy)
+                .entitlementCreateControl()
             } else {
                 Text(L10n.patientSendingRequiresConnection).font(.footnote).foregroundStyle(.secondary)
             }

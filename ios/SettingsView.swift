@@ -759,7 +759,7 @@ struct AppearancePickerView: View {
     }
 }
 
-private struct SampleDataPreviewView: View {
+struct SampleDataPreviewView: View {
     let onStart: () -> Void
     @Environment(\.dismiss) private var dismiss
 

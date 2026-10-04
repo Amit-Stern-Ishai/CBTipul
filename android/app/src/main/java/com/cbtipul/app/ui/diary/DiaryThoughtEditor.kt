@@ -31,7 +31,7 @@ internal fun DiaryThoughtRow(id: String, number: Int, title: String, text: Strin
                 }
             }
             OutlinedTextField(value = text, onValueChange = onTextChange, minLines = 2, maxLines = 6,
-                label = { Text(title) }, modifier = Modifier.fillMaxWidth().focusRequester(focus).editorFocus())
+                label = { Text(title) }, modifier = Modifier.fillMaxWidth().focusRequester(focus).editorFocus(), readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
             content()
         }
     }

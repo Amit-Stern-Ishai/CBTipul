@@ -91,6 +91,7 @@ final class PatientDiaryThreeService {
         thinkingErrors: [ThinkingError],
         alternativeThoughts: [DiaryThreeAlternativeThought]
     ) async throws -> UUID {
+        try await EntitlementState.shared.requireWrite()
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         do {
             let response: SubmitDiaryThreeEntryResponse = try await client.functions.invoke(

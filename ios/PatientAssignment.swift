@@ -426,6 +426,7 @@ final class PatientAssignmentService {
 
     /// Enables ongoing Patient Mode access; results are standalone, independently of sessions.
     func sendQuestionnaireAssignment(patientId: UUID) async throws -> PatientAssignment {
+        try await EntitlementState.shared.requireWrite()
         try ensureConfigured()
         let account = client.auth.currentUser?.id
         let request = RequestPatientQuestionnaireRequest(patientId: patientId)
@@ -525,6 +526,7 @@ final class PatientAssignmentService {
         patientId: UUID,
         type: PatientAssignmentType
     ) async throws -> PatientAssignment {
+        try await EntitlementState.shared.requireWrite()
         try ensureConfigured()
         try Self.requireOngoingType(type)
         let connected = try await isPatientConnected(patientId: patientId)
@@ -607,6 +609,7 @@ final class PatientAssignmentService {
 
     /// Stops an ongoing assignment by setting `cancelled_at` only.
     func cancelOngoingAssignment(id: UUID) async throws {
+        try await EntitlementState.shared.requireWrite()
         try ensureConfigured()
         let account = client.auth.currentUser?.id
         do {
@@ -675,6 +678,7 @@ final class PatientAssignmentService {
         phq9Answers: [Int],
         interferenceLevel: Int
     ) async throws {
+        try await EntitlementState.shared.requireWrite()
         try ensureConfigured()
         try Self.validatePatientAnswers(
             gad7Answers: gad7Answers,

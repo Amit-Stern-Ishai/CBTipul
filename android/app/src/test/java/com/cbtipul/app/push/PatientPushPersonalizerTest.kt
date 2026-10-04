@@ -49,7 +49,7 @@ class PatientPushPersonalizerTest {
             assignmentId = "assign-1",
             sessionId = "session-1",
         )
-        assertEquals("דני מילא/ה שאלון חדש", result.body)
+        assertEquals("דני מילא/ה שאלוני מצב רוח", result.body)
         assertEquals("assign-1", result.assignmentId)
         assertEquals("session-1", result.sessionId)
     }
@@ -120,7 +120,7 @@ class PatientPushPersonalizerTest {
             fallback = "ignored",
         )
         assertEquals("דני", result.title)
-        assertEquals("הוסיף/ה רשומה חדשה ליומן 1", result.body)
+        assertEquals("הוסיף/ה רשומה חדשה ליומן מחשבות 1", result.body)
     }
 
     @Test

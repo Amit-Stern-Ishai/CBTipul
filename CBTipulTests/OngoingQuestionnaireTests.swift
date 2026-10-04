@@ -27,6 +27,8 @@ struct OngoingQuestionnaireTests {
         """
     }
     @Test func activationOnlySendsPatientAndCompletedTimestampDoesNotCloseAccess() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let service = PatientAssignmentService(client: client())
         QuestionnaireHTTPStub.reset(body: Data(row().utf8))
         let active = try await service.sendQuestionnaireAssignment(patientId: patient)
@@ -43,6 +45,8 @@ struct OngoingQuestionnaireTests {
         #expect(query.lowercased().contains("cancelled_at=is.null"))
     }
     @Test func wrappedActivationResponseIsAlsoAccepted() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let camel = row().replacingOccurrences(of: "patient_id", with: "patientId")
             .replacingOccurrences(of: "created_at", with: "createdAt").replacingOccurrences(of: "completed_at", with: "completedAt")
             .replacingOccurrences(of: "cancelled_at", with: "cancelledAt").replacingOccurrences(of: "session_id", with: "sessionId")
@@ -50,6 +54,8 @@ struct OngoingQuestionnaireTests {
         #expect(try await PatientAssignmentService(client: client()).sendQuestionnaireAssignment(patientId: patient).id == assignment)
     }
     @Test func repeatedSubmissionsUseSameAssignmentAndKeepQ9AndInterference() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let service = PatientAssignmentService(client: client())
         QuestionnaireHTTPStub.reset(body: Data(#"{"success":true,"combinedMoodId":41,"sessionId":null}"#.utf8))
         for _ in 0..<2 {
@@ -68,8 +74,11 @@ struct OngoingQuestionnaireTests {
         }
     }
     @Test func historyKeepsTwoResultsFromOneAssignmentAndExcludesTherapistContent() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         QuestionnaireHTTPStub.reset(body: Data("[\(result(41, date: "2026-09-02T12:00:00Z")),\(result(42, date: "2026-09-02T12:00:00Z")),\(result(43, date: "2026-09-03", source: "therapist")),\(result(44, date: "2026-09-04", owner: UUID()))]".utf8))
         let history = try await PatientQuestionnaireHistoryService(client: client()).history(patientId: patient)
+        #expect(history.allSatisfy(\.isPatientSubmitted))
         #expect(history.map(\.databaseID) == [.integer(42), .integer(41)])
         #expect(history.allSatisfy { $0.sessionID == nil && $0.questionnaire.gad7Notes.allSatisfy(\.isEmpty) })
         #expect(history[0].questionnaire.gad7Score == 7 && history[0].questionnaire.phq9Score == 3)
@@ -80,6 +89,8 @@ struct OngoingQuestionnaireTests {
         #expect(query.contains("answered_date.desc"))
     }
     @Test func cancellationOnlyUpdatesAccessAndSubmissionFailureDoesNotTouchHistory() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let service = PatientAssignmentService(client: client())
         QuestionnaireHTTPStub.reset(body: Data("[\(row(cancelled: true))]".utf8))
         try await service.cancelOngoingAssignment(id: assignment)
@@ -97,6 +108,8 @@ struct OngoingQuestionnaireTests {
         #expect(try await PatientQuestionnaireHistoryService(client: client()).history(patientId: patient).count == 2)
     }
     @Test func assignedNotificationRefreshesAndRoutesCompletedButActiveAssignment() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
         let active = try decoder.decode(PatientAssignment.self, from: Data(row().utf8))
         let cancelled = try decoder.decode(PatientAssignment.self, from: Data(row(cancelled: true).utf8))
@@ -126,6 +139,8 @@ struct OngoingQuestionnaireTests {
         #expect(QuestionnaireNotificationFocus.combinedMoodID(resourceType: second.resourceType, resourceId: second.resourceId) == .integer(42))
     }
     @Test func therapistSaveStillWritesTheSessionID() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let store = PatientStore(client: client(), anonymizeText: { $0 })
         let sessionID = DatabaseID.text(UUID().uuidString)
         let session = Session(databaseID: sessionID)

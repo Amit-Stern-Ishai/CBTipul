@@ -7,6 +7,8 @@ struct NotificationsInboxView: View {
     @Environment(TherapistNotificationCoordinator.self) private var coordinator
     @Environment(\.scenePhase) private var scenePhase
 
+    @State private var openedTarget: PendingPatientNavigation?
+
     var body: some View {
         @Bindable var coordinator = coordinator
         NavigationStack {
@@ -41,6 +43,12 @@ struct NotificationsInboxView: View {
             .navigationTitle(L10n.therapistTabNotifications)
             .navigationBarTitleDisplayMode(.large)
             .accessibilityIdentifier("notifications.root")
+            .navigationDestination(item: $openedTarget) { target in
+                NotificationItemDestination(target: target)
+            }
+            .onChange(of: openedTarget) { _, target in coordinator.isInboxShowingDetail = target != nil }
+            .onChange(of: coordinator.pendingPatientNavigation?.token) { _, _ in consumeTarget() }
+            .onAppear { consumeTarget() }
             .alert(L10n.notificationTargetUnavailable, isPresented: $coordinator.unavailableTarget) {
                 Button(L10n.ok, role: .cancel) {}
             }
@@ -69,6 +77,13 @@ struct NotificationsInboxView: View {
                 Task { await notifications.refresh() }
             }
         }
+    }
+
+    private func consumeTarget() {
+        guard coordinator.selectedTab == .notifications,
+              let target = coordinator.consumePatientNavigation() else { return }
+        coordinator.isInboxShowingDetail = true
+        openedTarget = target
     }
 
     private var inboxList: some View {
@@ -234,5 +249,74 @@ private struct NotificationInboxRow: View {
         case .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded: Theme.accentFill
         default: Theme.gold
         }
+    }
+}
+
+/// A notification opens exactly one destination above the inbox, with its own load state.
+private struct NotificationItemDestination: View {
+    let target: PendingPatientNavigation
+    @Environment(PatientStore.self) private var store
+    @Environment(DiaryOneStore.self) private var one
+    @Environment(DiaryTwoStore.self) private var two
+    @Environment(DiaryThreeStore.self) private var three
+    @State private var loading = true
+    @State private var failed = false
+    @State private var found = false
+
+    var body: some View {
+        Group {
+            if let patient = store.patients.first(where: { $0.id == target.patientID }) {
+                if let route = target.questionnairesRoute {
+                    if let id = route.focusQuestionnaireID {
+                        NotificationQuestionnaireView(patient: patient, questionnaireID: id)
+                    } else { PatientQuestionnairesView(patient: patient) }
+                } else if let route = target.diaryOneRoute {
+                    if let id = route.focusEntryID {
+                        if found, let entry = one.entries(for: patient.id).first(where: { $0.id == id }) {
+                            DiaryOneEntryFormView(patient: patient, mode: .edit(entry))
+                        } else { loadState }
+                    } else { PatientDiaryOneView(patient: patient) }
+                } else if let route = target.diaryTwoRoute {
+                    if let id = route.focusEntryID {
+                        if found { DiaryTwoEntryDetailView(patient: patient, entryID: id) }
+                        else { loadState }
+                    } else { PatientDiaryTwoView(patient: patient) }
+                } else if let route = target.diaryThreeRoute {
+                    if let id = route.focusEntryID {
+                        if found { DiaryThreeEntryDetailView(patient: patient, entryID: id) }
+                        else { loadState }
+                    } else { PatientDiaryThreeView(patient: patient) }
+                } else { PatientDetailView(patient: patient) }
+            } else {
+                ContentUnavailableView { Label(L10n.notificationTargetUnavailable, systemImage: "questionmark.circle") }
+            }
+        }
+        .themedScreen()
+        .task(id: target.token) { await loadEntry() }
+    }
+
+    @ViewBuilder private var loadState: some View {
+        if loading { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
+        else {
+            ContentUnavailableView {
+                Label(failed ? L10n.notificationsLoadFailedTitle : L10n.notificationTargetUnavailable, systemImage: "book.closed")
+            } actions: {
+                if failed { Button(L10n.retry) { Task { await loadEntry() } } }
+            }
+        }
+    }
+
+    private func loadEntry() async {
+        loading = true; failed = false; found = false
+        defer { loading = false }
+        do {
+            if let id = target.diaryOneRoute?.focusEntryID {
+                found = try await one.loadEntry(id: id, patientId: target.patientID) != nil
+            } else if let id = target.diaryTwoRoute?.focusEntryID {
+                found = try await two.loadEntry(id: id, patientId: target.patientID) != nil
+            } else if let id = target.diaryThreeRoute?.focusEntryID {
+                found = try await three.loadEntry(id: id, patientId: target.patientID) != nil
+            }
+        } catch { failed = true }
     }
 }

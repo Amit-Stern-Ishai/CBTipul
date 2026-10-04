@@ -6,6 +6,8 @@ import Supabase
 @MainActor
 struct DiaryOneTherapistRegressionTests {
     @Test func automaticThoughtsFeelingsAndTherapistCRUDRemainUnchanged() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
         let store = DiaryOneStore(client: SupabaseClient(supabaseURL: URL(string: "https://example.invalid")!, supabaseKey: "test"))
         let patient = DatabaseID.text("demo-diary-one-regression")
         let entry = try await store.createEntry(patientId: patient, event: "test", automaticThoughts: ["first", "second"], feelings: [.init(name: "עצוב", intensity: 0)], behaviour: "test", physicalSymptoms: nil)

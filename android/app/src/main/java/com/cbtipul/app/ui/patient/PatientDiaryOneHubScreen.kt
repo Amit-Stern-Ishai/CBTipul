@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patient
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -106,7 +107,7 @@ fun PatientDiaryOneHubScreen(
                         Button(
                             onClick = onAddEntry,
                             enabled = active,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).entitlementCreateControl(),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colors.accentFill,
                                 contentColor = colors.textOnAccent,
@@ -195,6 +196,7 @@ fun PatientDiaryOneHubScreen(
 @Composable
 fun PatientDiaryOneDetailScreen(
     entry: DiaryOneEntry,
+    therapistViewing: Boolean = false,
     onBack: () -> Unit,
 ) {
     val colors = Theme.colors
@@ -226,6 +228,7 @@ fun PatientDiaryOneDetailScreen(
                 .padding(top = 12.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (therapistViewing) Text(stringResource(R.string.patient_submission_read_only), color = colors.textBody)
             Text(
                 hebrewDateTime(entry.createdAt),
                 color = colors.textBright,

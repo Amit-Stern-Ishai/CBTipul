@@ -38,7 +38,7 @@ final class PatientPushPersonalizerTests: XCTestCase {
     func testQuestionnaireCompletedKnownIdUsesLocalName() {
         let content = questionnaireContent(patientId: "known-id")
         PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
-        XCTAssertEqual(content.body, "דני מילא/ה שאלון חדש")
+        XCTAssertEqual(content.body, "דני מילא/ה שאלוני מצב רוח")
         XCTAssertEqual(PatientPushPersonalizer.assignmentId(from: content.userInfo), "assign-1")
         XCTAssertEqual(PatientPushPersonalizer.sessionId(from: content.userInfo), "session-1")
     }
@@ -63,14 +63,14 @@ final class PatientPushPersonalizerTests: XCTestCase {
         let content = diaryOneEntryContent(patientId: "known-id")
         PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
         XCTAssertEqual(content.title, "דני")
-        XCTAssertEqual(content.body, "הוסיף/ה רשומה חדשה ליומן 1")
+        XCTAssertEqual(content.body, "הוסיף/ה רשומה חדשה ליומן מחשבות 1")
     }
 
     func testDiaryOneEntryAddedUnknownIdUsesGenericPatientTitle() {
         let content = diaryOneEntryContent(patientId: "unknown-id")
         PatientPushPersonalizer.apply(to: content, nameForPatientId: { names[$0] })
         XCTAssertEqual(content.title, "מטופל/ת")
-        XCTAssertEqual(content.body, "הוסיף/ה רשומה חדשה ליומן 1")
+        XCTAssertEqual(content.body, "הוסיף/ה רשומה חדשה ליומן מחשבות 1")
     }
 
     func testDiaryOneAssignedLeavesBodyUnchanged() {

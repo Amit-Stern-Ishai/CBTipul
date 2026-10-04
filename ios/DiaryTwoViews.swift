@@ -64,7 +64,7 @@ struct PatientDiaryTwoView: View {
         } label: {
             Text(entries.isEmpty ? L10n.emptyDiaryOnePrimaryAction : L10n.diaryOneAddEntryAction)
                 .frame(maxWidth: .infinity)
-        }
+        }.entitlementCreateControl()
         .buttonStyle(.pressableProminent)
         .controlSize(.large)
         .padding(.horizontal, 24)
@@ -92,7 +92,7 @@ struct PatientDiaryTwoView: View {
                         .id("diary-two-create-\(patient.id.queryValue)")
                 } label: {
                     Label(L10n.diaryOneAddEntryAction, systemImage: "plus")
-                }
+                }.entitlementCreateControl()
             }
         }
         .task(id: patient.id) {
@@ -204,7 +204,7 @@ struct PatientDiaryTwoView: View {
                 } label: {
                     Text(L10n.diaryPatientModeActivateAction)
                         .fontWeight(.semibold)
-                }
+                }.entitlementCreateControl()
                 .disabled(isUpdatingAssignment)
             case .active:
                 HStack(spacing: 8) {
@@ -328,6 +328,7 @@ struct PatientDiaryTwoView: View {
     }
 
     private func activateDiaryTwo() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isUpdatingAssignment, patientModeStatus == .inactive else { return }
         guard let patientId = patient.id.uuidValue else {
             assignmentError = L10n.diaryPatientModeActivateFailed
@@ -353,6 +354,7 @@ struct PatientDiaryTwoView: View {
     }
 
     private func stopDiaryTwo() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isUpdatingAssignment, let assignmentId = activeAssignmentId else { return }
         isUpdatingAssignment = true
         modeRefreshRevision += 1
@@ -492,6 +494,7 @@ struct DiaryTwoEntryFormView: View {
     }
 
     private func save() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy else { return }
         didAttemptSave = true
         if let message = draft.validationMessage() {
@@ -539,6 +542,7 @@ struct DiaryTwoEntryFormView: View {
     }
 
     private func deleteEntry() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy, let existing else { return }
         isDeleting = true
         errorMessage = nil

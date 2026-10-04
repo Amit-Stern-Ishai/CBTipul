@@ -6,6 +6,20 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
+    static let patientIntroWelcomeTitle = "הטיפול ממשיך גם בין הפגישות"
+    static let patientIntroWelcomeBody = "כאן נמצאים הכלים שהמטפל/ת הפעיל/ה עבורך. ממלאים בזמן שנוח, והתשובות נשלחות למטפל/ת."
+    static let patientIntroQuestionnairesTitle = "שאלוני מצב רוח"
+    static let patientIntroQuestionnairesBody = "שאלות קצרות על ההרגשה בתקופה האחרונה. כשהשאלונים פעילים, ניתן למלא שוב לאורך הזמן ולעיין בתשובות הקודמות."
+    static let patientIntroDiariesTitle = "יומני מחשבות"
+    static let patientIntroDiariesBody = "מתעדים אירוע, מחשבות ורגשות ביומן שהופעל עבורך. ההנחיות מלוות אותך צעד אחר צעד. הרשומה נשלחת למטפל/ת רק בסיום."
+    static let patientIntroUpdatesTitle = "עדכונים והיסטוריה במקום אחד"
+    static let patientIntroUpdatesBody = "במסך הבית רואים מה זמין למילוי והודעות מהמטפל/ת. הפעלת התראות בהגדרות תעזור להתעדכן. ההיסטוריה נשארת זמינה גם כשכלי אינו פעיל."
+    static let patientIntroStart = "למסך הבית"
+
+    static let entitlementReadOnlyTitle = "מצב צפייה בלבד"
+    static let entitlementDemoOnlineUnavailable = "אפשר לערוך את נתוני הדוגמה. פעולות מקוונות, כמו AI ושליחה למטופלים, דורשות גישה מלאה."
+    static let entitlementReadOnlyExplanation = "ניתן לצפות במידע הקיים, אך לא ניתן לבצע שינויים או ליצור תוכן חדש."
+    static let entitlementPatientUnavailable = "לא ניתן לשלוח תוכן חדש כרגע."
     static let updateRequiredTitle = "נדרש עדכון"
     static let updateRequiredBody = "כדי להמשיך להשתמש ב-CBTipul, יש לעדכן לגרסה החדשה."
     static let updateRequiredAction = "עדכון האפליקציה"
@@ -21,7 +35,9 @@ enum L10n {
     static let patientToolDisabled = "לא פתוח למילוי"
     static let patientToolActivationHelp = "המילוי יהיה זמין לאחר הפעלה על ידי המטפל/ת."
     static let patientQuestionnaireHistoryAction = "צפייה במילויים קודמים"
-    static let patientAvailableTitle = "שאלונים ויומנים"
+    static let patientSubmissionReadOnly = "מולא על ידי המטופל/ת · לצפייה בלבד"
+    static let patientHistoryOnly = "היסטוריה בלבד · המילוי אינו פעיל"
+    static let patientAvailableTitle = "שאלוני מצב רוח ויומני מחשבות"
     static let patientAvailableHelp = "למילוי בהתאם למה שסיכמתם עם המטפל/ת."
     static let patientResumeAction = "המשך מילוי"
     static let patientLocalOnly = "נשמר במכשיר בלבד · עדיין לא נשלח"
@@ -51,7 +67,7 @@ enum L10n {
     static let questionTrendWorse = "גרוע יותר מההתחלה"
     static let questionTrendBetterHelp = "הציון האחרון נמוך מהראשון, אך היו גם עליות בדרך."
     static let questionTrendBetter = "טוב יותר מההתחלה"
-    static let accessToolsTitle = "גישה לשאלונים וליומנים"
+    static let accessToolsTitle = "גישה לשאלוני מצב רוח וליומני מחשבות"
     static let accessToolsExplanation = "כלים פעילים זמינים למילוי חוזר באפליקציית המטופל/ת."
     static let accessActive = "פעיל אצל המטופל/ת"
     static let accessInactive = "לא פעיל"
@@ -90,14 +106,14 @@ enum L10n {
     static let diaryPreviousStep = "לשלב הקודם"
     static func diaryThinkingAbout(_ name: String) -> String { "הסבר על \(name)" }
 
-    static let patientQuestionnaireInactiveHint = "שני שאלונים קצרים על חרדה ומצב רוח בתקופה האחרונה, למעקב לאורך הטיפול. אפשר לצפות במילויים קודמים; מילוי חדש דורש הפעלה של המטפל/ת."
-    static let questionnairesActive = "שאלונים פעילים"
-    static let questionnairesStop = "הפסקת שאלונים"
+    static let patientQuestionnaireInactiveHint = "שאלוני מצב רוח קצרים על חרדה ומצב רוח בתקופה האחרונה, למעקב לאורך הטיפול. אפשר לצפות במילויים קודמים; מילוי חדש דורש הפעלה של המטפל/ת."
+    static let questionnairesActive = "שאלוני מצב רוח פעילים"
+    static let questionnairesStop = "הפסקת שאלוני מצב רוח"
     static let questionnairesStopExplanation = "המטופל/ת לא יוכל/תוכל לשלוח מילויים חדשים. כל התשובות הקודמות יישמרו."
-    static let patientQuestionnaireHistory = "השאלונים שלי"
+    static let patientQuestionnaireHistory = "שאלוני מצב הרוח שלי"
     static let patientQuestionnaireHistoryEmpty = "המילויים שלך יופיעו כאן לאחר השליחה."
-    static let patientQuestionnaireHistoryError = "לא ניתן לטעון את השאלונים הקודמים כרגע. אפשר לנסות שוב. מילוי חדש עדיין זמין כשהגישה פעילה."
-    static let patientQuestionnaireOpenAction = "פתיחת שאלונים"
+    static let patientQuestionnaireHistoryError = "לא ניתן לטעון את שאלוני מצב הרוח הקודמים כרגע. אפשר לנסות שוב. מילוי חדש עדיין זמין כשהגישה פעילה."
+    static let patientQuestionnaireOpenAction = "פתיחת שאלוני מצב רוח"
 
     
     // MARK: - Sessions workspace
@@ -130,8 +146,8 @@ enum L10n {
     static func messageCharacterCount(_ count: Int, maximum: Int) -> String {
         "\(count) מתוך \(maximum) תווים"
     }
-    static let submittedDraftCleanup = "התוכן נשלח. יש למחוק את הטיוטה המקומית כדי לסיים. לחיצה על סיום לא תשלח שוב."
-    static let messageSentDraftCleanup = "ההודעה נשלחה. יש למחוק את הטיוטה המקומית כדי לסיים. לחיצה על סיום לא תשלח שוב."
+    static let submittedDraftCleanup = "התוכן נשלח. יש למחוק את הטיוטה המקומית כדי לסיים. לחצו על ״ניסיון נוסף״ כדי לנסות שוב. התוכן לא יישלח שוב."
+    static let messageSentDraftCleanup = "ההודעה נשלחה. יש למחוק את הטיוטה המקומית כדי לסיים. לחצו על ״ניסיון נוסף״ כדי לנסות שוב. התוכן לא יישלח שוב."
 
     // MARK: - Patient workspace
 
@@ -139,25 +155,25 @@ enum L10n {
     static let patientRecordsTitle = "התיק הטיפולי"
     static let patientSessionsDescription = "תיעוד ועיון בפגישות הטיפול"
     static func patientLatestSession(_ date: String) -> String { "פגישה אחרונה: \(date)" }
-    static let patientQuestionnairesDescription = "עיון בתשובות קודמות ומילוי שאלון חדש"
-    static let patientGraphsDescription = "מעקב אחר ציוני השאלונים לאורך זמן"
-    static let questionnaireHistoryTitle = "היסטוריית שאלונים"
+    static let patientQuestionnairesDescription = "עיון בתשובות קודמות ומילוי שאלוני מצב רוח"
+    static let patientGraphsDescription = "מעקב אחר ציוני שאלוני מצב הרוח לאורך זמן"
+    static let questionnaireHistoryTitle = "היסטוריית שאלוני מצב רוח"
     static let emptyQuestionnaireGraphsTitle = "עדיין אין נתונים לגרפים"
-    static let emptyQuestionnaireGraphsBody = "לאחר מילוי שאלונים, הציונים יוצגו כאן. למילוי שאלון חדש חזרו לתיק המטופל/ת ובחרו ״היסטוריית שאלונים״."
-    static let patientDiariesTitle = "יומנים"
-    static let patientDiariesDescription = "יומן 1, יומן 2, יומן 3"
-    static let diaryTwoTitle = "יומן 2"
-    static let diaryThreeTitle = "יומן 3"
+    static let emptyQuestionnaireGraphsBody = "לאחר מילוי שאלוני מצב רוח, הציונים יוצגו כאן. למילוי שאלוני מצב רוח חזרו לתיק המטופל/ת ובחרו ״היסטוריית שאלוני מצב רוח״."
+    static let patientDiariesTitle = "יומני מחשבות"
+    static let patientDiariesDescription = "יומן מחשבות 1, יומן מחשבות 2, יומן מחשבות 3"
+    static let diaryTwoTitle = "יומן מחשבות 2"
+    static let diaryThreeTitle = "יומן מחשבות 3"
     static let diaryComingSoon = "בקרוב"
-    static let patientSendingDescription = "הודעה, הפעלת שאלונים או יומן"
+    static let patientSendingDescription = "הודעה, הפעלת שאלוני מצב רוח או יומן מחשבות"
     static let patientSendingUnavailableTitle = "השליחה אינה זמינה"
     static let patientSendingRequiresConnection = "אפשר לשלוח רק לאחר שהמטופל/ת יפתחו את קישור ההזמנה וישלימו את החיבור לאפליקציה."
     static let patientSendingUnavailableHere = "שליחה זמינה רק למטופל/ת מחובר/ת בתיק אמיתי. במצב הדגמה לא נשלחים תכנים."
-    static let patientChooseSendAction = "שליחת הודעה או ניהול גישה לשאלונים וליומנים."
+    static let patientChooseSendAction = "שליחת הודעה או ניהול גישה לשאלוני מצב רוח וליומני מחשבות."
     static let patientSendMessageDescription = "כתבו הודעה ובדקו אותה לפני השליחה. ההודעה תופיע באפליקציית המטופל/ת."
-    static let patientQuestionnaireRequestDescription = "גישה מתמשכת לשאלוני GAD-7 ו-PHQ-9. כל מילוי נשמר בנפרד בהיסטוריה, ללא שיוך לפגישה. אפשר להפסיק את הגישה בכל עת."
-    static let patientEnableDiaryOneAction = "הפעלת יומן 1"
-    static let patientSendDiaryOneDescription = "מאפשר למטופל/ת למלא יומן 1 באופן שוטף באפליקציה."
+    static let patientQuestionnaireRequestDescription = "גישה מתמשכת לשאלוני מצב רוח (GAD-7 ו-PHQ-9). כל מילוי נשמר בנפרד בהיסטוריה, ללא שיוך לפגישה. אפשר להפסיק את הגישה בכל עת."
+    static let patientEnableDiaryOneAction = "הפעלת יומן מחשבות 1"
+    static let patientSendDiaryOneDescription = "מאפשר למטופל/ת למלא יומן מחשבות 1 באופן שוטף באפליקציה."
     static let patientDiaryDescription = "עיון ותיעוד של אירועים, מחשבות ורגשות"
     static let patientDiaryTwoDescription = "זיהוי טעויות חשיבה וניסוח מחשבות חלופיות"
     static let patientDiaryThreeDescription = "בחינת מחשבות והשוואת רגשות לפני ואחרי"
@@ -170,13 +186,13 @@ enum L10n {
     static let patientConnectTitle = "חיבור המטופל/ת לאפליקציה"
     static let patientInviteToAppAction = "הזמנה לאפליקציה"
     static let patientInvitationDemoStatus = "לא זמין במצב הדגמה"
-    static let patientConnectDescription = "שליחת קישור הזמנה אישי מאפשרת למטופל/ת לקבל ממך הודעות ולמלא שאלונים ויומנים שהפעלת."
+    static let patientConnectDescription = "שליחת קישור הזמנה אישי מאפשרת למטופל/ת לקבל ממך הודעות ולמלא שאלוני מצב רוח ויומני מחשבות שהפעלת."
     static let patientShareInvitationAction = "שיתוף קישור הזמנה"
     static let patientReinviteAction = "שליחת הזמנה חדשה"
     static let patientReinviteExplanation = "אפשר לשלוח קישור חדש כדי להתחבר מחדש, למשל לאחר החלפת טלפון. החיבור הנוכחי יישאר פעיל עד לאישור ההזמנה החדשה, ואז יוחלף בחיבור החדש."
     static let patientShareInvitationExplanation = "בלחיצה ייפתחו אפשרויות שיתוף, למשל WhatsApp או דוא״ל. יש לבחור איך לשלוח את הקישור. החיבור יושלם רק לאחר שהמטופל/ת יפתחו אותו ויאשרו את ההצטרפות."
     static let patientConnectionOptionalExplanation = "ההזמנה אינה חובה. אפשר לתעד פגישות גם בלי לחבר את המטופל/ת לאפליקציה."
-    static let patientConnectionReadyDescription = "לחצו על ״שליחה למטופל/ת״ כדי לבחור הודעה, הפעלת שאלונים או יומן."
+    static let patientConnectionReadyDescription = "לחצו על ״שליחה למטופל/ת״ כדי לבחור הודעה, הפעלת שאלוני מצב רוח או יומן מחשבות."
     static let patientInvitationUnavailableExplanation = "הזמנה זמינה בתיק של מטופל/ת אמיתי/ת. במצב הדגמה לא נשלחות הזמנות."
     static let stopPatientNotesRecording = "עצירה ותמלול"
 
@@ -184,7 +200,8 @@ enum L10n {
     
     static let save = "שמירה"
     static let cancel = "ביטול"
-    static let done = "סיום"
+    static let closeAction = "סגירה"
+    static let confirmSelectionAction = "אישור הבחירה"
     static let add = "הוספה"
     static let back = "חזרה"
     static let retry = "ניסיון נוסף"
@@ -243,16 +260,16 @@ enum L10n {
     static let notificationsPlaceholderBody =
         "אין התראות כרגע."
     static let notificationsEmptyTitle = "אין התראות כרגע"
-    static let notificationsEmptyBody = "עדכונים על שאלונים, יומנים וחיבור מטופלים יופיעו כאן."
+    static let notificationsEmptyBody = "עדכונים על שאלוני מצב רוח, יומני מחשבות וחיבור מטופלים יופיעו כאן."
     static let notificationsDemoBody = "במצב הדגמה לא מתקבלות התראות ממטופלים."
     static let notificationsRefreshFailed = "לא ניתן לעדכן כרגע. מוצגות ההתראות שנטענו קודם."
-    static let notificationOpenQuestionnaires = "לשאלונים"
-    static let notificationOpenDiary = "ליומן 1"
+    static let notificationOpenQuestionnaires = "לשאלוני מצב רוח"
+    static let notificationOpenDiary = "ליומן מחשבות 1"
     static let notificationOpenPatient = "לתיק המטופל/ת"
-    static let notificationQuestionnaireCompleted = "השאלון הושלם"
+    static let notificationQuestionnaireCompleted = "שאלוני מצב הרוח הושלמו"
     static let notificationPatientConnected = "התחבר/ה ל-CBTipul"
-    static let notificationDiaryTwoEntryAdded = "הוסיף/ה רשומה חדשה ליומן 2"
-    static let notificationDiaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן 1"
+    static let notificationDiaryTwoEntryAdded = "הוסיף/ה רשומה חדשה ליומן מחשבות 2"
+    static let notificationDiaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן מחשבות 1"
     static let notificationGenericTitle = "התראה"
     static let notificationGenericPatient = "מטופל/ת"
     static let notificationTargetUnavailable = "הפריט כבר אינו זמין"
@@ -278,7 +295,7 @@ enum L10n {
     static let couldntLoadPatientsTitle = "טעינת מטופלים נכשלה"
     static let noPatientsTitle = "עדיין אין מטופלים"
     static let addFirstPatientMessage =
-        "הוספת מטופל/ת מאפשרת להתחיל לתעד פגישות, שאלונים והתקדמות טיפולית."
+        "הוספת מטופל/ת מאפשרת להתחיל לתעד פגישות, שאלוני מצב רוח והתקדמות טיפולית."
     static let addPatientAction = "הוספת מטופל/ת"
     static let noSessionsYetLabel = "אין פגישות עדיין"
     static let newPatientTitle = "מטופל/ת חדש/ה"
@@ -341,6 +358,12 @@ enum L10n {
 
     // MARK: - Getting Started / first-run
 
+    static let introductionTopicPatient = "תיק"
+    static let introductionTopicSession = "פגישות"
+    static let introductionTopicConnect = "קשר"
+    static let introductionTopicProgress = "מעקב"
+    static let introductionTopicSample = "התנסות"
+    static let introductionNavigationHint = "החליקו או לחצו על נושא כדי לעבור בין המסכים."
     static let introductionReview = "היכרות עם האפליקציה"
     static let introductionSkip = "דילוג"
     static let introductionNext = "הבא"
@@ -348,13 +371,13 @@ enum L10n {
     static let introductionReturn = "חזרה לאפליקציה"
     static let introductionSampleAction = "התנסות עם נתונים לדוגמה"
     static let introductionPatientTitle = "כל התמונה, בתיק אחד"
-    static let introductionPatientBody = "מטרת הטיפול, הפגישות, השאלונים וההערות — מרוכזים בתיק של כל מטופל/ת."
+    static let introductionPatientBody = "מטרת הטיפול, הפגישות, שאלוני מצב הרוח, יומני המחשבות וההערות — מרוכזים בתיק של כל מטופל/ת."
     static let introductionSessionTitle = "מתעדים בדרך שנוחה לכם"
-    static let introductionSessionBody = "כתבו או הקליטו סיכום פגישה. כלי AI יכולים לעזור בניסוח ובהכנה לפגישה הבאה — אתם בודקים ומחליטים."
+    static let introductionSessionBody = "אחרי הפגישה, כתבו סיכום או הכתיבו אותו בקול והוא יהפוך לטקסט. ניתן ליצור ממנו סיכום בעזרת AI, ולבדוק ולערוך לפני השמירה."
     static let introductionConnectTitle = "הטיפול ממשיך בין הפגישות"
-    static let introductionConnectBody = "הזמינו מטופלים להתחבר לאפליקציה. אחרי החיבור אפשר לשלוח הודעות ולהפעיל גישה לשאלונים וליומנים."
+    static let introductionConnectBody = "הזמינו מטופלים להתחבר לאפליקציה. אחרי החיבור אפשר לשלוח הודעות ולהפעיל גישה לשאלוני מצב רוח וליומני מחשבות."
     static let introductionProgressTitle = "רואים מה משתנה לאורך הדרך"
-    static let introductionProgressBody = "גרפים מרכזים את תוצאות השאלונים. בחרו מגמה ושאלה כדי לראות מה השתפר, מה החמיר ומה נשאר יציב."
+    static let introductionProgressBody = "גרפים מרכזים את תוצאות שאלוני מצב הרוח. בחרו מגמה ושאלה כדי לראות מה השתפר, מה החמיר ומה נשאר יציב."
     static let introductionSampleTitle = "קודם להכיר, אחר כך להתחיל"
     static let introductionSampleBody = "נסו את האפליקציה עם מטופלים בדויים ותיקים מוכנים. הנתונים האמיתיים נשארים בנפרד, ולא נשלח דבר למטופלים."
     static let introductionSampleHint = "אפשר לצאת בכל רגע דרך ״חזרה למטופלים שלי״, ולחזור להתנסות מההגדרות."
@@ -364,8 +387,8 @@ enum L10n {
     static let introductionRecord = "הקלטה ותמלול"
     static let introductionAI = "עזרה בניסוח עם AI"
     static let introductionMessage = "הודעה"
-    static let introductionQuestionnaire = "הפעלת שאלונים"
-    static let introductionDiary = "יומן"
+    static let introductionQuestionnaire = "הפעלת שאלוני מצב רוח"
+    static let introductionDiary = "יומן מחשבות"
     static let introductionConnected = "לאחר חיבור המטופל/ת"
     static let introductionTrend = "מגמה לאורך זמן"
     static let introductionSampleBadge = "נתונים לדוגמה"
@@ -394,7 +417,7 @@ enum L10n {
     static let gettingStartedStepAddPatient = "יצירת מטופל/ת"
     static let gettingStartedStepTreatmentGoal = "הגדרת מטרת טיפול"
     static let gettingStartedStepFirstSession = "יצירת פגישה"
-    static let gettingStartedStepQuestionnaire = "מילוי שאלון"
+    static let gettingStartedStepQuestionnaire = "מילוי שאלוני מצב רוח"
     static let gettingStartedStepSessionSummary = "הוספת סיכום פגישה"
     static let gettingStartedStepAISummary = "יצירת סיכום AI"
     static let gettingStartedStepPreparation = "הכנה לפגישה הבאה"
@@ -405,9 +428,9 @@ enum L10n {
     static let gettingStartedGuideSettingsSubtitle =
         "הכירו את העבודה באפליקציה בלי להשתמש במידע של מטופלים אמיתיים."
     static let sampleDataExploreTitle = "תיקים מוכנים להתנסות"
-    static let sampleDataExploreBody = "מטופלים בדויים עם פגישות ושאלונים לדוגמה. אפשר לעיין, לערוך ולהוסיף נתונים בחופשיות."
+    static let sampleDataExploreBody = "מטופלים בדויים עם פגישות ושאלוני מצב רוח לדוגמה. אפשר לעיין, לערוך ולהוסיף נתונים בחופשיות."
     static let sampleDataSeparateTitle = "בנפרד מהתיקים שלך"
-    static let sampleDataSeparateBody = "התיקים האמיתיים נשארים ללא שינוי. לא נשלחות הודעות או הזמנות, ולא מופעלת גישה לשאלונים למטופלים."
+    static let sampleDataSeparateBody = "התיקים האמיתיים נשארים ללא שינוי. לא נשלחות הודעות או הזמנות, ולא מופעלת גישה לשאלוני מצב רוח למטופלים."
     static let sampleDataReturnTitle = "חזרה בכל רגע"
     static let sampleDataReturnBody = "לחצו על ״חזרה למטופלים שלי״ בראש המסך. השינויים בנתוני הדוגמה יישמרו במכשיר להתנסות הבאה."
     static let sampleDataStartAction = "התחלת התנסות"
@@ -427,7 +450,7 @@ enum L10n {
         "בדקו את התאריך ולחצו על ״שמירת הפגישה״. אפשר להוסיף סיכום עכשיו או בהמשך."
     static let tutorialCoachHintOpenSession =
         "לחצו על הפגישה שיצרתם/ן"
-    static let tutorialCoachHintFillQuestionnaire = "לחצו על ״מילוי שאלון כאן״"
+    static let tutorialCoachHintFillQuestionnaire = "לחצו על ״מילוי שאלוני מצב רוח כאן״"
     static let tutorialCoachHintCompleteQuestionnaire =
         "סמנו בחירה לכל שאלה, ולחצו על ״שמירה״ למעלה מצד שמאל."
     static let tutorialCoachHintRecordNotes =
@@ -449,29 +472,29 @@ enum L10n {
     }
     static let showcaseRevealTitle = "עכשיו — נתונים לדוגמה!"
     static let showcaseRevealBody =
-        "הוספנו מטופלים, פגישות ושאלונים לדוגמה כדי שתוכלו להתנסות בכל האפשרויות של האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «חזרה למטופלים שלי» בפס מצב ההדגמה למעלה."
+        "הוספנו מטופלים, פגישות ושאלוני מצב רוח לדוגמה כדי שתוכלו להתנסות בכל האפשרויות של האפליקציה. השתמשו בכל מסך, לחצו על כל כפתור — זה בטוח. כשתסיימו, לחצו «חזרה למטופלים שלי» בפס מצב ההדגמה למעלה."
     static let showcaseRevealExitHint = "אפשר לחזור למטופלים האמיתיים בכל רגע מהפס הצהוב למעלה."
     static let showcaseRevealAction = "בואו נתנסה"
 
     static let emptyPatientsPrimaryAction = "הוספת מטופל/ת ראשון/ה"
     static let emptySessionsTitle = "עדיין אין פגישות"
     static let emptySessionsBody =
-        "הוספת פגישה מאפשרת לתעד סיכומים, לצרף שאלונים ולעקוב אחר התקדמות הטיפול."
+        "הוספת פגישה מאפשרת לתעד סיכומים, לצרף שאלוני מצב רוח ולעקוב אחר התקדמות הטיפול."
     static let emptySessionsPrimaryAction = "הוספת פגישה ראשונה"
-    static let emptyQuestionnairesTitle = "עדיין אין שאלונים שמולאו"
+    static let emptyQuestionnairesTitle = "עדיין אין שאלוני מצב רוח שמולאו"
     static let emptyQuestionnairesBody =
-        "כאן יופיעו התשובות לאחר מילוי שאלון חדש. אפשר למלא יחד עם המטופל/ת כאן. למילוי עצמאי באפליקציה, חזרו לתיק המטופל/ת ובחרו ״שליחה למטופל/ת״ ואז ״הפעלת שאלונים״."
-    static let emptyQuestionnairesPrimaryAction = "הוספת שאלון"
-    static let questionnaireAnsweredDateLabel = "תאריך השאלון"
+        "כאן יופיעו התשובות לאחר מילוי שאלוני מצב רוח. אפשר למלא יחד עם המטופל/ת כאן. למילוי עצמאי באפליקציה, חזרו לתיק המטופל/ת ובחרו ״שליחה למטופל/ת״ ואז ״הפעלת שאלוני מצב רוח״."
+    static let emptyQuestionnairesPrimaryAction = "הוספת שאלוני מצב רוח"
+    static let questionnaireAnsweredDateLabel = "תאריך שאלוני מצב הרוח"
     static let questionnaireSessionAssociationLabel = "שיוך לפגישה"
     static let questionnaireNoSessionAssociation = "ללא שיוך לפגישה"
     static let preparationInsufficientTitle = "עדיין אין מספיק מידע להכנה"
     static let preparationInsufficientBody =
-        "מומלץ להוסיף לפחות סיכום פגישה אחד או שאלון כדי ליצור הכנה שימושית יותר."
+        "מומלץ להוסיף לפחות סיכום פגישה אחד או שאלוני מצב רוח כדי ליצור הכנה שימושית יותר."
     static let firstPreparationTipBody =
-        "איכות ההכנה משתפרת ככל שנוספים פגישות ושאלונים."
+        "איכות ההכנה משתפרת ככל שנוספים פגישות ושאלוני מצב רוח."
     static let firstQuestionnaireTipBody =
-        "תשובות קודמות יופיעו במילוי שאלונים בהמשך."
+        "תשובות קודמות יופיעו במילוי שאלוני מצב רוח בהמשך."
     static let contextualTipContinueAction = "המשך"
     
     // MARK: - Sessions
@@ -527,17 +550,17 @@ enum L10n {
     
     static let editQuestionnaireAction = "עריכה"
     
-    static let deleteQuestionnaireAction = "מחיקת שאלון"
+    static let deleteQuestionnaireAction = "מחיקת שאלוני מצב רוח"
     
-    static let deleteQuestionnaireConfirmTitle = "למחוק את השאלון?"
+    static let deleteQuestionnaireConfirmTitle = "למחוק את שאלוני מצב הרוח?"
     
     static let deleteQuestionnaireConfirmMessage =
-    "מחיקת השאלון והתשובות שלו תהיה לצמיתות. לא ניתן לבטל פעולה זו."
+    "מחיקת שאלוני מצב הרוח והתשובות להם תהיה לצמיתות. לא ניתן לבטל פעולה זו."
 
-    static let questionnaireIncompleteTitle = "השאלון לא הושלם"
+    static let questionnaireIncompleteTitle = "שאלוני מצב הרוח לא הושלמו"
 
     static let questionnaireIncompleteMessage =
-    "יש לענות על כל השאלות כדי לשמור את השאלון."
+    "יש לענות על כל השאלות כדי לשמור את שאלוני מצב הרוח."
     
     // MARK: - Delete code challenge
     
@@ -632,7 +655,7 @@ enum L10n {
     • ניהול מידע הקשור למטופלים/ות;
     • תיעוד פגישות והערות טיפוליות;
     • הגדרת מטרות טיפול;
-    • מילוי ומעקב אחר שאלונים;
+    • מילוי ומעקב אחר שאלוני מצב רוח;
     • מעקב אחר מידע לאורך זמן;
     • הפקת סיכומים ותובנות מסייעות;
     • הכנה לקראת פגישות;
@@ -667,7 +690,7 @@ enum L10n {
     • הכנה לקראת פגישה;
     • הצפת שאלות, נקודות להתייחסות ונושאים אפשריים להמשך עבודה;
     • מתן תובנות לצורכי הדרכה ורפלקציה מקצועית;
-    • ניתוח שאלוני GAD-7 ו-PHQ-9;
+    • ניתוח שאלוני מצב רוח (GAD-7 ו-PHQ-9);
     • תמלול קובצי שמע;
     • שיחה עם עוזר בינה מלאכותית;
     • הסרת פרטים מזהים מטקסט חופשי.
@@ -688,7 +711,7 @@ enum L10n {
 
     אין להשתמש באפליקציה כתחליף להערכה ישירה של מצבי חירום, אובדנות, פגיעה עצמית, אלימות, סכנה מיידית או כל מצב אחר המחייב התערבות מקצועית או פנייה לשירותי חירום.
 
-    האפליקציה עשויה להדגיש מידע מסוים, לרבות תשובות לשאלונים, אך אינה יכולה להבטיח זיהוי של כל סימן סיכון או מצב חירום.
+    האפליקציה עשויה להדגיש מידע מסוים, לרבות תשובות לשאלוני מצב רוח, אך אינה יכולה להבטיח זיהוי של כל סימן סיכון או מצב חירום.
 
     במקרה של חשש לסכנה מיידית יש לפעול בהתאם לשיקול הדעת המקצועי, לנהלים החלים ולשירותי החירום הרלוונטיים, ללא תלות באפליקציה.
 
@@ -723,7 +746,7 @@ enum L10n {
     • מטרות טיפול;
     • רשימות מפגישות;
     • הערות על מטופלים/ות;
-    • הערות המצורפות לשאלונים;
+    • הערות המצורפות לשאלוני מצב רוח;
     • שדות אחרים שבהם ניתן להזין טקסט חופשי.
 
     לצורך ביצוע התהליך, הטקסט המקורי מועבר באופן זמני דרך תשתיות האפליקציה וספקי השירות שלה, לרבות Supabase ו-OpenAI API.
@@ -760,15 +783,15 @@ enum L10n {
 
     אין להקליט אדם ללא הרשאה או בניגוד להוראות הדין.
 
-    8. שאלונים
+    8. שאלוני מצב רוח
 
-    האפליקציה עשויה לאפשר שימוש בשאלוני הערכה, לרבות GAD-7 ו-PHQ-9.
+    האפליקציה עשויה לאפשר שימוש בשאלוני מצב רוח, לרבות GAD-7 ו-PHQ-9.
 
-    השאלונים נועדו לתמיכה במעקב ובהערכה ואינם מהווים, כשלעצמם, אבחנה רפואית, פסיכולוגית או פסיכיאטרית.
+    שאלוני מצב הרוח נועדו לתמיכה במעקב ובהערכה ואינם מהווים, כשלעצמם, אבחנה רפואית, פסיכולוגית או פסיכיאטרית.
 
     ציונים, שינויים בציונים או התראות שמוצגות באפליקציה אינם תחליף להערכה מקצועית מלאה.
 
-    המשתמש/ת אחראי/ת לפרש את תוצאות השאלונים בהתאם להקשר הקליני ולפעול לפי שיקול דעת מקצועי.
+    המשתמש/ת אחראי/ת לפרש את תוצאות שאלוני מצב הרוח בהתאם להקשר הקליני ולפעול לפי שיקול דעת מקצועי.
 
     9. חשבון ואבטחת פרטי התחברות
 
@@ -1017,7 +1040,7 @@ enum L10n {
 מידע שהמטפל מזין לגבי המטופל;
 הערות וסיכומי פגישות;
 מידע הקשור לפגישות טיפוליות;
-תשובות לשאלונים כגון GAD-7 ו־PHQ-9;
+תשובות לשאלוני מצב רוח כגון GAD-7 ו־PHQ-9;
 מטרות טיפול;
 מידע קליני ותובנות שהמטפל בוחר לתעד.
 
@@ -1058,7 +1081,7 @@ enum L10n {
 הפעלת האפליקציה;
 שמירת המידע שהמשתמש בוחר לתעד;
 הצגת היסטוריית המטופל;
-הצגת שאלונים ותוצאותיהם;
+הצגת שאלוני מצב רוח ותוצאותיהם;
 יצירת תוצרי AI שהמשתמש ביקש;
 אבטחה, מניעת שימוש לרעה ותפעול השירות;
 תמיכה טכנית;
@@ -1139,9 +1162,9 @@ amitishai@gmail.com
     
     // MARK: - Questionnaires (shared)
     
-    static let combinedTitle = "שאלון משולב"
+    static let combinedTitle = "שאלוני מצב רוח"
     
-    static let addQuestionnaireAction = "מילוי שאלון"
+    static let addQuestionnaireAction = "מילוי שאלוני מצב רוח"
     
     static let notesSectionTitle = "הערות"
     
@@ -1188,7 +1211,7 @@ amitishai@gmail.com
     
     static let aiModeInsights = "תובנות"
     
-    static let aiModeQuestionnaires = "שאלונים"
+    static let aiModeQuestionnaires = "שאלוני מצב רוח"
     
     static let aiModeGeneral = "כללי"
     
@@ -1207,7 +1230,7 @@ amitishai@gmail.com
     
     /// Shown in the middle of the chat before the first question.
     static let aiEmptyMessage =
-    "אפשר לשאול כל שאלה על המטופל/ת — הפגישות, ההערות והשאלונים משמשים כהקשר לתשובה."
+    "אפשר לשאול כל שאלה על המטופל/ת — הפגישות, ההערות ושאלוני מצב הרוח משמשים כהקשר לתשובה."
     
     /// Example questions offered in the empty chat; tapping one fills the field.
     static let aiSuggestedQuestions = [
@@ -1236,7 +1259,7 @@ amitishai@gmail.com
     
     static let settingsResponseStyleRegular = "רגיל"
     
-    static let settingsDoneAction = "סיום"
+    static let settingsDoneAction = "סגירה"
     static let settingsAppearanceTitle = "מראה"
     static let appearanceLight = "בהיר"
     static let appearanceDark = "כהה"
@@ -1321,14 +1344,14 @@ amitishai@gmail.com
     }
     static let progressAndTrackingSection = "מעקב והתקדמות"
     static let graphsAndTrendsTitle = "גרפים ומגמות"
-    static let questionnairesHistoryAction = "שאלונים"
+    static let questionnairesHistoryAction = "שאלוני מצב רוח"
     static let treatmentCourseSection = "מהלך הטיפול"
-    static let diariesTitle = "יומנים"
+    static let diariesTitle = "יומני מחשבות"
     static let clinicalToolsSection = "כלים קליניים"
     static let patientConnectedStatus = "מחובר/ת ל-CBTipul"
     static let patientNotConnectedStatus = "לא מחובר/ת ל-CBTipul"
     static let patientConnectionChecking = "בודק חיבור…"
-    static let diaryOneSentToPatient = "יומן 1 הופעל אצל המטופל/ת."
+    static let diaryOneSentToPatient = "יומן מחשבות 1 הופעל אצל המטופל/ת."
 
     static let patientInvitationFailedTitle = "לא ניתן היה ליצור הזמנה"
 
@@ -1342,12 +1365,32 @@ amitishai@gmail.com
 
         \(therapistName) הזמין/ה אותך להתחבר ל-CBTipul.
 
-        דרך האפליקציה ניתן למלא שאלונים ויומנים ולצפות בתכנים שנשלחו אליך כחלק מהטיפול.
+        דרך האפליקציה ניתן למלא שאלוני מצב רוח ויומני מחשבות ולצפות בתכנים שנשלחו אליך כחלק מהטיפול.
 
         לפתיחת ההזמנה:
         \(invitationUrl)
 
         ההזמנה אישית ומיועדת עבורך בלבד.
+        """
+    }
+
+    /// Plain text for Gmail's share extension, which does not reliably accept HTML.
+    static func patientInvitationEmailMessage(therapistName: String, invitationUrl: String) -> String {
+        """
+        ‏הזמנה אישית ל־CBTipul
+
+        ‏היי, \(therapistName) מזמין/ה אותך להצטרף ל־CBTipul כחלק מהטיפול.
+
+        ‏באפליקציה ניתן:
+        ‏• למלא שאלוני מצב רוח
+        ‏• לתעד מחשבות ורגשות ביומני מחשבות
+        ‏• לקרוא הודעות מהמטפל/ת
+
+        ‏לפתיחת ההזמנה בטלפון:
+        \(invitationUrl)
+
+        ‏הקישור ידריך אותך בהתקנה ובחיבור למטפל/ת.
+        ‏ההזמנה אישית ומיועדת עבורך בלבד.
         """
     }
 
@@ -1365,21 +1408,21 @@ amitishai@gmail.com
         <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
         <body dir="rtl" style="margin:0;padding:0;background-color:#f2f5f7;color:#172b43;font-family:Arial,Helvetica,sans-serif;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f2f5f7;">
-        <tr><td align="center" style="padding:24px 12px;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background-color:#ffffff;border:1px solid #dfe6eb;border-radius:20px;">
-        <tr><td dir="rtl" align="right" style="padding:24px;background-color:#172b43;border-radius:20px 20px 0 0;">
+        <tr><td align="center" style="padding:16px 8px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:480px;background-color:#ffffff;border:1px solid #dfe6eb;border-radius:12px;">
+        <tr><td dir="rtl" align="right" style="padding:24px;background-color:#172b43;border-radius:12px 20px 0 0;">
         <p dir="ltr" style="margin:0;text-align:right;color:#ffffff;font-size:24px;font-weight:bold;letter-spacing:0.3px;">CBTipul</p>
         <p style="margin:8px 0 0;color:#d8e4ed;font-size:14px;">הזמנה אישית מהמטפל/ת שלך</p>
         </td></tr>
-        <tr><td dir="rtl" align="right" style="padding:28px 24px 24px;">
-        <h1 style="margin:0 0 20px;color:#172b43;font-size:28px;line-height:1.4;">הטיפול ממשיך גם בין הפגישות</h1>
-        <p style="margin:0 0 16px;font-size:17px;line-height:1.8;"><strong>\(escape(therapistName))</strong> הזמין/ה אותך להתחבר ל־<span dir="ltr">CBTipul</span>.</p>
-        <p style="margin:0 0 20px;color:#46596c;font-size:16px;line-height:1.8;">באפליקציה אפשר למלא שאלונים, לתעד מחשבות ורגשות ביומנים ולקרוא הודעות מהמטפל/ת — בהתאם למה שנפתח עבורך.</p>
+        <tr><td dir="rtl" align="right" style="padding:24px 20px;">
+        <h1 style="margin:0 0 20px;color:#172b43;font-size:23px;line-height:1.4;">הזמנה להתחבר ל־CBTipul</h1>
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.7;"><strong>\(escape(therapistName))</strong> הזמין/ה אותך להתחבר ל־<span dir="ltr">CBTipul</span>.</p>
+        <p style="margin:0 0 20px;color:#46596c;font-size:16px;line-height:1.8;">שאלוני מצב רוח<br>יומני מחשבות ורגשות<br>הודעות מהמטפל/ת</p>
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         <tr><td align="center" bgcolor="#18766f" style="border-radius:12px;">
         <a href="\(escape(invitationUrl))" style="display:block;padding:16px 20px;border:1px solid #18766f;border-radius:12px;color:#ffffff;background-color:#18766f;font-size:18px;font-weight:bold;text-decoration:none;text-align:center;">פתיחת ההזמנה</a>
         </td></tr></table>
-        <p style="margin:16px 0 0;color:#46596c;font-size:14px;line-height:1.8;">מומלץ לפתוח את ההזמנה בטלפון שבו תשתמשו באפליקציה. במסך שייפתח תוכלו לקרוא את פרטי החיבור ולאשר את ההצטרפות.</p>
+        <p style="margin:16px 0 0;color:#46596c;font-size:14px;line-height:1.8;">פתחו את ההזמנה בטלפון. הקישור ידריך אתכם בהתקנה ובחיבור למטפל/ת.</p>
         </td></tr>
         <tr><td dir="rtl" align="right" style="padding:20px 24px;border-top:1px solid #e5ebef;">
         <p style="margin:0 0 10px;color:#46596c;font-size:13px;line-height:1.7;">הכפתור לא נפתח? אפשר להעתיק את הקישור לדפדפן:</p>
@@ -1399,7 +1442,7 @@ amitishai@gmail.com
     }
 
     static let invitePreviewExplanation =
-        "דרך האפליקציה ניתן למלא שאלונים ויומנים ולצפות בתכנים שנשלחו אליך כחלק מהטיפול."
+        "דרך האפליקציה ניתן למלא שאלוני מצב רוח ויומני מחשבות ולצפות בתכנים שנשלחו אליך כחלק מהטיפול."
 
     static let invitePreviewContinueAction = "המשך"
 
@@ -1418,7 +1461,7 @@ amitishai@gmail.com
     static let inviteConsentDataHeading = "המידע שלך"
 
     static let inviteConsentDataBody =
-        "באפליקציה ניתן למלא שאלונים וכלים טיפוליים שהמטפל/ת מפעיל/ה עבורך. המידע שתזין/י נשמר לצורך השימוש בשירות והצגתו למטפל/ת שלך."
+        "באפליקציה ניתן למלא שאלוני מצב רוח וכלים טיפוליים שהמטפל/ת מפעיל/ה עבורך. המידע שתזין/י נשמר לצורך השימוש בשירות והצגתו למטפל/ת שלך."
 
     static let inviteConsentEmergencyHeading = "לא מיועד למצבי חירום"
 
@@ -1453,35 +1496,35 @@ amitishai@gmail.com
     static let patientModeConnectedTitle = "החיבור הושלם בהצלחה"
 
     static let patientModeConnectedBody =
-        "כעת ניתן למלא שאלונים וכלים טיפוליים שהמטפל/ת יפעיל/תפעיל עבורך."
+        "כעת ניתן למלא שאלוני מצב רוח וכלים טיפוליים שהמטפל/ת יפעיל/תפעיל עבורך."
 
     static let patientTasksTitle = "למילוי ולתרגול"
 
     static let patientTasksRefreshAction = "רענון"
 
-    static let patientTasksEmptyTitle = "אין כרגע שאלונים או יומנים למילוי"
+    static let patientTasksEmptyTitle = "אין כרגע שאלוני מצב רוח או יומני מחשבות למילוי"
 
     static let patientTasksEmptyBody =
-        "שאלונים ויומנים מהמטפל/ת שלך יופיעו כאן כשיהיו זמינים."
+        "שאלוני מצב רוח ויומני מחשבות מהמטפל/ת שלך יופיעו כאן כשיהיו זמינים."
 
-    static let patientQuestionnaireCardTitle = "שאלונים"
+    static let patientQuestionnaireCardTitle = "שאלוני מצב רוח"
 
     static let patientQuestionnaireCardBody =
-        "שני שאלונים קצרים על חרדה ומצב רוח בתקופה האחרונה. התשובות משותפות עם המטפל/ת ועוזרות לעקוב אחר שינויים לאורך הטיפול."
+        "שאלוני מצב רוח קצרים על חרדה ומצב רוח בתקופה האחרונה. התשובות משותפות עם המטפל/ת ועוזרות לעקוב אחר שינויים לאורך הטיפול."
 
-    static let patientQuestionnaireStartAction = "מילוי שאלון חדש"
+    static let patientQuestionnaireStartAction = "מילוי שאלוני מצב רוח"
 
     static let patientUpcomingTaskTitle = "משימה מהמטפל/ת"
 
     static let patientUpcomingTaskBody = "משימה זו תהיה זמינה בקרוב."
 
-    static let patientDiaryOneCardTitle = "יומן 1"
-    static let patientDiaryOneStartAction = "פתיחת היומן"
+    static let patientDiaryOneCardTitle = "יומן מחשבות 1"
+    static let patientDiaryOneStartAction = "פתיחת יומן המחשבות"
 
     static let patientDiaryOneCardBody =
         "אפשר לתאר אירוע, את המחשבות והרגשות שעלו ואת התגובה שלך."
 
-    static let patientDiaryOneOngoingHint = "היומן נשאר זמין. בכל פעם אפשר להוסיף אירוע חדש."
+    static let patientDiaryOneOngoingHint = "יומן המחשבות נשאר זמין. בכל פעם אפשר להוסיף אירוע חדש."
 
     static let patientDiaryOneSaveAction = "שליחה למטפל/ת"
 
@@ -1491,26 +1534,26 @@ amitishai@gmail.com
 
     static let patientDiaryOneSubmitError = "הרשומה לא נשלחה. התוכן נשאר כאן — נסו שוב."
 
-    static let patientDiaryOneNotActiveTitle = "היומן אינו פעיל"
+    static let patientDiaryOneNotActiveTitle = "יומן המחשבות אינו פעיל"
 
-    static let patientDiaryOneNotActive = "היומן אינו פעיל יותר."
+    static let patientDiaryOneNotActive = "יומן המחשבות אינו פעיל יותר."
 
     static let patientTasksLoadError = "לא ניתן היה לטעון את המשימות. נסו שוב."
 
     static let patientQuestionnaireSubmitAction = "שליחה למטפל/ת"
 
-    static let patientQuestionnaireSubmittedTitle = "השאלון נשלח למטפל/ת"
+    static let patientQuestionnaireSubmittedTitle = "שאלוני מצב הרוח נשלחו למטפל/ת"
 
     static let patientQuestionnaireSubmitting = "שולחים…"
 
     static let patientQuestionnaireSubmitError =
-        "לא ניתן היה לשלוח את השאלון. נסו שוב."
+        "לא ניתן היה לשלוח את שאלוני מצב הרוח. נסו שוב."
 
     static let patientQuestionnaireCancelledError =
-        "הגישה לשאלונים אינה פעילה. אפשר לעיין במילויים קודמים, אך לא לשלוח מילוי חדש."
+        "הגישה לשאלוני מצב רוח אינה פעילה. אפשר לעיין במילויים קודמים, אך לא לשלוח מילוי חדש."
 
     static let patientQuestionnaireAccessDeniedError =
-        "לא ניתן לשלוח את השאלון כרגע."
+        "לא ניתן לשלוח את שאלוני מצב הרוח כרגע."
 
     static let patientLeaveModeAction = "יציאה ממצב מטופל/ת"
 
@@ -1556,7 +1599,7 @@ amitishai@gmail.com
     static let deleteAccountConfirmTitle = "למחוק את החשבון?"
 
     static let deleteAccountConfirmMessage =
-        "מחיקת החשבון וכל המידע שלו — מטופלים, פגישות, שאלונים והערות — תהיה לצמיתות. לא ניתן לבטל פעולה זו."
+        "מחיקת החשבון וכל המידע שלו — מטופלים, פגישות, שאלוני מצב רוח והערות — תהיה לצמיתות. לא ניתן לבטל פעולה זו."
 
     static let deleteAccountFailedTitle = "מחיקת החשבון נכשלה"
 
@@ -1568,7 +1611,7 @@ amitishai@gmail.com
         "קבלת עדכונים על פעילות של מטופלים/ות באפליקציה."
 
     static let settingsNotificationsPatientExplanation =
-        "קבלת עדכונים על שאלונים, יומנים והודעות מהמטפל/ת."
+        "קבלת עדכונים על שאלוני מצב רוח, יומני מחשבות והודעות מהמטפל/ת."
 
     static let settingsNotificationsOpenSystemSettings = "פתיחת הגדרות"
 
@@ -1614,9 +1657,9 @@ amitishai@gmail.com
     
     // MARK: - Questionnaire history
     
-    static let viewQuestionnairesAction = "שאלונים וגרפים"
+    static let viewQuestionnairesAction = "שאלוני מצב רוח וגרפים"
 
-    static let diaryOneTitle = "יומן 1"
+    static let diaryOneTitle = "יומן מחשבות 1"
 
     static let diaryOneAddEntryAction = "הוספת רשומה"
     static let emptyDiaryOnePrimaryAction = "הוספת רשומה ראשונה"
@@ -1653,7 +1696,7 @@ amitishai@gmail.com
 
     static let diaryOnePhysicalSymptomsQuestion = "האם הרגש לווה בתחושות גופניות?"
 
-    static let diaryOneEmptyTitle = "אין רשומות ביומן 1 עדיין"
+    static let diaryOneEmptyTitle = "אין רשומות ביומן מחשבות 1 עדיין"
 
     static let diaryOneEmptyBody = "הוסיפו רשומה כדי לתעד אירוע, מחשבות אוטומטיות ורגשות."
 
@@ -1733,14 +1776,14 @@ amitishai@gmail.com
 
     static let diaryOneSaveFailed = "לא ניתן היה לשמור את הרשומה. נסו שוב."
 
-    static let diaryOneLoadFailed = "לא ניתן היה לטעון את יומן 1. נסו שוב."
+    static let diaryOneLoadFailed = "לא ניתן היה לטעון את יומן מחשבות 1. נסו שוב."
 
     static let diaryOneDeleteAction = "מחיקת רשומה"
 
     static let diaryOneDeleteConfirmTitle = "למחוק את הרשומה?"
 
     static let diaryOneDeleteConfirmMessage =
-        "הרשומה תימחק מיומן 1 ולא ניתן יהיה לשחזר אותה."
+        "הרשומה תימחק מיומן מחשבות 1 ולא ניתן יהיה לשחזר אותה."
 
     static let diaryOneDeleteFailed = "לא ניתן היה למחוק את הרשומה. נסו שוב."
     
@@ -1752,9 +1795,9 @@ amitishai@gmail.com
     
     static let graphsModeTitle = "גרפים"
     
-    static let noQuestionnairesMessage = "אין שאלונים עדיין"
+    static let noQuestionnairesMessage = "אין שאלוני מצב רוח עדיין"
     
-    static let loadErrorTitle = "טעינת השאלונים נכשלה"
+    static let loadErrorTitle = "טעינת שאלוני מצב הרוח נכשלה"
     
     static let retryAction = "ניסיון נוסף"
     
@@ -1768,7 +1811,7 @@ amitishai@gmail.com
     static let questionTrendsQuestionPicker = "שאלה"
     static let questionTrendsGraphTitle = "ציוני השאלה לאורך זמן"
     static let questionTrendsTitle = "מגמות לפי שאלה"
-    static let questionTrendsHelp = "בחרו מגמה ואז שאלה מהרשימה. הגרף מציג את ציוני השאלה בכל השאלונים שמולאו. ציון נמוך יותר משקף שיפור."
+    static let questionTrendsHelp = "בחרו מגמה ואז שאלה מהרשימה. הגרף מציג את ציוני השאלה בכל שאלוני מצב הרוח שמולאו. ציון נמוך יותר משקף שיפור."
     static let questionTrendsMissing = "נדרשות לפחות שתי תשובות לכל שאלה. תשובות חסרות אינן נחשבות לציון 0 ואינן נכללות בהשוואה."
     static let questionTrendImproving = "שיפור עקבי"
     static let questionTrendImprovingHelp = "הציון לא עלה באף מילוי, וירד לפחות פעם אחת."
@@ -1787,12 +1830,12 @@ amitishai@gmail.com
     static func questionTrendsOption(_ title: String, count: Int) -> String { "\(title)\u{00A0}(\u{2066}\(count)\u{2069})" }
     static func questionTrendsMatchingCount(_ count: Int) -> String { "\(count) שאלות" }
     static func questionTrendsReference(_ scale: String, number: Int) -> String { "שאלה \(number) · \u{2066}\(scale)\u{2069}" }
-    static func questionTrendsCount(_ count: Int) -> String { "\(count) שאלונים" }
+    static func questionTrendsCount(_ count: Int) -> String { "\(count) מילויים" }
     static func questionnaireGraphChangeShort(_ difference: Int) -> String {
         if difference == 0 { return questionnaireGraphUnchangedShort }
         return difference > 0 ? "עלייה של \(difference)" : "ירידה של \(-difference)"
     }
-    static let questionnaireGraphHelp = "כל נקודה מייצגת מילוי שאלון. התאריכים מתקדמים משמאל לימין."
+    static let questionnaireGraphHelp = "כל נקודה מייצגת מילוי שאלוני מצב רוח. התאריכים מתקדמים משמאל לימין."
     static let questionnaireGraphSingleResponse = "מוצג מילוי אחד. לאחר מילוי נוסף יהיה אפשר לראות שינוי לאורך זמן."
     static let questionnaireGraphNoAnswers = "אין תשובות להצגה עבור הבחירה הזו."
     static func questionnaireGraphLatest(score: Int, maximum: Int) -> String {
@@ -1838,59 +1881,59 @@ amitishai@gmail.com
     
     static let phq9ShortName = "PHQ-9"
     
-    static let questionnaireSectionTitle = "שאלון"
+    static let questionnaireSectionTitle = "שאלוני מצב רוח"
 
-    static let sendQuestionnaireToPatientAction = "הפעלת שאלונים"
-    static let fillQuestionnaireHereAction = "מילוי שאלון כאן"
+    static let sendQuestionnaireToPatientAction = "הפעלת שאלוני מצב רוח"
+    static let fillQuestionnaireHereAction = "מילוי שאלוני מצב רוח כאן"
     static let questionnaireLocalEntryHelp = "התשובות שתמלאו כאן יישמרו בתיק. פעולה זו אינה מפעילה גישה באפליקציית המטופל/ת."
     static let questionnaireSessionEntryHelp = "מילוי כאן שומר את התשובות בתיק ומשייך אותן לפגישה הזו."
-    static let questionnairePatientEntryHelp = "הפעלת גישה למילוי חוזר באפליקציית המטופל/ת. כל מילוי נשמר בנפרד בהיסטוריית השאלונים, ללא שיוך לפגישה."
-    static let questionnaireCompletedLabel = "השאלון מולא — הצגת התשובות"
-    static let questionnairePendingExplanation = "השאלונים פעילים באפליקציית המטופל/ת. כל מילוי נוסף יופיע בהיסטוריית השאלונים."
+    static let questionnairePatientEntryHelp = "הפעלת גישה למילוי חוזר באפליקציית המטופל/ת. כל מילוי נשמר בנפרד בהיסטוריית שאלוני מצב הרוח, ללא שיוך לפגישה."
+    static let questionnaireCompletedLabel = "שאלוני מצב הרוח מולאו — הצגת התשובות"
+    static let questionnairePendingExplanation = "שאלוני מצב הרוח פעילים באפליקציית המטופל/ת. כל מילוי נוסף יופיע בהיסטוריית שאלוני מצב הרוח."
     static let questionnaireRefreshAction = "בדיקה אם התקבלו תשובות"
-    static let questionnaireSendingLabel = "מפעילים גישה לשאלונים…"
-    static let questionnaireDemoSendingUnavailable = "במצב הדגמה אפשר למלא שאלון כאן. הפעלת גישה למטופלים זמינה רק בתיקים אמיתיים."
+    static let questionnaireSendingLabel = "מפעילים גישה לשאלוני מצב רוח…"
+    static let questionnaireDemoSendingUnavailable = "במצב הדגמה אפשר למלא שאלוני מצב רוח כאן. הפעלת גישה למטופלים זמינה רק בתיקים אמיתיים."
     static let questionnaireRefreshFailed = "לא ניתן היה לעדכן את התשובות. מוצג המידע שנטען קודם."
-    static let questionnaireStatusRefreshFailed = "לא ניתן היה לבדוק אם הגישה לשאלונים פעילה. נסו שוב."
+    static let questionnaireStatusRefreshFailed = "לא ניתן היה לבדוק אם הגישה לשאלוני מצב רוח פעילה. נסו שוב."
 
     static let patientNotConnectedTitle = "המטופל/ת עדיין לא מחובר/ת ל-CBTipul"
 
     static let patientNotConnectedBody =
         "יש לשתף קישור הזמנה ולהשלים את חיבור המטופל/ת ל-CBTipul לפני שליחה."
 
-    static let questionnaireSentToPatient = "הגישה לשאלונים הופעלה"
+    static let questionnaireSentToPatient = "הגישה לשאלוני מצב רוח הופעלה"
 
-    static let questionnaireAwaitingPatient = "שאלונים פעילים"
+    static let questionnaireAwaitingPatient = "שאלוני מצב רוח פעילים"
 
     static let patientConnectionCheckError =
         "לא ניתן היה לבדוק את חיבור המטופל/ת. נסו שוב."
 
-    static let diaryPatientModeTitle = "יומן למטופל/ת"
+    static let diaryPatientModeTitle = "יומן מחשבות למטופל/ת"
 
     static let diaryPatientModeNotConnected = "מצב מטופל/ת אינו מחובר"
 
     static let diaryPatientModeInactiveBody =
-        "אפשר לאפשר למטופל/ת למלא את היומן באופן שוטף."
+        "אפשר לאפשר למטופל/ת למלא את יומן המחשבות באופן שוטף."
 
-    static let diaryPatientModeActivateAction = "הפעלת יומן למטופל/ת"
+    static let diaryPatientModeActivateAction = "הפעלת יומן מחשבות למטופל/ת"
 
-    static let diaryPatientModeActive = "היומן פעיל אצל המטופל/ת"
+    static let diaryPatientModeActive = "יומן המחשבות פעיל אצל המטופל/ת"
 
-    static let diaryPatientModeStopAction = "הפסקת היומן למטופל/ת"
+    static let diaryPatientModeStopAction = "הפסקת יומן המחשבות למטופל/ת"
 
-    static let diaryPatientModeStopConfirmTitle = "להפסיק את היומן למטופל/ת?"
+    static let diaryPatientModeStopConfirmTitle = "להפסיק את יומן המחשבות למטופל/ת?"
 
     static let diaryPatientModeStopConfirmMessage =
-        "המטופל/ת לא יוכל/תוכל להוסיף רשומות חדשות ליומן עד להפעלה מחדש. הרשומות הקיימות יישמרו."
+        "המטופל/ת לא יוכל/תוכל להוסיף רשומות חדשות ליומן מחשבות עד להפעלה מחדש. הרשומות הקיימות יישמרו."
 
-    static let diaryPatientModeStopConfirmAction = "הפסקת היומן"
+    static let diaryPatientModeStopConfirmAction = "הפסקת יומן המחשבות"
 
-    static let diaryPatientModeActivateFailed = "לא ניתן היה להפעיל את היומן. נסו שוב."
+    static let diaryPatientModeActivateFailed = "לא ניתן היה להפעיל את יומן המחשבות. נסו שוב."
 
-    static let diaryPatientModeStopFailed = "לא ניתן היה להפסיק את היומן. נסו שוב."
+    static let diaryPatientModeStopFailed = "לא ניתן היה להפסיק את יומן המחשבות. נסו שוב."
 
     static let questionnaireAssignmentSendError =
-        "לא ניתן היה לעדכן את הגישה לשאלונים. נסו שוב."
+        "לא ניתן היה לעדכן את הגישה לשאלוני מצב רוח. נסו שוב."
 
     static let questionnaireAssignmentRetryAction = "ניסיון חוזר"
     /// One-line GAD-7/PHQ-9 score summary shown next to a questionnaire.
@@ -1917,9 +1960,9 @@ amitishai@gmail.com
         case .firstPhoneCall: return "שיחת טלפון ראשונית"
         case .intake: return "אינטייק"
         case .psychoEducation: return "פסיכו-חינוכי"
-        case .diaryOne: return "יומן 1"
-        case .diaryTwo: return "יומן 2"
-        case .diaryThree: return "יומן 3"
+        case .diaryOne: return "יומן מחשבות 1"
+        case .diaryTwo: return "יומן מחשבות 2"
+        case .diaryThree: return "יומן מחשבות 3"
         case .caseFormulation: return "המשגה"
         case .behavioralInterventions: return "חשיפות"
         case .relapsePreventionAndTermination: return "סיכום טיפול והישנות"
@@ -1939,7 +1982,7 @@ amitishai@gmail.com
     /// Indications of the previous questionnaire's answers.
     static func previousAnswerLegend(dateText: String) -> String {
         let hebrewDate = hebrewDate(from: dateText) ?? dateText
-        return "הערך המוקף = תשובה מהשאלון הקודם מתאריך \(hebrewDate)"
+        return "הערך המוקף = תשובה מהמילוי הקודם של שאלוני מצב הרוח מתאריך \(hebrewDate)"
     }
     
     static func hebrewDate(from dateString: String) -> String? {
@@ -1961,7 +2004,7 @@ amitishai@gmail.com
     static func previousScoreLabel(dateText: String) -> String {
         "קודם, \(dateText)"
     }
-    static let noQuestionnaireForSession = "אין שאלונים לפגישה זו"
+    static let noQuestionnaireForSession = "אין שאלוני מצב רוח לפגישה זו"
     
     // MARK: - GAD-7
     
@@ -2128,7 +2171,7 @@ amitishai@gmail.com
     static let maintenanceCyclesSubtitle =
     "השערות AI — מנגנונים שכדאי לבדוק, לא עובדות"
     
-    static let questionnaireInsightsSection = "📊 תובנות מהשאלונים"
+    static let questionnaireInsightsSection = "📊 תובנות משאלוני מצב הרוח"
     
     static let priorityFollowUpsSection = "🔎 נושאים בעדיפות להמשך"
     
@@ -2419,11 +2462,11 @@ extension L10n {
     static let diaryAlternativeThoughtTitle = "מחשבה חלופית"
     static let diaryTwoValidationErrors = "יש לבחור לפחות טעות חשיבה אחת."
     static let diaryTwoValidationAlternatives = "יש למלא לפחות מחשבה חלופית אחת."
-    static let diaryTwoEmptyTitle = "אין רשומות ביומן 2 עדיין"
-    static let diaryTwoLoadFailed = "לא ניתן היה לטעון את יומן 2. נסו שוב."
-    static let patientEnableDiaryTwoAction = "הפעלת יומן 2"
-    static let patientSendDiaryTwoDescription = "מאפשר למטופל/ת למלא יומן 2 באופן שוטף באפליקציה."
-    static let diaryTwoSentToPatient = "יומן 2 הופעל אצל המטופל/ת."
+    static let diaryTwoEmptyTitle = "אין רשומות ביומן מחשבות 2 עדיין"
+    static let diaryTwoLoadFailed = "לא ניתן היה לטעון את יומן מחשבות 2. נסו שוב."
+    static let patientEnableDiaryTwoAction = "הפעלת יומן מחשבות 2"
+    static let patientSendDiaryTwoDescription = "מאפשר למטופל/ת למלא יומן מחשבות 2 באופן שוטף באפליקציה."
+    static let diaryTwoSentToPatient = "יומן מחשבות 2 הופעל אצל המטופל/ת."
     static let diaryEntryTherapistSource = "תיעוד המטפל"
     static let diaryEntryPatientSource = "תיעוד המטופל"
     static let diaryEntryEdit = "עריכת רשומה"
@@ -2433,7 +2476,7 @@ extension L10n {
     static let diaryTwoFeelingsTitle = "רגשות ועוצמה"
     static let diaryTwoDuplicateThinkingError = "יש לבחור כל טעות חשיבה פעם אחת בלבד."
     static let patientDiaryTwoCardBody = "תיעוד אירוע, מחשבות אוטומטיות ורגשות, זיהוי טעויות חשיבה ובחינת מחשבות חלופיות."
-    static let patientDiaryTwoNotActive = "המטפל/ת סגר/ה את יומן 2 למילוי. הרשומות שכבר נשמרו נשארות ביומן."
+    static let patientDiaryTwoNotActive = "המטפל/ת סגר/ה את יומן מחשבות 2 למילוי. הרשומות שכבר נשמרו נשארות ביומן מחשבות."
     static let patientDiaryTwoAccessDenied = "החיבור לתיק הטיפולי אינו זמין כרגע. יש לפנות למטפל/ת."
     static let patientDiaryTwoInvalidFeelings = "יש לבחור לפחות רגש אחד ועוצמה בין 0 ל־100 לכל רגש."
 }
@@ -2452,17 +2495,17 @@ extension L10n {
     static let diaryThreeRemoveFeeling = "הסרת רגש"
     static let diaryThreeValidationSituation = "יש לתאר את האירוע או המצב."
     static let diaryThreeValidationRatings = "יש למלא את כל אחוזי האמונה ועוצמות הרגש לפני ואחרי, בין 0 ל־100."
-    static let diaryThreeEmptyTitle = "אין רשומות ביומן 3 עדיין"
-    static let diaryThreeLoadFailed = "לא ניתן היה לטעון את יומן 3. נסו שוב."
-    static let patientEnableDiaryThreeAction = "הפעלת יומן 3"
-    static let patientSendDiaryThreeDescription = "מאפשר למטופל/ת למלא יומן 3 באופן שוטף באפליקציה."
-    static let diaryThreeSentToPatient = "יומן 3 הופעל אצל המטופל/ת."
+    static let diaryThreeEmptyTitle = "אין רשומות ביומן מחשבות 3 עדיין"
+    static let diaryThreeLoadFailed = "לא ניתן היה לטעון את יומן מחשבות 3. נסו שוב."
+    static let patientEnableDiaryThreeAction = "הפעלת יומן מחשבות 3"
+    static let patientSendDiaryThreeDescription = "מאפשר למטופל/ת למלא יומן מחשבות 3 באופן שוטף באפליקציה."
+    static let diaryThreeSentToPatient = "יומן מחשבות 3 הופעל אצל המטופל/ת."
 }
 
 extension L10n {
-    static let diaryThreeSendingPaused = "שליחת יומן 3 אינה זמינה כרגע. ניתן לצפות ברשומות קודמות."
+    static let diaryThreeSendingPaused = "שליחת יומן מחשבות 3 אינה זמינה כרגע. ניתן לצפות ברשומות קודמות."
     static let patientDiaryThreeCardBody = "תרגול מונחה בשבעה שלבים: מחשבות ורגשות לפני, בחינת מחשבות חלופיות והערכה מחדש."
-    static let patientDiaryThreeNotActive = "המטפל/ת סגר/ה את יומן 3 למילוי. הרשומות שכבר נשמרו נשארות ביומן."
+    static let patientDiaryThreeNotActive = "המטפל/ת סגר/ה את יומן מחשבות 3 למילוי. הרשומות שכבר נשמרו נשארות ביומן מחשבות."
     static let patientDiaryThreeBeliefNow = "אמונה עכשיו"
     static let patientDiaryThreeIntensityNow = "עוצמה עכשיו"
     static let patientDiaryThreeRateEveryItem = "יש לבחור דירוג בין 0 ל־100 לכל פריט בשלב זה."
@@ -2478,5 +2521,5 @@ extension L10n {
 }
 
 extension L10n {
-    static let notificationDiaryThreeEntryAdded = "הוסיף/ה רשומה חדשה ליומן 3"
+    static let notificationDiaryThreeEntryAdded = "הוסיף/ה רשומה חדשה ליומן מחשבות 3"
 }

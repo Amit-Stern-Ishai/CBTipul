@@ -130,7 +130,7 @@ fun QuestionnaireTrendsScreen(records: List<CompletedQuestionnaire>, patientName
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(if (showingTrends) R.string.question_trends_trend_picker else R.string.question_trends_question_picker),
                     color = colors.textBright, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                TextButton(onClick = { showingTrends = false; showingQuestions = false }) { Text(stringResource(R.string.done)) }
+                TextButton(onClick = { showingTrends = false; showingQuestions = false }) { Text(stringResource(R.string.close_action)) }
             }
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 560.dp), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
                 if (showingTrends) {

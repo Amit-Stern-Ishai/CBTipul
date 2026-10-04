@@ -110,10 +110,10 @@ struct PatientListView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        isAddingPatient = true
+                        if EntitlementState.shared.allowMutation() { isAddingPatient = true }
                     } label: {
                         Label(L10n.addPatientAction, systemImage: "plus")
-                    }
+                    }.entitlementCreateControl()
                         .tutorialPulse(
                         store.isDemoMode
                             && !onboarding.checklistDismissed
@@ -194,8 +194,8 @@ struct PatientListView: View {
     private var addPatientCTA: some View {
         VStack(spacing: 8) {
             Button(store.patients.isEmpty ? L10n.emptyPatientsPrimaryAction : L10n.addPatientAction) {
-                isAddingPatient = true
-            }
+                if EntitlementState.shared.allowMutation() { isAddingPatient = true }
+            }.entitlementCreateControl()
             .buttonStyle(.pressableProminent)
             .frame(maxWidth: .infinity)
             .tutorialPulse(
@@ -327,6 +327,7 @@ struct PatientListView: View {
     }
 
     private func applyPendingNotificationRoute() {
+        guard notificationCoordinator.selectedTab == .patients else { return }
         guard let pending = notificationCoordinator.consumePatientNavigation() else { return }
         guard let patient = store.patients.first(where: { $0.id == pending.patientID }) else { return }
         var transaction = Transaction()

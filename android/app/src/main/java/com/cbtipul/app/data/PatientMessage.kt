@@ -101,6 +101,7 @@ class PatientMessageRepository(private val client: SupabaseClient) {
     }
 
     suspend fun send(patientId: String, rawBody: String) {
+        Entitlements.requireWrite()
         ensureConfigured()
         val body = PatientMessageDraft.normalized(rawBody)
         if (body.isEmpty()) throw PatientMessageSendError.Empty

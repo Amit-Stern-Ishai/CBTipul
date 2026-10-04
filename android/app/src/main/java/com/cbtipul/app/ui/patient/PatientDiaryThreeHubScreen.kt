@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patient
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -105,7 +106,7 @@ fun PatientDiaryThreeHubScreen(
                         Button(
                             onClick = onAddEntry,
                             enabled = active,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).entitlementCreateControl(),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colors.accentFill,
                                 contentColor = colors.textOnAccent,

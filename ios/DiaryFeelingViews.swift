@@ -99,7 +99,7 @@ struct DiaryFeelingIntensityControl: View {
                 }
             }
             if let current = intensity ?? (requiresExplicitChoice ? nil : 80), (0...100).contains(current) {
-                Slider(value: Binding(get: { Double(intensity ?? current) }, set: { intensity = Int($0.rounded()) }), in: 0...100, step: 1)
+                Slider(value: Binding(get: { Double(intensity ?? current) }, set: { intensity = Int($0.rounded()) }), in: 0...100, step: 1).entitlementWriteControl()
                     .tint(Theme.gold)
                     .environment(\.layoutDirection, .rightToLeft)
                     .accessibilityLabel(title)
@@ -226,7 +226,7 @@ struct DiaryFeelingPickerSheet: View {
                     .fontWeight(.semibold)
             }
             if isEnteringCustom {
-                TextField(L10n.diaryCustomFeelingPlaceholder, text: $customText)
+                TextField(L10n.diaryCustomFeelingPlaceholder, text: $customText).entitlementWriteControl()
                     .textFieldStyle(.roundedBorder)
                     .focused($customFocused)
                     .submitLabel(.done)

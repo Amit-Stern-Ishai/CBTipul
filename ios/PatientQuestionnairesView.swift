@@ -194,7 +194,7 @@ struct PatientQuestionnairesView: View {
             } label: {
                 Label(L10n.fillQuestionnaireHereAction, systemImage: "square.and.pencil")
                     .frame(maxWidth: .infinity)
-            }
+            }.entitlementCreateControl()
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
         }

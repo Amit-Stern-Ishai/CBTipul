@@ -114,7 +114,7 @@ struct QuestionnaireTrendsView: View {
                 .themedScreen()
                 .navigationTitle(L10n.questionTrendsTrendPicker)
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.done) { showingTrends = false } } }
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.closeAction) { showingTrends = false } } }
             }
             .environment(\.layoutDirection, .rightToLeft)
             .presentationDetents([.medium, .large])
@@ -142,7 +142,7 @@ struct QuestionnaireTrendsView: View {
                 .themedScreen()
                 .navigationTitle(L10n.questionTrendsQuestionPicker)
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.done) { showingQuestions = false } } }
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.closeAction) { showingQuestions = false } } }
             }
             .environment(\.layoutDirection, .rightToLeft)
             .presentationDetents([.large])

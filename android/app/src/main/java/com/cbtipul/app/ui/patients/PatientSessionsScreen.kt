@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.patients
 
+import com.cbtipul.app.ui.entitlementCreateControl
 import com.cbtipul.app.ui.theme.PrimaryActionButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -109,7 +110,7 @@ fun PatientSessionsScreen(
                 actions = {
                     IconButton(
                         onClick = onAdd,
-                        modifier = Modifier.tutorialPulse(pulseAddSession),
+                        modifier = Modifier.tutorialPulse(pulseAddSession).entitlementCreateControl(),
                     ) {
                         Icon(
                             Icons.Outlined.Add,
@@ -232,7 +233,7 @@ fun PatientSessionsScreen(
                 icon = Icons.Outlined.Add,
                 onClick = onAdd,
                 modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp)
-                    .tutorialPulse(pulseAddSession),
+                    .tutorialPulse(pulseAddSession).entitlementCreateControl(),
             )
         }
     }

@@ -79,7 +79,7 @@ fun NotesField(
                 onFocusChanged?.invoke(focus.isFocused)
             },
         enabled = enabled,
-        readOnly = readOnly,
+        readOnly = readOnly || !com.cbtipul.app.ui.entitlementCanWrite(),
         textStyle = style,
         cursorBrush = SolidColor(colors.gold),
         decorationBox = { inner ->

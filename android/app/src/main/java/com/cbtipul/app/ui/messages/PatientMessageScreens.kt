@@ -120,7 +120,7 @@ fun TherapistMessageComposeScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
             ) {
                 Text(
-                    if (didSubmit) stringResource(R.string.done) else if (isSending) stringResource(R.string.send_patient_message_sending) else stringResource(R.string.send_message_action),
+                    if (didSubmit) stringResource(R.string.retry_action) else if (isSending) stringResource(R.string.send_patient_message_sending) else stringResource(R.string.send_message_action),
                     fontWeight = FontWeight.SemiBold,
                 )
             }

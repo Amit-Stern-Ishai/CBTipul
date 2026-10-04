@@ -65,8 +65,8 @@ struct PatientSessionsView: View {
     private var addSessionCTA: some View {
         Button(patient.sessions.isEmpty ? L10n.emptySessionsPrimaryAction : L10n.addSessionAction) {
             gettingStartedRouter.clearHighlightIfMatching(.addSession)
-            route = .new(Session())
-        }
+            if EntitlementState.shared.allowMutation() { route = .new(Session()) }
+        }.entitlementCreateControl()
         .buttonStyle(.pressableProminent)
         .frame(maxWidth: .infinity)
         .tutorialPulse(shouldPulseAddSession)
@@ -141,10 +141,10 @@ struct PatientSessionsView: View {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     gettingStartedRouter.clearHighlightIfMatching(.addSession)
-                    route = .new(Session())
+                    if EntitlementState.shared.allowMutation() { route = .new(Session()) }
                 } label: {
                     Label(L10n.addSessionAction, systemImage: "plus")
-                }
+                }.entitlementCreateControl()
                 .tutorialPulse(shouldPulseAddSession, style: .toolbar)
             }
         }
@@ -198,18 +198,18 @@ struct PatientSessionsView: View {
         didApplyInitialAction = true
         switch initialAction {
         case .addSession:
-            route = .new(Session())
+            if EntitlementState.shared.allowMutation() { route = .new(Session()) }
         case .editLatestForSummary:
             if let latest = sortedSessions.first {
                 route = .edit(latest)
             } else {
-                route = .new(Session())
+                if EntitlementState.shared.allowMutation() { route = .new(Session()) }
             }
         case .addQuestionnaire:
             if let latest = sortedSessions.first {
                 questionnaireSession = latest
             } else {
-                route = .new(Session())
+                if EntitlementState.shared.allowMutation() { route = .new(Session()) }
             }
         }
     }

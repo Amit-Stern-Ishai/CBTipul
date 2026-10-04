@@ -42,6 +42,7 @@ internal class PatientDiaryTwoViewModel(
     }
 
     fun submit(draft: DiaryTwoEntryDraft) {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         if (mutable.value.submitting || mutable.value.submittedId != null) return
         draft.validationError()?.let {
             mutable.value = mutable.value.copy(error = PatientDiaryTwoSubmitError(PatientDiaryTwoSubmitError.Kind.Invalid, it))

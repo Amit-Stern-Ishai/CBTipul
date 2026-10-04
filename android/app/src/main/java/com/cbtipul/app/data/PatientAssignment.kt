@@ -178,6 +178,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
     }
 
     suspend fun sendQuestionnaireAssignment(patientId: String): PatientAssignment {
+        Entitlements.requireWrite()
         ensureConfigured()
         val account = currentAccount()
         val payload = encodeQuestionnaireRequest(patientId)
@@ -225,6 +226,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
     }
 
     suspend fun activateOngoingAssignment(patientId: String, type: PatientAssignmentType): PatientAssignment {
+        Entitlements.requireWrite()
         ensureConfigured()
         val account = currentAccount()
         if (!isPatientConnected(patientId)) throw PatientAssignmentException.PatientNotConnected
@@ -293,6 +295,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
     }
 
     suspend fun cancelOngoingAssignment(id: String) {
+        Entitlements.requireWrite()
         ensureConfigured()
         val account = currentAccount()
         val body = buildJsonObject { put("cancelled_at", timestampNow()) }
@@ -331,6 +334,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         phq9Answers: List<Int>,
         interferenceLevel: Int,
     ) {
+        Entitlements.requireWrite()
         ensureConfigured()
         val valid = (0..3).toSet()
         if (gad7Answers.size != 7 || phq9Answers.size != 9 ||

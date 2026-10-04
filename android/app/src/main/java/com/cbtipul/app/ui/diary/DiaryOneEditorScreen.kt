@@ -152,7 +152,7 @@ fun DiaryOneEditorScreen(
                     },
                     actions = {
                         if (canDelete) {
-                            IconButton(onClick = { showDelete = true }, enabled = !isSaving) {
+                            IconButton(onClick = { showDelete = true }, enabled = !isSaving && com.cbtipul.app.ui.entitlementCanWrite()) {
                                 Icon(
                                     Icons.Outlined.Delete,
                                     contentDescription = stringResource(R.string.diary_one_delete_action),
@@ -167,7 +167,7 @@ fun DiaryOneEditorScreen(
             bottomBar = {
                 Button(
                     onClick = { attemptSave() },
-                    enabled = !isSaving,
+                    enabled = !isSaving && com.cbtipul.app.ui.entitlementCanWrite(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()

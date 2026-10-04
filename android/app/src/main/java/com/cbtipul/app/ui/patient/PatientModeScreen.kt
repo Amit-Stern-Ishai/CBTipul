@@ -1,5 +1,14 @@
 package com.cbtipul.app.ui.patient
 
+import androidx.compose.material.icons.outlined.MenuBook
+
+import androidx.compose.material.icons.outlined.Assignment
+
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
@@ -83,6 +92,11 @@ import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.hebrewDateTime
 import com.cbtipul.app.ui.theme.themedScreen
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import com.cbtipul.app.data.PatientHomeCache
+import com.cbtipul.app.data.PatientHomeSnapshot
+import androidx.compose.runtime.SideEffect
 import com.cbtipul.app.ui.theme.hebrewDate
 import java.util.Date
 
@@ -106,42 +120,91 @@ fun PatientModeScreen(
     onConsumePending: () -> Unit = {},
     onOpenSettings: () -> Unit,
 ) {
+    val introContext = androidx.compose.ui.platform.LocalContext.current
+    val introPreferences = remember { introContext.getSharedPreferences("patient_introduction", android.content.Context.MODE_PRIVATE) }
+    var showIntroduction by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(!introPreferences.getBoolean("completed.v1", false)) }
+    if (showIntroduction) {
+        com.cbtipul.app.ui.onboarding.AppIntroductionScreen(isPatientMode = true, onTrySample = {}, onContinue = {
+            introPreferences.edit().putBoolean("completed.v1", true).apply()
+            showIntroduction = false
+        })
+        return
+    }
     val scope = rememberCoroutineScope()
     val nav = rememberNavController()
-    var loadState by remember { mutableStateOf(TasksLoadState.Loading) }
-    var assignments by remember { mutableStateOf<List<PatientAssignment>>(emptyList()) }
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+    val cacheKey = "${app.authRepository.currentUserId()}:$patientId"
+    val cached = remember(cacheKey) { PatientHomeCache.read(cacheKey) }
+    var manualRefreshing by remember(cacheKey) { mutableStateOf(false) }
+    var refreshing by remember(cacheKey) { mutableStateOf(false) }
+    var refreshAgain by remember(cacheKey) { mutableStateOf(false) }
+    var loadState by remember(cacheKey) { mutableStateOf(if (cached.assignments != null) TasksLoadState.Loaded else TasksLoadState.Loading) }
+    var assignments by remember(cacheKey) { mutableStateOf(cached.assignments.orEmpty()) }
     var messages by remember { mutableStateOf<List<PatientMessage>>(emptyList()) }
-    var questionnaireHistory by remember(patientId) { mutableStateOf<List<com.cbtipul.app.model.CompletedQuestionnaire>>(emptyList()) }
+    var questionnaireHistory by remember(cacheKey) { mutableStateOf(cached.questionnaires.orEmpty()) }
     var didSubmitQuestionnaire by remember { mutableStateOf(false) }
     var pendingDiaryOneSuccess by remember { mutableStateOf(false) }
     var didSubmitDiaryOne by remember { mutableStateOf(false) }
-    var diaryTwoEntries by remember(patientId) { mutableStateOf<List<DiaryTwoEntry>>(emptyList()) }
-    var diaryThreeEntries by remember(patientId) { mutableStateOf<List<DiaryThreeEntry>>(emptyList()) }
+    var diaryTwoEntries by remember(cacheKey) { mutableStateOf(cached.diaryTwo.orEmpty()) }
+    var diaryThreeEntries by remember(cacheKey) { mutableStateOf(cached.diaryThree.orEmpty()) }
     var didSubmitDiaryThree by remember { mutableStateOf(false) }
     var diaryThreeUnavailable by remember(patientId) { mutableStateOf(false) }
     var didSubmitDiaryTwo by remember { mutableStateOf(false) }
-    var diaryEntries by remember { mutableStateOf<List<DiaryOneEntry>>(emptyList()) }
+    var diaryEntries by remember(cacheKey) { mutableStateOf(cached.diaryOne.orEmpty()) }
 
+    SideEffect {
+        if (loadState == TasksLoadState.Loaded) PatientHomeCache.save(cacheKey,
+            PatientHomeSnapshot(assignments, questionnaireHistory, diaryEntries, diaryTwoEntries, diaryThreeEntries))
+    }
     suspend fun reload() {
-        if (assignments.isEmpty()) loadState = TasksLoadState.Loading
+        if (refreshing) { refreshAgain = true; return }
+        refreshing = true
         try {
-            assignments = loadAssignments()
-            messages = runCatching { loadMessages() }.getOrDefault(emptyList())
-            loadState = TasksLoadState.Loaded
-            runCatching { loadQuestionnaireHistory() }.onSuccess { questionnaireHistory = it }
-        } catch (_: Exception) {
-            loadState = TasksLoadState.Failed
-        }
+            coroutineScope {
+                val tasks = async { runCatching { loadAssignments() }.getOrNull() }
+                val inbox = async { runCatching { loadMessages() }.getOrNull() }
+                val questionnaires = async { runCatching { loadQuestionnaireHistory() }.getOrNull() }
+                val one = async { runCatching { loadDiaryOneHistory() }.getOrNull() }
+                val two = async { runCatching { diaryTwo.loadPatientCreatedEntries(patientId) }.getOrNull() }
+                val three = async { runCatching { diaryThree.loadPatientCreatedEntries(patientId) }.getOrNull() }
+                val fetchedTasks = tasks.await()
+                val fetchedInbox = inbox.await()
+                val fetchedQuestionnaires = questionnaires.await()
+                val fetchedOne = one.await()
+                val fetchedTwo = two.await()
+                val fetchedThree = three.await()
+                if (cacheKey != "${app.authRepository.currentUserId()}:$patientId") return@coroutineScope
+                fetchedTasks?.let { assignments = it }
+                fetchedInbox?.let { messages = it }
+                fetchedQuestionnaires?.let { questionnaireHistory = it }
+                fetchedOne?.let { diaryEntries = it }
+                fetchedTwo?.let { diaryTwoEntries = it }
+                fetchedThree?.let { diaryThreeEntries = it }
+                if (fetchedTasks != null) loadState = TasksLoadState.Loaded
+                else if (loadState != TasksLoadState.Loaded) loadState = TasksLoadState.Failed
+            }
+        } finally { refreshing = false }
+        if (refreshAgain) { refreshAgain = false; reload() }
     }
 
-    LaunchedEffect(Unit) { reload() }
+    suspend fun manualReload() {
+        if (manualRefreshing) return
+        manualRefreshing = true
+        try {
+            while (refreshing) kotlinx.coroutines.delay(50)
+            reload()
+        } finally { manualRefreshing = false }
+    }
+
+    LaunchedEffect(cacheKey) { app.patientPushRevision.collect { reload() } }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { scope.launch { reload() } }
     LaunchedEffect(pendingDestination) {
         val destination = pendingDestination as? AppDestination.PatientDiaryTwoForm ?: return@LaunchedEffect
         val assignment = com.cbtipul.app.data.PatientDiaryTwoNotificationRouting.resolve(destination.payload, patientId) {
             loadAssignments().also { assignments = it }
         }
         nav.popBackStack("home", inclusive = false)
-        if (assignment != null) nav.navigate("diary-two/new") { launchSingleTop = true }
+        if (assignment != null) if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-two/new") { launchSingleTop = true }
         onConsumePending()
     }
     LaunchedEffect(pendingDestination) {
@@ -166,7 +229,7 @@ fun PatientModeScreen(
         if (assignment != null && nav.currentBackStackEntry?.arguments?.getString("assignmentId") != assignment.id) {
             nav.popBackStack("home", inclusive = false)
             nav.navigate("questionnaires")
-            nav.navigate("questionnaire/${assignment.id}") { launchSingleTop = true }
+            if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("questionnaire/${assignment.id}") { launchSingleTop = true }
         }
         onConsumePending()
     }
@@ -187,7 +250,7 @@ fun PatientModeScreen(
                         val assignment = NotificationRouting.matchingOpenAssignment(
                             assignments, destination.assignmentId, PatientAssignmentType.DiaryOne,
                         )
-                        if (assignment != null) nav.navigate("diary-one/new")
+                        if (assignment != null) if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-one/new")
                     }
                     else -> Unit
                 }
@@ -212,16 +275,22 @@ fun PatientModeScreen(
                 messages = messages,
                 patientId = patientId,
                 lastQuestionnaire = questionnaireHistory.maxByOrNull { it.answeredDate }?.answeredDate,
+                historyTypes = PatientAssignmentType.entries.filter { type ->
+                    PatientHomeSnapshot(questionnaires = questionnaireHistory, diaryOne = diaryEntries,
+                        diaryTwo = diaryTwoEntries, diaryThree = diaryThreeEntries).hasHistory(type)
+                }.toSet(),
                 onResume = { assignment ->
                     when (assignment.type) {
-                        PatientAssignmentType.Questionnaire -> { nav.navigate("questionnaires"); nav.navigate("questionnaire/${assignment.id}") }
-                        PatientAssignmentType.DiaryOne -> nav.navigate("diary-one/new")
-                        PatientAssignmentType.DiaryTwo -> nav.navigate("diary-two/new")
+                        PatientAssignmentType.Questionnaire -> { nav.navigate("questionnaires"); if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("questionnaire/${assignment.id}") }
+                        PatientAssignmentType.DiaryOne -> if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-one/new")
+                        PatientAssignmentType.DiaryTwo -> if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-two/new")
                         else -> Unit
                     }
                 },
                 onOpenSettings = onOpenSettings,
-                onRefresh = { scope.launch { reload() } },
+                manualRefreshing = manualRefreshing,
+                onBackgroundRefresh = { scope.launch { reload() } },
+                onRefresh = { scope.launch { manualReload() } },
                 onOpenQuestionnaire = { nav.navigate("questionnaires") },
                 onOpenDiaryOne = { nav.navigate("diary-one") },
                 onOpenDiaryTwo = { nav.navigate("diary-two") },
@@ -234,7 +303,7 @@ fun PatientModeScreen(
             PatientQuestionnaireHubScreen(
                 loadAssignments = { loadAssignments().also { assignments = it } },
                 loadHistory = loadQuestionnaireHistory,
-                onNew = { nav.navigate("questionnaire/$it") },
+                onNew = { id -> if (assignments.any { it.id == id && it.cancelledAt == null } && com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("questionnaire/$id") },
                 onOpen = { nav.navigate("questionnaires/result/${it.databaseId.queryValue}") },
                 onLoaded = { questionnaireHistory = it },
                 onBack = { nav.popScreen() },
@@ -267,7 +336,7 @@ fun PatientModeScreen(
                     diaryEntries = loaded
                     loaded
                 },
-                onAddEntry = { nav.navigate("diary-one/new") },
+                onAddEntry = { if (assignments.any { it.type == PatientAssignmentType.DiaryOne && it.cancelledAt == null } && com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-one/new") },
                 onOpenEntry = { nav.navigate("diary-one/entry/${it.id}") },
                 onBack = { nav.popScreen() },
             )
@@ -316,7 +385,7 @@ fun PatientModeScreen(
                 patientId = patientId, service = diaryTwo,
                 active = assignments.any { it.type == PatientAssignmentType.DiaryTwo && it.cancelledAt == null },
                 onLoaded = { diaryTwoEntries = it },
-                onAddEntry = { nav.navigate("diary-two/new") },
+                onAddEntry = { if (assignments.any { it.type == PatientAssignmentType.DiaryTwo && it.cancelledAt == null } && com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-two/new") },
                 onOpenEntry = { nav.navigate("diary-two/entry/${it.id}") },
                 onBack = { nav.popScreen() },
             )
@@ -371,7 +440,7 @@ fun PatientModeScreen(
                 patientId = patientId, service = diaryThree,
                 active = !diaryThreeUnavailable && assignments.any { it.type == PatientAssignmentType.DiaryThree && it.cancelledAt == null },
                 onLoaded = { diaryThreeEntries = it },
-                onAddEntry = { nav.navigate("diary-three/new") },
+                onAddEntry = { if (PatientAssignmentType.diaryThreeSendingEnabled && assignments.any { it.type == PatientAssignmentType.DiaryThree && it.cancelledAt == null } && com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-three/new") },
                 onRefreshAssignments = { scope.launch { reload() } },
                 onOpenEntry = { nav.navigate("diary-three/entry/${it.id}") },
                 onBack = { nav.popScreen() },
@@ -489,8 +558,11 @@ private fun PatientHomeContent(
     messages: List<PatientMessage>,
     patientId: String,
     lastQuestionnaire: Date?,
+    historyTypes: Set<PatientAssignmentType>,
     onResume: (PatientAssignment) -> Unit,
     onOpenSettings: () -> Unit,
+    manualRefreshing: Boolean,
+    onBackgroundRefresh: () -> Unit,
     onRefresh: () -> Unit,
     onOpenQuestionnaire: (String) -> Unit,
     onOpenDiaryOne: () -> Unit,
@@ -505,7 +577,7 @@ private fun PatientHomeContent(
     val account = app.authRepository.currentUserId()
     var draftRevision by remember { mutableStateOf(0) }
     var resumable by remember(account, patientId) { mutableStateOf<List<PatientAssignment>>(emptyList()) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { draftRevision++ }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { draftRevision++; onBackgroundRefresh() }
     LaunchedEffect(account, patientId, assignments, draftRevision) {
         resumable = withContext(Dispatchers.IO) {
             if (account == null) emptyList() else openAssignments.filter { assignment ->
@@ -520,6 +592,7 @@ private fun PatientHomeContent(
             }
         }
     }
+    val refreshLabel = stringResource(R.string.patient_tasks_refresh)
     val unread = PatientHomeMessages.unread(messages)
     val previews = PatientHomeMessages.previews(messages)
     val remaining = PatientHomeMessages.remainingUnreadCount(messages)
@@ -535,8 +608,9 @@ private fun PatientHomeContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onRefresh, enabled = loadState != TasksLoadState.Loading) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.patient_tasks_refresh), tint = colors.gold)
+                    IconButton(onClick = onRefresh, enabled = loadState != TasksLoadState.Loading && !manualRefreshing, modifier = Modifier.semantics { contentDescription = refreshLabel }) {
+                        if (manualRefreshing) CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp, color = colors.gold)
+                        else Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.patient_tasks_refresh), tint = colors.gold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -551,133 +625,64 @@ private fun PatientHomeContent(
                 GoldActionButton(stringResource(R.string.patient_activation_retry), onRefresh, Modifier.padding(top = 16.dp))
             }
             else -> PullToRefreshBox(
-                isRefreshing = loadState == TasksLoadState.Loading && assignments.isNotEmpty(),
+                isRefreshing = manualRefreshing,
                 onRefresh = onRefresh,
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 24.dp, bottom = 28.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(stringResource(R.string.app_title), color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 28.sp)
-                    if (resumable.isNotEmpty()) {
-                        Text(stringResource(R.string.patient_attention_title), color = colors.textBright, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                        resumable.forEach { assignment ->
-                            val title = when (assignment.type) {
-                                PatientAssignmentType.DiaryOne -> R.string.patient_diary_one_purpose
-                                PatientAssignmentType.DiaryTwo -> R.string.patient_diary_two_purpose
-                                else -> R.string.patient_questionnaire_card_title
-                            }
-                            TaskCard(stringResource(title), stringResource(R.string.patient_local_only), stringResource(R.string.patient_resume_action)) { onResume(assignment) }
-                        }
+                    Text(stringResource(R.string.patient_available_help), color = colors.textBody, fontSize = 14.sp)
+                    if (!com.cbtipul.app.ui.entitlementCanWrite()) {
+                        Text(stringResource(R.string.entitlement_patient_unavailable), color = colors.textBody, fontSize = 13.sp)
                     }
-                    if (unread.isNotEmpty()) {
-                    Text(stringResource(R.string.patient_messages_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
-                    if (unread.isEmpty()) {
-                        IconLabel(stringResource(if (messages.isEmpty()) R.string.patient_messages_empty else R.string.no_new_messages), Icons.Outlined.MailOutline, color = colors.textBody, fontSize = 14.sp)
-                    } else {
-                        previews.forEach { message ->
+                    PatientAssignmentType.entries.forEach { type ->
+                        val active = openAssignments.any { it.type == type } && (type != PatientAssignmentType.DiaryThree || PatientAssignmentType.diaryThreeSendingEnabled)
+                        if (active || type in historyTypes) {
+                            val title = when (type) {
+                                PatientAssignmentType.Questionnaire -> R.string.questionnaires_title
+                                PatientAssignmentType.DiaryOne -> R.string.diary_one_title
+                                PatientAssignmentType.DiaryTwo -> R.string.diary_two_title
+                                PatientAssignmentType.DiaryThree -> R.string.diary_three_title
+                            }
+                            val draft = resumable.firstOrNull { it.type == type }
                             GroupedListCard(accent = colors.gold) {
-                                Column(Modifier.fillMaxWidth().clickable { onOpenMessage(message.id) }.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(message.body, color = colors.textBright, fontWeight = FontWeight.SemiBold, maxLines = 3, modifier = Modifier.weight(1f))
+                                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Row(Modifier.weight(1f).clickable {
+                                        when (type) {
+                                            PatientAssignmentType.Questionnaire -> onOpenQuestionnaire("")
+                                            PatientAssignmentType.DiaryOne -> onOpenDiaryOne()
+                                            PatientAssignmentType.DiaryTwo -> onOpenDiaryTwo()
+                                            PatientAssignmentType.DiaryThree -> onOpenDiaryThree()
+                                        }
+                                    }.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        Icon(if (type == PatientAssignmentType.Questionnaire) Icons.Outlined.Assignment else Icons.Outlined.MenuBook, contentDescription = null, tint = colors.gold)
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(stringResource(title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                                            Text(stringResource(if (active) R.string.patient_tool_enabled else R.string.patient_history_only), color = colors.textBody, fontSize = 12.sp)
+                                        }
                                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
                                     }
-                                    Text(hebrewDateTime(message.createdAt), color = colors.textFaint, fontSize = 13.sp)
+                                    if (active && draft != null) {
+                                        TextButton(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) onResume(draft) }) {
+                                            Text(stringResource(R.string.patient_resume_action), color = colors.gold)
+                                        }
+                                    }
                                 }
                             }
                         }
-                        if (remaining > 0) {
-                            Text(
-                                if (remaining == 1) stringResource(R.string.more_unread_messages_one)
-                                else stringResource(R.string.more_unread_messages, remaining),
-                                color = colors.gold,
-                                modifier = Modifier.clickable(onClick = onOpenAllMessages),
-                            )
+                    }
+                    if (openAssignments.isEmpty() && historyTypes.isEmpty()) {
+                        Text(stringResource(R.string.patient_tasks_empty_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.patient_tasks_empty_body), color = colors.textBody)
+                    }
+                    GroupedListCard(accent = colors.gold) {
+                        Row(Modifier.fillMaxWidth().clickable(onClick = onOpenAllMessages).padding(16.dp).heightIn(min = 32.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Outlined.MailOutline, contentDescription = null, tint = colors.gold)
+                            Text(stringResource(if (unread.isEmpty()) R.string.patient_messages_title else R.string.all_messages_action_with_count, unread.size), color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
                         }
-                    }
-                    if (messages.isNotEmpty()) {
-                        TextButton(onClick = onOpenAllMessages) {
-                            Text(
-                                if (unread.isEmpty()) stringResource(R.string.all_messages_action)
-                                else stringResource(R.string.all_messages_action_with_count, unread.size),
-                                color = colors.gold,
-                            )
-                            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.gold)
-                        }
-                    }
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(stringResource(R.string.patient_available_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
-                        Text(stringResource(R.string.patient_available_help), color = colors.textBody)
-                    }
-                    TaskCard(
-                        stringResource(R.string.patient_questionnaire_card_title),
-                        stringResource(if (openAssignments.any { it.type == PatientAssignmentType.Questionnaire }) R.string.patient_questionnaire_card_body else R.string.patient_questionnaire_inactive_hint),
-                        stringResource(if (openAssignments.any { it.type == PatientAssignmentType.Questionnaire }) R.string.patient_questionnaire_open else R.string.patient_questionnaire_history_action),
-                        lastQuestionnaire?.let { stringResource(R.string.patient_last_questionnaire, hebrewDate(it)) },
-                        available = openAssignments.any { it.type == PatientAssignmentType.Questionnaire },
-                    ) { onOpenQuestionnaire("") }
-                    listOf(PatientAssignmentType.DiaryOne, PatientAssignmentType.DiaryTwo).forEach { type ->
-                        val active = openAssignments.any { it.type == type }
-                        val diaryOne = type == PatientAssignmentType.DiaryOne
-                        TaskCard(
-                            stringResource(if (diaryOne) R.string.patient_diary_one_purpose else R.string.patient_diary_two_purpose),
-                            stringResource(if (diaryOne) R.string.diary_one_title else R.string.diary_two_title) + "\n" +
-                                stringResource(if (!active) R.string.patient_tool_activation_help else if (diaryOne) R.string.patient_diary_one_card_body else R.string.patient_diary_two_card_body),
-                            action = stringResource(if (active) R.string.patient_diary_one_start else R.string.diary_one_my_entries),
-                            hint = if (active) stringResource(R.string.patient_diary_one_ongoing_hint) else null,
-                            available = active,
-                        ) { if (diaryOne) onOpenDiaryOne() else onOpenDiaryTwo() }
-                    }
-                    run {
-                        val active = PatientAssignmentType.diaryThreeSendingEnabled && openAssignments.any { it.type == PatientAssignmentType.DiaryThree }
-                        TaskCard(
-                            stringResource(R.string.diary_three_title),
-                            stringResource(if (PatientAssignmentType.diaryThreeSendingEnabled) R.string.patient_diary_three_card_body else R.string.diary_three_sending_paused),
-                            stringResource(if (active) R.string.patient_diary_one_start else R.string.diary_one_my_entries),
-                            available = active,
-                        ) { onOpenDiaryThree() }
-                    }
-                    if (openAssignments.any { it.type == null }) {
-                        TaskCard(stringResource(R.string.patient_upcoming_task_title),
-                            stringResource(R.string.patient_upcoming_task_body), null) {}
-                    }
-                    if (unread.isEmpty()) {
-                    Text(stringResource(R.string.patient_messages_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
-                    if (unread.isEmpty()) {
-                        IconLabel(stringResource(if (messages.isEmpty()) R.string.patient_messages_empty else R.string.no_new_messages), Icons.Outlined.MailOutline, color = colors.textBody, fontSize = 14.sp)
-                    } else {
-                        previews.forEach { message ->
-                            GroupedListCard(accent = colors.gold) {
-                                Column(Modifier.fillMaxWidth().clickable { onOpenMessage(message.id) }.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(message.body, color = colors.textBright, fontWeight = FontWeight.SemiBold, maxLines = 3, modifier = Modifier.weight(1f))
-                                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
-                                    }
-                                    Text(hebrewDateTime(message.createdAt), color = colors.textFaint, fontSize = 13.sp)
-                                }
-                            }
-                        }
-                        if (remaining > 0) {
-                            Text(
-                                if (remaining == 1) stringResource(R.string.more_unread_messages_one)
-                                else stringResource(R.string.more_unread_messages, remaining),
-                                color = colors.gold,
-                                modifier = Modifier.clickable(onClick = onOpenAllMessages),
-                            )
-                        }
-                    }
-                    if (messages.isNotEmpty()) {
-                        TextButton(onClick = onOpenAllMessages) {
-                            Text(
-                                if (unread.isEmpty()) stringResource(R.string.all_messages_action)
-                                else stringResource(R.string.all_messages_action_with_count, unread.size),
-                                color = colors.gold,
-                            )
-                            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.gold)
-                        }
-                    }
                     }
                 }
             }

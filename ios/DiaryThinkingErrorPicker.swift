@@ -60,7 +60,7 @@ struct DiaryThinkingErrorPicker: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(L10n.done) { showingPicker = false }
+                        Button(L10n.confirmSelectionAction) { showingPicker = false }
                     }
                 }
                 .alert(explaining?.title ?? "", isPresented: Binding(get: { explaining != nil }, set: { if !$0 { explaining = nil } })) {

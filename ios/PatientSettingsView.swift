@@ -9,6 +9,7 @@ struct PatientSettingsView: View {
     @Environment(AppContextService.self) private var appContext
 
     @State private var presentedLink: SettingsOfficialLink?
+    @State private var showIntroduction = false
     @State private var isConfirmingLeave = false
     @State private var isLeaving = false
     @State private var leaveError: String?
@@ -22,6 +23,11 @@ struct PatientSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Button { showIntroduction = true } label: {
+                        Label(L10n.introductionReview, systemImage: "rectangle.stack")
+                    }
+                }
                 NotificationsSettingsSection(explanation: L10n.settingsNotificationsPatientExplanation)
 
                 Section(L10n.settingsAccessibilitySectionTitle) {
@@ -110,6 +116,9 @@ struct PatientSettingsView: View {
             }
             .patientAtmosphere(Theme.gold)
             .themedScreen()
+            .fullScreenCover(isPresented: $showIntroduction) {
+                AppIntroductionView(isReview: true, isPatientMode: true, onTrySample: {}, onContinue: { showIntroduction = false }).appTextSize()
+            }
             .navigationTitle(L10n.settingsTitle)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

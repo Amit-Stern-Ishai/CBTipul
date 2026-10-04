@@ -156,6 +156,7 @@ struct PatientDetailView: View {
                             .foregroundStyle(treatmentGoal.wrappedValue.isEmpty ? .secondary : .primary)
                             .fixedSize(horizontal: false, vertical: true)
                         Button {
+                            guard EntitlementState.shared.allowMutation() else { return }
                             goalDraft = treatmentGoal.wrappedValue
                             isEditingGoal = true
                         } label: {
@@ -283,7 +284,7 @@ struct PatientDetailView: View {
                             ProgressView()
                         }
                     }
-                }
+                }.entitlementCreateControl()
                 .disabled(isPreparing)
                 .listRowBackground(groupBorderedRow(savedPreparation == nil ? .last : .middle))
 
@@ -379,10 +380,10 @@ struct PatientDetailView: View {
                         // default natural alignment the caret side follows the
                         // keyboard language, landing left under an English
                         // keyboard.
-                        TextField(L10n.firstNamePlaceholder, text: $firstNameDraft, prompt: Text(""))
+                        TextField(L10n.firstNamePlaceholder, text: $firstNameDraft, prompt: Text("")).entitlementWriteControl()
                             .multilineTextAlignment(.leading)
                             .stablePlaceholder(L10n.firstNamePlaceholder, isShown: firstNameDraft.isEmpty)
-                        TextField(L10n.lastNamePlaceholder, text: $lastNameDraft, prompt: Text(""))
+                        TextField(L10n.lastNamePlaceholder, text: $lastNameDraft, prompt: Text("")).entitlementWriteControl()
                             .multilineTextAlignment(.leading)
                             .stablePlaceholder(L10n.lastNamePlaceholder, isShown: lastNameDraft.isEmpty)
                     }
@@ -441,7 +442,7 @@ struct PatientDetailView: View {
             NavigationStack {
                 Form {
                     Section {
-                        TextField(L10n.noTreatmentGoalPlaceholder, text: $goalDraft, axis: .vertical)
+                        TextField(L10n.noTreatmentGoalPlaceholder, text: $goalDraft, axis: .vertical).entitlementWriteControl()
                     }
                     .listRowBackground(Theme.surface)
                 }
@@ -492,7 +493,7 @@ struct PatientDetailView: View {
         }) { payload in
             ActivityShareSheet(
                 items: [
-                    InvitationShareActivityItem(body: payload.text, subject: payload.subject, htmlBody: payload.html)
+                    InvitationShareActivityItem(body: payload.text, subject: payload.subject, htmlBody: payload.html, emailBody: payload.emailText)
                 ]
             )
                 .presentationDetents([.medium])
@@ -723,7 +724,7 @@ struct PatientDetailView: View {
                     .font(.headline)
                 Button { isShowingConnectionInfo = true } label: {
                     Label(L10n.patientReinviteAction, systemImage: "person.crop.circle.badge.plus")
-                }
+                }.entitlementCreateControl()
                 .buttonStyle(.bordered)
                 .disabled(isCreatingInvitation || isSaving)
                 .accessibilityIdentifier("patient.reinvite")
@@ -747,7 +748,7 @@ struct PatientDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                     .contentShape(Rectangle())
-                }
+                }.entitlementCreateControl()
                 .buttonStyle(.plain)
                 .disabled(isCreatingInvitation || isSaving)
                 .accessibilityIdentifier("patient.connectionInfo")
@@ -785,6 +786,7 @@ struct PatientDetailView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("patient.shareInvitation")
+                        .entitlementCreateControl()
                     case .unavailable:
                         Text(L10n.patientInvitationUnavailableExplanation)
                             .foregroundStyle(.secondary)
@@ -808,7 +810,7 @@ struct PatientDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.done) { isShowingConnectionInfo = false }
+                    Button(L10n.closeAction) { isShowingConnectionInfo = false }
                         .accessibilityIdentifier("patient.connectionInfo.done")
                 }
             }
@@ -827,7 +829,7 @@ struct PatientDetailView: View {
         if connectionState == .connected {
             Button {
                 pendingSendAction = nil
-                isShowingSendOptions = true
+                if EntitlementState.shared.allowMutation() { isShowingSendOptions = true }
             } label: {
                 HStack(spacing: 12) {
                     workspaceRow("paperplane", title: L10n.sendToPatientAction,
@@ -837,9 +839,10 @@ struct PatientDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
-            }
+            }.entitlementCreateControl()
             .buttonStyle(.plain)
             .disabled(isSendingToPatient || isSaving)
+        .entitlementCreateControl()
             .accessibilityIdentifier("patient.sending")
         } else {
             sendingUnavailableNotice
@@ -950,6 +953,7 @@ struct PatientDetailView: View {
         }
         .buttonStyle(.plain)
         .disabled(isSendingToPatient || isSaving)
+        .entitlementCreateControl()
     }
 
     /// Wait for the selector to dismiss before presenting the composer or feedback.
@@ -1013,6 +1017,7 @@ struct PatientDetailView: View {
     }
 
     private func sendDiaryOne() {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isSendingToPatient else { return }
         if store.isDemoMode || DemoData.isDemoID(patient.id) {
             presentSendFeedback(
@@ -1056,6 +1061,7 @@ struct PatientDetailView: View {
     }
 
     private func sendDiaryTwo() {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isSendingToPatient else { return }
         if store.isDemoMode || DemoData.isDemoID(patient.id) {
             presentSendFeedback(
@@ -1099,6 +1105,7 @@ struct PatientDetailView: View {
     }
 
     private func sendDiaryThree() {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isSendingToPatient else { return }
         if store.isDemoMode || DemoData.isDemoID(patient.id) {
             presentSendFeedback(
@@ -1148,6 +1155,7 @@ struct PatientDetailView: View {
 
     /// Gates preparation behind useful clinical input and a one-time tip.
     private func requestPrepareNextSession() {
+        guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
         Task {
             let questionnaires: [CompletedQuestionnaire]
@@ -1209,7 +1217,7 @@ struct PatientDetailView: View {
                 Label(L10n.recordVoiceNoteAction, systemImage: "mic.fill")
                     .font(.title3)
                     .foregroundStyle(.tint)
-            }
+            }.entitlementCreateControl()
             .buttonStyle(.plain)
             .disabled(isTranscribing || isAnonymizingTranscription || voiceRecorder.recordingURL != nil)
         }
@@ -1223,6 +1231,7 @@ struct PatientDetailView: View {
     /// Sends the recorded voice note to Whisper and appends the resulting
     /// text to the notes field, wrapped in marker lines.
     private func transcribe() {
+        guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         guard let fileURL = voiceRecorder.recordingURL else { return }
         let whisperService = WhisperService(client: auth.client)
         voiceRecorder.errorMessage = nil
@@ -1264,6 +1273,7 @@ struct PatientDetailView: View {
     /// Builds the compact patient context and asks the AI to prepare the
     /// next session, then presents the result.
     private func prepareNextSession() {
+        guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         errorMessage = nil
         isPreparing = true
         Task {
@@ -1305,6 +1315,7 @@ struct PatientDetailView: View {
     /// Opens the name editor with the stored name split into first name and
     /// the rest (the store keeps one full-name string).
     private func startEditingName() {
+        guard EntitlementState.shared.allowMutation() else { return }
         let parts = (patient.localName ?? "")
             .split(separator: " ", maxSplits: 1)
             .map(String.init)
@@ -1316,6 +1327,7 @@ struct PatientDetailView: View {
     }
 
     private func saveEditedName() {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isSaving else { return }
         errorMessage = nil
         isSaving = true
@@ -1337,6 +1349,7 @@ struct PatientDetailView: View {
     }
 
     private func deletePatient() {
+        guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
         busyLabel = nil
         isSaving = true
@@ -1353,6 +1366,7 @@ struct PatientDetailView: View {
 
     /// Writes the edited goal to the formulation and persists it right away.
     private func saveGoal() {
+        guard EntitlementState.shared.allowMutation() else { return }
         treatmentGoal.wrappedValue = goalDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         isEditingGoal = false
         errorMessage = nil
@@ -1376,6 +1390,7 @@ struct PatientDetailView: View {
     }
 
     private func save(thenDismiss: Bool = false, closeNotes: Bool = false) {
+        guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
         // Only promise anonymization when there are notes that may actually
         // be sent to the anonymizer; otherwise show a plain spinner.
@@ -1399,10 +1414,12 @@ struct PatientDetailView: View {
         let id = UUID()
         let text: String
         let html: String
+        let emailText: String
         let subject: String
     }
 
     private func startPatientInvitation() {
+        guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         guard !isCreatingInvitation else { return }
         Task { await createPatientInvitationIfAllowed() }
     }
@@ -1418,6 +1435,7 @@ struct PatientDetailView: View {
     }
 
     private func createPatientInvitationIfAllowed() async {
+        guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         guard !isCreatingInvitation else { return }
         invitationError = nil
         guard let patientId = UUID(uuidString: patient.id.queryValue) else {
@@ -1446,6 +1464,10 @@ struct PatientDetailView: View {
                     invitationUrl: invitation.invitationUrl
                 ),
                 html: L10n.patientInvitationEmailHTML(
+                    therapistName: therapistName,
+                    invitationUrl: invitation.invitationUrl
+                ),
+                emailText: L10n.patientInvitationEmailMessage(
                     therapistName: therapistName,
                     invitationUrl: invitation.invitationUrl
                 ),

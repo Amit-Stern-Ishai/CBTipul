@@ -16,6 +16,10 @@ struct PatientModeView: View {
 
     @State private var resumableTypes: Set<PatientAssignmentType> = []
     @State private var lastQuestionnaireDate: Date?
+    @State private var homeSnapshot = PatientHomeSnapshot()
+    @State private var manualRefreshing = false
+    @State private var refreshingTools = false
+    @State private var refreshToolsAgain = false
     @State private var showingDiaryOneHistory = false
     @State private var loadState: LoadState = .loading
     @State private var assignments: [PatientAssignment] = []
@@ -25,6 +29,8 @@ struct PatientModeView: View {
     @State private var isShowingQuestionnaireHub = false
     @State private var questionnaireFormRequest: UUID?
     @State private var didSubmitDiaryOne = false
+    @AppStorage("patientIntroductionCompleted.v1") private var patientIntroductionCompleted = false
+    @State private var showPatientIntroduction = false
     @State private var isShowingSettings = false
     @State private var isShowingDiaryOneEntry = false
     @State private var isShowingDiaryTwoHub = false
@@ -161,20 +167,33 @@ struct PatientModeView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await refreshPatientHome() }
+                        Task { await manualRefresh() }
                     } label: {
-                        Label(L10n.patientTasksRefreshAction, systemImage: "arrow.clockwise")
+                        if manualRefreshing { ProgressView() }
+                        else { Label(L10n.patientTasksRefreshAction, systemImage: "arrow.clockwise") }
                     }
-                    .disabled(loadState == .loading)
+                    .accessibilityLabel(L10n.patientTasksRefreshAction)
+                    .disabled(loadState == .loading || manualRefreshing)
                 }
             }
             .sheet(isPresented: $isShowingSettings) {
                 PatientSettingsView()
             }
+            .fullScreenCover(isPresented: $showPatientIntroduction) {
+                AppIntroductionView(isPatientMode: true, onTrySample: {}, onContinue: {
+                    patientIntroductionCompleted = true
+                    showPatientIntroduction = false
+                })
+                .appTextSize()
+            }
             .task {
+                showPatientIntroduction = !patientIntroductionCompleted
                 messageCoordinator.markReady()
                 await refreshPatientHome()
                 await applyPendingMessageRoute()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .patientModePushReceived)) { _ in
+                Task { await refreshPatientHome() }
             }
             .onChange(of: messageCoordinator.pendingRevision) { _, _ in
                 Task { await applyPendingMessageRoute() }
@@ -239,60 +258,75 @@ struct PatientModeView: View {
 
     private var taskList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text(L10n.appTitle)
-                    .font(.title.bold())
-                    .foregroundStyle(Theme.textBright)
-
-                if !resumableTypes.isEmpty {
-                    Text(L10n.patientAttentionTitle).font(.title2.weight(.semibold))
-                    ForEach(openAssignments.filter { resumableTypes.contains($0.type ?? .diaryThree) }, id: \.id) { assignment in
-                        Button { resume(assignment) } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(resumeTitle(assignment.type)).font(.headline)
-                                Text(L10n.patientLocalOnly).font(.caption).foregroundStyle(Theme.textBody)
-                                Label(L10n.patientResumeAction, systemImage: "arrow.forward.circle.fill").font(.subheadline.weight(.semibold))
-                            }.frame(maxWidth: .infinity, alignment: .leading).padding(16).themedCard()
-                        }.buttonStyle(.plain)
+            VStack(alignment: .leading, spacing: 12) {
+                Text(L10n.patientAvailableHelp)
+                    .font(.subheadline).foregroundStyle(Theme.textBody)
+                if !EntitlementState.shared.canPatientWrite {
+                    Text(L10n.entitlementPatientUnavailable).font(.footnote).foregroundStyle(Theme.textBody)
+                }
+                ForEach([PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo, .diaryThree], id: \.self) { type in
+                    let active = openAssignments.contains { $0.type == type } && (type != .diaryThree || PatientAssignmentType.diaryThreeSendingEnabled)
+                    if homeSnapshot.isVisible(type, active: active) {
+                        compactToolRow(type, active: active)
                     }
                 }
-                if !homeMessagePreviews.isEmpty { messagesSection }
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L10n.patientAvailableTitle).font(.title2.weight(.semibold))
-                    Text(L10n.patientAvailableHelp).font(.subheadline).foregroundStyle(Theme.textBody)
+                if openAssignments.isEmpty && ![PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo, .diaryThree].contains(where: { homeSnapshot.hasHistory($0) }) {
+                    emptyState
                 }
-                questionnaireCard
-
-                if openAssignments.contains(where: { $0.type == .diaryOne }) {
-                    diaryOneCard
-                } else {
-                    inactiveDiaryCard(title: L10n.patientDiaryOnePurpose, subtitle: L10n.diaryOneTitle) { showingDiaryOneHistory = true }
-                }
-                if openAssignments.contains(where: { $0.type == .diaryTwo }) {
-                    diaryTwoCard
-                } else {
-                    inactiveDiaryCard(title: L10n.patientDiaryTwoPurpose, subtitle: L10n.diaryTwoTitle) { isShowingDiaryTwoHub = true }
-                }
-                diaryThreeCard
-                ForEach(openAssignments.filter { $0.type == nil }, id: \.id) { assignment in
-                    assignmentCard(assignment)
-                }
-
-                if homeMessagePreviews.isEmpty { messagesSection }
-
+                Button { isShowingMessages = true } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "envelope").font(.title3).foregroundStyle(Theme.gold)
+                        Text(L10n.messagesTitle).font(.headline).foregroundStyle(Theme.textBright)
+                        Spacer()
+                        let unread = PatientModeHomeMessages.unread(in: messages).count
+                        if unread > 0 {
+                            Text("\(unread)").font(.subheadline.bold()).monospacedDigit()
+                                .padding(.horizontal, 10).padding(.vertical, 4)
+                                .background(Theme.gold.opacity(0.15), in: Capsule())
+                        }
+                        Image(systemName: "chevron.forward").font(.footnote).foregroundStyle(Theme.textBody)
+                    }.padding(16).frame(minHeight: 64).themedCard()
+                }.buttonStyle(.plain)
                 if case .failed = loadState {
-                    Text(L10n.patientTasksLoadError)
-                        .font(.footnote)
-                        .foregroundStyle(Theme.error)
+                    Text(L10n.patientTasksLoadError).font(.footnote).foregroundStyle(Theme.error)
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 28)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20).padding(.vertical, 12)
         }
+        .navigationTitle(L10n.appTitle)
         .onAppear { refreshDrafts() }
-        .refreshable { await refreshPatientHome() }
+        .refreshable { await manualRefresh() }
+    }
+
+    private func compactToolRow(_ type: PatientAssignmentType, active: Bool) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                switch type {
+                case .questionnaire: isShowingQuestionnaireHub = true
+                case .diaryOne: showingDiaryOneHistory = true
+                case .diaryTwo: isShowingDiaryTwoHub = true
+                case .diaryThree: isShowingDiaryThreeHub = true
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: type == .questionnaire ? "list.clipboard" : "book.closed")
+                        .font(.title3).foregroundStyle(Theme.gold).frame(width: 26)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(type == .questionnaire ? L10n.questionnairesTitle : type == .diaryOne ? L10n.diaryOneTitle : type == .diaryTwo ? L10n.diaryTwoTitle : L10n.diaryThreeTitle)
+                            .font(.headline).foregroundStyle(Theme.textBright)
+                        Text(active ? L10n.patientToolEnabled : L10n.patientHistoryOnly)
+                            .font(.caption).foregroundStyle(Theme.textBody)
+                    }
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.forward").font(.footnote).foregroundStyle(Theme.textBody)
+                }.frame(minHeight: 48).contentShape(Rectangle())
+            }.buttonStyle(.plain)
+            if active, resumableTypes.contains(type), let assignment = openAssignments.first(where: { $0.type == type }) {
+                Button(L10n.patientResumeAction) { resume(assignment) }
+                    .font(.subheadline.weight(.semibold)).buttonStyle(.bordered)
+                    .entitlementCreateControl()
+            }
+        }.padding(14).themedCard()
     }
 
     private var messagesSection: some View {
@@ -434,10 +468,10 @@ struct PatientModeView: View {
 
     private var diaryOneCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.patientDiaryOnePurpose)
+            Text(L10n.diaryOneTitle)
                 .font(.headline)
                 .foregroundStyle(Theme.textBright)
-            Text(L10n.diaryOneTitle).font(.caption).foregroundStyle(Theme.textBody)
+            Text(L10n.patientDiaryOnePurpose).font(.caption).foregroundStyle(Theme.textBody)
             availabilityLabel(true)
             Text(L10n.patientDiaryOneCardBody)
                 .font(.body)
@@ -460,8 +494,8 @@ struct PatientModeView: View {
 
     private var diaryTwoCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.patientDiaryTwoPurpose).font(.headline).foregroundStyle(Theme.textBright)
-            Text(L10n.diaryTwoTitle).font(.caption).foregroundStyle(Theme.textBody)
+            Text(L10n.diaryTwoTitle).font(.headline).foregroundStyle(Theme.textBright)
+            Text(L10n.patientDiaryTwoPurpose).font(.caption).foregroundStyle(Theme.textBody)
             availabilityLabel(true)
             Text(L10n.patientDiaryTwoCardBody).foregroundStyle(Theme.textBody)
             Text(L10n.patientDiaryOneOngoingHint).font(.footnote).foregroundStyle(Theme.textBody)
@@ -505,17 +539,17 @@ struct PatientModeView: View {
 
     private func resumeTitle(_ type: PatientAssignmentType?) -> String {
         switch type {
-        case .diaryOne: L10n.patientDiaryOnePurpose
-        case .diaryTwo: L10n.patientDiaryTwoPurpose
+        case .diaryOne: L10n.diaryOneTitle
+        case .diaryTwo: L10n.diaryTwoTitle
         default: L10n.patientQuestionnaireCardTitle
         }
     }
 
     private func resume(_ assignment: PatientAssignment) {
         switch assignment.type {
-        case .questionnaire: questionnaireFormRequest = assignment.id; isShowingQuestionnaireHub = true
-        case .diaryOne: isShowingDiaryOneEntry = true
-        case .diaryTwo: isShowingDiaryTwoEntry = true
+        case .questionnaire: guard EntitlementState.shared.allowMutation() else { return }; questionnaireFormRequest = assignment.id; isShowingQuestionnaireHub = true
+        case .diaryOne: if EntitlementState.shared.allowMutation() { isShowingDiaryOneEntry = true }
+        case .diaryTwo: if EntitlementState.shared.allowMutation() { isShowingDiaryTwoEntry = true }
         default: break
         }
     }
@@ -540,21 +574,41 @@ struct PatientModeView: View {
     }
 
     private func loadAssignments() async {
-        if assignments.isEmpty {
-            loadState = .loading
+        if refreshingTools { refreshToolsAgain = true; return }
+        guard let userID = auth.currentUserId,
+              let patientID = appContext.current?.patientId else { return }
+        refreshingTools = true
+        defer {
+            refreshingTools = false
+            if refreshToolsAgain {
+                refreshToolsAgain = false
+                Task { await refreshPatientHome() }
+            }
         }
-        do {
-            assignments = try await PatientAssignmentService(client: auth.client)
-                .patientAssignments(patientId: appContext.current?.patientId)
+        let key = "\(userID):\(patientID.uuidString)"
+        homeSnapshot = PatientHomeCache.read(key: key)
+        if let cached = homeSnapshot.assignments {
+            assignments = cached
             loadState = .loaded
-        } catch {
-            loadState = .failed
         }
+        lastQuestionnaireDate = homeSnapshot.questionnaires?.map(\.answeredDate).max()
+        let client = auth.client
+        async let fetchedAssignments = try? PatientAssignmentService(client: client).patientAssignments(patientId: patientID)
+        async let questionnaires = try? PatientQuestionnaireHistoryService(client: client).history(patientId: patientID)
+        async let diaryOne = try? PatientDiaryOneService(client: client).loadPatientCreatedEntries(patientId: patientID)
+        async let diaryTwo = try? PatientDiaryTwoService(client: client).loadPatientCreatedEntries(patientId: patientID)
+        async let diaryThree = try? PatientDiaryThreeService(client: client).loadPatientCreatedEntries(patientId: patientID)
+        let results = await (fetchedAssignments, questionnaires, diaryOne, diaryTwo, diaryThree)
+        guard userID == auth.currentUserId, patientID == appContext.current?.patientId else { return }
+        if let value = results.0 { assignments = value; homeSnapshot.assignments = value }
+        if let value = results.1 { homeSnapshot.questionnaires = value }
+        if let value = results.2 { homeSnapshot.diaryOne = value }
+        if let value = results.3 { homeSnapshot.diaryTwo = value }
+        if let value = results.4 { homeSnapshot.diaryThree = value }
+        PatientHomeCache.save(homeSnapshot, key: key)
+        lastQuestionnaireDate = homeSnapshot.questionnaires?.map(\.answeredDate).max()
+        loadState = homeSnapshot.assignments == nil ? .failed : .loaded
         refreshDrafts()
-        if let patientID = appContext.current?.patientId,
-           let history = try? await PatientQuestionnaireHistoryService(client: auth.client).history(patientId: patientID) {
-            lastQuestionnaireDate = history.map(\.answeredDate).max()
-        }
     }
 
     private func loadMessages() async {
@@ -567,6 +621,18 @@ struct PatientModeView: View {
             AppLog.store.debug("patient messages refresh failed")
             #endif
         }
+    }
+
+    private func manualRefresh() async {
+        guard !manualRefreshing else { return }
+        manualRefreshing = true
+        defer { manualRefreshing = false }
+        // If a silent refresh is running, wait and then fetch again for this request.
+        while refreshingTools {
+            do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
+        }
+        guard !Task.isCancelled else { return }
+        await refreshPatientHome()
     }
 
     private func refreshPatientHome() async {
@@ -759,7 +825,7 @@ struct PatientQuestionnaireView: View {
                     .disabled(isSubmitting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(didSubmit ? L10n.done : L10n.patientQuestionnaireSubmitAction) {
+                    Button(didSubmit ? L10n.retryAction : L10n.patientQuestionnaireSubmitAction) {
                         if didSubmit { Task { await finishSuccessfully() } }
                         else if !inactive && completion.firstUnanswered == nil { Task { await submit() } }
                         else { revealUnanswered(using: proxy) }
@@ -795,6 +861,7 @@ struct PatientQuestionnaireView: View {
     }
 
     private func submit() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isSubmitting, !didSubmit, completion.firstUnanswered == nil,
               let interference = questionnaire.interferenceLevel else { return }
         isSubmitting = true

@@ -95,6 +95,7 @@ struct PatientDiaryOneHubView: View {
                         .frame(maxWidth: .infinity, minHeight: 24)
                 }
                 .disabled(!isActive || locallyInactive)
+                .entitlementCreateControl()
                 .buttonStyle(.pressableProminent)
                 .controlSize(.large)
                 .padding(.horizontal, 20)
@@ -148,10 +149,12 @@ struct PatientDiaryOneHubView: View {
 /// Read-only submitted Diary 1 entry in Patient Mode.
 struct PatientDiaryOneDetailView: View {
     let entry: DiaryOneEntry
+    var therapistViewing = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if therapistViewing { Label(L10n.patientSubmissionReadOnly, systemImage: "eye").font(.subheadline).foregroundStyle(Theme.textBody) }
                 Text(L10n.hebrewDateTime(entry.createdAt))
                     .font(.headline)
                     .foregroundStyle(Theme.textBright)
@@ -234,7 +237,7 @@ struct PatientDiaryOneEntryView: View {
                 didAttemptSave: didAttemptSave,
                 errorMessage: errorMessage
                 )
-                .disabled(isBusy || didSubmit)
+                .disabled(isBusy || didSubmit || !EntitlementState.shared.canPatientWrite)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -255,7 +258,7 @@ struct PatientDiaryOneEntryView: View {
                     else { await submit() }
                 }
             } label: {
-                Text(didSubmit ? L10n.done : L10n.patientDiaryOneSaveAction)
+                Text(didSubmit ? L10n.retryAction : L10n.patientDiaryOneSaveAction)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity, minHeight: 30)
             }
@@ -332,6 +335,7 @@ struct PatientDiaryOneEntryView: View {
     }
 
     private func submit() async {
+        guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy, !didSubmit else { return }
         didAttemptSave = true
         if let message = draft.validationMessage() {
