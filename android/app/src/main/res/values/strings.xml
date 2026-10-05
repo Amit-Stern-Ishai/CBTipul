@@ -143,7 +143,7 @@
     <string name="ai_chat_title">שיחה</string>
     <string name="ai_chat_named_title">שיחת AI על %1$s</string>
     <string name="ai_chat_navigation_title">שיחת AI על המטופל/ת</string>
-    <string name="ai_empty_message">שאלות על %1$s — על בסיס הפגישות, ההערות, שאלוני מצב הרוח ויומני המחשבות שבתיק.</string>
+    <string name="ai_empty_message">התשובות מבוססות על המידע שבתיק.</string>
     <string name="ai_generate_insights_action">הפקת תובנות</string>
     <string name="ai_ask_action">שאלה</string>
     <string name="ai_thinking_label">מעבד…</string>

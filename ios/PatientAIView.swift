@@ -76,7 +76,7 @@ struct PatientAIView: View {
         .background(Theme.base.ignoresSafeArea())
         .dismissesKeyboardOnTap()
         .overlay {
-            if chatEntries.isEmpty && !isLoading && errorMessage == nil {
+            if chatEntries.isEmpty && prompt.isEmpty && !isLoading && errorMessage == nil {
                 emptyState
             }
         }
@@ -106,10 +106,7 @@ struct PatientAIView: View {
                 .foregroundStyle(Theme.gold)
                 .padding(22)
                 .background(Theme.goldGhost, in: Circle())
-            Text(L10n.aiChatTitle(patient.displayName))
-                .multilineTextAlignment(.center)
-                .font(.title3.bold())
-            Text(L10n.aiEmptyMessage(patient.displayName))
+            Text(L10n.aiEmptyMessage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

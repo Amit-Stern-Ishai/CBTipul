@@ -1248,16 +1248,11 @@ amitishai@gmail.com
     static let aiChatNavigationTitle = "שיחת AI על המטופל/ת"
     static func aiChatTitle(_ name: String) -> String { "שיחת AI על \(name)" }
     
-    /// Hint in the chat's message field, e.g. "שאלה על באגס באני".
-    static func aiPromptPlaceholder(_ name: String) -> String {
-        "שאלה על \(name)"
-    }
-    
-    /// Shown in the middle of the chat before the first question.
-    static func aiEmptyMessage(_ name: String) -> String {
-        "שאלות על \(name) — על בסיס הפגישות, ההערות, שאלוני מצב הרוח ויומני המחשבות שבתיק."
-    }
-    
+    static func aiPromptPlaceholder(_ name: String) -> String { "שאלה על \(name)" }
+
+    /// Brief context note, shown only before composing the first question.
+    static let aiEmptyMessage = "התשובות מבוססות על המידע שבתיק."
+
     /// Example questions offered in the empty chat; tapping one fills the field.
     static let aiSuggestedQuestions = [
         "סיכום קצר של המצב הנוכחי",

@@ -258,7 +258,7 @@ fun PatientAIScreen(
                         }
                     }
                 }
-                if (entries.isEmpty() && !isLoading && errorMessage == null) {
+                if (entries.isEmpty() && prompt.isEmpty() && !isLoading && errorMessage == null) {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -280,13 +280,7 @@ fun PatientAIScreen(
                             )
                         }
                         Text(
-                            stringResource(R.string.ai_chat_named_title, displayName),
-                            color = colors.textBright,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                        )
-                        Text(
-                            stringResource(R.string.ai_empty_message, displayName),
+                            stringResource(R.string.ai_empty_message),
                             color = colors.textBody,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center,
