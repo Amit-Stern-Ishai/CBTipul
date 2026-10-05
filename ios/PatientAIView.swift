@@ -87,7 +87,8 @@ struct PatientAIView: View {
             inputBar
         }
         .demoModeChrome()
-        .navigationTitleWithSubtitle(L10n.aiChatNavigationTitle, subtitle: patient.displayName)
+        .navigationTitle(L10n.aiChatTitle(patient.displayName))
+        .navigationBarTitleDisplayMode(.inline)
         .task {
             // The questionnaire context needs the cache filled.
             if store.cachedQuestionnaires(for: patient) == nil {
@@ -105,9 +106,10 @@ struct PatientAIView: View {
                 .foregroundStyle(Theme.gold)
                 .padding(22)
                 .background(Theme.goldGhost, in: Circle())
-            Text(L10n.aiTitle)
+            Text(L10n.aiChatTitle(patient.displayName))
+                .multilineTextAlignment(.center)
                 .font(.title3.bold())
-            Text(L10n.aiEmptyMessage)
+            Text(L10n.aiEmptyMessage(patient.displayName))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

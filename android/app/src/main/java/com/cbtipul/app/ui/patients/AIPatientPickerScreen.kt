@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PersonAdd
@@ -56,12 +57,16 @@ fun AIPatientPickerScreen(viewModel: PatientListViewModel, unnamed: String, onSe
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            Text(
-                stringResource(R.string.ai_patient_picker_prompt),
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textBody,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+            Column(
+                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = colors.gold, modifier = Modifier.size(20.dp))
+                    Text(stringResource(R.string.ai_patient_picker_prompt), style = MaterialTheme.typography.titleMedium, color = colors.textBright)
+                }
+                Text(stringResource(R.string.ai_patient_picker_explanation), style = MaterialTheme.typography.bodyMedium, color = colors.textBody)
+            }
             if (patients.isNotEmpty()) OutlinedTextField(
                 value = search, onValueChange = { search = it }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp),
@@ -121,7 +126,8 @@ fun AIPatientPickerScreen(viewModel: PatientListViewModel, unnamed: String, onSe
                                     )
                                 }
                                 items(group, key = { it.id.queryValue }) { patient ->
-                                    PatientRow(patient, unnamed, onClick = { onSelect(patient.id.queryValue) })
+                                    PatientRow(patient, unnamed, onClick = { onSelect(patient.id.queryValue) },
+                                        actionSubtitle = stringResource(R.string.ai_patient_picker_action))
                                 }
                             }
                         }

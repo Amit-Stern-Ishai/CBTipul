@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="therapist_tab_ai">AI</string>
-    <string name="ai_patient_picker_title">עוזר AI</string>
-    <string name="ai_patient_picker_prompt">על איזה מטופל/ת תרצה/י לדבר?</string>
+    <string name="ai_patient_picker_title">שיחת AI</string>
+    <string name="ai_patient_picker_prompt">בחירת מטופל/ת לשיחת AI</string>
+    <string name="ai_patient_picker_explanation">שאלות על הטיפול, זיהוי דפוסים והכנה לפגישה — על בסיס המידע בתיק.</string>
+    <string name="ai_patient_picker_action">פתיחת שיחת AI</string>
     <string name="save">שמירה</string>
     <string name="cancel">ביטול</string>
     <string name="close_action">סגירה</string>
@@ -139,8 +141,9 @@
     <string name="ai_mode_chat">שיחה</string>
     <string name="ai_send_action">שליחה</string>
     <string name="ai_chat_title">שיחה</string>
+    <string name="ai_chat_named_title">שיחת AI על %1$s</string>
     <string name="ai_chat_navigation_title">שיחת AI על המטופל/ת</string>
-    <string name="ai_empty_message">אפשר לשאול כל שאלה על המטופל/ת — הפגישות, ההערות ושאלוני מצב הרוח משמשים כהקשר לתשובה.</string>
+    <string name="ai_empty_message">שאלות על %1$s — על בסיס הפגישות, ההערות, שאלוני מצב הרוח ויומני המחשבות שבתיק.</string>
     <string name="ai_generate_insights_action">הפקת תובנות</string>
     <string name="ai_ask_action">שאלה</string>
     <string name="ai_thinking_label">מעבד…</string>
@@ -786,8 +789,8 @@
     <string name="notifications_empty_body">עדכונים על שאלוני מצב רוח, יומני מחשבות וחיבור מטופלים יופיעו כאן.</string>
     <string name="notifications_demo_body">במצב הדגמה לא מתקבלות התראות ממטופלים.</string>
     <string name="notifications_refresh_failed">לא ניתן לעדכן כרגע. מוצגות ההתראות שנטענו קודם.</string>
-    <string name="notification_open_questionnaires">לשאלוני מצב רוח</string>
-    <string name="notification_open_diary">ליומן מחשבות 1</string>
+    <string name="notification_open_questionnaires">לצפייה בשאלון</string>
+    <string name="notification_open_diary">לצפייה ברשומה</string>
     <string name="notification_open_patient">לתיק המטופל/ת</string>
     <string name="notification_unread_accessibility">לא נקראה</string>
     <string name="notification_today">היום, %1$s</string>

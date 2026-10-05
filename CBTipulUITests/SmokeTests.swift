@@ -19,7 +19,7 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(aiTab.waitForExistence(timeout: 5))
         XCTAssertEqual(app.tabBars.buttons.count, 5)
         aiTab.tap()
-        XCTAssertTrue(app.navigationBars["עוזר AI"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["שיחת AI"].waitForExistence(timeout: 5))
         let search = app.searchFields["חיפוש מטופלים"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap()
@@ -27,10 +27,9 @@ final class SmokeTests: XCTestCase {
         let patient = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
         XCTAssertTrue(patient.waitForExistence(timeout: 5))
         patient.tap()
-        XCTAssertTrue(app.navigationBars.staticTexts["שיחת AI על המטופל/ת"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.navigationBars.staticTexts[name].exists)
+        XCTAssertTrue(app.navigationBars["שיחת AI על " + name].waitForExistence(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
-        XCTAssertTrue(app.navigationBars["עוזר AI"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["שיחת AI"].waitForExistence(timeout: 5))
     }
 
     @MainActor

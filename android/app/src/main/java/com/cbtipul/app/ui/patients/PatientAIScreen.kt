@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -187,17 +188,13 @@ fun PatientAIScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            stringResource(R.string.ai_chat_navigation_title),
-                            color = colors.textBright,
-                        )
-                        Text(
-                            displayName,
-                            color = colors.textBody,
-                            fontSize = 13.sp,
-                        )
-                    }
+                    Text(
+                        stringResource(R.string.ai_chat_named_title, displayName),
+                        color = colors.textBright,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -283,13 +280,13 @@ fun PatientAIScreen(
                             )
                         }
                         Text(
-                            stringResource(R.string.ai_title),
+                            stringResource(R.string.ai_chat_named_title, displayName),
                             color = colors.textBright,
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                         )
                         Text(
-                            stringResource(R.string.ai_empty_message),
+                            stringResource(R.string.ai_empty_message, displayName),
                             color = colors.textBody,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center,

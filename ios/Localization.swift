@@ -7,8 +7,10 @@ import Foundation
 /// constants and never hard-codes user-facing wording.
 enum L10n {
     static let therapistTabAI = "AI"
-    static let aiPatientPickerTitle = "עוזר AI"
-    static let aiPatientPickerPrompt = "על איזה מטופל/ת תרצה/י לדבר?"
+    static let aiPatientPickerTitle = "שיחת AI"
+    static let aiPatientPickerPrompt = "בחירת מטופל/ת לשיחת AI"
+    static let aiPatientPickerExplanation = "שאלות על הטיפול, זיהוי דפוסים והכנה לפגישה — על בסיס המידע בתיק."
+    static let aiPatientPickerAction = "פתיחת שיחת AI"
     static func toolLastSent(_ date: String) -> String { "נשלח לאחרונה: \(date)" }
     static let resumeSessionSummary = "המשך כתיבת סיכום"
     static let toolQuestionnairePurpose = "מעקב אחר ההרגשה לאורך הטיפול"
@@ -282,8 +284,8 @@ enum L10n {
     static let notificationsEmptyBody = "עדכונים על שאלוני מצב רוח, יומני מחשבות וחיבור מטופלים יופיעו כאן."
     static let notificationsDemoBody = "במצב הדגמה לא מתקבלות התראות ממטופלים."
     static let notificationsRefreshFailed = "לא ניתן לעדכן כרגע. מוצגות ההתראות שנטענו קודם."
-    static let notificationOpenQuestionnaires = "לשאלוני מצב רוח"
-    static let notificationOpenDiary = "ליומן מחשבות 1"
+    static let notificationOpenQuestionnaires = "לצפייה בשאלון"
+    static let notificationOpenDiary = "לצפייה ברשומה"
     static let notificationOpenPatient = "לתיק המטופל/ת"
     static let questionnaireItemTitle = "שאלון מצב רוח"
     static let notificationQuestionnaireCompleted = "מילא/ה שאלון מצב רוח"
@@ -1244,6 +1246,7 @@ amitishai@gmail.com
     static let aiChatTitle = "שיחה"
     
     static let aiChatNavigationTitle = "שיחת AI על המטופל/ת"
+    static func aiChatTitle(_ name: String) -> String { "שיחת AI על \(name)" }
     
     /// Hint in the chat's message field, e.g. "שאלה על באגס באני".
     static func aiPromptPlaceholder(_ name: String) -> String {
@@ -1251,8 +1254,9 @@ amitishai@gmail.com
     }
     
     /// Shown in the middle of the chat before the first question.
-    static let aiEmptyMessage =
-    "אפשר לשאול כל שאלה על המטופל/ת — הפגישות, ההערות ושאלוני מצב הרוח משמשים כהקשר לתשובה."
+    static func aiEmptyMessage(_ name: String) -> String {
+        "שאלות על \(name) — על בסיס הפגישות, ההערות, שאלוני מצב הרוח ויומני המחשבות שבתיק."
+    }
     
     /// Example questions offered in the empty chat; tapping one fills the field.
     static let aiSuggestedQuestions = [

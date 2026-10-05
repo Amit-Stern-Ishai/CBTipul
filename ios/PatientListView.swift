@@ -377,16 +377,26 @@ struct PatientListView: View {
 /// A single row in the patient directory: local display name and last session date.
 struct PatientListRow: View {
     let patient: Patient
+    var actionSubtitle: String? = nil
 
     var body: some View {
         HStack(spacing: 12) {
             InitialsAvatar(name: patient.displayName, size: 44, patientID: patient.id)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: actionSubtitle == nil ? 3 : 7) {
                 Text(patient.displayName)
                     .font(.headline)
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textBody)
+                if let actionSubtitle {
+                    Label(actionSubtitle, systemImage: "bubble.left.and.bubble.right")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.gold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Theme.goldGhost, in: Capsule())
+                } else {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textBody)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -408,7 +418,7 @@ struct PatientListRow: View {
     }
 
     private var accessibilityLabel: String {
-        "\(patient.displayName), \(L10n.patientStatus(patient.status)), \(subtitle)"
+        "\(patient.displayName), \(L10n.patientStatus(patient.status)), \(actionSubtitle ?? subtitle)"
     }
 }
 

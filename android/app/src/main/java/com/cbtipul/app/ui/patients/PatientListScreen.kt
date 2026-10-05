@@ -1,10 +1,13 @@
 package com.cbtipul.app.ui.patients
 
 import com.cbtipul.app.ui.entitlementCreateControl
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.cbtipul.app.ui.theme.PrimaryActionButton
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -265,6 +268,7 @@ internal fun PatientRow(
     unnamed: String,
     onClick: () -> Unit,
     pulse: Boolean = false,
+    actionSubtitle: String? = null,
 ) {
     val colors = Theme.colors
     val status = stringResource(
@@ -282,9 +286,21 @@ internal fun PatientRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         InitialsAvatar(name = patient.displayName(unnamed), patientId = patient.id)
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (actionSubtitle == null) 3.dp else 7.dp)) {
             Text(patient.displayName(unnamed), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-            Text(patientSubtitle(patient), color = colors.textBody, fontSize = 13.sp)
+            if (actionSubtitle != null) {
+                Row(
+                    modifier = Modifier.background(colors.gold.copy(alpha = 0.10f), RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
+                    Text(actionSubtitle, color = colors.gold, fontSize = 13.sp)
+                }
+            } else {
+                Text(patientSubtitle(patient), color = colors.textBody, fontSize = 13.sp)
+            }
         }
         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
     }

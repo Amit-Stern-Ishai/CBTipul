@@ -66,7 +66,7 @@ struct PatientDiaryOneView: View {
             Text(entries.isEmpty ? L10n.emptyDiaryOnePrimaryAction : L10n.diaryOneAddEntryAction)
                 .frame(maxWidth: .infinity)
         }.entitlementCreateControl()
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.pressableProminent)
         .controlSize(.large)
         .padding(.horizontal, 24)
         .padding(.vertical, 12)

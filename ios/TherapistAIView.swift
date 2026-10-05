@@ -35,11 +35,17 @@ struct TherapistAIView: View {
                     }
                 } else {
                     List {
-                        Text(L10n.aiPatientPickerPrompt)
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.textBody)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label(L10n.aiPatientPickerPrompt, systemImage: "sparkles")
+                                .font(.headline)
+                                .foregroundStyle(Theme.textBright)
+                            Text(L10n.aiPatientPickerExplanation)
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.textBody)
+                        }
+                        .padding(.vertical, 4)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                         if patients.isEmpty {
                             Text(L10n.patientsSearchEmpty)
                                 .foregroundStyle(.secondary)
@@ -80,7 +86,7 @@ struct TherapistAIView: View {
                     NavigationLink {
                         PatientAIView(patient: patient)
                     } label: {
-                        PatientListRow(patient: patient)
+                        PatientListRow(patient: patient, actionSubtitle: L10n.aiPatientPickerAction)
                     }
                     .listRowBackground(groupBorderedRow(
                         .at(patients.firstIndex(of: patient) ?? 0, of: patients.count),
