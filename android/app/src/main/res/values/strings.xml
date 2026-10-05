@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="therapist_tab_ai">AI</string>
+    <string name="ai_patient_picker_title">עוזר AI</string>
+    <string name="ai_patient_picker_prompt">על איזה מטופל/ת תרצה/י לדבר?</string>
     <string name="save">שמירה</string>
     <string name="cancel">ביטול</string>
     <string name="close_action">סגירה</string>

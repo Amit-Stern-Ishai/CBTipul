@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.therapist
 
+import androidx.compose.material.icons.outlined.AutoAwesome
+import com.cbtipul.app.ui.patients.AIPatientPickerScreen
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Notifications
@@ -63,19 +65,20 @@ import com.cbtipul.app.ui.theme.Theme
 import kotlinx.coroutines.launch
 
 enum class TherapistRootTab {
-    Patients, Sessions, Notifications, Library, Settings,
+    Patients, Sessions, AI, Notifications, Library, Settings,
     ;
 
     val id: String get() = when (this) {
         Patients -> "patients"
         Sessions -> "sessions"
+        AI -> "ai"
         Notifications -> "notifications"
         Library -> "library"
         Settings -> "settings"
     }
 
     companion object {
-        val ordered = listOf(Patients, Sessions, Notifications, Settings)
+        val ordered = listOf(Patients, Sessions, AI, Notifications, Settings)
         fun fromId(id: String) = entries.find { it.id == id } ?: Patients
     }
 }
@@ -89,6 +92,9 @@ fun TherapistRootScreen(
     val context = LocalContext.current
     val app = context.applicationContext as CbTipulApp
     val patientsNav = rememberNavController()
+    val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
+    val aiNav = androidx.compose.runtime.key(isDemoMode) { rememberNavController() }
+    val aiEntry by aiNav.currentBackStackEntryAsState()
     val inboxNav = rememberNavController()
     val inboxEntry by inboxNav.currentBackStackEntryAsState()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -96,7 +102,6 @@ fun TherapistRootScreen(
     val currentEntry by patientsNav.currentBackStackEntryAsState()
     val patients by viewModel.patients.collectAsStateWithLifecycle()
     val clinicState by viewModel.ui.collectAsStateWithLifecycle()
-    val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
     val unseen by app.notifications.unseenCount.collectAsStateWithLifecycle()
     val pending by app.pendingDestinations.pending.collectAsStateWithLifecycle()
     val unnamed = stringResource(R.string.unnamed_patient)
@@ -179,11 +184,20 @@ fun TherapistRootScreen(
                             patientsNav.navigate("patient/_/session/new")
                         },
                     )
+                    TherapistRootTab.AI -> PatientsNavHost(
+                        viewModel = viewModel,
+                        navController = aiNav,
+                        rootContent = {
+                            AIPatientPickerScreen(viewModel, unnamed) { patientId ->
+                                aiNav.navigate("patient/$patientId/chat")
+                            }
+                        },
+                    )
                     TherapistRootTab.Notifications -> PatientsNavHost(
                         viewModel = viewModel,
                         onOpenSettings = { tab = TherapistRootTab.Settings },
                         navController = inboxNav,
-                        inboxContent = {
+                        rootContent = {
                             NotificationsInboxScreen(
                                 repository = app.notifications, patients = patients, unnamed = unnamed,
                                 onOpen = { item ->
@@ -208,6 +222,8 @@ fun TherapistRootScreen(
                         onClick = {
                             if (tab != item) {
                                 tab = item
+                            } else if (item == TherapistRootTab.AI && aiEntry?.destination?.route != "list") {
+                                backDispatcher?.onBackPressed()
                             } else if (item == TherapistRootTab.Notifications && inboxEntry?.destination?.route != "list") {
                                 backDispatcher?.onBackPressed()
                             } else if (item == TherapistRootTab.Patients && currentEntry?.destination?.route != "list") {
@@ -257,6 +273,7 @@ fun TherapistRootScreen(
 private fun TherapistRootTab.icon() = when (this) {
     TherapistRootTab.Patients -> Icons.Filled.People
     TherapistRootTab.Sessions -> Icons.Outlined.CalendarMonth
+    TherapistRootTab.AI -> Icons.Outlined.AutoAwesome
     TherapistRootTab.Notifications -> Icons.Filled.Notifications
     TherapistRootTab.Library -> Icons.Outlined.MenuBook
     TherapistRootTab.Settings -> Icons.Filled.Settings
@@ -265,6 +282,7 @@ private fun TherapistRootTab.icon() = when (this) {
 private fun TherapistRootTab.labelRes() = when (this) {
     TherapistRootTab.Patients -> R.string.therapist_tab_patients
     TherapistRootTab.Sessions -> R.string.therapist_tab_sessions
+    TherapistRootTab.AI -> R.string.therapist_tab_ai
     TherapistRootTab.Notifications -> R.string.therapist_tab_notifications
     TherapistRootTab.Library -> R.string.therapist_tab_library
     TherapistRootTab.Settings -> R.string.therapist_tab_settings

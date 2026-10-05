@@ -6,6 +6,9 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
+    static let therapistTabAI = "AI"
+    static let aiPatientPickerTitle = "עוזר AI"
+    static let aiPatientPickerPrompt = "על איזה מטופל/ת תרצה/י לדבר?"
     static func toolLastSent(_ date: String) -> String { "נשלח לאחרונה: \(date)" }
     static let resumeSessionSummary = "המשך כתיבת סיכום"
     static let toolQuestionnairePurpose = "מעקב אחר ההרגשה לאורך הטיפול"

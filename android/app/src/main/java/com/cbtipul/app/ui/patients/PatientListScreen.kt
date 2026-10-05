@@ -260,7 +260,7 @@ fun PatientListScreen(
 }
 
 @Composable
-private fun PatientRow(
+internal fun PatientRow(
     patient: Patient,
     unnamed: String,
     onClick: () -> Unit,

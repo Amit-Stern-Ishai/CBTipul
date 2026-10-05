@@ -586,6 +586,7 @@ class PatientListViewModel(
     }
 
     fun sendChat(
+        patientId: DatabaseId,
         systemPrompt: String,
         turns: List<ChatTurn>,
         notConfigured: String,
@@ -602,7 +603,7 @@ class PatientListViewModel(
         viewModelScope.launch {
             _ui.update { it.copy(sessionError = null) }
             try {
-                onAnswer(repository.chat(systemPrompt, turns))
+                onAnswer(repository.chat(patientId, systemPrompt, turns))
             } catch (error: Exception) {
                 _ui.update {
                     it.copy(

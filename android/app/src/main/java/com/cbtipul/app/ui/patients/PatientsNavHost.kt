@@ -69,7 +69,7 @@ fun PatientsNavHost(
     onOpenSettings: (() -> Unit)? = null,
     onCloseSettings: (() -> Unit)? = null,
     navController: NavHostController = rememberNavController(),
-    inboxContent: (@Composable () -> Unit)? = null,
+    rootContent: (@Composable () -> Unit)? = null,
 ) {
     val unnamed = stringResource(R.string.unnamed_patient)
     val context = LocalContext.current
@@ -104,7 +104,7 @@ fun PatientsNavHost(
     val atList = backStackEntry?.destination?.route == "list"
 
     LaunchedEffect(routerState.wantsPatientListReset) {
-        if (inboxContent != null) return@LaunchedEffect
+        if (rootContent != null) return@LaunchedEffect
         if (!routerState.wantsPatientListReset) return@LaunchedEffect
         if (!viewModel.gettingStarted.consumePatientListReset()) return@LaunchedEffect
         navController.popBackStack(route = "list", inclusive = false)
@@ -112,7 +112,7 @@ fun PatientsNavHost(
     }
 
     LaunchedEffect(isDemoMode) {
-        if (inboxContent != null) return@LaunchedEffect
+        if (rootContent != null) return@LaunchedEffect
         navController.popBackStack(route = "list", inclusive = false)
         if (isDemoMode) {
             onCloseSettings?.invoke()
@@ -134,7 +134,7 @@ fun PatientsNavHost(
                 popExitTransition = { AppMotion.exit(navigationDirection, back = true) },
             ) {
         composable("list") {
-            if (inboxContent != null) inboxContent() else PatientListScreen(
+            if (rootContent != null) rootContent() else PatientListScreen(
                 viewModel = viewModel,
                 unnamed = unnamed,
                 onOpenPatient = { navController.navigate("patient/$it") },
@@ -474,7 +474,7 @@ fun PatientsNavHost(
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 focusEntryId = focusEntryId,
-                returnDirectly = inboxContent != null || !entry.arguments?.getString("entry").isNullOrBlank(),
+                returnDirectly = rootContent != null || !entry.arguments?.getString("entry").isNullOrBlank(),
                 onBack = { navController.popScreen() },
             )
         }
@@ -497,7 +497,7 @@ fun PatientsNavHost(
                 atmosphere = PatientAvatarColor.background(patient.id),
                 diary = app.diaryTwo,
                 focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() },
-                returnDirectly = inboxContent != null || !entry.arguments?.getString("entry").isNullOrBlank(),
+                returnDirectly = rootContent != null || !entry.arguments?.getString("entry").isNullOrBlank(),
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 onBack = { navController.popScreen() },
@@ -522,7 +522,7 @@ fun PatientsNavHost(
                 atmosphere = PatientAvatarColor.background(patient.id),
                 diary = app.diaryThree,
                 focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() },
-                returnDirectly = inboxContent != null || !entry.arguments?.getString("entry").isNullOrBlank(),
+                returnDirectly = rootContent != null || !entry.arguments?.getString("entry").isNullOrBlank(),
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 onBack = { navController.popScreen() },
@@ -765,6 +765,7 @@ fun PatientsNavHost(
                 },
                 onSend = { system, turns, onAnswer, onDone ->
                     viewModel.sendChat(
+                        requireNotNull(patient).id,
                         system,
                         turns,
                         notConfigured,

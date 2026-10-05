@@ -84,11 +84,13 @@ class PendingDestinationStoreTest {
 
 class TherapistRootTabsTest {
     @Test
-    fun fourUsefulDestinations() {
+    fun fiveUsefulDestinations() {
         assertEquals(
-            listOf("patients", "sessions", "notifications", "settings"),
+            listOf("patients", "sessions", "ai", "notifications", "settings"),
             TherapistRootTabs.ordered,
         )
+        assertEquals(TherapistRootTabs.ordered, com.cbtipul.app.ui.therapist.TherapistRootTab.ordered.map { it.id })
+        assertEquals(com.cbtipul.app.ui.therapist.TherapistRootTab.AI, com.cbtipul.app.ui.therapist.TherapistRootTab.fromId("ai"))
         assertEquals("patients", TherapistRootTabs.DEFAULT)
         assertTrue("home" !in TherapistRootTabs.ordered)
     }

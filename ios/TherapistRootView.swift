@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Therapist home after authentication and terms: four persistent tabs.
-enum TherapistRootTab: Hashable {
+/// Therapist home after authentication and terms: five persistent tabs.
+enum TherapistRootTab: Hashable, CaseIterable {
     case patients
     case sessions
+    case ai
     case notifications
     case settings
 }
@@ -33,6 +34,12 @@ struct TherapistRootView: View {
                 }
                 .tag(TherapistRootTab.sessions)
                 .accessibilityIdentifier("therapist.tab.sessions")
+
+            TherapistAIView()
+                .id(store.isDemoMode)
+                .tabItem { Label(L10n.therapistTabAI, systemImage: "sparkles") }
+                .tag(TherapistRootTab.ai)
+                .accessibilityIdentifier("therapist.tab.ai")
 
             NotificationsInboxView()
                 .tabItem {

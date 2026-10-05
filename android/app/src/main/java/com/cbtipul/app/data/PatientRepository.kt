@@ -534,7 +534,57 @@ class PatientRepository(
             cache.loadPreparation(patientId)
         }
 
-    suspend fun chat(systemPrompt: String, turns: List<ChatTurn>): String = ai.chat(systemPrompt, turns)
+    suspend fun chat(patientId: DatabaseId, systemPrompt: String, turns: List<ChatTurn>): String {
+        val unavailable = mutableListOf<String>()
+        suspend fun <T> load(number: Int, operation: suspend () -> List<T>): List<T> = try {
+            operation()
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            unavailable += "Diary $number could not be loaded. Its history is unknown; do not infer that it is empty."
+            emptyList()
+        }
+        val one = load(1) { DiaryOneRepository(client).loadEntries(patientId) }
+        val two = load(2) { DiaryTwoRepository(client).loadEntries(patientId) }
+        val three = load(3) { DiaryThreeRepository(client).loadEntries(patientId) }
+        fun header(number: Int, date: Date, creator: DiaryOneEntryCreator) =
+            "Diary $number, created at ${date.toInstant()}, author: ${creator.raw}"
+        val entries = mutableListOf<String>()
+        one.sortedBy { it.createdAt }.forEach { entry ->
+            entries += listOf(
+                header(1, entry.createdAt, entry.createdBy),
+                "Event: ${entry.event}",
+                "Automatic thoughts: ${entry.automaticThoughts.joinToString("; ")}",
+                "Feelings: ${entry.feelings.joinToString("; ") { "${it.name}: ${it.intensity}%" }}",
+                "Behaviour: ${entry.behaviour}",
+                "Physical symptoms: ${entry.physicalSymptoms.orEmpty()}",
+            ).joinToString("\n")
+        }
+        two.sortedBy { it.createdAt }.forEach { entry ->
+            entries += listOf(
+                header(2, entry.createdAt, entry.createdBy),
+                "Event: ${entry.event}",
+                "Automatic thoughts: ${entry.automaticThoughts.joinToString("; ")}",
+                "Feelings: ${entry.feelings.joinToString("; ") { "${it.name}: ${it.intensity}%" }}",
+                "Thinking errors: ${entry.thinkingErrors.joinToString("; ") { it.code }}",
+                "Alternative thoughts: ${entry.alternativeThoughts.joinToString("; ")}",
+            ).joinToString("\n")
+        }
+        three.sortedBy { it.createdAt }.forEach { entry ->
+            entries += listOf(
+                header(3, entry.createdAt, entry.createdBy),
+                "Situation: ${entry.situation}",
+                "Automatic thoughts: ${entry.automaticThoughts.joinToString("; ") { "${it.text} (belief before: ${it.beliefBefore}%, after: ${it.beliefAfter}%)" }}",
+                "Feelings: ${entry.feelings.joinToString("; ") { "${it.name} (intensity before: ${it.intensityBefore}%, after: ${it.intensityAfter}%)" }}",
+                "Thinking errors: ${entry.thinkingErrors.joinToString("; ") { it.code }}",
+                "Alternative thoughts: ${entry.alternativeThoughts.joinToString("; ") { "${it.text} (belief: ${it.belief}%)" }}",
+            ).joinToString("\n")
+        }
+        val diaries = "Saved diary entries (intensity and belief use 0–100%; dates are record creation dates):\n" +
+            (if (entries.isEmpty()) "No entries in successfully loaded diaries." else entries.joinToString("\n\n")) +
+            "\n" + unavailable.joinToString("\n")
+        return ai.chat("$systemPrompt\n\n$diaries", turns)
+    }
 
     suspend fun updatePatientNotes(patientId: DatabaseId, notes: String) {
         Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)

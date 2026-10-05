@@ -241,7 +241,7 @@ object NotificationInbox {
 }
 
 object TherapistRootTabs {
-    val ordered = listOf("patients", "sessions", "notifications", "settings")
+    val ordered = listOf("patients", "sessions", "ai", "notifications", "settings")
     const val DEFAULT = "patients"
 }
 

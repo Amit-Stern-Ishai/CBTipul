@@ -1,13 +1,16 @@
 import SwiftUI
 
 /// AI assistant for a patient: a WhatsApp-style chat. Every question is
-/// answered with all patient data (sessions, notes, questionnaires) as
+/// answered with patient data (sessions, notes, questionnaires, diaries) as
 /// context, and the conversation history is kept while the screen is open.
 struct PatientAIView: View {
     let patient: Patient
 
     @Environment(PatientStore.self) private var store
     @Environment(AuthManager.self) private var auth
+    @Environment(DiaryOneStore.self) private var diaryOne
+    @Environment(DiaryTwoStore.self) private var diaryTwo
+    @Environment(DiaryThreeStore.self) private var diaryThree
 
     /// One message of the transcript. Raw text is kept so the whole
     /// conversation can be resent to the model on the next turn;
@@ -195,7 +198,10 @@ struct PatientAIView: View {
         let chatService = SupabaseChatService(client: auth.client)
         typingTask = Task {
             do {
-                let answer = try await chatService.complete(systemPrompt: systemPrompt, turns: turns)
+                let diaries = try await diariesContext()
+                let answer = try await chatService.complete(
+                    systemPrompt: systemPrompt + "\n\n" + diaries, turns: turns
+                )
                 isLoading = false
                 if responseStyle == .typing {
                     await typeOutAnswer(answer)
@@ -352,32 +358,119 @@ struct PatientAIView: View {
         return lines.joined(separator: "\n")
     }
 
+    /// A missing diary source must not block chat or imply an empty history.
+    private func diariesContext() async throws -> String {
+        var unavailable: [String] = []
+        func load<Entry>(_ number: Int, operation: () async throws -> [Entry]) async throws -> [Entry] {
+            do {
+                return try await operation()
+            } catch {
+                try Task.checkCancellation()
+                unavailable.append("Diary \(number) could not be loaded. Its history is unknown; do not infer that it is empty.")
+                return []
+            }
+        }
+        let one = try await load(1) { try await diaryOne.loadEntries(for: patient.id) }
+        let two = try await load(2) { try await diaryTwo.loadEntries(for: patient.id) }
+        let three = try await load(3) { try await diaryThree.loadEntries(for: patient.id) }
+        func header(_ number: Int, _ date: Date, _ creator: DiaryOneEntryCreator) -> String {
+            "Diary \(number), created at \(date.ISO8601Format()), author: \(creator.rawValue)"
+        }
+        var entries: [String] = []
+        for entry in one.sorted(by: { $0.createdAt < $1.createdAt }) {
+            entries.append([
+                header(1, entry.createdAt, entry.createdBy),
+                "Event: \(entry.event)",
+                "Automatic thoughts: \(entry.automaticThoughts.joined(separator: "; "))",
+                "Feelings: \(entry.feelings.map { "\($0.name): \($0.intensity)%" }.joined(separator: "; "))",
+                "Behaviour: \(entry.behaviour)",
+                "Physical symptoms: \(entry.physicalSymptoms ?? "")"
+            ].joined(separator: "\n"))
+        }
+        for entry in two.sorted(by: { $0.createdAt < $1.createdAt }) {
+            entries.append([
+                header(2, entry.createdAt, entry.createdBy),
+                "Event: \(entry.event)",
+                "Automatic thoughts: \(entry.automaticThoughts.joined(separator: "; "))",
+                "Feelings: \(entry.feelings.map { "\($0.name): \($0.intensity)%" }.joined(separator: "; "))",
+                "Thinking errors: \(entry.thinkingErrors.map(\.rawValue).joined(separator: "; "))",
+                "Alternative thoughts: \(entry.alternativeThoughts.joined(separator: "; "))"
+            ].joined(separator: "\n"))
+        }
+        for entry in three.sorted(by: { $0.createdAt < $1.createdAt }) {
+            entries.append([
+                header(3, entry.createdAt, entry.createdBy),
+                "Situation: \(entry.situation)",
+                "Automatic thoughts: \(entry.automaticThoughts.map { "\($0.text) (belief before: \($0.beliefBefore)%, after: \($0.beliefAfter)%)" }.joined(separator: "; "))",
+                "Feelings: \(entry.feelings.map { "\($0.name) (intensity before: \($0.intensityBefore)%, after: \($0.intensityAfter)%)" }.joined(separator: "; "))",
+                "Thinking errors: \(entry.thinkingErrors.map(\.rawValue).joined(separator: "; "))",
+                "Alternative thoughts: \(entry.alternativeThoughts.map { "\($0.text) (belief: \($0.belief)%)" }.joined(separator: "; "))"
+            ].joined(separator: "\n"))
+        }
+        return "Saved diary entries (intensity and belief use 0–100%; dates are record creation dates):\n" +
+            (entries.isEmpty ? "No entries in successfully loaded diaries." : entries.joined(separator: "\n\n")) +
+            "\n" + unavailable.joined(separator: "\n")
+    }
+
     private func fullContext() -> String {
         var parts: [String] = []
-//        parts.append("Patient: \(patient.displayName), status: \(patient.status.rawValue)")
 
         let patientNotes = patient.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         if !patientNotes.isEmpty {
             parts.append("Patient notes (general, not tied to a session):\n\(patientNotes)")
         }
 
+        if let formulation = patient.formulation {
+            var lines: [String] = []
+            func append(_ label: String, _ value: String?) {
+                let text = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if !text.isEmpty { lines.append("\(label): \(text)") }
+            }
+            append("Treatment goal", formulation.treatmentGoal)
+            append("Core belief", formulation.coreBelief)
+            append("Hypothesis", formulation.therapistHypothesis)
+            let thoughts = formulation.keyAutomaticThoughts
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            if !thoughts.isEmpty {
+                lines.append("Key automatic thoughts:")
+                lines.append(contentsOf: thoughts.map { "- \($0)" })
+            }
+            let behaviors = formulation.maintainingBehaviors
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            if !behaviors.isEmpty {
+                lines.append("Maintaining behaviors:")
+                lines.append(contentsOf: behaviors.map { "- \($0)" })
+            }
+            if let cycle = formulation.keyCBTCycle {
+                let stages = [cycle.triggerSituation, cycle.automaticThought, cycle.emotion,
+                              cycle.behavior, cycle.shortTermConsequence, cycle.longTermConsequence]
+                    .compactMap { $0 }
+                    .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                if !stages.isEmpty {
+                    lines.append("Key CBT cycle: \(stages.joined(separator: " → "))")
+                }
+            }
+            if !lines.isEmpty {
+                parts.append((["Therapist formulation:"] + lines).joined(separator: "\n"))
+            }
+        }
+
         let sessions = patient.sessions.sorted { $0.date < $1.date }
-        // Same cap as PatientContext.maxReviews: only the most recent
-        // structured reviews go in, keeping the prompt size bounded.
-        let recentReviewIDs = Set(
-            sessions.filter { $0.structuredNotes != nil }.suffix(5).map(\.id)
-        )
         if sessions.isEmpty {
             parts.append("No sessions yet.")
         } else {
             var lines = ["Sessions:"]
             for session in sessions {
                 var line = "- Session on \(session.date.formatted(date: .numeric, time: .omitted))"
+                if let type = session.type {
+                    line += " (\(type.rawValue))"
+                }
                 if !session.notes.isEmpty {
                     line += "\n  Notes: \(session.notes)"
                 }
-                if let analysis = session.structuredNotes,
-                   recentReviewIDs.contains(session.id) {
+                if let analysis = session.structuredNotes {
                     let digest = structuredContext(analysis)
                         .split(separator: "\n")
                         .map { "  \($0)" }
@@ -401,4 +494,7 @@ struct PatientAIView: View {
     }
     .environment(auth)
     .environment(PatientStore(client: auth.client))
+    .environment(DiaryOneStore(client: auth.client))
+    .environment(DiaryTwoStore(client: auth.client))
+    .environment(DiaryThreeStore(client: auth.client))
 }

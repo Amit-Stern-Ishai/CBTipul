@@ -259,7 +259,7 @@ struct PatientListView: View {
                 && gettingStartedRouter.shouldPulse(.tutorialPatient)
                 && patient.id == tutorialFocusPatientID
             NavigationLink(value: patient) {
-                PatientRow(patient: patient)
+                PatientListRow(patient: patient)
                     .tutorialPulse(isTutorialFocus)
             }
             .listRowBackground(groupBorderedRow(
@@ -375,7 +375,7 @@ struct PatientListView: View {
 }
 
 /// A single row in the patient directory: local display name and last session date.
-private struct PatientRow: View {
+struct PatientListRow: View {
     let patient: Patient
 
     var body: some View {

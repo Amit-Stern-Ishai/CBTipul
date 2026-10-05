@@ -4,6 +4,36 @@ import XCTest
 final class SmokeTests: XCTestCase {
 
     @MainActor
+    func testTherapistAIPatientSelectionAndBack() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["patients.root"].waitForExistence(timeout: 20))
+        let name = "AI" + UUID().uuidString.prefix(6)
+        app.navigationBars.buttons["הוספת מטופל/ת"].tap()
+        XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5))
+        app.textFields.firstMatch.tap()
+        app.textFields.firstMatch.typeText(name)
+        app.buttons.matching(identifier: "הוספת מטופל/ת").firstMatch.tap()
+        let aiTab = app.tabBars.buttons["AI"]
+        XCTAssertTrue(aiTab.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.tabBars.buttons.count, 5)
+        aiTab.tap()
+        XCTAssertTrue(app.navigationBars["עוזר AI"].waitForExistence(timeout: 5))
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(name + "\n")
+        let patient = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+        XCTAssertTrue(patient.waitForExistence(timeout: 5))
+        patient.tap()
+        XCTAssertTrue(app.navigationBars.staticTexts["שיחת AI על המטופל/ת"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars.staticTexts[name].exists)
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["עוזר AI"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testPatientWorkspacePreservesUnfinishedNotes() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting"]
