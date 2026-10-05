@@ -35,7 +35,7 @@ struct PatientQuestionnaireHistoryRow: Decodable {
         answers.gad7Answers = (0..<7).map { gad7Answers.indices.contains($0) ? gad7Answers[$0] : nil }
         answers.phq9Answers = (0..<9).map { phq9Answers.indices.contains($0) ? phq9Answers[$0] : nil }
         answers.interferenceLevel = interferenceLevel
-        return CompletedQuestionnaire(databaseID: id, sessionID: nil, answeredDate: date, questionnaire: answers)
+        return CompletedQuestionnaire(databaseID: id, sessionID: nil, answeredDate: date, questionnaire: answers, createdBy: "patient")
     }
 }
 

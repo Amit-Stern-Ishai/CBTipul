@@ -1,0 +1,220 @@
+CBTipul client entitlement implementation — 2 October 2026
+
+Scope
+Both clients now understand only full and read_only. No backend SQL, RLS, RPC,
+Edge Function, commercial logic, or version-policy implementation was changed.
+No debug entitlement override was added.
+
+IOS
+Ownership: ios/EntitlementAccess.swift owns typed access and observable shared
+EntitlementState. Derived canWrite/canUseAI/canPatientWrite all require full.
+AppContext.swift decodes optional entitlement independently of schema version.
+Unknown/malformed/missing access never grants writes; valid patient routing
+survives malformed entitlement. Incomplete activation has no invented entitlement.
+AuthManager clears access on identity changes. ContentView fetches context for
+restored/authenticated therapist and patient sessions. Existing invitation
+activation refreshes context. Foreground refresh skips a success younger than
+60 seconds, avoiding polling. Fetch errors invalidate write permission but keep
+existing context/history. Responses from an old identity are discarded.
+
+Therapist mutation guards: PatientStore add/rename/delete patient; add/update/
+delete session; save formulation; change notes, treatment goal and status;
+save/delete manual questionnaires. DiaryOne/Two/ThreeStore create/update/delete.
+PatientAssignmentService request questionnaire, activate each diary and cancel
+ongoing assignments. PatientInvitationService create invitation; PatientMessage
+send; TherapistProfile saveDisplayName. Corresponding entry actions/editors are
+gated. UI save/record actions recheck permission; session autosave skips readonly.
+Clinical long-text fields retain selectable/scrollable read access.
+Patient writes: questionnaire submit and Diary 1/2/3 submit are gated before
+validation/network, with early entry/submit guards. History remains accessible.
+AI: both chat overloads, transcription, session analysis, preparation,
+formulation challenge, missing-information review, longitudinal review and
+clinical anonymization are gated, including a recheck after consent prompts.
+Existing stored output remains readable; saving edited output is gated.
+UX: small therapist read-only notice and one Hebrew explanation. Patient actions
+use the neutral requested wording. No commercial terminology.
+
+ANDROID
+Ownership: data/EntitlementAccess.kt owns typed access and observable StateFlow
+snapshot in Entitlements. ui/EntitlementControls.kt exposes reactive permission
+to Compose. AppContext uses lenient entitlement decoding so malformed access
+does not prevent existing patient routing. AuthRepository/RootScreen reset
+permissions on identity changes. AppContextRepository fetches after restoration,
+authentication and activation, and on foreground with the same 60-second
+success throttle. Failure removes write permission without removing history.
+Old-identity responses cannot apply to the new identity.
+
+Therapist mutation guards: PatientRepository add/rename/delete patient; add/
+update/delete session; notes, goal/status and formulation; questionnaire save/
+delete; all Diary repositories create/update/delete. Assignment repository
+request questionnaire, activate all diary types and cancel assignments.
+Invitation creation, patient message sending and therapist display-name save.
+PatientListViewModel guards precede optimistic mutation; diary action models
+also guard before changing busy/error state. Navigation entry points, editing
+fields, recorder and session-summary saving are gated while viewing/back/search
+remain available.
+Patient writes: questionnaire and all three diary service submissions, with
+entry/submit UI guards. History routes remain available for inactive tools too.
+AI: analyze, prepare, chat, formulation challenge, missing-information review,
+longitudinal review, Whisper transcription and anonymization. Consent completion
+rechecks current permission. Existing stored analyses are not removed.
+UX: restrained therapist notice/shared Hebrew explanation; neutral patient
+message. Clinical text fields remain readable/scrollable.
+
+DELIBERATE BOUNDARIES / AMBIGUOUS MUTATIONS
+- Assignment cancellation is a treatment mutation and is blocked.
+- Therapist display-name editing is blocked (conservative profile boundary).
+- Sign-in/out, password changes, account deletion and local privacy cleanup stay
+  available as account/privacy operations, not treatment editing.
+- Invitation preview/claim and incomplete activation stay available as identity
+  setup; creating/sending therapist invitations is blocked.
+- Notification seen/read markers, patient message read markers, device-token
+  registration, notification preferences and ordinary local UI preferences
+  stay available. Notifications and version gates are independent of access.
+- Local demo-clinic treatment edits are allowed independently of read-only access.
+  Services require an explicit local-storage path; live writes, patient submissions
+  and billable AI still require full access. Exiting demo or changing identity clears
+  the local exception. UI-test fixtures supply full access only in UI tests.
+- No separate implemented group/shared-content editing, patient file sending or
+  therapist revoke/disconnect endpoint was found to gate.
+- No known treatment write path was deliberately left ungated. Permission is
+  checked at action/service boundaries; it does not cancel requests already
+  sent before a later access change.
+
+VALIDATION
+- iOS: complete Debug simulator build and all 184 unit tests passed together.
+- Android: clean assembleDebug and all 176 JVM unit tests passed.
+- New tests exercise full/read_only decoding, malformed values, incomplete
+  activation, permission transitions, identity invalidation, assignment denial,
+  all patient submissions and preserved diary history. iOS additionally tests
+  patient/session mutation denial and actual AI/transcription/anonymization
+  service denial. Existing full-access CRUD, routing, notifications/preferences
+  and version-policy regressions pass. Full-access mutation fixtures are explicit.
+- Swift permission-sensitive integration tests share a serialization helper so
+  the singleton cannot leak access between concurrently scheduled tests.
+- git diff --check passed.
+- Unit tests do not constitute visual UI or physical-device validation. Android
+  new tests directly exercise diary/assignment/submission service denial; they
+  do not separately instantiate the full PatientRepository or every AI service.
+
+BACKEND ENFORCEMENT / DEVICE CHECKS STILL REQUIRED
+This is UX enforcement only. Every server-side treatment mutation and billable
+AI endpoint still needs independent entitlement enforcement. Old/modified
+clients, direct calls, stale access during an in-flight operation, and the
+foreground throttle cannot be secured by client checks.
+Physical devices still need full/read-only checks in both roles: switch access
+while editing, background/foreground restore, switch accounts, attempt each
+write, open long notes/stored AI/history and notification deep links, confirm
+back navigation and notification preferences, activate an incomplete patient,
+and exercise required-update routing. Verify actual live get-app-context payloads
+and offline/context-fetch failure recovery. No physical-device checks were run.
+
+FILES ADDED/CHANGED FOR THIS TASK
+(The pre-existing intro changes are excluded.)
+CBTipulTests/DiaryOneTherapistRegressionTests.swift
+CBTipulTests/DiaryThreeTests.swift
+CBTipulTests/DiaryTwoTests.swift
+CBTipulTests/OngoingQuestionnaireTests.swift
+CBTipulTests/PatientDiaryThreeTests.swift
+CBTipulTests/PatientDiaryTwoTests.swift
+CBTipulTests/ReleaseSanityTests.swift
+android/app/src/main/java/com/cbtipul/app/CbTipulApp.kt
+android/app/src/main/java/com/cbtipul/app/auth/AuthRepository.kt
+android/app/src/main/java/com/cbtipul/app/data/AiService.kt
+android/app/src/main/java/com/cbtipul/app/data/AppContext.kt
+android/app/src/main/java/com/cbtipul/app/data/ClinicalTextAnonymizer.kt
+android/app/src/main/java/com/cbtipul/app/data/DiaryOne.kt
+android/app/src/main/java/com/cbtipul/app/data/DiaryThree.kt
+android/app/src/main/java/com/cbtipul/app/data/DiaryTwo.kt
+android/app/src/main/java/com/cbtipul/app/data/PatientAssignment.kt
+android/app/src/main/java/com/cbtipul/app/data/PatientDiaryOne.kt
+android/app/src/main/java/com/cbtipul/app/data/PatientDiaryThree.kt
+android/app/src/main/java/com/cbtipul/app/data/PatientDiaryTwo.kt
+android/app/src/main/java/com/cbtipul/app/data/PatientInvitation.kt
+android/app/src/main/java/com/cbtipul/app/data/PatientMessage.kt
+android/app/src/main/java/com/cbtipul/app/data/PatientRepository.kt
+android/app/src/main/java/com/cbtipul/app/data/TherapistProfile.kt
+android/app/src/main/java/com/cbtipul/app/data/WhisperService.kt
+android/app/src/main/java/com/cbtipul/app/ui/RootScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/diary/DiaryFeelingEditor.kt
+android/app/src/main/java/com/cbtipul/app/ui/diary/DiaryOneEditorScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/diary/DiaryThoughtEditor.kt
+android/app/src/main/java/com/cbtipul/app/ui/diary/DiaryThreeViewModel.kt
+android/app/src/main/java/com/cbtipul/app/ui/diary/DiaryTwoViewModel.kt
+android/app/src/main/java/com/cbtipul/app/ui/diary/TherapistDiaryOneScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/diary/TherapistDiaryThreeScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/diary/TherapistDiaryTwoScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patient/PatientDiaryOneHubScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patient/PatientDiaryThreeHubScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patient/PatientDiaryThreeViewModel.kt
+android/app/src/main/java/com/cbtipul/app/ui/patient/PatientDiaryTwoHubScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patient/PatientDiaryTwoViewModel.kt
+android/app/src/main/java/com/cbtipul/app/ui/patient/PatientModeScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patient/PatientQuestionnaireScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/AddPatientScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/FormulationScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/NotesField.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/PatientAIScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/PatientDetailScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/PatientListViewModel.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/PatientsNavHost.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/QuestionnaireScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/SessionAnalysisScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/SessionEditorScreen.kt
+android/app/src/main/java/com/cbtipul/app/ui/patients/VoiceNoteRecorder.kt
+android/app/src/main/res/values-iw/strings.xml
+android/app/src/main/res/values/strings.xml
+android/app/src/test/java/com/cbtipul/app/data/DiaryThreeRepositoryTest.kt
+android/app/src/test/java/com/cbtipul/app/data/DiaryTwoTest.kt
+android/app/src/test/java/com/cbtipul/app/data/OngoingQuestionnaireTest.kt
+android/app/src/test/java/com/cbtipul/app/data/PatientDiaryThreeServiceTest.kt
+android/app/src/test/java/com/cbtipul/app/ui/diary/DiaryThreeViewModelTest.kt
+android/app/src/test/java/com/cbtipul/app/ui/diary/DiaryTwoViewModelTest.kt
+android/app/src/test/java/com/cbtipul/app/ui/patient/PatientDiaryThreeViewModelTest.kt
+android/app/src/test/java/com/cbtipul/app/ui/patient/PatientDiaryTwoViewModelTest.kt
+ios/AppContext.swift
+ios/AuthManager.swift
+ios/ClinicalTextAnonymizer.swift
+ios/ContentView.swift
+ios/DiaryFeelingViews.swift
+ios/DiaryOne.swift
+ios/DiaryOneViews.swift
+ios/DiaryThree.swift
+ios/DiaryThreeViews.swift
+ios/DiaryTwo.swift
+ios/DiaryTwoViews.swift
+ios/GlobalSessionsView.swift
+ios/Localization.swift
+ios/NotesField.swift
+ios/PatientAIView.swift
+ios/PatientAssignment.swift
+ios/PatientDetailView.swift
+ios/PatientDiaryOne.swift
+ios/PatientDiaryOneEntryView.swift
+ios/PatientDiaryThree.swift
+ios/PatientDiaryThreeEntryView.swift
+ios/PatientDiaryThreeHubView.swift
+ios/PatientDiaryTwo.swift
+ios/PatientDiaryTwoEntryView.swift
+ios/PatientDiaryTwoHubView.swift
+ios/PatientInvitation.swift
+ios/PatientListView.swift
+ios/PatientMessage.swift
+ios/PatientMessageViews.swift
+ios/PatientModeView.swift
+ios/PatientQuestionnaireHubView.swift
+ios/PatientQuestionnairesView.swift
+ios/PatientSessionsView.swift
+ios/PatientStore.swift
+ios/QuestionnaireView.swift
+ios/SessionAnalysisView.swift
+ios/SessionEditorView.swift
+ios/SupabaseChatService.swift
+ios/TherapistProfile.swift
+ios/VoiceNoteRecorder.swift
+ios/WhisperService.swift
+CBTipulTests/EntitlementTests.swift
+android/app/src/main/java/com/cbtipul/app/data/EntitlementAccess.kt
+android/app/src/main/java/com/cbtipul/app/ui/EntitlementControls.kt
+android/app/src/test/java/com/cbtipul/app/data/EntitlementTest.kt
+ios/EntitlementAccess.swift

@@ -92,7 +92,7 @@ struct DiaryThreeNotificationTests {
             createdAt: Date(), seenAt: nil, readAt: nil)
         coordinator.handleInboxTap(notification, patients: [person])
         #expect(coordinator.consumePatientNavigation()?.diaryThreeRoute?.focusEntryID == target)
-        #expect(coordinator.returnsToInbox)
+        #expect(!coordinator.returnsToInbox)
         coordinator.finishInboxNavigation(); #expect(coordinator.selectedTab == .notifications)
         coordinator.markPatientsLoadSettled()
         coordinator.handleInboxTap(notification, patients: [])
@@ -123,7 +123,7 @@ struct DiaryThreeNotificationTests {
         seen[0] = seen[0].opened(at: Date())
         #expect(NotificationInboxSections.unread(seen).map(\.id) == [items[1].id])
         #expect(NotificationInboxSections.read(seen).map(\.id) == [items[0].id])
-        #expect(NotificationInboxCopy.message(for: .diaryThreeEntryAdded) == "הוסיף/ה רשומה חדשה ליומן 3")
+        #expect(NotificationInboxCopy.message(for: .diaryThreeEntryAdded) == "הוסיף/ה רשומה חדשה ליומן מחשבות 3")
     }
     @Test func pushCopyUsesLocalNameAndGenericFallbackNeverClinicalServerCopy() {
         for localName in ["דני", nil] as [String?] {
@@ -132,7 +132,7 @@ struct DiaryThreeNotificationTests {
             content.userInfo = ["type": "diary_3_entry_added", "patientId": patient.uuidString, "resourceId": target.uuidString]
             PatientPushPersonalizer.apply(to: content, nameForPatientId: { _ in localName })
             #expect(content.title == (localName ?? "מטופל/ת"))
-            #expect(content.body == "הוסיף/ה רשומה חדשה ליומן 3")
+            #expect(content.body == "הוסיף/ה רשומה חדשה ליומן מחשבות 3")
             #expect(content.subtitle.isEmpty)
             #expect(content.userInfo.count == 3)
         }
