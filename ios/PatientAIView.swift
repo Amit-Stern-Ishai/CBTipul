@@ -192,7 +192,7 @@ struct PatientAIView: View {
         \(AIPrompts.system)
 
         === Patient data ===
-        \(fullContext())
+        \(fullContext(questionnaires: store.cachedQuestionnaires(for: patient) ?? []))
         """
         let turns = chatEntries.map { ChatTurn(role: $0.role, content: $0.text) }
         let chatService = SupabaseChatService(client: auth.client)
@@ -260,8 +260,8 @@ struct PatientAIView: View {
 
     // MARK: - Context building
 
-    private func questionnairesContext() -> String {
-        let records = (store.cachedQuestionnaires(for: patient) ?? [])
+    private func questionnairesContext(_ questionnaires: [CompletedQuestionnaire]) -> String {
+        let records = questionnaires
             .sorted { $0.answeredDate < $1.answeredDate }
         guard !records.isEmpty else { return "No questionnaires have been filled in yet." }
         return records.map(context(for:)).joined(separator: "\n\n")
@@ -310,7 +310,8 @@ struct PatientAIView: View {
     /// mirroring the clinically relevant core that `PatientContext` sends
     /// to the Edge Functions.
     private func structuredContext(_ analysis: WhisperService.CBTSessionAnalysis) -> String {
-        var lines = ["Summary: \(analysis.sessionSummary)"]
+        var lines = ["reviewProvenance: AI-generated origin; saved content may include therapist edits; field-level edit history is unavailable",
+                     "Summary: \(analysis.sessionSummary)"]
         if !analysis.possibleNats.isEmpty {
             lines.append("Possible NATs:")
             for nat in analysis.possibleNats {
@@ -332,7 +333,7 @@ struct PatientAIView: View {
             }
         }
         if !analysis.therapistHypotheses.isEmpty {
-            lines.append("Therapist hypotheses:")
+            lines.append("AI-generated hypotheses:")
             for hypothesis in analysis.therapistHypotheses {
                 lines.append("- \(hypothesis.hypothesis) (confidence: \(hypothesis.confidence))")
             }
@@ -373,8 +374,14 @@ struct PatientAIView: View {
         let one = try await load(1) { try await diaryOne.loadEntries(for: patient.id) }
         let two = try await load(2) { try await diaryTwo.loadEntries(for: patient.id) }
         let three = try await load(3) { try await diaryThree.loadEntries(for: patient.id) }
+        return Self.diaryContext(one: one, two: two, three: three, unavailable: unavailable)
+    }
+
+    static func diaryContext(
+        one: [DiaryOneEntry], two: [DiaryTwoEntry], three: [DiaryThreeEntry], unavailable: [String]
+    ) -> String {
         func header(_ number: Int, _ date: Date, _ creator: DiaryOneEntryCreator) -> String {
-            "Diary \(number), created at \(date.ISO8601Format()), author: \(creator.rawValue)"
+            "Diary \(number)\nauthor: \(creator.rawValue)\nrecordedAt: \(date.ISO8601Format())\nrecordedAtMeaning: record creation time; the described event may have occurred at another time"
         }
         var entries: [String] = []
         for entry in one.sorted(by: { $0.createdAt < $1.createdAt }) {
@@ -412,12 +419,12 @@ struct PatientAIView: View {
             "\n" + unavailable.joined(separator: "\n")
     }
 
-    private func fullContext() -> String {
+    func fullContext(questionnaires: [CompletedQuestionnaire]) -> String {
         var parts: [String] = []
 
         let patientNotes = patient.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         if !patientNotes.isEmpty {
-            parts.append("Patient notes (general, not tied to a session):\n\(patientNotes)")
+            parts.append("Patient notes (general, not tied to a session):\nsource: therapist\n\(patientNotes)")
         }
 
         if let formulation = patient.formulation {
@@ -453,7 +460,7 @@ struct PatientAIView: View {
                 }
             }
             if !lines.isEmpty {
-                parts.append((["Therapist formulation:"] + lines).joined(separator: "\n"))
+                parts.append((["Therapist formulation:\nsource: therapist\nmaterialType: therapist_formulation (clinical formulation, not established facts)"] + lines).joined(separator: "\n"))
             }
         }
 
@@ -463,26 +470,26 @@ struct PatientAIView: View {
         } else {
             var lines = ["Sessions:"]
             for session in sessions {
-                var line = "- Session on \(session.date.formatted(date: .numeric, time: .omitted))"
+                var line = "- Session date: \(session.date.formatted(date: .numeric, time: .omitted))"
                 if let type = session.type {
                     line += " (\(type.rawValue))"
                 }
                 if !session.notes.isEmpty {
-                    line += "\n  Notes: \(session.notes)"
+                    line += "\n  Raw session notes (source: therapist): \(session.notes)"
                 }
                 if let analysis = session.structuredNotes {
                     let digest = structuredContext(analysis)
                         .split(separator: "\n")
                         .map { "  \($0)" }
                         .joined(separator: "\n")
-                    line += "\n  Structured AI review:\n\(digest)"
+                    line += "\n  Previous structured AI review (source: ai_generated; applies to all content in this review):\n\(digest)"
                 }
                 lines.append(line)
             }
             parts.append(lines.joined(separator: "\n"))
         }
 
-        parts.append("Questionnaires:\n\(questionnairesContext())")
+        parts.append("Questionnaires:\nsource: patient_reported_measurement\n\(questionnairesContext(questionnaires))")
         return parts.joined(separator: "\n\n")
     }
 }

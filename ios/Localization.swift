@@ -201,7 +201,7 @@ enum L10n {
     static let patientNotesDescription = "רקע והערות כלליות שאינן שייכות לפגישה מסוימת"
     static let additionalAssistanceTitle = "תובנות והכנה לפגישה"
     static let patientAIAssistanceTitle = aiChatNavigationTitle
-    static let patientAIAssistanceDescription = "שיחה עם עוזר בינה מלאכותית והמשגת המקרה"
+    static let patientAIAssistanceDescription = "שיחה עם עוזר בינה מלאכותית"
     static let patientConnectTitle = "חיבור המטופל/ת לאפליקציה"
     static let patientInviteToAppAction = "הזמנה לאפליקציה"
     static let patientInvitationDemoStatus = "לא זמין במצב הדגמה"

@@ -335,7 +335,7 @@ private fun PersistentAddButton(
 }
 
 @Composable
-private fun EmptyState(
+internal fun EmptyState(
     title: String,
     icon: ImageVector,
     message: String,

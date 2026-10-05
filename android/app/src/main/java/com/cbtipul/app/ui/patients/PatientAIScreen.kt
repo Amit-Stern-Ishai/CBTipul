@@ -381,7 +381,7 @@ fun PatientAIScreen(
     }
 }
 
-private fun fullContext(
+internal fun fullContext(
     patient: Patient,
     questionnaires: List<CompletedQuestionnaire>,
     gad7Questions: List<String>,
@@ -393,10 +393,10 @@ private fun fullContext(
 ): String {
     val parts = mutableListOf<String>()
     if (patient.notes.isNotBlank()) {
-        parts += "Patient notes (general, not tied to a session):\n${patient.notes.trim()}"
+        parts += "Patient notes (general, not tied to a session):\nsource: therapist\n${patient.notes.trim()}"
     }
     patient.formulation?.takeIf { it.hasContent() }?.let { formulation ->
-        val lines = mutableListOf("Therapist formulation:")
+        val lines = mutableListOf("Therapist formulation:\nsource: therapist\nmaterialType: therapist_formulation (clinical formulation, not established facts)")
         formulation.treatmentGoal?.trim()?.takeIf { it.isNotEmpty() }?.let { lines += "Treatment goal: $it" }
         formulation.coreBelief?.trim()?.takeIf { it.isNotEmpty() }?.let { lines += "Core belief: $it" }
         formulation.therapistHypothesis?.trim()?.takeIf { it.isNotEmpty() }?.let { lines += "Hypothesis: $it" }
@@ -425,23 +425,26 @@ private fun fullContext(
     } else {
         val lines = mutableListOf("Sessions:")
         sessions.forEach { session ->
-            var line = "- Session on ${dateFormat.format(session.date)}"
+            var line = "- Session date: ${dateFormat.format(session.date)}"
             session.type?.let { line += " (${it.name})" }
-            if (session.notes.isNotEmpty()) line += "\n  Notes: ${session.notes}"
+            if (session.notes.isNotEmpty()) line += "\n  Raw session notes (source: therapist): ${session.notes}"
             session.structuredNotes?.let { analysis ->
                 val digest = structuredContext(analysis).lines().joinToString("\n") { "  $it" }
-                line += "\n  Structured AI review:\n$digest"
+                line += "\n  Previous structured AI review (source: ai_generated; applies to all content in this review):\n$digest"
             }
             lines += line
         }
         parts += lines.joinToString("\n")
     }
-    parts += "Questionnaires:\n" + questionnaireContext(questionnaires, gad7Questions, phq9Questions, interference, dateFormat, gad, phq)
+    parts += "Questionnaires:\nsource: patient_reported_measurement\n" + questionnaireContext(questionnaires, gad7Questions, phq9Questions, interference, dateFormat, gad, phq)
     return parts.joinToString("\n\n")
 }
 
 private fun structuredContext(analysis: CBTSessionAnalysis): String {
-    val lines = mutableListOf("Summary: ${analysis.sessionSummary}")
+    val lines = mutableListOf(
+        "reviewProvenance: AI-generated origin; saved content may include therapist edits; field-level edit history is unavailable",
+        "Summary: ${analysis.sessionSummary}",
+    )
     if (analysis.possibleNats.isNotEmpty()) {
         lines += "Possible NATs:"
         analysis.possibleNats.forEach { nat ->
@@ -463,7 +466,7 @@ private fun structuredContext(analysis: CBTSessionAnalysis): String {
         }
     }
     if (analysis.therapistHypotheses.isNotEmpty()) {
-        lines += "Therapist hypotheses:"
+        lines += "AI-generated hypotheses:"
         analysis.therapistHypotheses.forEach { lines += "- ${it.hypothesis} (confidence: ${it.confidence})" }
     }
     val open = analysis.followUpQuestions.filter {

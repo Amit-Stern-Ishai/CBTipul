@@ -15,33 +15,53 @@ struct TherapistAIView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    if isLoading && store.patients.isEmpty {
-                        ProgressView()
-                    } else if let loadError, store.patients.isEmpty {
-                        Text(loadError).foregroundStyle(Theme.error)
+            Group {
+                if isLoading && store.patients.isEmpty {
+                    ProgressView(L10n.loadingPatientsLabel)
+                } else if let loadError, store.patients.isEmpty {
+                    ContentUnavailableView {
+                        Label(L10n.couldntLoadPatientsTitle, systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(loadError)
+                    } actions: {
                         Button(L10n.retry) { Task { await load() } }
-                    } else if store.patients.isEmpty {
-                        Text(L10n.addFirstPatientMessage).foregroundStyle(.secondary)
-                    } else if patients.isEmpty {
-                        Text(L10n.patientsSearchEmpty).foregroundStyle(.secondary)
-                    } else {
-                        ForEach(patients) { patient in
-                            NavigationLink {
-                                PatientAIView(patient: patient)
-                            } label: {
-                                PatientListRow(patient: patient)
-                            }
+                            .buttonStyle(.borderedProminent)
+                    }
+                } else if store.patients.isEmpty {
+                    ContentUnavailableView {
+                        Label(L10n.noPatientsTitle, systemImage: "person.2")
+                    } description: {
+                        Text(L10n.addFirstPatientMessage)
+                    }
+                } else {
+                    List {
+                        Text(L10n.aiPatientPickerPrompt)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.textBody)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        if patients.isEmpty {
+                            Text(L10n.patientsSearchEmpty)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        } else {
+                            patientSection(patients.filter { $0.status == .active }, title: L10n.activePatientsSectionTitle)
+                            patientSection(patients.filter { $0.status != .active }, title: L10n.inactivePatientsSectionTitle)
                         }
                     }
-                } header: {
-                    Text(L10n.aiPatientPickerPrompt).textCase(nil)
+                    .themedScreen()
+                    .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: L10n.patientsSearchPrompt)
                 }
             }
-            .searchable(text: $search, prompt: L10n.patientsSearchPrompt)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle(L10n.aiPatientPickerTitle)
+            .navigationBarTitleDisplayMode(.large)
             .patientAtmosphere(Theme.gold)
+            .background(Theme.base.ignoresSafeArea())
+            .subtleAnimation(value: isLoading)
+            .subtleAnimation(value: loadError)
             .demoModeChrome()
             .task {
                 store.loadCachedPatients()
@@ -49,6 +69,25 @@ struct TherapistAIView: View {
             }
             .refreshable { await load() }
             .accessibilityIdentifier("therapist.ai.patientPicker")
+        }
+    }
+
+    @ViewBuilder
+    private func patientSection(_ patients: [Patient], title: String) -> some View {
+        if !patients.isEmpty {
+            Section(L10n.patientListSection(title, count: patients.count)) {
+                ForEach(patients) { patient in
+                    NavigationLink {
+                        PatientAIView(patient: patient)
+                    } label: {
+                        PatientListRow(patient: patient)
+                    }
+                    .listRowBackground(groupBorderedRow(
+                        .at(patients.firstIndex(of: patient) ?? 0, of: patients.count),
+                        accent: Theme.gold))
+                    .listRowSeparatorTint(Theme.borderFaint)
+                }
+            }
         }
     }
 

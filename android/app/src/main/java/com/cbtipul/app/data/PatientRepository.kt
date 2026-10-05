@@ -547,42 +547,7 @@ class PatientRepository(
         val one = load(1) { DiaryOneRepository(client).loadEntries(patientId) }
         val two = load(2) { DiaryTwoRepository(client).loadEntries(patientId) }
         val three = load(3) { DiaryThreeRepository(client).loadEntries(patientId) }
-        fun header(number: Int, date: Date, creator: DiaryOneEntryCreator) =
-            "Diary $number, created at ${date.toInstant()}, author: ${creator.raw}"
-        val entries = mutableListOf<String>()
-        one.sortedBy { it.createdAt }.forEach { entry ->
-            entries += listOf(
-                header(1, entry.createdAt, entry.createdBy),
-                "Event: ${entry.event}",
-                "Automatic thoughts: ${entry.automaticThoughts.joinToString("; ")}",
-                "Feelings: ${entry.feelings.joinToString("; ") { "${it.name}: ${it.intensity}%" }}",
-                "Behaviour: ${entry.behaviour}",
-                "Physical symptoms: ${entry.physicalSymptoms.orEmpty()}",
-            ).joinToString("\n")
-        }
-        two.sortedBy { it.createdAt }.forEach { entry ->
-            entries += listOf(
-                header(2, entry.createdAt, entry.createdBy),
-                "Event: ${entry.event}",
-                "Automatic thoughts: ${entry.automaticThoughts.joinToString("; ")}",
-                "Feelings: ${entry.feelings.joinToString("; ") { "${it.name}: ${it.intensity}%" }}",
-                "Thinking errors: ${entry.thinkingErrors.joinToString("; ") { it.code }}",
-                "Alternative thoughts: ${entry.alternativeThoughts.joinToString("; ")}",
-            ).joinToString("\n")
-        }
-        three.sortedBy { it.createdAt }.forEach { entry ->
-            entries += listOf(
-                header(3, entry.createdAt, entry.createdBy),
-                "Situation: ${entry.situation}",
-                "Automatic thoughts: ${entry.automaticThoughts.joinToString("; ") { "${it.text} (belief before: ${it.beliefBefore}%, after: ${it.beliefAfter}%)" }}",
-                "Feelings: ${entry.feelings.joinToString("; ") { "${it.name} (intensity before: ${it.intensityBefore}%, after: ${it.intensityAfter}%)" }}",
-                "Thinking errors: ${entry.thinkingErrors.joinToString("; ") { it.code }}",
-                "Alternative thoughts: ${entry.alternativeThoughts.joinToString("; ") { "${it.text} (belief: ${it.belief}%)" }}",
-            ).joinToString("\n")
-        }
-        val diaries = "Saved diary entries (intensity and belief use 0–100%; dates are record creation dates):\n" +
-            (if (entries.isEmpty()) "No entries in successfully loaded diaries." else entries.joinToString("\n\n")) +
-            "\n" + unavailable.joinToString("\n")
+        val diaries = diaryChatContext(one, two, three, unavailable)
         return ai.chat("$systemPrompt\n\n$diaries", turns)
     }
 
@@ -1083,3 +1048,46 @@ private data class QuestionnaireDbRow(
     @SerialName("interference_level") val interferenceLevel: Int? = null,
     @SerialName("combined_notes") val combinedNotes: QuestionnaireNotes? = null,
 )
+
+/** Only clinical fields are serialized; identity fields stay local. */
+internal fun diaryChatContext(
+    one: List<DiaryOneEntry>, two: List<DiaryTwoEntry>, three: List<DiaryThreeEntry>,
+    unavailable: List<String>,
+): String {
+    fun header(number: Int, date: Date, creator: DiaryOneEntryCreator) =
+        "Diary $number\nauthor: ${creator.raw}\nrecordedAt: ${date.toInstant()}\nrecordedAtMeaning: record creation time; the described event may have occurred at another time"
+    val entries = mutableListOf<String>()
+    one.sortedBy { it.createdAt }.forEach { entry ->
+        entries += listOf(
+            header(1, entry.createdAt, entry.createdBy),
+            "Event: ${entry.event}",
+            "Automatic thoughts: ${entry.automaticThoughts.joinToString("; ")}",
+            "Feelings: ${entry.feelings.joinToString("; ") { "${it.name}: ${it.intensity}%" }}",
+            "Behaviour: ${entry.behaviour}",
+            "Physical symptoms: ${entry.physicalSymptoms.orEmpty()}",
+        ).joinToString("\n")
+    }
+    two.sortedBy { it.createdAt }.forEach { entry ->
+        entries += listOf(
+            header(2, entry.createdAt, entry.createdBy),
+            "Event: ${entry.event}",
+            "Automatic thoughts: ${entry.automaticThoughts.joinToString("; ")}",
+            "Feelings: ${entry.feelings.joinToString("; ") { "${it.name}: ${it.intensity}%" }}",
+            "Thinking errors: ${entry.thinkingErrors.joinToString("; ") { it.code }}",
+            "Alternative thoughts: ${entry.alternativeThoughts.joinToString("; ")}",
+        ).joinToString("\n")
+    }
+    three.sortedBy { it.createdAt }.forEach { entry ->
+        entries += listOf(
+            header(3, entry.createdAt, entry.createdBy),
+            "Situation: ${entry.situation}",
+            "Automatic thoughts: ${entry.automaticThoughts.joinToString("; ") { "${it.text} (belief before: ${it.beliefBefore}%, after: ${it.beliefAfter}%)" }}",
+            "Feelings: ${entry.feelings.joinToString("; ") { "${it.name} (intensity before: ${it.intensityBefore}%, after: ${it.intensityAfter}%)" }}",
+            "Thinking errors: ${entry.thinkingErrors.joinToString("; ") { it.code }}",
+            "Alternative thoughts: ${entry.alternativeThoughts.joinToString("; ") { "${it.text} (belief: ${it.belief}%)" }}",
+        ).joinToString("\n")
+    }
+    return "Saved diary entries (intensity and belief use 0–100%; dates are record creation dates):\n" +
+        (if (entries.isEmpty()) "No entries in successfully loaded diaries." else entries.joinToString("\n\n")) +
+        "\n" + unavailable.joinToString("\n")
+}
