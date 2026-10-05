@@ -69,6 +69,8 @@ fun PatientQuestionnaireScreen(
     onBack: () -> Unit,
     onInactive: () -> Unit = {},
 ) {
+    var reviewShowing by remember { mutableStateOf(false) }
+    var editSection by remember { mutableStateOf(1) }
     val colors = Theme.colors
     val scope = rememberCoroutineScope()
     val savedDraft = com.cbtipul.app.ui.forms.rememberDeviceFormDraft("questionnaire", assignmentId, CombinedMoodQuestionnaire.serializer(), CombinedMoodQuestionnaire())
@@ -120,7 +122,7 @@ fun PatientQuestionnaireScreen(
         onCancel = { leavingDraft = false },
     )
 
-    fun attemptSubmit() {
+    fun attemptSubmit(confirmed: Boolean = false) {
         if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         if (isSubmitting || inactive) return
         if (didSubmit) { finish(); return }
@@ -128,6 +130,7 @@ fun PatientQuestionnaireScreen(
             showMissingAnswers()
             return
         }
+        if (!confirmed) { reviewShowing = true; return }
         isSubmitting = true
         errorMessage = null
         scope.launch {
@@ -154,6 +157,8 @@ fun PatientQuestionnaireScreen(
 
     BackHandler { requestBack() }
 
+    if (reviewShowing) PatientSubmissionReview(reviewSections(draft), onEdit = { index -> reviewShowing = false; scope.launch { kotlinx.coroutines.delay(300); questionTargets[index].bringIntoView() } }, onSend = { reviewShowing = false; attemptSubmit(true) })
+
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.themedScreen(colors.gold),
@@ -179,7 +184,7 @@ fun PatientQuestionnaireScreen(
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 QuestionnaireProgress(17 - missingAnswers.size, 17, !isSubmitting, ::showMissingAnswers)
                 Button(onClick = { attemptSubmit() }, enabled = !isSubmitting && !inactive, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(if (didSubmit) R.string.retry_action else R.string.patient_questionnaire_submit))
+                    Text(stringResource(if (didSubmit) R.string.retry_action else R.string.review_before_sending))
                 }
             }
         },

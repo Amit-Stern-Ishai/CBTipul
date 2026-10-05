@@ -72,9 +72,25 @@ class DiaryThreeRepositoryTest {
             assertEquals("/rest/v1/patient_assignments", requests.single().path)
             assertEquals(setOf("cancelled_at"), Json.parseToJsonElement(requests.single().body).jsonObject.keys)
             response.set("[$row]"); requests.clear()
+            try {
+                repo.updateEntry(id, owner, "edited", entry.automaticThoughts, entry.feelings, entry.thinkingErrors, entry.alternativeThoughts)
+                fail("Patient submissions must remain read-only")
+            } catch (error: com.cbtipul.app.model.PatientStoreException) {
+                assertEquals(com.cbtipul.app.model.PatientStoreException.Kind.UpdateRejected, error.kind)
+            }
+            try {
+                repo.deleteEntry(id, owner)
+                fail("Patient submissions must not be deleted by the therapist")
+            } catch (error: com.cbtipul.app.model.PatientStoreException) {
+                assertEquals(com.cbtipul.app.model.PatientStoreException.Kind.UpdateRejected, error.kind)
+            }
+            assertTrue(requests.isEmpty())
+            response.set("[${row.replace("\"created_by\":\"patient\"", "\"created_by\":\"therapist\"")}]")
+            repo.loadEntries(owner); requests.clear()
             val updated = repo.updateEntry(id, owner, "edited", entry.automaticThoughts, entry.feelings, entry.thinkingErrors, entry.alternativeThoughts)
-            assertEquals(DiaryOneEntryCreator.Patient, updated.createdBy)
+            assertEquals(DiaryOneEntryCreator.Therapist, updated.createdBy)
             assertEquals(entry.createdAt, updated.createdAt)
+            assertTrue(requests.single().query.contains("created_by=eq.therapist"))
             assertEquals("PATCH", requests.single().method)
             assertEquals("/rest/v1/diary_three_entries", requests.single().path)
             assertEquals(setOf("situation", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts", "updated_at"), Json.parseToJsonElement(requests.single().body).jsonObject.keys)

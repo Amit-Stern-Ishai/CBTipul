@@ -2,7 +2,6 @@ package com.cbtipul.app.ui.patients
 
 import com.cbtipul.app.ui.entitlementCreateControl
 import com.cbtipul.app.ui.theme.PrimaryActionButton
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,10 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -72,6 +71,7 @@ fun PatientSessionsScreen(
     onLoadQuestionnaires: () -> Unit,
     gettingStarted: com.cbtipul.app.ui.onboarding.GettingStartedRouter? = null,
 ) {
+    val hasRecovery = rememberSessionRecovery("${patient?.id?.queryValue}:new")
     val colors = Theme.colors
     val pulseAddSession = gettingStarted?.shouldPulse(TutorialHighlight.AddSession) == true
 
@@ -185,13 +185,13 @@ fun PatientSessionsScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(34.dp)
-                                                .background(colors.goldGhost, CircleShape),
-                                            contentAlignment = Alignment.Center,
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
                                         ) {
-                                            Text("$number", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Icon(Icons.Outlined.CalendarMonth, contentDescription = null,
+                                                tint = colors.gold, modifier = Modifier.size(24.dp))
+                                            Text("$number", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         }
                                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                             Row(
@@ -229,7 +229,7 @@ fun PatientSessionsScreen(
                 }
             }
             PrimaryActionButton(
-                label = stringResource(if (sorted.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action),
+                label = stringResource(if (hasRecovery) R.string.resume_session_summary else if (sorted.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action),
                 icon = Icons.Outlined.Add,
                 onClick = onAdd,
                 modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp)

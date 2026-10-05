@@ -6,6 +6,22 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
+    static func toolLastSent(_ date: String) -> String { "נשלח לאחרונה: \(date)" }
+    static let resumeSessionSummary = "המשך כתיבת סיכום"
+    static let toolQuestionnairePurpose = "מעקב אחר ההרגשה לאורך הטיפול"
+    static let sinceLastSession = "מאז הפגישה האחרונה"
+    static let recentPatientSubmissions = "מה המטופל/ת שיתף/ה"
+    static let recentNoSubmissions = "אין מילויים חדשים בתקופה הזו."
+    static let recentRefreshFailed = "לא כל המידע עודכן. הרשימה עשויה להיות חלקית."
+    static let reviewBeforeSending = "בדיקה לפני שליחה"
+    static let reviewSharingExplanation = "בדקו את התשובות לפני השליחה. לאחר השליחה הן יהיו זמינות למטפל/ת לצפייה ולא ניתן יהיה לערוך אותן."
+    static let reviewEdit = "עריכה"
+    static let reviewNotProvided = "לא מולא"
+    static let sessionRecoveryRestored = "הסיכום הקודם שוחזר. השינויים עדיין לא נשמרו בתיק."
+    static let sessionRecoverySaved = "נשמר במכשיר · עדיין לא נשמר בתיק"
+    static func recentSinceDate(_ date: String) -> String { "מ־\(date)" }
+    static func recentSubmissionCount(_ count: Int) -> String { "\(count) מילויים מהמטופל/ת" }
+
     static let patientIntroWelcomeTitle = "הטיפול ממשיך גם בין הפגישות"
     static let patientIntroWelcomeBody = "כאן נמצאים הכלים שהמטפל/ת הפעיל/ה עבורך. ממלאים בזמן שנוח, והתשובות נשלחות למטפל/ת."
     static let patientIntroQuestionnairesTitle = "שאלוני מצב רוח"
@@ -76,7 +92,7 @@ enum L10n {
     static let accessStopExplanation = "לא ניתן יהיה לשלוח מילויים חדשים בכלי זה. כל המידע שכבר נשלח יישמר."
     static let accessError = "לא ניתן לעדכן את הגישה כרגע. נסו שוב."
     static let accessQuestionnairesTitle = "שאלוני מצב רוח"
-    static let accessQuestionnairesDescription = "מעקב אחר תסמיני חרדה ודיכאון לאורך זמן"
+    static let accessQuestionnairesDescription = "שאלות קצרות על חרדה ומצב רוח בתקופה האחרונה. ממלאים לפי פרק הזמן שמופיע בשאלות; כל מילוי נשמר בנפרד."
 
     static let diaryFivePartsOptional = "5 חלקים · החלק האחרון לבחירה"
     static let diaryEntryGuide = "ממלאים חלק אחד בכל פעם. אפשר לפתוח כל חלק כדי לעיין או לשנות."
@@ -85,7 +101,7 @@ enum L10n {
     static let diarySectionComplete = "הושלם"
     static let diarySectionOpen = "פתיחת החלק"
     static let diarySectionClose = "סגירת החלק"
-    static let diaryReadyToSave = "הכול מוכן. בדקו את הפרטים ולחצו על שמירה."
+    static let diaryReadyToSave = "הכול מוכן. בדקו את הפרטים לפני הסיום."
     static let diaryOriginalThoughts = "המחשבות שכתבתי"
     static let diaryRemoveThoughtConfirm = "להסיר את המחשבה שכתבתם?"
     static let diaryRemoveThoughtAction = "הסרת המחשבה"
@@ -174,9 +190,9 @@ enum L10n {
     static let patientQuestionnaireRequestDescription = "גישה מתמשכת לשאלוני מצב רוח (GAD-7 ו-PHQ-9). כל מילוי נשמר בנפרד בהיסטוריה, ללא שיוך לפגישה. אפשר להפסיק את הגישה בכל עת."
     static let patientEnableDiaryOneAction = "הפעלת יומן מחשבות 1"
     static let patientSendDiaryOneDescription = "מאפשר למטופל/ת למלא יומן מחשבות 1 באופן שוטף באפליקציה."
-    static let patientDiaryDescription = "עיון ותיעוד של אירועים, מחשבות ורגשות"
-    static let patientDiaryTwoDescription = "זיהוי טעויות חשיבה וניסוח מחשבות חלופיות"
-    static let patientDiaryThreeDescription = "בחינת מחשבות והשוואת רגשות לפני ואחרי"
+    static let patientDiaryDescription = "תיעוד אירוע, המחשבות והרגשות שעלו ואופן התגובה. בכל רשומה מתמקדים באירוע אחד."
+    static let patientDiaryTwoDescription = "בחירת אירוע, זיהוי טעויות חשיבה ובחינת מחשבה חלופית. מתקדמים לפי ההנחיות בכל חלק."
+    static let patientDiaryThreeDescription = "בחינת מחשבה והשוואת האמונה בה ועוצמת הרגש לפני התרגול ואחריו."
     static let patientMessagesDescription = "הודעות שנשלחו למטופל/ת ומצב הקריאה שלהן"
     static let patientNotesTitle = "הערות על המטופל/ת"
     static let patientNotesDescription = "רקע והערות כלליות שאינן שייכות לפגישה מסוימת"
@@ -192,7 +208,7 @@ enum L10n {
     static let patientReinviteExplanation = "אפשר לשלוח קישור חדש כדי להתחבר מחדש, למשל לאחר החלפת טלפון. החיבור הנוכחי יישאר פעיל עד לאישור ההזמנה החדשה, ואז יוחלף בחיבור החדש."
     static let patientShareInvitationExplanation = "בלחיצה ייפתחו אפשרויות שיתוף, למשל WhatsApp או דוא״ל. יש לבחור איך לשלוח את הקישור. החיבור יושלם רק לאחר שהמטופל/ת יפתחו אותו ויאשרו את ההצטרפות."
     static let patientConnectionOptionalExplanation = "ההזמנה אינה חובה. אפשר לתעד פגישות גם בלי לחבר את המטופל/ת לאפליקציה."
-    static let patientConnectionReadyDescription = "לחצו על ״שליחה למטופל/ת״ כדי לבחור הודעה, הפעלת שאלוני מצב רוח או יומן מחשבות."
+    static let patientConnectionReadyDescription = "פתחו את ״הודעות וכלים למטופל/ת״ לשליחת הודעה ולניהול גישה לכלים."
     static let patientInvitationUnavailableExplanation = "הזמנה זמינה בתיק של מטופל/ת אמיתי/ת. במצב הדגמה לא נשלחות הזמנות."
     static let stopPatientNotesRecording = "עצירה ותמלול"
 
@@ -483,7 +499,7 @@ enum L10n {
     static let emptySessionsPrimaryAction = "הוספת פגישה ראשונה"
     static let emptyQuestionnairesTitle = "עדיין אין שאלוני מצב רוח שמולאו"
     static let emptyQuestionnairesBody =
-        "כאן יופיעו התשובות לאחר מילוי שאלוני מצב רוח. אפשר למלא יחד עם המטופל/ת כאן. למילוי עצמאי באפליקציה, חזרו לתיק המטופל/ת ובחרו ״שליחה למטופל/ת״ ואז ״הפעלת שאלוני מצב רוח״."
+        "כאן יופיעו התשובות לאחר מילוי שאלוני מצב רוח. אפשר למלא יחד עם המטופל/ת כאן. למילוי עצמאי באפליקציה, חזרו לתיק המטופל/ת ובחרו ״הודעות וכלים למטופל/ת״ ואז ״הפעלת שאלוני מצב רוח״."
     static let emptyQuestionnairesPrimaryAction = "הוספת שאלוני מצב רוח"
     static let questionnaireAnsweredDateLabel = "תאריך שאלוני מצב הרוח"
     static let questionnaireSessionAssociationLabel = "שיוך לפגישה"
@@ -1288,7 +1304,7 @@ amitishai@gmail.com
     static let therapistDisplayNameNotSignedInError = "יש להתחבר כדי לשמור שם לתצוגה."
 
     static let invitePatientAction = "הזמנת מטופל/ת"
-    static let sendToPatientAction = "שליחה למטופל/ת"
+    static let sendToPatientAction = "הודעות וכלים למטופל/ת"
     static let sendPatientMessageAction = "שליחת הודעה"
     static let messageRecipientLabel = "אל המטופל/ת"
     static func messageRecipient(_ name: String) -> String { "אל: \(name)" }
@@ -1510,7 +1526,7 @@ amitishai@gmail.com
     static let patientQuestionnaireCardTitle = "שאלוני מצב רוח"
 
     static let patientQuestionnaireCardBody =
-        "שאלוני מצב רוח קצרים על חרדה ומצב רוח בתקופה האחרונה. התשובות משותפות עם המטפל/ת ועוזרות לעקוב אחר שינויים לאורך הטיפול."
+        "שאלות קצרות על חרדה ומצב רוח בתקופה האחרונה. ממלאים לפי פרק הזמן שמופיע בשאלות; כל מילוי נשמר בנפרד."
 
     static let patientQuestionnaireStartAction = "מילוי שאלוני מצב רוח"
 
@@ -1522,7 +1538,7 @@ amitishai@gmail.com
     static let patientDiaryOneStartAction = "פתיחת יומן המחשבות"
 
     static let patientDiaryOneCardBody =
-        "אפשר לתאר אירוע, את המחשבות והרגשות שעלו ואת התגובה שלך."
+        "תיעוד אירוע, המחשבות והרגשות שעלו ואופן התגובה. בכל רשומה מתמקדים באירוע אחד."
 
     static let patientDiaryOneOngoingHint = "יומן המחשבות נשאר זמין. בכל פעם אפשר להוסיף אירוע חדש."
 
@@ -2475,7 +2491,7 @@ extension L10n {
 extension L10n {
     static let diaryTwoFeelingsTitle = "רגשות ועוצמה"
     static let diaryTwoDuplicateThinkingError = "יש לבחור כל טעות חשיבה פעם אחת בלבד."
-    static let patientDiaryTwoCardBody = "תיעוד אירוע, מחשבות אוטומטיות ורגשות, זיהוי טעויות חשיבה ובחינת מחשבות חלופיות."
+    static let patientDiaryTwoCardBody = "בחירת אירוע, זיהוי טעויות חשיבה ובחינת מחשבה חלופית. מתקדמים לפי ההנחיות בכל חלק."
     static let patientDiaryTwoNotActive = "המטפל/ת סגר/ה את יומן מחשבות 2 למילוי. הרשומות שכבר נשמרו נשארות ביומן מחשבות."
     static let patientDiaryTwoAccessDenied = "החיבור לתיק הטיפולי אינו זמין כרגע. יש לפנות למטפל/ת."
     static let patientDiaryTwoInvalidFeelings = "יש לבחור לפחות רגש אחד ועוצמה בין 0 ל־100 לכל רגש."

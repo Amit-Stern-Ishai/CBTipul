@@ -7,6 +7,7 @@ struct PatientSessionsView: View {
     /// Applied once on appear when opened from Getting Started.
     var initialAction: SessionsInitialAction? = nil
 
+    @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(OnboardingStore.self) private var onboarding
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
@@ -63,7 +64,7 @@ struct PatientSessionsView: View {
     }
 
     private var addSessionCTA: some View {
-        Button(patient.sessions.isEmpty ? L10n.emptySessionsPrimaryAction : L10n.addSessionAction) {
+        Button(hasRecoverableSession ? L10n.resumeSessionSummary : patient.sessions.isEmpty ? L10n.emptySessionsPrimaryAction : L10n.addSessionAction) {
             gettingStartedRouter.clearHighlightIfMatching(.addSession)
             if EntitlementState.shared.allowMutation() { route = .new(Session()) }
         }.entitlementCreateControl()
@@ -80,6 +81,12 @@ struct PatientSessionsView: View {
         store.isDemoMode
             && !onboarding.checklistDismissed
             && gettingStartedRouter.shouldPulse(.addSession)
+    }
+
+    private var hasRecoverableSession: Bool {
+        guard let account = auth.currentUserId,
+              let key = try? DeviceDraftStorage.key(userID: account, kind: store.isDemoMode ? "demo-session" : "therapist-session", target: "new:\(patient.id.queryValue)") else { return false }
+        return DeviceDraftStorage().contains(key: key)
     }
 
     var body: some View {
@@ -257,11 +264,15 @@ private struct SessionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text("\(number)")
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(Theme.gold)
-                .frame(width: 34, height: 34)
-                .background(Theme.goldGhost, in: Circle())
+            VStack(spacing: 4) {
+                Image(systemName: "calendar")
+                    .font(.title3)
+                    .accessibilityHidden(true)
+                Text("\(number)")
+                    .font(.caption.weight(.bold))
+            }
+            .foregroundStyle(Theme.gold)
+            .frame(minWidth: 34)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     Text(L10n.hebrewDate(session.date))

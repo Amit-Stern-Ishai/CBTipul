@@ -43,7 +43,8 @@ struct PatientDiaryTwoHubView: View {
             case .loading, .loaded, .failed:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        if !isActive || locallyInactive { Text(L10n.patientDiaryTwoNotActive).foregroundStyle(.secondary) }
+                        Text(L10n.patientDiaryTwoDescription).font(.subheadline).foregroundStyle(Theme.textBody)
+                        PatientToolStatusView(active: isActive && !locallyInactive)
                         if loadState == .failed {
                             Text(L10n.diaryTwoLoadFailed).foregroundStyle(Theme.error)
                             Button(L10n.retryAction) { Task { await loadEntries() } }

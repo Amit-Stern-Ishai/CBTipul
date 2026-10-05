@@ -13,8 +13,9 @@ import com.cbtipul.app.ui.patients.NotesField
 import com.cbtipul.app.ui.theme.Theme
 
 @Composable
-fun DiaryTwoDraftFields(draft: DiaryTwoEntryDraft, attempted: Boolean, error: Int? = null, onChange: (DiaryTwoEntryDraft) -> Unit) {
+fun DiaryTwoDraftFields(draft: DiaryTwoEntryDraft, attempted: Boolean, error: Int? = null, initialSection: Int = 1, editRequest: Int = 0, onChange: (DiaryTwoEntryDraft) -> Unit) {
     var active by rememberSaveable { mutableIntStateOf(1) }
+    LaunchedEffect(initialSection, editRequest) { if (editRequest > 0) { active = 0; withFrameNanos { }; active = initialSection } }
     val feelingIssue = when {
         draft.feelings.isEmpty() -> R.string.diary_one_validation_feelings
         draft.feelings.any { it.name.isBlank() || it.intensity == null || it.intensity !in 0..100 } -> R.string.diary_one_validation_feeling_intensity

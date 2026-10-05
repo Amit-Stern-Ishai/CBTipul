@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.patients
 
+import kotlinx.coroutines.flow.collectLatest
+
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.FindInPage
@@ -219,6 +221,11 @@ fun SessionEditorScreen(
     val hasUnsavedChanges = date != baselineDate || notes != baselineNotes || type != baselineType ||
         structuredNotes != baselineStructured || recorder.recordingFile != null
 
+    LaunchedEffect(editorDraft) {
+        androidx.compose.runtime.snapshotFlow { listOf(date, notes, type, structuredNotes, editorDraft.selectedPatientId) }
+            .collectLatest { kotlinx.coroutines.delay(350); editorDraft.persistRecovery() }
+    }
+    DisposableEffect(editorDraft) { onDispose { editorDraft.persistRecovery() } }
     val canSave = canWrite && patient != null && !busy && recorder.recordingFile == null && (isNew || hasUnsavedChanges)
     fun persist(leave: Boolean) {
         if (!canSave) return
@@ -313,7 +320,7 @@ fun SessionEditorScreen(
                         actions = {
                             if ((hasUnsavedChanges || isNew) && canWrite) {
                                 TextButton(onClick = { persist(leave = isNew) }, enabled = canSave) {
-                                    Text(stringResource(R.string.save_session_action), fontWeight = FontWeight.SemiBold)
+                                    Text(stringResource(R.string.save_summary_action), fontWeight = FontWeight.SemiBold)
                                 }
                             } else {
                                 TextButton(onClick = { leaveNotes() }, enabled = !busy) {
@@ -405,6 +412,9 @@ fun SessionEditorScreen(
         },
         bottomBar = {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                if (editorDraft.recoverySaved || editorDraft.recoveryFailed) Text(stringResource(if (editorDraft.recoveryFailed) R.string.draft_save_failed else R.string.session_recovery_saved), color = if (editorDraft.recoveryFailed) colors.error else colors.textBody)
+                if (editorDraft.recoveryRestored) Text(stringResource(R.string.session_recovery_restored), color = colors.textBody)
+                if (hasUnsavedChanges && !busy && recorder.recordingFile == null) TextButton(onClick = { if (editorDraft.persistRecovery()) onBack() }) { Text(stringResource(R.string.keep_draft_and_leave)) }
                 val status = when {
                     recorder.isRecording -> R.string.session_recording_in_progress
                     isTranscribing -> R.string.transcribing_label
@@ -747,6 +757,7 @@ fun SessionEditorScreen(
             persist(leave = true)
         },
         onDiscard = {
+            if (!editorDraft.clearRecovery(close = true)) return@DiscardChangesDialog
             showDiscard = false
             recorder.discard()
             date = baselineDate

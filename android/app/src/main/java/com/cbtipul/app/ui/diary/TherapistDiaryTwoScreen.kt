@@ -166,7 +166,7 @@ private fun DiaryTwoEditor(vm: DiaryTwoViewModel, draft: DiaryTwoEntryDraft, sta
             Text(stringResource(R.string.diary_one_save_entry))
         }
     }) {
-        DiaryTwoDraftFields(draft, attempted, state.error, vm::changeDraft)
+        DiaryTwoDraftFields(draft, attempted, state.error, onChange = vm::changeDraft)
     }
     if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text(stringResource(R.string.discard_changes_title)) },
         confirmButton = { TextButton(onClick = { discard = false; vm.closeEditor(); onBack() }) { Text(stringResource(R.string.discard_changes_action)) } },

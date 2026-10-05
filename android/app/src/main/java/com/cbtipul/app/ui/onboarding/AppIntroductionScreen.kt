@@ -238,20 +238,44 @@ private fun IntroductionIllustration(index: Int) {
                     IllustrationRow(R.string.introduction_questionnaire, Icons.Outlined.Assignment)
                     IllustrationRow(R.string.introduction_diary, Icons.Outlined.MenuBook)
                 }
-                3 -> Canvas(Modifier.fillMaxWidth().height(125.dp).padding(horizontal = 8.dp)) {
-                    repeat(3) { row ->
-                        val y = size.height * (row + 1) / 4
-                        drawLine(colors.borderFaint, Offset(0f, y), Offset(size.width, y), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 5.dp.toPx())))
-                    }
-                    val values = listOf(.22f, .39f, .32f, .61f, .58f, .79f)
-                    val path = Path().apply {
-                        values.forEachIndexed { i, value ->
-                            val x = size.width * i / 5
-                            if (i == 0) moveTo(x, size.height * value) else lineTo(x, size.height * value)
+                3 -> {
+                    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.introduction_graph_measure), color = colors.textBody, fontSize = 12.sp)
+                        Canvas(Modifier.fillMaxWidth().height(130.dp).padding(8.dp)) {
+                            repeat(3) { row ->
+                                val y = size.height * (row + 1) / 4
+                                drawLine(colors.borderFaint, Offset(0f, y), Offset(size.width, y),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 5.dp.toPx())))
+                            }
+                            val values = listOf(.15f, .30f, .27f, .52f, .63f, .83f)
+                            val points = values.mapIndexed { i, value ->
+                                val fraction = i.toFloat() / values.lastIndex
+                                Offset(size.width * (if (rtl) 1f - fraction else fraction), size.height * value)
+                            }
+                            val area = Path().apply {
+                                moveTo(points.first().x, size.height)
+                                points.forEach { lineTo(it.x, it.y) }
+                                lineTo(points.last().x, size.height)
+                                close()
+                            }
+                            drawPath(area, colors.success.copy(alpha = .12f))
+                            val line = Path().apply {
+                                moveTo(points.first().x, points.first().y)
+                                points.drop(1).forEach { lineTo(it.x, it.y) }
+                            }
+                            drawPath(line, colors.success, style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round))
+                            points.forEach {
+                                drawCircle(colors.surface, 6.dp.toPx(), it)
+                                drawCircle(colors.success, 4.dp.toPx(), it)
+                            }
                         }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(stringResource(R.string.introduction_graph_start), color = colors.textBody, fontSize = 12.sp)
+                            Text(stringResource(R.string.introduction_graph_latest), color = colors.textBody, fontSize = 12.sp)
+                        }
+                        Text(stringResource(R.string.introduction_graph_hint), color = colors.success, fontSize = 12.sp)
                     }
-                    drawPath(path, colors.gold, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
-                    values.forEachIndexed { i, value -> drawCircle(colors.gold, 4.dp.toPx(), Offset(size.width * i / 5, size.height * value)) }
                 }
                 else -> {
                     IllustrationRow(R.string.introduction_sample_patient, Icons.Outlined.AccountCircle)

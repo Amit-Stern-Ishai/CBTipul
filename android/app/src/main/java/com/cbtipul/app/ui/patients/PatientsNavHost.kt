@@ -206,6 +206,7 @@ fun PatientsNavHost(
                 onOpenSessions = { navController.navigate("patient/$id/sessions") },
                 onOpenQuestionnaires = { navController.navigate("patient/$id/questionnaires") },
                 onOpenGraphs = { navController.navigate("patient/$id/questionnaires?graphs=true") },
+                onOpenRecent = { navController.navigate(it) },
                 onOpenDiaryOne = { navController.navigate("patient/$id/diary-one") },
                 onOpenDiaryThree = { navController.navigate("patient/$id/diary-three") },
                 onOpenDiaryTwo = { navController.navigate("patient/$id/diary-two") },
@@ -473,7 +474,7 @@ fun PatientsNavHost(
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 focusEntryId = focusEntryId,
-                returnDirectly = inboxContent != null,
+                returnDirectly = inboxContent != null || !entry.arguments?.getString("entry").isNullOrBlank(),
                 onBack = { navController.popScreen() },
             )
         }
@@ -496,7 +497,7 @@ fun PatientsNavHost(
                 atmosphere = PatientAvatarColor.background(patient.id),
                 diary = app.diaryTwo,
                 focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() },
-                returnDirectly = inboxContent != null,
+                returnDirectly = inboxContent != null || !entry.arguments?.getString("entry").isNullOrBlank(),
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 onBack = { navController.popScreen() },
@@ -521,7 +522,7 @@ fun PatientsNavHost(
                 atmosphere = PatientAvatarColor.background(patient.id),
                 diary = app.diaryThree,
                 focusEntryId = entry.arguments?.getString("entry")?.takeIf { it.isNotBlank() },
-                returnDirectly = inboxContent != null,
+                returnDirectly = inboxContent != null || !entry.arguments?.getString("entry").isNullOrBlank(),
                 assignments = app.assignments,
                 isDemo = isDemoMode || DemoData.isDemoId(patient.id),
                 onBack = { navController.popScreen() },
@@ -539,6 +540,11 @@ fun PatientsNavHost(
             val isNew = sessionId == "new"
             val draftOwner: SessionEditorViewModel = viewModel(viewModelStoreOwner = entry)
             val draft = draftOwner.getOrCreate(if (isNew) Session() else viewModel.session(routeId, sessionId) ?: Session())
+            val recoveryApp = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+            val recoveryAccount = recoveryApp.authRepository.currentUserId()
+            if (recoveryAccount != null) {
+                draft.configureRecovery(recoveryApp.formDrafts, com.cbtipul.app.data.DeviceFormDraftStore.key(recoveryAccount, if (isDemoMode) "demo-session" else "therapist-session", "$routeId:$sessionId"))
+            }
             val id = if (routeId == "_") draft.selectedPatientId.orEmpty() else routeId
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             val session: Session? = if (isNew) draft.initial else viewModel.session(id, sessionId)
@@ -594,6 +600,7 @@ fun PatientsNavHost(
                         sessionNotSaved,
                         anonymizationFailed,
                     ) {
+                        draft.clearRecovery(close = true)
                         viewModel.clearSessionError()
                         navController.popScreen()
                     }

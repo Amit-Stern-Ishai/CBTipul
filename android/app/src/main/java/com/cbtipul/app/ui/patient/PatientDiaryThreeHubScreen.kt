@@ -150,7 +150,8 @@ fun PatientDiaryThreeHubScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 if (PatientAssignmentType.diaryThreeSendingEnabled) {
-                    if (!active) Text(stringResource(R.string.patient_diary_three_not_active), color = colors.textBody)
+                    Text(stringResource(R.string.patient_diary_three_description), color = colors.textBody)
+                PatientToolStatus(active)
                 } else {
                     Text(stringResource(R.string.diary_three_sending_paused), color = colors.textBody)
                 }

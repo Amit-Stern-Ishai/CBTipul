@@ -2,12 +2,19 @@ import SwiftUI
 
 /// Cross-patient Sessions tab: all clinic sessions grouped by month.
 struct GlobalSessionsView: View {
+    @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
 
     @State private var isLoading = false
     @State private var loadError: String?
     @State private var editor: SessionEditorRoute?
     @State private var patientSearch = ""
+
+    private var hasRecoverableSession: Bool {
+        guard let account = auth.currentUserId,
+              let key = try? DeviceDraftStorage.key(userID: account, kind: store.isDemoMode ? "demo-session" : "therapist-session", target: "new:global") else { return false }
+        return DeviceDraftStorage().contains(key: key)
+    }
 
     var body: some View {
         NavigationStack {
@@ -77,7 +84,7 @@ struct GlobalSessionsView: View {
     }
 
     private var addSessionCTA: some View {
-        Button(allItems.isEmpty ? L10n.createSessionAction : L10n.addSessionAction) {
+        Button(hasRecoverableSession ? L10n.resumeSessionSummary : allItems.isEmpty ? L10n.createSessionAction : L10n.addSessionAction) {
             if EntitlementState.shared.allowMutation() { editor = SessionEditorRoute(patient: nil, session: Session(), isNew: true) }
         }.entitlementCreateControl()
         .buttonStyle(.pressableProminent)
@@ -277,6 +284,12 @@ private struct GlobalSessionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            Image(systemName: "calendar")
+                .font(.title3)
+                .foregroundStyle(Theme.gold)
+                .frame(width: 34, height: 34)
+                .background(Theme.goldGhost, in: Circle())
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.patient.displayName)
                     .font(.headline)

@@ -81,6 +81,7 @@ fun PatientQuestionnaireHubScreen(
         }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
             item { Text(stringResource(R.string.patient_questionnaire_card_body), color = Theme.colors.textBody) }
+            if (assignment != null || (!loading && !accessFailed)) item { PatientToolStatus(assignment != null) }
             if (assignment == null) item {
                 when {
                     loading -> CircularProgressIndicator()

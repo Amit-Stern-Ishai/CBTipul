@@ -298,6 +298,15 @@ struct PatientModeView: View {
         .refreshable { await manualRefresh() }
     }
 
+    private func lastSubmission(_ type: PatientAssignmentType) -> Date? {
+        switch type {
+        case .questionnaire: homeSnapshot.questionnaires?.map(\.answeredDate).max()
+        case .diaryOne: homeSnapshot.diaryOne?.map(\.createdAt).max()
+        case .diaryTwo: homeSnapshot.diaryTwo?.map(\.createdAt).max()
+        case .diaryThree: homeSnapshot.diaryThree?.map(\.createdAt).max()
+        }
+    }
+
     private func compactToolRow(_ type: PatientAssignmentType, active: Bool) -> some View {
         HStack(spacing: 8) {
             Button {
@@ -310,12 +319,17 @@ struct PatientModeView: View {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: type == .questionnaire ? "list.clipboard" : "book.closed")
-                        .font(.title3).foregroundStyle(Theme.gold).frame(width: 26)
+                        .font(.title3).foregroundStyle(active ? Theme.success : Theme.textBody).frame(width: 26)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(type == .questionnaire ? L10n.questionnairesTitle : type == .diaryOne ? L10n.diaryOneTitle : type == .diaryTwo ? L10n.diaryTwoTitle : L10n.diaryThreeTitle)
                             .font(.headline).foregroundStyle(Theme.textBright)
-                        Text(active ? L10n.patientToolEnabled : L10n.patientHistoryOnly)
-                            .font(.caption).foregroundStyle(Theme.textBody)
+                        Text(type == .questionnaire ? L10n.toolQuestionnairePurpose : type == .diaryOne ? L10n.patientDiaryOnePurpose : type == .diaryTwo ? L10n.patientDiaryTwoPurpose : L10n.patientDiaryThreeDescription)
+                            .font(.caption).foregroundStyle(Theme.textBody).lineLimit(2)
+                        PatientToolStatusView(active: active)
+                        if let last = lastSubmission(type) {
+                            Text(L10n.toolLastSent(L10n.hebrewDate(last)))
+                                .font(.caption).foregroundStyle(Theme.textBody)
+                        }
                     }
                     Spacer(minLength: 4)
                     Image(systemName: "chevron.forward").font(.footnote).foregroundStyle(Theme.textBody)
@@ -763,6 +777,7 @@ struct PatientQuestionnaireView: View {
 
     @State private var questionnaire = CombinedMoodQuestionnaire()
     @State private var deviceDraft = DeviceFormDraft<CombinedMoodQuestionnaire>()
+    @State private var reviewShowing = false
     @State private var isSubmitting = false
     @State private var didSubmit = false
     @State private var inactive = false
@@ -815,6 +830,16 @@ struct PatientQuestionnaireView: View {
             .navigationBarBackButtonHidden(true)
             .interactiveDismissDisabled(!questionnaire.isEmpty || isSubmitting)
             .busyOverlay(isSubmitting, label: L10n.patientQuestionnaireSubmitting)
+            .sheet(isPresented: $reviewShowing) {
+                PatientSubmissionReview(sections: questionnaire.reviewSections, onEdit: { index in
+                    reviewShowing = false
+                    // Use the existing question anchors after the review closes.
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(350))
+                        proxy.scrollTo(index < 7 ? QuestionnaireItem.gad7(index) : index < 16 ? QuestionnaireItem.phq9(index - 7) : QuestionnaireItem.interference, anchor: .top)
+                    }
+                }, onSend: { reviewShowing = false; Task { await submit(confirmed: true) } })
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.back) {
@@ -825,7 +850,7 @@ struct PatientQuestionnaireView: View {
                     .disabled(isSubmitting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(didSubmit ? L10n.retryAction : L10n.patientQuestionnaireSubmitAction) {
+                    Button(didSubmit ? L10n.retryAction : L10n.reviewBeforeSending) {
                         if didSubmit { Task { await finishSuccessfully() } }
                         else if !inactive && completion.firstUnanswered == nil { Task { await submit() } }
                         else { revealUnanswered(using: proxy) }
@@ -860,10 +885,11 @@ struct PatientQuestionnaireView: View {
         deviceDraft.save(questionnaire, isEmpty: questionnaire.isEmpty)
     }
 
-    private func submit() async {
+    private func submit(confirmed: Bool = false) async {
         guard EntitlementState.shared.allowMutation() else { return }
         guard !isSubmitting, !didSubmit, completion.firstUnanswered == nil,
               let interference = questionnaire.interferenceLevel else { return }
+        if !confirmed { reviewShowing = true; return }
         isSubmitting = true
         errorMessage = nil
         do {

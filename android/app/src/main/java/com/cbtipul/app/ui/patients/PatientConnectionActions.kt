@@ -1,6 +1,7 @@
 package com.cbtipul.app.ui.patients
 
 import com.cbtipul.app.ui.entitlementCreateControl
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Assignment
@@ -107,8 +108,16 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
     }
     if (sheet != null) ModalBottomSheet(onDismissRequest = { if (!sending) sheet = null },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !sending })) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(name, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { sheet = null }, enabled = !sending) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.back))
+            }
+            Text(name, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+        }
+        HorizontalDivider()
+        Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (sheet == "invite") {
                 val connected = connection == ConnectionUi.Connected
                 Text(stringResource(if (connected) R.string.patient_reinvite_action else R.string.patient_connect_description))

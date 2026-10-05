@@ -186,6 +186,8 @@ struct PatientDetailView: View {
                 }
             }
 
+            PatientRecentActivityView(patient: patient)
+
             Section(L10n.patientRecordsTitle) {
                 NavigationLink {
                     PatientSessionsView(patient: patient)
@@ -203,25 +205,29 @@ struct PatientDetailView: View {
                     NavigationLink {
                         PatientDiaryOneView(patient: patient)
                     } label: {
-                        workspaceRow("book.closed", title: L10n.diaryOneTitle,
-                                     detail: L10n.patientDiaryDescription)
+                        iconChip("book.closed", title: L10n.diaryOneTitle)
+                            .foregroundStyle(Theme.textBright)
+                            .padding(.vertical, 4)
                     }
                     .accessibilityIdentifier("patient.diaryOne")
                     NavigationLink {
                         PatientDiaryTwoView(patient: patient)
                     } label: {
-                        workspaceRow("book.closed", title: L10n.diaryTwoTitle,
-                                     detail: L10n.patientDiaryTwoDescription)
+                        iconChip("book.closed", title: L10n.diaryTwoTitle)
+                            .foregroundStyle(Theme.textBright)
+                            .padding(.vertical, 4)
                     }
                     .accessibilityIdentifier("patient.diaryTwo")
                     NavigationLink { PatientDiaryThreeView(patient: patient) } label: {
-                        workspaceRow("book.closed", title: L10n.diaryThreeTitle,
-                                     detail: L10n.patientDiaryThreeDescription)
+                        iconChip("book.closed", title: L10n.diaryThreeTitle)
+                            .foregroundStyle(Theme.textBright)
+                            .padding(.vertical, 4)
                     }
                     .accessibilityIdentifier("patient.diaryThree")
                 } label: {
-                    workspaceRow("books.vertical", title: L10n.patientDiariesTitle,
-                                 detail: L10n.patientDiariesDescription)
+                    iconChip("books.vertical", title: L10n.patientDiariesTitle)
+                        .foregroundStyle(Theme.textBright)
+                        .padding(.vertical, 4)
                 }
                 .accessibilityIdentifier("patient.diaries")
                 .listRowBackground(groupBorderedRow(.middle))
@@ -1509,6 +1515,9 @@ private enum PatientConnectionState {
         PatientDetailView(patient: Patient(id: .integer(1), firstName: "ישראלה", lastName: "ישראלית", sessions: [Session()]))
     }
     .environment(auth)
+    .environment(DiaryOneStore(client: auth.client))
+    .environment(DiaryTwoStore(client: auth.client))
+    .environment(DiaryThreeStore(client: auth.client))
     .environment(PatientStore(client: auth.client))
     .environment(GettingStartedRouter())
     .environment(OnboardingStore.shared)

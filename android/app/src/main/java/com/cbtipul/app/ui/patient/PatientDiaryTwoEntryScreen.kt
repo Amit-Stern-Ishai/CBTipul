@@ -66,6 +66,9 @@ fun PatientDiaryTwoEntryScreen(
     onDiaryInactive: () -> Unit,
     onBack: () -> Unit,
 ) {
+    var reviewShowing by remember { mutableStateOf(false) }
+    var editSection by remember { mutableStateOf(1) }
+    var editRevision by remember { mutableStateOf(0) }
     val colors = Theme.colors
     val vm: PatientDiaryTwoViewModel = viewModel(key = "patient-diary-two-form-$patientId", factory = viewModelFactory {
         initializer { PatientDiaryTwoViewModel(patientId, service, createSavedStateHandle()) }
@@ -95,6 +98,8 @@ fun PatientDiaryTwoEntryScreen(
         onDiscard = { leaving = false; if (savedDraft.clear()) onBack() },
         onCancel = { leaving = false },
     )
+    if (reviewShowing) PatientSubmissionReview(reviewSections(draft), onEdit = { editSection = it + 1; editRevision++; reviewShowing = false }, onSend = { reviewShowing = false; vm.submit(draft) })
+
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.themedScreen(colors.gold).dismissKeyboardOnTap().imePadding(),
@@ -106,17 +111,18 @@ fun PatientDiaryTwoEntryScreen(
                 } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             ) },
             bottomBar = {
-                Button(onClick = { attempted = true; if (didSubmit) finish() else if (draft.validationError() != null) showValidation = true else vm.submit(draft) },
+                Button(onClick = { attempted = true; if (didSubmit) finish() else if (draft.validationError() != null) showValidation = true else reviewShowing = true },
                     enabled = !state.submitting,
                     modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp).heightIn(min = 48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
-                ) { Text(stringResource(if (didSubmit) R.string.retry_action else R.string.patient_diary_one_save_action)) }
+                ) { Text(stringResource(if (didSubmit) R.string.retry_action else R.string.review_before_sending)) }
             },
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).editorScroll().padding(20.dp)) {
                 com.cbtipul.app.ui.diary.PatientDiaryGuide(isDiaryTwo = true)
                 com.cbtipul.app.ui.forms.DraftStatus(savedDraft.failed, savedDraft.hasSaved)
-                DiaryTwoDraftFields(draft, attempted, state.error?.messageRes) {
+                DiaryTwoDraftFields(
+                    draft = draft, attempted = attempted, error = state.error?.messageRes, initialSection = editSection, editRequest = editRevision) {
                     if (!state.submitting && !didSubmit) savedDraft.value = it
                 }
                 if (cleanupError) Text(stringResource(R.string.submitted_draft_cleanup), color = colors.error)

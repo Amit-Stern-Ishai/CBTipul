@@ -151,7 +151,8 @@ fun PatientDiaryOneHubScreen(
                     .padding(top = 12.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                if (!active) Text(stringResource(R.string.patient_diary_one_not_active), color = colors.textBody)
+                Text(stringResource(R.string.patient_diary_one_description), color = colors.textBody)
+                PatientToolStatus(active)
                 Text(
                     stringResource(R.string.diary_one_my_entries),
                     color = colors.textBright,

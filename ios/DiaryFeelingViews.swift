@@ -350,6 +350,7 @@ struct DiaryOneDraftFields: View {
     @Binding var draft: DiaryOneEntryDraft
     var didAttemptSave: Bool
     var errorMessage: String? = nil
+    var initialSection = 1
     @State private var active = 1
 
     private var issues: [String?] {
@@ -369,6 +370,7 @@ struct DiaryOneDraftFields: View {
     var body: some View {
         ScrollViewReader { proxy in
             VStack(alignment: .leading, spacing: 16) {
+                Color.clear.frame(height: 0).onAppear { active = initialSection; proxy.scrollTo(initialSection, anchor: .top) }
                 DiaryEntryProgress(completed: issues.filter { $0 == nil }.count, total: 5, lastPartOptional: true)
                 section(1, L10n.diaryOneEventTitle, draft.event) {
                     NotesField(text: $draft.event, placeholder: L10n.diaryOneEventQuestion, minLines: 3, maxLines: 8)

@@ -14,7 +14,71 @@ class SessionEditorViewModel : ViewModel() {
     fun getOrCreate(initial: Session): SessionEditorDraft = draft ?: SessionEditorDraft(initial).also { draft = it }
 }
 
+@kotlinx.serialization.Serializable
+private data class SessionRecovery(
+    val date: Long,
+    val notes: String,
+    val type: com.cbtipul.app.model.SessionType?,
+    val structuredNotes: com.cbtipul.app.model.CBTSessionAnalysis?,
+    val selectedPatientId: String?,
+)
+
 class SessionEditorDraft(val initial: Session) {
+    private var recoveryStore: com.cbtipul.app.data.DeviceDraftStorage? = null
+    private var recoveryKey: String? = null
+    private var recoveryClosed = false
+    var recoveryFailed by mutableStateOf(false)
+        private set
+    var recoverySaved by mutableStateOf(false)
+        private set
+    var recoveryRestored by mutableStateOf(false)
+        private set
+    private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    fun configureRecovery(store: com.cbtipul.app.data.DeviceDraftStorage, key: String) {
+        if (recoveryKey != null) return
+        recoveryStore = store
+        recoveryKey = key
+        try {
+            store.read(key)?.let {
+                val saved = json.decodeFromString(SessionRecovery.serializer(), it)
+                date = java.util.Date(saved.date)
+                notes = saved.notes
+                type = saved.type
+                structuredNotes = saved.structuredNotes
+                selectedPatientId = saved.selectedPatientId
+                recoverySaved = true
+                recoveryRestored = true
+            }
+        } catch (_: Exception) { recoveryFailed = true }
+    }
+
+    fun persistRecovery(): Boolean {
+        if (recoveryClosed || recoveryKey == null) return false
+        return try {
+            val unchanged = date == baselineDate && notes == baselineNotes && type == baselineType && structuredNotes == baselineStructured
+            if (unchanged && recoveryFailed && !recoverySaved) return false
+            if (unchanged || (initial.databaseId == null && notes.isBlank() && type == null && structuredNotes == null)) {
+                recoveryStore!!.clear(recoveryKey!!)
+                recoverySaved = false
+            } else {
+                recoveryStore!!.write(recoveryKey!!, json.encodeToString(SessionRecovery.serializer(), SessionRecovery(date.time, notes, type, structuredNotes, selectedPatientId)))
+                recoverySaved = true
+            }
+            recoveryFailed = false
+            true
+        } catch (_: Exception) { recoveryFailed = true; false }
+    }
+
+    fun clearRecovery(close: Boolean = false): Boolean = try {
+        recoveryKey?.let { recoveryStore?.clear(it) }
+        recoveryClosed = close
+        recoverySaved = false
+        recoveryRestored = false
+        recoveryFailed = false
+        true
+    } catch (_: Exception) { recoveryFailed = true; false }
+
     var selectedPatientId by mutableStateOf<String?>(null)
     var date by mutableStateOf(initial.date)
     var notes by mutableStateOf(initial.notes)
@@ -34,6 +98,7 @@ class SessionEditorDraft(val initial: Session) {
     var baselineType by mutableStateOf(initial.type)
     var baselineStructured by mutableStateOf(initial.structuredNotes)
     fun markSaved(saved: Session) {
+        clearRecovery(close = initial.databaseId == null)
         baselineDate = saved.date
         baselineNotes = saved.notes
         baselineType = saved.type

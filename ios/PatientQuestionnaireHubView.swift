@@ -18,6 +18,9 @@ struct PatientQuestionnaireHubView: View {
         List {
             Section {
                 Text(L10n.patientQuestionnaireCardBody).foregroundStyle(.secondary)
+                if activeAssignment != nil || (!loading && !accessFailed) {
+                    PatientToolStatusView(active: activeAssignment != nil)
+                }
                 if activeAssignment == nil {
                     if loading {
                         ProgressView()

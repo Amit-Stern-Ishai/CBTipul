@@ -78,7 +78,7 @@ struct OngoingQuestionnaireTests {
         defer { EntitlementTestIsolation.release() }
         QuestionnaireHTTPStub.reset(body: Data("[\(result(41, date: "2026-09-02T12:00:00Z")),\(result(42, date: "2026-09-02T12:00:00Z")),\(result(43, date: "2026-09-03", source: "therapist")),\(result(44, date: "2026-09-04", owner: UUID()))]".utf8))
         let history = try await PatientQuestionnaireHistoryService(client: client()).history(patientId: patient)
-        #expect(history.allSatisfy(\.isPatientSubmitted))
+        #expect(history.allSatisfy { $0.isPatientSubmitted })
         #expect(history.map(\.databaseID) == [.integer(42), .integer(41)])
         #expect(history.allSatisfy { $0.sessionID == nil && $0.questionnaire.gad7Notes.allSatisfy(\.isEmpty) })
         #expect(history[0].questionnaire.gad7Score == 7 && history[0].questionnaire.phq9Score == 3)

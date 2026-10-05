@@ -5,8 +5,14 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.security.MessageDigest
 
+interface DeviceDraftStorage {
+    fun read(key: String): String?
+    fun write(key: String, value: String)
+    fun clear(key: String)
+}
+
 /** Drafts stay on this device, encrypted and isolated by account and form target. */
-class DeviceFormDraftStore(context: Context) {
+class DeviceFormDraftStore(context: Context) : DeviceDraftStorage {
     private val preferences by lazy {
         EncryptedSharedPreferences.create(
             context, "CBTipul.form-drafts",
@@ -16,11 +22,11 @@ class DeviceFormDraftStore(context: Context) {
         )
     }
 
-    fun read(key: String): String? = preferences.getString(key, null)
-    fun write(key: String, value: String) {
+    override fun read(key: String): String? = preferences.getString(key, null)
+    override fun write(key: String, value: String) {
         check(preferences.edit().putString(key, value).commit()) { "Draft could not be saved" }
     }
-    fun clear(key: String) {
+    override fun clear(key: String) {
         check(preferences.edit().remove(key).commit()) { "Draft could not be removed" }
     }
 

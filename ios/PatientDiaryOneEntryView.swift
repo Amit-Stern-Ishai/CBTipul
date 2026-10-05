@@ -42,15 +42,14 @@ struct PatientDiaryOneHubView: View {
             case .loading, .loaded, .failed:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        Text(L10n.patientDiaryDescription).font(.subheadline).foregroundStyle(Theme.textBody)
 
                         Text(L10n.diaryOneMyEntriesTitle)
                             .font(.headline)
                             .foregroundStyle(Theme.textBright)
                             .padding(.top, 8)
 
-                        if !isActive || locallyInactive {
-                            Text(L10n.patientDiaryOneNotActive).foregroundStyle(Theme.textBody)
-                        }
+                        PatientToolStatusView(active: isActive && !locallyInactive)
                         if entries.isEmpty {
                             Text(L10n.diaryOneEmptyTitle)
                                 .font(.body)
@@ -210,6 +209,9 @@ struct PatientDiaryOneEntryView: View {
 
     @State private var draft = DiaryOneEntryDraft.empty
     @State private var deviceDraft = DeviceFormDraft<DiaryOneEntryDraft>()
+    @State private var reviewShowing = false
+    @State private var editSection = 1
+    @State private var editRevision = 0
     @State private var didSubmit = false
     @State private var initialSnapshot = DiaryOneEntryDraft.empty.comparableSnapshot
     @State private var didAttemptSave = false
@@ -235,8 +237,10 @@ struct PatientDiaryOneEntryView: View {
                 DiaryOneDraftFields(
                 draft: $draft,
                 didAttemptSave: didAttemptSave,
-                errorMessage: errorMessage
+                errorMessage: errorMessage,
+                initialSection: editSection
                 )
+                .id(editRevision)
                 .disabled(isBusy || didSubmit || !EntitlementState.shared.canPatientWrite)
             }
             .padding(.horizontal, 20)
@@ -251,6 +255,13 @@ struct PatientDiaryOneEntryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .busyOverlay(isBusy, label: L10n.patientDiaryOneSubmitting)
+        .sheet(isPresented: $reviewShowing) {
+            PatientSubmissionReview(sections: draft.reviewSections, onEdit: { index in
+                editSection = index + 1
+                editRevision += 1
+                reviewShowing = false
+            }, onSend: { reviewShowing = false; Task { await submit(confirmed: true) } })
+        }
         .safeAreaInset(edge: .bottom) {
             Button {
                 Task {
@@ -258,7 +269,7 @@ struct PatientDiaryOneEntryView: View {
                     else { await submit() }
                 }
             } label: {
-                Text(didSubmit ? L10n.retryAction : L10n.patientDiaryOneSaveAction)
+                Text(didSubmit ? L10n.retryAction : L10n.reviewBeforeSending)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity, minHeight: 30)
             }
@@ -334,7 +345,7 @@ struct PatientDiaryOneEntryView: View {
         dismiss()
     }
 
-    private func submit() async {
+    private func submit(confirmed: Bool = false) async {
         guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy, !didSubmit else { return }
         didAttemptSave = true
@@ -348,6 +359,7 @@ struct PatientDiaryOneEntryView: View {
             isShowingValidationAlert = true
             return
         }
+        if !confirmed { reviewShowing = true; return }
         isSaving = true
         errorMessage = nil
         let symptoms = draft.physicalSymptoms.trimmingCharacters(in: .whitespacesAndNewlines)

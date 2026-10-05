@@ -45,8 +45,9 @@ struct PatientDiaryThreeHubView: View {
             case .loading, .loaded, .failed:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        Text(L10n.patientDiaryThreeDescription).font(.subheadline).foregroundStyle(Theme.textBody)
                         if PatientAssignmentType.diaryThreeSendingEnabled {
-                            if !isActive || locallyInactive { Text(L10n.patientDiaryThreeNotActive).foregroundStyle(.secondary) }
+                            PatientToolStatusView(active: isActive && !locallyInactive)
                         } else {
                             Text(L10n.diaryThreeSendingPaused).foregroundStyle(Theme.textBody)
                         }

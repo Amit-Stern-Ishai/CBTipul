@@ -20,10 +20,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.cbtipul.app.ui.therapist.TabReselectionEffect
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
@@ -71,6 +70,7 @@ fun GlobalSessionsScreen(
     onOpenSession: (patientId: String, sessionId: String) -> Unit,
     onCreateSession: () -> Unit,
 ) {
+    val hasRecovery = rememberSessionRecovery("_:new")
     val colors = Theme.colors
     val listState = rememberLazyListState()
     TabReselectionEffect { listState.animateScrollToItem(0) }
@@ -155,11 +155,13 @@ fun GlobalSessionsScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
-                                        Box(
-                                            Modifier.size(34.dp).background(colors.goldGhost, CircleShape),
-                                            contentAlignment = Alignment.Center,
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
                                         ) {
-                                            Text("${item.number}", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Icon(Icons.Outlined.CalendarMonth, contentDescription = null,
+                                                tint = colors.gold, modifier = Modifier.size(24.dp))
+                                            Text("${item.number}", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         }
                                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                             Text(item.patient.displayName(unnamed), color = colors.textBright, fontWeight = FontWeight.SemiBold)
@@ -183,7 +185,7 @@ fun GlobalSessionsScreen(
             }
             }
             PrimaryActionButton(
-                label = stringResource(if (groups.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action),
+                label = stringResource(if (hasRecovery) R.string.resume_session_summary else if (groups.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action),
                 icon = Icons.Outlined.Add,
                 onClick = onCreateSession,
                 modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp).entitlementCreateControl(),

@@ -20,6 +20,8 @@ struct SessionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
+    @State private var recovery = DeviceFormDraft<SessionRecovery>()
+    @State private var recoveryClosed = false
     @State private var isSaving = false
     @State private var selectedPatientID: DatabaseID?
     /// Status line under the busy spinner; the anonymization notice during
@@ -64,6 +66,17 @@ struct SessionEditorView: View {
         }
         if voiceRecorder.recordingURL != nil { return true }
         return false
+    }
+
+    private var recoveryValue: SessionRecovery {
+        SessionRecovery(date: session.date, notes: session.notes, type: session.type, structuredNotes: session.structuredNotes, selectedPatientID: selectedPatientID)
+    }
+
+    private func persistRecovery() {
+        guard recovery.hasLoaded, !recoveryClosed else { return }
+        // A failed read must never clear the previous recoverable text.
+        guard !recovery.hasError || hasUnsavedChanges else { return }
+        recovery.save(recoveryValue, isEmpty: !hasUnsavedChanges && !isNew || (isNew && session.notes.isEmpty && session.type == nil && session.structuredNotes == nil))
     }
 
     private var isWorking: Bool {
@@ -152,6 +165,9 @@ struct SessionEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let feedback = recovery.feedback {
+                    Section { DeviceDraftFeedback(message: recovery.hasError ? feedback : (feedback == L10n.deviceDraftRestored ? L10n.sessionRecoveryRestored : L10n.sessionRecoverySaved), isError: recovery.hasError) }
+                }
                 if isNew && patient == nil {
                     Section {
                         patientPicker
@@ -422,7 +438,21 @@ struct SessionEditorView: View {
                 if canSave {
                     Button(L10n.saveChangesAction) { save(thenDismiss: true) }
                 }
+                if voiceRecorder.recordingURL == nil {
+                    Button(L10n.keepDraftAndLeave) {
+                        persistRecovery()
+                        guard !recovery.hasError else { return }
+                        recoveryClosed = true
+                        if let initialDate { session.date = initialDate }
+                        if let initialNotes { session.notes = initialNotes }
+                        session.type = initialType
+                        session.structuredNotes = initialStructuredNotes
+                        dismiss()
+                    }
+                }
                 Button(L10n.discardChangesAction, role: .destructive) {
+                    guard recovery.discard() else { return }
+                    recoveryClosed = true
                     // The session object is shared, so revert the edits
                     // instead of leaving them in memory unsaved.
                     if let initialDate { session.date = initialDate }
@@ -530,13 +560,27 @@ struct SessionEditorView: View {
                     acceptedAnalysisSource = session.notes
                     initialType = session.type
                     initialStructuredNotes = session.structuredNotes
+                    let target = isNew ? "new:\(patient?.id.queryValue ?? "global")" : "session:\(session.databaseID?.queryValue ?? session.id.uuidString)"
+                    if let saved = recovery.restore(userID: auth.currentUserId, kind: store.isDemoMode ? "demo-session" : "therapist-session", target: target) {
+                        session.date = saved.date
+                        session.notes = saved.notes
+                        session.type = saved.type
+                        session.structuredNotes = saved.structuredNotes
+                        selectedPatientID = saved.selectedPatientID
+                    }
                 }
                 gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: storePatient?.id)
                 gettingStartedRouter.refresh(using: store)
             }
+            .task(id: recoveryValue) {
+                do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
+                persistRecovery()
+            }
+            .onDisappear { persistRecovery() }
             .task { await refreshQuestionnaireState() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await refreshQuestionnaireState() } }
+                else { persistRecovery() }
             }
             .sheet(isPresented: $isShowingAllFollowUps) {
                 NavigationStack {
@@ -733,6 +777,7 @@ struct SessionEditorView: View {
         busyLabel = L10n.anonymizingStatusLabel
         do {
             try await store.updateSession(session)
+            recovery.discard()
             // The silent save is the new baseline, so backing out without
             // further edits no longer warns about unsaved changes.
             initialDate = session.date
@@ -754,6 +799,8 @@ struct SessionEditorView: View {
         Task {
             do {
                 try await store.deleteSession(session, for: storePatient)
+                recoveryClosed = true
+                recovery.discard()
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
@@ -954,11 +1001,14 @@ struct SessionEditorView: View {
             do {
                 if isNew {
                     try await store.addSession(session, for: patient)
+                    recoveryClosed = true
+                    recovery.discard()
                     showingNotesEditor = false
                     gettingStartedRouter.refresh(using: store)
                     dismiss()
                 } else {
                     try await store.updateSession(session)
+                    recovery.discard()
                     // The save is the new baseline, so backing out without
                     // further edits no longer warns about unsaved changes.
                     initialDate = session.date
@@ -985,4 +1035,12 @@ struct SessionEditorView: View {
         .environment(PatientStore(client: auth.client))
         .environment(GettingStartedRouter())
         .appTextSize()
+}
+
+struct SessionRecovery: Codable, Equatable {
+    var date: Date
+    var notes: String
+    var type: SessionType?
+    var structuredNotes: WhisperService.CBTSessionAnalysis?
+    var selectedPatientID: DatabaseID?
 }

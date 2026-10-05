@@ -148,7 +148,8 @@ fun PatientDiaryTwoHubScreen(
                     .padding(top = 12.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                if (!active) Text(stringResource(R.string.patient_diary_two_not_active), color = colors.textBody)
+                Text(stringResource(R.string.patient_diary_two_description), color = colors.textBody)
+                PatientToolStatus(active)
                 if (state.historyFailed) {
                     Text(stringResource(R.string.diary_two_load_failed), color = colors.error)
                     TextButton(onClick = vm::refresh) { Text(stringResource(R.string.retry_action)) }

@@ -275,6 +275,12 @@ fun PatientModeScreen(
                 messages = messages,
                 patientId = patientId,
                 lastQuestionnaire = questionnaireHistory.maxByOrNull { it.answeredDate }?.answeredDate,
+                lastSubmissions = mapOf(
+                    PatientAssignmentType.Questionnaire to questionnaireHistory.maxByOrNull { it.answeredDate }?.answeredDate,
+                    PatientAssignmentType.DiaryOne to diaryEntries.maxByOrNull { it.createdAt }?.createdAt,
+                    PatientAssignmentType.DiaryTwo to diaryTwoEntries.maxByOrNull { it.createdAt }?.createdAt,
+                    PatientAssignmentType.DiaryThree to diaryThreeEntries.maxByOrNull { it.createdAt }?.createdAt,
+                ),
                 historyTypes = PatientAssignmentType.entries.filter { type ->
                     PatientHomeSnapshot(questionnaires = questionnaireHistory, diaryOne = diaryEntries,
                         diaryTwo = diaryTwoEntries, diaryThree = diaryThreeEntries).hasHistory(type)
@@ -558,6 +564,7 @@ private fun PatientHomeContent(
     messages: List<PatientMessage>,
     patientId: String,
     lastQuestionnaire: Date?,
+    lastSubmissions: Map<PatientAssignmentType, Date?>,
     historyTypes: Set<PatientAssignmentType>,
     onResume: (PatientAssignment) -> Unit,
     onOpenSettings: () -> Unit,
@@ -657,10 +664,14 @@ private fun PatientHomeContent(
                                             PatientAssignmentType.DiaryThree -> onOpenDiaryThree()
                                         }
                                     }.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        Icon(if (type == PatientAssignmentType.Questionnaire) Icons.Outlined.Assignment else Icons.Outlined.MenuBook, contentDescription = null, tint = colors.gold)
+                                        Icon(if (type == PatientAssignmentType.Questionnaire) Icons.Outlined.Assignment else Icons.Outlined.MenuBook, contentDescription = null, tint = if (active) colors.success else colors.textBody)
                                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(stringResource(title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                                            Text(stringResource(if (active) R.string.patient_tool_enabled else R.string.patient_history_only), color = colors.textBody, fontSize = 12.sp)
+                                            Text(stringResource(when (type) { PatientAssignmentType.Questionnaire -> R.string.tool_questionnaire_purpose; PatientAssignmentType.DiaryOne -> R.string.patient_diary_one_purpose; PatientAssignmentType.DiaryTwo -> R.string.patient_diary_two_purpose; PatientAssignmentType.DiaryThree -> R.string.patient_diary_three_description }), color = colors.textBody, fontSize = 12.sp, maxLines = 2)
+                                            PatientToolStatus(active)
+                                            lastSubmissions[type]?.let {
+                                                Text(stringResource(R.string.tool_last_sent, com.cbtipul.app.ui.theme.hebrewDate(it)), color = colors.textBody, fontSize = 12.sp)
+                                            }
                                         }
                                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
                                     }

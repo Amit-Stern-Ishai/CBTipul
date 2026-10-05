@@ -131,6 +131,7 @@ fun PatientDetailScreen(
     onOpenSessions: () -> Unit,
     onOpenQuestionnaires: () -> Unit,
     onOpenGraphs: () -> Unit = {},
+    onOpenRecent: (String) -> Unit = {},
     onOpenDiaryOne: () -> Unit = {},
     onOpenDiaryTwo: () -> Unit = {},
     onOpenDiaryThree: () -> Unit = {},
@@ -340,6 +341,7 @@ fun PatientDetailScreen(
                 }
             }
             PatientConnectionActions(patient, name, assignmentRepository, isDemo, busy || isCreatingInvitation, onInvitePatient, onSendMessage)
+            PatientRecentActivity(patient, isDemo, onOpenRecent)
             Text(stringResource(R.string.patient_records_title), color = colors.textBody)
             GroupedListCard(accent = accent) {
                 IconChipRow(Icons.Outlined.DateRange, stringResource(R.string.sessions_title), detail = stringResource(R.string.patient_sessions_description), onClick = onOpenSessions)
@@ -354,11 +356,11 @@ fun PatientDetailScreen(
                 ) {
                     Column {
                         IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_one_title),
-                            detail = stringResource(R.string.patient_diary_one_description), onClick = onOpenDiaryOne)
+                            onClick = onOpenDiaryOne)
                         IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_two_title),
-                            detail = stringResource(R.string.patient_diary_two_description), onClick = onOpenDiaryTwo)
+                            onClick = onOpenDiaryTwo)
                         IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_three_title),
-                            detail = stringResource(R.string.patient_diary_three_description), onClick = onOpenDiaryThree)
+                            onClick = onOpenDiaryThree)
                     }
                 }
                 GroupedListDivider()
