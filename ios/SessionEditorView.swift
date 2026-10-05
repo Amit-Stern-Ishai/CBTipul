@@ -165,8 +165,8 @@ struct SessionEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let feedback = recovery.feedback {
-                    Section { DeviceDraftFeedback(message: recovery.hasError ? feedback : (feedback == L10n.deviceDraftRestored ? L10n.sessionRecoveryRestored : L10n.sessionRecoverySaved), isError: recovery.hasError) }
+                if recovery.hasError, let feedback = recovery.feedback {
+                    Section { DeviceDraftFeedback(message: feedback, isError: true) }
                 }
                 if isNew && patient == nil {
                     Section {

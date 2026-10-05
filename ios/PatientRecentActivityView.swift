@@ -29,19 +29,19 @@ struct PatientRecentActivityView: View {
                         ForEach(questionnaires) { record in
                             NavigationLink {
                                 CompletedQuestionnaireView(record: record, patient: patient)
-                            } label: { row(L10n.questionnairesTitle, date: record.answeredDate) }
+                            } label: { row(L10n.questionnaireItemTitle, icon: "list.clipboard", date: record.answeredDate) }
                         }
                         ForEach(one) { entry in
                             NavigationLink { PatientDiaryOneDetailView(entry: entry, therapistViewing: true) }
-                            label: { row(L10n.diaryOneTitle, date: entry.createdAt) }
+                            label: { row(L10n.diaryOneTitle, icon: "book.closed", date: entry.createdAt) }
                         }
                         ForEach(two) { entry in
                             NavigationLink { DiaryTwoEntryDetailView(patient: patient, entryID: entry.id) }
-                            label: { row(L10n.diaryTwoTitle, date: entry.createdAt) }
+                            label: { row(L10n.diaryTwoTitle, icon: "book.closed", date: entry.createdAt) }
                         }
                         ForEach(three) { entry in
                             NavigationLink { DiaryThreeEntryDetailView(patient: patient, entryID: entry.id) }
-                            label: { row(L10n.diaryThreeTitle, date: entry.createdAt) }
+                            label: { row(L10n.diaryThreeTitle, icon: "book.closed", date: entry.createdAt) }
                         }
                     }
                     if failed {
@@ -76,10 +76,13 @@ struct PatientRecentActivityView: View {
         }
     }
 
-    private func row(_ title: String, date: Date) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-            Text(date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+    private func row(_ title: String, icon: String, date: Date) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).foregroundStyle(Theme.gold).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                Text(L10n.hebrewDateTime(date)).font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 }

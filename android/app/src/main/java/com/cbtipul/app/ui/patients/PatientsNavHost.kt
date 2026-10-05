@@ -798,6 +798,7 @@ fun PatientsNavHost(
             val existing = records.firstOrNull { it.sessionId?.queryValue == sessionId }?.questionnaire
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } }
             QuestionnaireScreen(
+                patientName = patient?.displayName(unnamed).orEmpty(),
                 session = session,
                 existing = existing,
                 patientSubmitted = records.firstOrNull { it.sessionId?.queryValue == sessionId }?.createdBy == "patient",
@@ -873,6 +874,7 @@ fun PatientsNavHost(
                 viewModel.session(id, sid.queryValue) ?: Session(databaseId = sid, date = record.answeredDate)
             } ?: record?.let { Session(date = it.answeredDate) } ?: if (moodId == "new") remember { Session() } else null
             QuestionnaireScreen(
+                patientName = patient?.displayName(unnamed).orEmpty(),
                 session = session,
                 existing = record?.questionnaire,
                 patientSubmitted = record?.createdBy == "patient",

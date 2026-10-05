@@ -104,7 +104,6 @@ struct PatientDiaryGuide: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(isDiaryTwo ? L10n.patientDiaryTwoPurpose : L10n.patientDiaryOnePurpose).font(.headline)
-            Text(L10n.patientSharingHelp).font(.subheadline).foregroundStyle(Theme.textBody)
             DisclosureGroup(L10n.patientExampleAction) {
                 Text(isDiaryTwo ? L10n.patientDiaryTwoExample : L10n.patientDiaryOneExample)
                     .font(.subheadline).foregroundStyle(Theme.textBody)

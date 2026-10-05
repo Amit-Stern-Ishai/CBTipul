@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -11,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cbtipul.app.CbTipulApp
 import com.cbtipul.app.R
@@ -38,7 +41,7 @@ fun PatientRecentActivity(patient: Patient, isDemo: Boolean, onOpen: (String) ->
         one[id].orEmpty().filter { it.createdBy == DiaryOneEntryCreator.Patient }.forEach { add(RecentSubmission("patient/$id/diary-one?entry=${it.id}", R.string.diary_one_title, it.createdAt)) }
         two[id].orEmpty().filter { it.createdBy == DiaryOneEntryCreator.Patient }.forEach { add(RecentSubmission("patient/$id/diary-two?entry=${it.id}", R.string.diary_two_title, it.createdAt)) }
         three[id].orEmpty().filter { it.createdBy == DiaryOneEntryCreator.Patient }.forEach { add(RecentSubmission("patient/$id/diary-three?entry=${it.id}", R.string.diary_three_title, it.createdAt)) }
-        questionnaires[id].orEmpty().filter { it.createdBy == "patient" }.forEach { add(RecentSubmission("patient/$id/questionnaire-result/${it.databaseId.queryValue}", R.string.questionnaires_title, it.answeredDate)) }
+        questionnaires[id].orEmpty().filter { it.createdBy == "patient" }.forEach { add(RecentSubmission("patient/$id/questionnaire-result/${it.databaseId.queryValue}", R.string.questionnaire_item_title, it.answeredDate)) }
     }.filter { cutoff == null || it.date.after(cutoff) }.sortedByDescending { it.date }
     LaunchedEffect(id, revision) {
         if (!isDemo) {
@@ -52,10 +55,14 @@ fun PatientRecentActivity(patient: Patient, isDemo: Boolean, onOpen: (String) ->
     if (items.isEmpty() || dismissed) return
 
     GroupedListCard(accent = Theme.colors.gold) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(if (cutoff == null) R.string.recent_patient_submissions else R.string.since_last_session),
-                    modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = Theme.colors.textBright)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(if (cutoff == null) R.string.recent_patient_submissions else R.string.since_last_session),
+                        style = MaterialTheme.typography.titleMedium, lineHeight = 20.sp, color = Theme.colors.textBright)
+                    if (cutoff != null) Text(stringResource(R.string.recent_since_date, hebrewDate(cutoff)),
+                        color = Theme.colors.textBody, fontSize = 12.sp, lineHeight = 16.sp)
+                }
                 FilledTonalIconButton(onClick = { dismissed = true },
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = Theme.colors.elevated, contentColor = Theme.colors.textBright)) {
@@ -63,13 +70,17 @@ fun PatientRecentActivity(patient: Patient, isDemo: Boolean, onOpen: (String) ->
                         modifier = Modifier.size(18.dp), tint = Theme.colors.textBright)
                 }
             }
-            if (cutoff != null) Text(stringResource(R.string.recent_since_date, hebrewDate(cutoff)), color = Theme.colors.textBody)
             if (items.isNotEmpty()) {
-                TextButton(onClick = { expanded = !expanded }) { Text(stringResource(R.string.recent_submission_count, items.size) + " · " + stringResource(if (expanded) R.string.close_action else R.string.recent_view)) }
+                TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(0.dp)) { Text(stringResource(R.string.recent_submission_count, items.size) + " · " + stringResource(if (expanded) R.string.close_action else R.string.recent_view)) }
                 if (expanded) items.forEach { item ->
-                    Column(Modifier.fillMaxWidth().clickable { onOpen(item.route) }.padding(vertical = 10.dp)) {
-                        Text(stringResource(item.title), color = Theme.colors.textBright)
-                        Text(hebrewDate(item.date), color = Theme.colors.textBody)
+                    Row(Modifier.fillMaxWidth().clickable { onOpen(item.route) }.padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (item.title == R.string.questionnaire_item_title) Icons.Outlined.Assignment else Icons.Outlined.Book,
+                            contentDescription = null, tint = Theme.colors.gold, modifier = Modifier.size(22.dp))
+                        Column {
+                            Text(stringResource(item.title), color = Theme.colors.textBright)
+                            Text(hebrewDate(item.date), color = Theme.colors.textBody, fontSize = 12.sp, lineHeight = 16.sp)
+                        }
                     }
                 }
             }

@@ -13,7 +13,6 @@ struct PatientDiaryThreeEntryView: View {
 
     @State private var draft = PatientDiaryThreeDraft()
     @State private var deviceDraft = DeviceFormDraft<PatientDiaryThreeDraft>()
-    @State private var reviewShowing = false
     @State private var editSection = 1
     @State private var didSubmit = false
     @State private var isSaving = false
@@ -33,7 +32,6 @@ struct PatientDiaryThreeEntryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(L10n.patientSharingHelp).font(.subheadline).foregroundStyle(Theme.textBody)
                 DeviceDraftFeedback(message: deviceDraft.feedback, isError: deviceDraft.hasError)
                 Text(L10n.patientDiaryThreeStepHints[draft.currentStep - 1])
                     .foregroundStyle(Theme.textBody).fixedSize(horizontal: false, vertical: true)
@@ -54,12 +52,6 @@ struct PatientDiaryThreeEntryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .busyOverlay(isBusy, label: L10n.patientDiaryOneSubmitting)
-        .sheet(isPresented: $reviewShowing) {
-            PatientSubmissionReview(sections: draft.reviewSections, onEdit: { index in
-                draft.currentStep = index + 1
-                reviewShowing = false
-            }, onSend: { reviewShowing = false; Task { await submit(confirmed: true) } })
-        }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(L10n.patientDiaryThreeProgress(draft.currentStep)).font(.subheadline.weight(.semibold))
@@ -79,7 +71,7 @@ struct PatientDiaryThreeEntryView: View {
                         else { await submit() }
                     }
                 } label: {
-                    Text(didSubmit ? L10n.retryAction : (draft.currentStep == 7 ? L10n.reviewBeforeSending : L10n.introductionNext))
+                    Text(didSubmit ? L10n.retryAction : (draft.currentStep == 7 ? L10n.patientDiaryOneSaveAction : L10n.introductionNext))
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity, minHeight: 30)
                 }
@@ -183,7 +175,7 @@ struct PatientDiaryThreeEntryView: View {
         }
     }
 
-    private func submit(confirmed: Bool = false) async {
+    private func submit() async {
         guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy, !didSubmit else { return }
         if let step = draft.firstInvalidStep {
@@ -197,7 +189,6 @@ struct PatientDiaryThreeEntryView: View {
             isShowingValidationAlert = true
             return
         }
-        if !confirmed { reviewShowing = true; return }
         isSaving = true
         errorMessage = nil
         do {

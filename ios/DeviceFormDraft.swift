@@ -129,7 +129,7 @@ struct DeviceDraftFeedback: View {
     var isError = false
 
     var body: some View {
-        if let message {
+        if isError, let message {
             Label(message, systemImage: isError ? "exclamationmark.triangle" : "iphone")
                 .font(.footnote)
                 .foregroundStyle(isError ? Theme.error : Theme.textBody)

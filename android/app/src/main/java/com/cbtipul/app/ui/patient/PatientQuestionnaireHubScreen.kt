@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
@@ -26,7 +27,7 @@ import com.cbtipul.app.ui.patients.PHQ9ScoreCapsule
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.themedScreen
 import kotlinx.coroutines.CancellationException
-import java.text.DateFormat
+import com.cbtipul.app.ui.theme.hebrewDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,10 +98,14 @@ fun PatientQuestionnaireHubScreen(
             if (history.isEmpty() && !historyFailed && !loading) item { Text(stringResource(R.string.patient_questionnaire_history_empty), color = Theme.colors.textBody) }
             items(history, key = { it.databaseId.queryValue }) { record ->
                 OutlinedCard(onClick = { onOpen(record) }, modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(record.answeredDate))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            GAD7ScoreCapsule(record.questionnaire, null); PHQ9ScoreCapsule(record.questionnaire, null)
+                    Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.Assignment, contentDescription = null, tint = Theme.colors.gold, modifier = Modifier.size(22.dp))
+                            Text(hebrewDateTime(record.answeredDate))
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = androidx.compose.ui.Alignment.End) {
+                            GAD7ScoreCapsule(record.questionnaire, null)
+                            PHQ9ScoreCapsule(record.questionnaire, null)
                         }
                     }
                 }
@@ -122,7 +127,7 @@ fun PatientQuestionnaireResultScreen(record: CompletedQuestionnaire?, onBack: ()
             if (record == null) item { Text(stringResource(R.string.patient_questionnaire_history_error), color = Theme.colors.textBody) }
             else {
                 item {
-                    Text(DateFormat.getDateTimeInstance().format(record.answeredDate), color = Theme.colors.textBright)
+                    Text(hebrewDateTime(record.answeredDate), color = Theme.colors.textBright)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         GAD7ScoreCapsule(record.questionnaire, null); PHQ9ScoreCapsule(record.questionnaire, null)
                     }

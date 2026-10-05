@@ -12,6 +12,9 @@ import com.cbtipul.app.model.missingRequiredAnswers
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,6 +83,7 @@ fun QuestionnaireScreen(
     session: Session?,
     existing: CombinedMoodQuestionnaire?,
     patientSubmitted: Boolean = false,
+    patientName: String = "",
     allowRecordEditing: Boolean = true,
     previous: CompletedQuestionnaire?,
     atmosphere: Color?,
@@ -143,7 +147,7 @@ fun QuestionnaireScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(stringResource(R.string.questionnaire_section_title), color = colors.textBright)
+                        Text(if (patientName.isBlank()) stringResource(R.string.questionnaire_section_title) else patientName, color = colors.textBright, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         Text(hebrewDate(session?.date ?: java.util.Date()), color = colors.textBody, fontSize = 13.sp)
                     }
                 },
@@ -183,8 +187,8 @@ fun QuestionnaireScreen(
             )
         },
         bottomBar = {
-            if (isEditing && canMutate) Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                QuestionnaireProgress(16 - missingAnswers.size, 16, !isSaving, ::showMissingAnswers)
+            if (isEditing && canMutate) Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                QuestionnaireProgress(16 - missingAnswers.size, 16, !isSaving, ::showMissingAnswers, compact = true)
                 Button(onClick = { if (missingAnswers.isEmpty()) onSave(draft) else showMissingAnswers() }, enabled = !isSaving, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.save))
                 }
@@ -196,29 +200,20 @@ fun QuestionnaireScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .editorScroll()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (patientSubmitted) Text(stringResource(R.string.patient_submission_read_only), color = colors.textBody)
             Text(stringResource(R.string.gad7_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
             GroupedListCard(accent = accent) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.answer_key_title), color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    answers.forEach { Text(it, color = colors.textBody, fontSize = 13.sp) }
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (patientSubmitted) Text(stringResource(R.string.patient_submission_read_only), color = colors.textBody, fontSize = 12.sp)
+                    Text(aiMarkdown(stringResource(R.string.gad7_main_question)), color = colors.textBright, fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold)
+                    Text(answers.joinToString("  ·  ") { "\u2068$it\u2069" },
+                        color = colors.textBody, fontSize = 12.sp, lineHeight = 17.sp)
                     previous?.let {
-                        Text(
-                            stringResource(R.string.previous_answer_legend, hebrewDate(it.answeredDate)),
-                            color = colors.warning,
-                            fontSize = 13.sp,
-                        )
+                        Text(stringResource(R.string.previous_answer_legend, hebrewDate(it.answeredDate)), color = colors.warning, fontSize = 12.sp, lineHeight = 16.sp)
                     }
                 }
-                GroupedListDivider()
-                Text(
-                    aiMarkdown(stringResource(R.string.gad7_main_question)),
-                    color = colors.textBright,
-                    modifier = Modifier.padding(16.dp),
-                )
                 gad7.forEachIndexed { index, question ->
                     GroupedListDivider()
                     RequiredQuestion(questionTargets[index + 0], highlightMissing && (index + 0) in missingAnswers) {
@@ -252,7 +247,10 @@ fun QuestionnaireScreen(
                 Text(
                     aiMarkdown(stringResource(R.string.phq9_main_question)),
                     color = colors.textBright,
-                    modifier = Modifier.padding(16.dp),
+                    fontSize = 16.sp,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
                 phq9.forEachIndexed { index, question ->
                     GroupedListDivider()
@@ -441,40 +439,33 @@ private fun InterferenceBlock(
     onNote: (String) -> Unit,
 ) {
     val colors = Theme.colors
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Text(
                 aiMarkdown(stringResource(R.string.phq9_interference_question)),
                 color = colors.textBright,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
                 modifier = Modifier.weight(1f),
             )
             NoteButton(note = note, editable = editable, onNote = onNote)
         }
         if (note.isNotBlank()) NoteBox(note)
-        options.forEachIndexed { index, option ->
+        options.indices.forEach { index ->
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = editable) { onSelect(index) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .selectable(selected = selection == index, enabled = editable, role = Role.RadioButton) { onSelect(index) },
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 RadioButton(
-                    selected = selection == index,
-                    onClick = { if (editable) onSelect(index) },
-                    enabled = editable,
-                    colors = RadioButtonDefaults.colors(
-                        selectedColor = colors.gold,
-                        unselectedColor = colors.textBody,
-                    ),
+                    selected = selection == index, onClick = null, enabled = editable,
+                    modifier = Modifier.size(20.dp),
+                    colors = RadioButtonDefaults.colors(selectedColor = colors.gold, unselectedColor = colors.textBody),
                 )
-                Text(option, color = colors.textBright, modifier = Modifier.weight(1f))
+                Text(options[index], color = colors.textBright, modifier = Modifier.weight(1f), fontSize = 13.sp, lineHeight = 18.sp)
                 if (previousSelection == index) {
-                    Icon(
-                        Icons.Outlined.History,
-                        contentDescription = null,
-                        tint = colors.warning,
-                        modifier = Modifier.size(18.dp),
-                    )
+                    Icon(Icons.Outlined.History, contentDescription = null, tint = colors.warning, modifier = Modifier.size(16.dp))
                 }
             }
         }

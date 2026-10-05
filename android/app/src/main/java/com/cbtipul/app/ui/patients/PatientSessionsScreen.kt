@@ -286,7 +286,9 @@ private fun sessionScores(
 @Composable
 internal fun PatientContextTitle(title: String, name: String, onOpenPatient: () -> Unit) {
     androidx.compose.material3.TextButton(onClick = onOpenPatient,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+        // A pill shape clips the right edge of the two-line RTL title when padding is zero.
+        shape = androidx.compose.ui.graphics.RectangleShape,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 0.dp)) {
         Column {
             Text(title, color = Theme.colors.textBright, fontWeight = FontWeight.SemiBold, maxLines = 1)
             androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {

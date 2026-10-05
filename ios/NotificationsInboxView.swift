@@ -236,7 +236,7 @@ private struct NotificationInboxRow: View {
 
     private var symbol: String {
         switch item.type {
-        case .questionnaireCompleted: "checklist"
+        case .questionnaireCompleted: "list.clipboard"
         case .patientConnected: "person.crop.circle.badge.checkmark"
         case .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded: "book.closed"
         default: "bell"

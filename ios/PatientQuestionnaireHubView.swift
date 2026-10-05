@@ -48,9 +48,13 @@ struct PatientQuestionnaireHubView: View {
                         .navigationTitle(L10n.hebrewDate(record.answeredDate))
                         .navigationBarTitleDisplayMode(.inline)
                     } label: {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(record.answeredDate.formatted(date: .abbreviated, time: .shortened))
-                            HStack { ScoreCapsule.gad7(record.questionnaire); ScoreCapsule.phq9(record.questionnaire) }
+                        HStack(spacing: 12) {
+                            Label(record.answeredDate.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: Locale(identifier: "he_IL"))), systemImage: "list.clipboard")
+                            Spacer(minLength: 8)
+                            VStack(alignment: .trailing, spacing: 6) {
+                                ScoreCapsule.gad7(record.questionnaire)
+                                ScoreCapsule.phq9(record.questionnaire)
+                            }
                         }.padding(.vertical, 4)
                     }
                 }

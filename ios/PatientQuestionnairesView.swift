@@ -232,10 +232,11 @@ struct PatientQuestionnairesView: View {
     /// (up = worse = red, down = better = green).
     private func questionnaireRow(_ record: CompletedQuestionnaire) -> some View {
         let previous = previousQuestionnaire(before: record)?.questionnaire
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.hebrewDate(record.answeredDate))
+        return HStack(spacing: 12) {
+            Label(L10n.hebrewDate(record.answeredDate), systemImage: "list.clipboard")
                 .font(.headline)
-            HStack(spacing: 8) {
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 6) {
                 ScoreCapsule.gad7(record.questionnaire, previous: previous)
                 ScoreCapsule.phq9(record.questionnaire, previous: previous)
             }

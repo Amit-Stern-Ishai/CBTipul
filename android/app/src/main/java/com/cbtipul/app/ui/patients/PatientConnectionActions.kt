@@ -76,7 +76,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
     var sheet by remember { mutableStateOf<String?>(null) }
     var sending by remember { mutableStateOf(false) }
     GroupedListCard(accent = PatientAvatarColor.background(patient.id)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             when (connection) {
                 ConnectionUi.Checking -> Text(stringResource(R.string.patient_connection_checking), color = colors.textBody)
                 ConnectionUi.Connected -> {

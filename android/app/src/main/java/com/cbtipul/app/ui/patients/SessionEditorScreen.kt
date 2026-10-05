@@ -412,8 +412,7 @@ fun SessionEditorScreen(
         },
         bottomBar = {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                if (editorDraft.recoverySaved || editorDraft.recoveryFailed) Text(stringResource(if (editorDraft.recoveryFailed) R.string.draft_save_failed else R.string.session_recovery_saved), color = if (editorDraft.recoveryFailed) colors.error else colors.textBody)
-                if (editorDraft.recoveryRestored) Text(stringResource(R.string.session_recovery_restored), color = colors.textBody)
+                if (editorDraft.recoveryFailed) Text(stringResource(R.string.draft_save_failed), color = colors.error)
                 if (hasUnsavedChanges && !busy && recorder.recordingFile == null) TextButton(onClick = { if (editorDraft.persistRecovery()) onBack() }) { Text(stringResource(R.string.keep_draft_and_leave)) }
                 val status = when {
                     recorder.isRecording -> R.string.session_recording_in_progress

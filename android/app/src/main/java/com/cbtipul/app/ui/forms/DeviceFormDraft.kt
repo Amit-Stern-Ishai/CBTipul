@@ -63,10 +63,9 @@ fun <T> rememberDeviceFormDraft(kind: String, target: String, serializer: KSeria
 
 @Composable
 fun DraftStatus(failed: Boolean, visible: Boolean = true) {
-    if (!visible && !failed) return
-    IconLabel(stringResource(if (failed) R.string.draft_save_failed else R.string.draft_saved),
-        if (failed) Icons.Outlined.WarningAmber else Icons.Outlined.PhoneAndroid,
-        color = if (failed) Theme.colors.error else Theme.colors.textBody)
+    if (!failed) return
+    IconLabel(stringResource(R.string.draft_save_failed),
+        Icons.Outlined.WarningAmber, color = Theme.colors.error)
 }
 
 @Composable

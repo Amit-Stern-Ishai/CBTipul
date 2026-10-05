@@ -777,7 +777,6 @@ struct PatientQuestionnaireView: View {
 
     @State private var questionnaire = CombinedMoodQuestionnaire()
     @State private var deviceDraft = DeviceFormDraft<CombinedMoodQuestionnaire>()
-    @State private var reviewShowing = false
     @State private var isSubmitting = false
     @State private var didSubmit = false
     @State private var inactive = false
@@ -830,16 +829,6 @@ struct PatientQuestionnaireView: View {
             .navigationBarBackButtonHidden(true)
             .interactiveDismissDisabled(!questionnaire.isEmpty || isSubmitting)
             .busyOverlay(isSubmitting, label: L10n.patientQuestionnaireSubmitting)
-            .sheet(isPresented: $reviewShowing) {
-                PatientSubmissionReview(sections: questionnaire.reviewSections, onEdit: { index in
-                    reviewShowing = false
-                    // Use the existing question anchors after the review closes.
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(350))
-                        proxy.scrollTo(index < 7 ? QuestionnaireItem.gad7(index) : index < 16 ? QuestionnaireItem.phq9(index - 7) : QuestionnaireItem.interference, anchor: .top)
-                    }
-                }, onSend: { reviewShowing = false; Task { await submit(confirmed: true) } })
-            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.back) {
@@ -850,7 +839,7 @@ struct PatientQuestionnaireView: View {
                     .disabled(isSubmitting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(didSubmit ? L10n.retryAction : L10n.reviewBeforeSending) {
+                    Button(didSubmit ? L10n.retryAction : L10n.patientQuestionnaireSubmitAction) {
                         if didSubmit { Task { await finishSuccessfully() } }
                         else if !inactive && completion.firstUnanswered == nil { Task { await submit() } }
                         else { revealUnanswered(using: proxy) }
@@ -885,11 +874,10 @@ struct PatientQuestionnaireView: View {
         deviceDraft.save(questionnaire, isEmpty: questionnaire.isEmpty)
     }
 
-    private func submit(confirmed: Bool = false) async {
+    private func submit() async {
         guard EntitlementState.shared.allowMutation() else { return }
         guard !isSubmitting, !didSubmit, completion.firstUnanswered == nil,
               let interference = questionnaire.interferenceLevel else { return }
-        if !confirmed { reviewShowing = true; return }
         isSubmitting = true
         errorMessage = nil
         do {

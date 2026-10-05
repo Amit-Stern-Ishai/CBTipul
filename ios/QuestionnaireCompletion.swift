@@ -57,21 +57,22 @@ struct TherapistQuestionnaireCompletionGuide: ViewModifier {
             content
                 .safeAreaInset(edge: .top, spacing: 0) {
                     if isEditing {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(L10n.questionnaireCompletion(completion.answered, total: completion.total))
-                                .font(.subheadline.weight(.semibold))
-                            ProgressView(value: Double(completion.answered), total: Double(completion.total))
-                                .accessibilityLabel(L10n.questionnaireCompletion(completion.answered, total: completion.total))
+                        Group {
                             if completion.firstUnanswered != nil {
-                                Button(L10n.nextUnansweredAction) {
+                                Button {
                                     marksUnanswered = true
                                     scrollToMissing(proxy)
+                                } label: {
+                                    completionRow
                                 }
-                                .font(.subheadline)
+                                .buttonStyle(.plain)
+                                .accessibilityHint(L10n.nextUnansweredAction)
+                            } else {
+                                completionRow
                             }
                         }
-                        .padding(16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 4)
                         .background(Theme.base)
                     }
                 }
@@ -82,6 +83,19 @@ struct TherapistQuestionnaireCompletionGuide: ViewModifier {
                     revealMissing = false
                 }
         }
+    }
+
+    private var completionRow: some View {
+        HStack(spacing: 8) {
+            Text(L10n.questionnaireCompletion(completion.answered, total: completion.total))
+                .font(.subheadline)
+            Spacer(minLength: 8)
+            Image(systemName: completion.firstUnanswered == nil ? "checkmark.circle" : "arrow.down.circle")
+                .accessibilityHidden(true)
+        }
+        .foregroundStyle(completion.firstUnanswered == nil ? Theme.success : Theme.gold)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
     }
 
     private func scrollToMissing(_ proxy: ScrollViewProxy) {

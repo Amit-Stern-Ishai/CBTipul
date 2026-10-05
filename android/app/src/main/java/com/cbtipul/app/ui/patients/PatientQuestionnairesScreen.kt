@@ -241,15 +241,19 @@ fun PatientQuestionnairesScreen(
                 GroupedListCard(accent = atmosphere ?: colors.gold) {
                     newestFirst.forEachIndexed { index, record ->
                         val previous = newestFirst.getOrNull(index + 1)?.questionnaire
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onOpen(record) }
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(hebrewDate(record.answeredDate), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.Assignment, contentDescription = null, tint = colors.gold, modifier = Modifier.size(22.dp))
+                                Text(hebrewDate(record.answeredDate), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.End) {
                                 GAD7ScoreCapsule(record.questionnaire, previous)
                                 PHQ9ScoreCapsule(record.questionnaire, previous)
                             }

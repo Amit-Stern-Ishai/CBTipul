@@ -301,8 +301,8 @@ fun PatientDetailScreen(
                 .padding(padding)
                 .imePadding()
                 .editorScroll()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val accent = PatientAvatarColor.background(patient.id)
             if (!showNotes) {
@@ -574,9 +574,9 @@ private fun IconChipRow(
         modifier = modifier.then(Modifier)
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(
             modifier = Modifier
@@ -586,9 +586,9 @@ private fun IconChipRow(
         ) {
             Icon(icon, contentDescription = null, tint = colors.gold, modifier = Modifier.size(18.dp))
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold)
-            detail?.let { Text(it, color = colors.textBody, style = MaterialTheme.typography.bodyMedium) }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 20.sp)
+            detail?.let { Text(it, color = colors.textBody, fontSize = 13.sp, lineHeight = 18.sp) }
         }
         trailing()
     }

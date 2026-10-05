@@ -13,7 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
-import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PersonAddAlt1
 import androidx.compose.material3.Card
@@ -188,7 +188,7 @@ private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> 
         else -> colors.gold
     }
     val icon = when (kind) {
-        InboxCopyKind.QuestionnaireCompleted -> Icons.Outlined.Checklist
+        InboxCopyKind.QuestionnaireCompleted -> Icons.Outlined.Assignment
         InboxCopyKind.PatientConnected -> Icons.Outlined.HowToReg
         InboxCopyKind.DiaryOneEntryAdded, InboxCopyKind.DiaryTwoEntryAdded, InboxCopyKind.DiaryThreeEntryAdded -> Icons.Outlined.Book
         InboxCopyKind.Generic -> Icons.Outlined.NotificationsNone

@@ -64,7 +64,6 @@ fun PatientDiaryOneEntryScreen(
     onDiaryInactive: () -> Unit,
     onBack: () -> Unit,
 ) {
-    var reviewShowing by remember { mutableStateOf(false) }
     var editSection by remember { mutableStateOf(1) }
     var editRevision by remember { mutableStateOf(0) }
     val colors = Theme.colors
@@ -121,7 +120,7 @@ fun PatientDiaryOneEntryScreen(
         if (didSubmit) finish() else if (hasUnsavedChanges) leavingDraft = true else onBack()
     }
 
-    fun submit(confirmed: Boolean = false) {
+    fun submit() {
         if (isSaving) return
         if (didSubmit) { finish(); return }
         didAttemptSave = true
@@ -132,7 +131,6 @@ fun PatientDiaryOneEntryScreen(
             showValidation = true
             return
         }
-        if (!confirmed) { reviewShowing = true; return }
         isSaving = true
         errorMessage = null
         scope.launch {
@@ -161,7 +159,6 @@ fun PatientDiaryOneEntryScreen(
 
     BackHandler { requestBack() }
 
-    if (reviewShowing) PatientSubmissionReview(reviewSections(draft), onEdit = { editSection = it + 1; editRevision++; reviewShowing = false }, onSend = { reviewShowing = false; submit(true) })
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
@@ -201,7 +198,7 @@ fun PatientDiaryOneEntryScreen(
                     ),
                     shape = RoundedCornerShape(14.dp),
                 ) {
-                    Text(stringResource(if (didSubmit) R.string.retry_action else R.string.review_before_sending), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(if (didSubmit) R.string.retry_action else R.string.patient_diary_one_save_action), fontWeight = FontWeight.SemiBold)
                 }
             },
         ) { padding ->

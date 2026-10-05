@@ -12,7 +12,6 @@ struct PatientDiaryTwoEntryView: View {
 
     @State private var draft = DiaryTwoEntryDraft.empty
     @State private var deviceDraft = DeviceFormDraft<DiaryTwoEntryDraft>()
-    @State private var reviewShowing = false
     @State private var editSection = 1
     @State private var editRevision = 0
     @State private var didSubmit = false
@@ -58,13 +57,6 @@ struct PatientDiaryTwoEntryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .busyOverlay(isBusy, label: L10n.patientDiaryOneSubmitting)
-        .sheet(isPresented: $reviewShowing) {
-            PatientSubmissionReview(sections: draft.reviewSections, onEdit: { index in
-                editSection = index + 1
-                editRevision += 1
-                reviewShowing = false
-            }, onSend: { reviewShowing = false; Task { await submit(confirmed: true) } })
-        }
         .safeAreaInset(edge: .bottom) {
             Button {
                 Task {
@@ -72,7 +64,7 @@ struct PatientDiaryTwoEntryView: View {
                     else { await submit() }
                 }
             } label: {
-                Text(didSubmit ? L10n.retryAction : L10n.reviewBeforeSending)
+                Text(didSubmit ? L10n.retryAction : L10n.patientDiaryOneSaveAction)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity, minHeight: 30)
             }
@@ -150,7 +142,7 @@ struct PatientDiaryTwoEntryView: View {
         dismiss()
     }
 
-    private func submit(confirmed: Bool = false) async {
+    private func submit() async {
         guard EntitlementState.shared.allowMutation() else { return }
         guard !isBusy, !didSubmit else { return }
         didAttemptSave = true
@@ -164,7 +156,6 @@ struct PatientDiaryTwoEntryView: View {
             isShowingValidationAlert = true
             return
         }
-        if !confirmed { reviewShowing = true; return }
         isSaving = true
         errorMessage = nil
         do {

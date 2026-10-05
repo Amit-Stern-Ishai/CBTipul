@@ -282,7 +282,8 @@ enum L10n {
     static let notificationOpenQuestionnaires = "לשאלוני מצב רוח"
     static let notificationOpenDiary = "ליומן מחשבות 1"
     static let notificationOpenPatient = "לתיק המטופל/ת"
-    static let notificationQuestionnaireCompleted = "שאלוני מצב הרוח הושלמו"
+    static let questionnaireItemTitle = "שאלון מצב רוח"
+    static let notificationQuestionnaireCompleted = "מילא/ה שאלון מצב רוח"
     static let notificationPatientConnected = "התחבר/ה ל-CBTipul"
     static let notificationDiaryTwoEntryAdded = "הוסיף/ה רשומה חדשה ליומן מחשבות 2"
     static let notificationDiaryOneEntryAdded = "הוסיף/ה רשומה חדשה ליומן מחשבות 1"
@@ -1190,9 +1191,11 @@ amitishai@gmail.com
     
     static let scoreLabel = "ציון כולל"
     
+
     static let answerKeyTitle = "מפתח תשובות"
     
     /// Descriptions of the shared 0–3 answer scale, indexed by answer value.
+    static let answerFrequencyLabels = ["כלל לא", "כמה ימים", "יותר ממחצית מהימים", "כמעט כל יום"]
     static let answerDescriptions: [String] = [
         "0 - כלל לא",
         "1 - כמה ימים",

@@ -550,12 +550,12 @@ struct CompletedQuestionnaireView: View {
 
     var body: some View {
         Form {
-            if displayed.isPatientSubmitted { Section { Label(L10n.patientSubmissionReadOnly, systemImage: "eye") } }
             QuestionnaireSections(
                 questionnaire: .constant(displayed.questionnaire),
                 isEditable: false,
                 previous: previous,
-                accent: accent
+                accent: accent,
+                compactPatientResult: displayed.isPatientSubmitted
             )
         }
         .patientAtmosphere(accent)
@@ -595,6 +595,7 @@ struct QuestionnaireSections: View {
     /// Therapist-only per-question notes. Patient Mode never shows these.
     var showsTherapistNotes: Bool = true
     var showsClinicalGuidance: Bool = true
+    var compactPatientResult = false
 
     var marksUnanswered = false
     var requiresInterferenceAnswer = false
@@ -613,12 +614,8 @@ struct QuestionnaireSections: View {
 
     var body: some View {
         Section(L10n.gad7Title) {
-            AnswerKeyView(previousDate: previous?.answeredDate)
+            AnswerKeyView(previousDate: previous?.answeredDate, patientSubmitted: compactPatientResult)
                 .listRowBackground(rowBackground(.first))
-
-            Text(markdown: L10n.gad7MainQuestion)
-                .font(.body)
-                .listRowBackground(rowBackground(.middle))
 
             ForEach(L10n.gad7Questions.indices, id: \.self) { index in
                 VStack(alignment: .leading, spacing: 8) {
@@ -654,7 +651,8 @@ struct QuestionnaireSections: View {
         Section(L10n.phq9Title) {
             
             Text(markdown: L10n.phq9MainQuestion)
-                .font(.body)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.textBright)
                 .listRowBackground(rowBackground(.first))
             
             ForEach(L10n.phq9Questions.indices, id: \.self) { index in
@@ -718,25 +716,38 @@ struct QuestionnaireSections: View {
 /// Legend explaining what each 0–3 answer value means.
 private struct AnswerKeyView: View {
     var previousDate: Date? = nil
+    var patientSubmitted = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.answerKeyTitle)
-                .font(.subheadline.weight(.semibold))
-            ForEach(L10n.answerDescriptions.indices, id: \.self) { index in
-                Text(L10n.answerDescriptions[index])
-                    .font(.footnote)
+            if patientSubmitted {
+                Label(L10n.patientSubmissionReadOnly, systemImage: "eye")
+                    .font(.caption).foregroundStyle(Theme.textBody)
+            }
+            Text(markdown: L10n.gad7MainQuestion)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.textBright)
+            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 4) {
+                ForEach(L10n.answerFrequencyLabels.indices, id: \.self) { value in
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(value)").fontWeight(.semibold)
+                        Text(L10n.answerFrequencyLabels[value])
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .font(.caption)
                     .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+                }
             }
             if let previousDate {
-                Text(L10n.previousAnswerLegend(
-                    dateText: L10n.hebrewDate(previousDate)
-                ))
-                .font(.footnote)
-                .foregroundStyle(Theme.warning)
+                Text(L10n.previousAnswerLegend(dateText: L10n.hebrewDate(previousDate)))
+                    .font(.caption)
+                    .lineSpacing(0)
+                    .foregroundStyle(Theme.warning)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 }
 
@@ -751,12 +762,12 @@ private struct InterferencePicker: View {
     @State private var isEditingNote = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top) {
                 // Regular weight so the string's **bold** words stand out
                 // (headline is semibold, which drowns the emphasis).
                 Text(markdown: L10n.phq9InterferenceQuestion)
-                    .font(.body)
+                    .font(.subheadline)
                 Spacer()
                 if isEditable, showsTherapistNotes {
                     Button {
@@ -773,26 +784,31 @@ private struct InterferencePicker: View {
                 NoteBox(note: note, onTap: isEditable ? { isEditingNote = true } : nil)
             }
 
-            ForEach(L10n.phq9InterferenceOptions.indices, id: \.self) { index in
-                let isSelected = selection == index
-                Button {
-                    selection = index
-                } label: {
-                    HStack {
-                        Text(L10n.phq9InterferenceOptions[index])
-                        if previousSelection == index {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.footnote)
-                                .foregroundStyle(Theme.warning)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(L10n.phq9InterferenceOptions.indices, id: \.self) { index in
+                    let isSelected = selection == index
+                    Button {
+                        selection = index
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(L10n.phq9InterferenceOptions[index])
+                                .font(.subheadline)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if previousSelection == index {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .font(.footnote)
+                                    .foregroundStyle(Theme.warning)
+                            }
+                            Spacer()
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                         }
-                        Spacer()
-                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .disabled(!isEditable)
                 }
-                .buttonStyle(.plain)
-                .disabled(!isEditable)
             }
         }
         .padding(.vertical, 4)

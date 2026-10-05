@@ -661,7 +661,8 @@
     <string name="notifications_load_failed">טעינת התראות נכשלה</string>
     <string name="notifications_unread_section">לא נקראו</string>
     <string name="notifications_read_section">נקראו</string>
-    <string name="notification_questionnaire_completed">שאלוני מצב הרוח הושלמו</string>
+    <string name="questionnaire_item_title">שאלון מצב רוח</string>
+    <string name="notification_questionnaire_completed">מילא/ה שאלון מצב רוח</string>
     <string name="notification_patient_connected">התחבר/ה ל-CBTipul</string>
     <string name="notification_diary_one_entry_added">הוסיף/ה רשומה חדשה ליומן מחשבות 1</string>
     <string name="notification_generic">התראה</string>
