@@ -63,7 +63,7 @@ struct PatientToolAccessControl: View {
             } else if connected {
                 Button { Task { await changeAccess() } } label: {
                     Label(L10n.accessActivate, systemImage: "plus.circle")
-                }.buttonStyle(.borderedProminent).disabled(busy || parentBusy)
+                }.buttonStyle(.pressableProminent).disabled(busy || parentBusy)
                 .entitlementCreateControl()
             } else {
                 Text(L10n.patientSendingRequiresConnection).font(.footnote).foregroundStyle(.secondary)

@@ -139,7 +139,7 @@ fun AppIntroductionScreen(
                 }
                 TextButton(onClick = onContinue,
                     modifier = Modifier.heightIn(min = 48.dp).testTag("introduction.skip")) {
-                    Text(stringResource(R.string.introduction_skip), color = colors.textBody, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(if (last) R.string.close_action else R.string.introduction_skip), color = colors.textBody, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

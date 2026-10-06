@@ -471,6 +471,9 @@ struct PatientDetailView: View {
                 Form {
                     Section {
                         TextField(L10n.noTreatmentGoalPlaceholder, text: $goalDraft, axis: .vertical).entitlementWriteControl()
+                            .disabled(isSaving)
+                        if isSaving { ProgressView() }
+                        if let errorMessage { Text(errorMessage).foregroundStyle(Theme.error) }
                     }
                     .listRowBackground(Theme.surface)
                 }
@@ -483,14 +486,15 @@ struct PatientDetailView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button(L10n.cancel) { isEditingGoal = false }
+                        Button(L10n.cancel) { isEditingGoal = false }.disabled(isSaving)
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(L10n.save) { saveGoal() }
+                        Button(L10n.save) { saveGoal() }.disabled(isSaving)
                     }
                 }
             }
             .presentationDetents([.medium])
+            .interactiveDismissDisabled(isSaving)
             .appTextSize()
         }
         .busyOverlay(isSaving || isCreatingInvitation || isSendingToPatient, label: busyLabel)
@@ -848,7 +852,7 @@ struct PatientDetailView: View {
                             Label(L10n.patientShareInvitationAction, systemImage: "square.and.arrow.up")
                                 .frame(maxWidth: .infinity, minHeight: 30)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.pressableProminent)
                         .accessibilityIdentifier("patient.shareInvitation")
                         .entitlementCreateControl()
                     case .unavailable:
@@ -1424,12 +1428,13 @@ struct PatientDetailView: View {
     /// Writes the edited goal to the formulation and persists it right away.
     private func saveGoal() {
         guard EntitlementState.shared.allowMutation() else { return }
-        treatmentGoal.wrappedValue = goalDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        isEditingGoal = false
+        guard !isSaving else { return }
         errorMessage = nil
         // Only promise anonymization when the formulation carries text that
         // may actually be sent to the anonymizer.
-        let formulation = patient.formulation ?? .empty
+        var formulation = patient.formulation ?? .empty
+        let goal = goalDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        formulation.treatmentGoal = goal.isEmpty ? nil : goal
         let texts = [formulation.treatmentGoal, formulation.coreBelief, formulation.therapistHypothesis]
             .compactMap { $0 } + formulation.keyAutomaticThoughts + formulation.maintainingBehaviors
         let hasText = formulation.keyCBTCycle != nil
@@ -1438,7 +1443,8 @@ struct PatientDetailView: View {
         isSaving = true
         Task {
             do {
-                try await store.saveFormulation(patient.formulation ?? .empty, for: patient)
+                try await store.saveFormulation(formulation, for: patient)
+                isEditingGoal = false
             } catch {
                 errorMessage = error.userFacingMessage
             }

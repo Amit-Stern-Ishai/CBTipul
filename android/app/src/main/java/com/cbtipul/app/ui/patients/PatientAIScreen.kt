@@ -73,12 +73,18 @@ import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.delay
 
-private data class ChatEntry(
+internal data class ChatEntry(
     val id: UUID = UUID.randomUUID(),
     val role: String,
     val text: String,
     val displayed: String? = null,
 )
+
+internal class PatientChatViewModel : androidx.lifecycle.ViewModel() {
+    var entries by mutableStateOf(listOf<ChatEntry>())
+    var prompt by mutableStateOf("")
+    var isLoading by mutableStateOf(false)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,9 +122,11 @@ fun PatientAIScreen(
         return
     }
 
-    var entries by remember { mutableStateOf(listOf<ChatEntry>()) }
-    var prompt by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
+    // The navigation entry survives tab changes, including in-flight replies.
+    val chat: PatientChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel(key = "chat-${patient.id.queryValue}")
+    var entries by chat::entries
+    var prompt by chat::prompt
+    var isLoading by chat::isLoading
     val listState = rememberLazyListState()
     val digest = remember(patient, questionnaires) {
         fullContext(

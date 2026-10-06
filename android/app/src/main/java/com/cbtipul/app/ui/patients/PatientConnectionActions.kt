@@ -168,7 +168,9 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                 Text(stringResource(if (connected) R.string.patient_reinvite_action else R.string.patient_connect_description))
                 if (connection == ConnectionUi.NotConnected || connected) {
                     Text(stringResource(if (connected) R.string.patient_reinvite_explanation else R.string.patient_share_invitation_explanation))
-                    Button(onClick = { sheet = null; onInvite() }, enabled = !busy && !sending, modifier = Modifier.fillMaxWidth().entitlementCreateControl()) { IconLabel(stringResource(R.string.patient_share_invitation_action), Icons.Outlined.Share) }
+                    Button(onClick = { sheet = null; onInvite() }, enabled = !busy && !sending,
+                        modifier = Modifier.fillMaxWidth().entitlementCreateControl(),
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) { IconLabel(stringResource(R.string.patient_share_invitation_action), Icons.Outlined.Share) }
                 } else Text(stringResource(R.string.patient_invitation_unavailable_explanation))
                 if (!connected) Text(stringResource(R.string.patient_connection_optional_explanation))
             } else if (connection == ConnectionUi.Connected) {

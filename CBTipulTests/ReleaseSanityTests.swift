@@ -14,6 +14,49 @@ struct ReleaseSanityTests {
         DemoClinicStore.clearAll()
     }
 
+    @Test func editorDraftSurvivesRefreshAndPublishesOnlyOnSave() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
+        clearDemoDisk()
+        defer { clearDemoDisk() }
+        let store = makeStore()
+        store.enterDemoMode()
+        let patient = try #require(store.patients.first)
+        let saved = try #require(patient.sessions.first)
+        let draft = saved.editingCopy()
+        draft.notes = "unsaved editing text"
+        // A store refresh updates the original instance while the editor is open.
+        saved.notes = "server text"
+        #expect(draft.notes == "unsaved editing text")
+        #expect(saved.notes == "server text")
+        #expect(draft.id == saved.id && draft.databaseID == saved.databaseID)
+        try await store.updateSession(draft)
+        #expect(saved.notes == "unsaved editing text")
+        #expect(patient.sessions.filter { $0.id == saved.id }.count == 1)
+    }
+
+    @Test func failedGoalSavePreservesPreviouslySavedFormulation() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
+        EntitlementState.shared.setLocalDemo(false)
+        EntitlementState.shared.apply(AppContext(version: 1, role: .therapist, activation: nil,
+            patientId: nil, entitlement: .init(access: .full)))
+        struct Unavailable: Error {}
+        let store = PatientStore(client: AuthManager().client) { _ in throw Unavailable() }
+        let patient = Patient(id: .text(UUID().uuidString))
+        var original = PatientFormulation.empty
+        original.treatmentGoal = "saved goal"
+        patient.formulation = original
+        var proposed = original
+        proposed.treatmentGoal = "new unsaved goal"
+        do {
+            try await store.saveFormulation(proposed, for: patient)
+            Issue.record("Expected anonymization failure")
+        } catch {
+            #expect(patient.formulation == original)
+        }
+    }
+
     @Test func demoClinicCRUDAndShowcaseLoadOffline() async throws {
         await EntitlementTestIsolation.acquire()
         defer { EntitlementTestIsolation.release() }

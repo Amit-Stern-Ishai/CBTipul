@@ -158,6 +158,7 @@ fun PatientModeScreen(
     val notificationsFailed by app.notifications.failed.collectAsState()
     var messagesFailed by remember(cacheKey) { mutableStateOf(false) }
     var unavailable by remember { mutableStateOf(false) }
+    var toolConnectionFailed by remember { mutableStateOf(false) }
     var openedAssignmentId by remember(cacheKey) { mutableStateOf<String?>(null) }
     val acknowledgedAssignments = remember(cacheKey) { mutableSetOf<String>() }
     val inboxItems = PatientInbox.items(patientId, messages, notifications)
@@ -168,8 +169,8 @@ fun PatientModeScreen(
         app.notifications.markPatientResourceRead(patientId, assignmentId = id)
         if (openedAssignmentId == id) openedAssignmentId = null
     }
-    fun openTool(type: PatientAssignmentType, exactId: String? = null) {
-        openedAssignmentId = exactId ?: assignments.firstOrNull { it.type == type && it.cancelledAt == null }?.id
+    fun openTool(type: PatientAssignmentType, exactId: String? = null, acknowledge: Boolean = true) {
+        openedAssignmentId = if (acknowledge) exactId ?: assignments.firstOrNull { it.type == type && it.cancelledAt == null }?.id else null
         nav.navigate(when (type) {
             PatientAssignmentType.Questionnaire -> "questionnaires"
             PatientAssignmentType.DiaryOne -> "diary-one"
@@ -178,16 +179,27 @@ fun PatientModeScreen(
         }) { launchSingleTop = true }
     }
     suspend fun openDirectTool(type: PatientAssignmentType) {
-        val current = assignments.firstOrNull { it.type == type && it.cancelledAt == null }
-        if (current != null) {
-            val fresh = runCatching { loadAssignments() }.getOrNull()
-            if (fresh == null || fresh.none { it.id == current.id && it.type == type && it.cancelledAt == null }) {
-                unavailable = true; return
-            }
+        // Open history immediately; refresh access independently of navigation.
+        openTool(type, acknowledge = false)
+        try {
+            val fresh = loadAssignments()
+            if (cacheKey != "${app.authRepository.currentUserId()}:$patientId") return
             assignments = fresh
+            val route = when (type) {
+                PatientAssignmentType.Questionnaire -> "questionnaires"
+                PatientAssignmentType.DiaryOne -> "diary-one"
+                PatientAssignmentType.DiaryTwo -> "diary-two"
+                PatientAssignmentType.DiaryThree -> "diary-three"
+            }
+            if (nav.currentDestination?.route == route) {
+                openedAssignmentId = fresh.firstOrNull { it.type == type && it.cancelledAt == null }?.id
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) {
+            if (cacheKey == "${app.authRepository.currentUserId()}:$patientId") toolConnectionFailed = true
         }
-        openTool(type, current?.id)
     }
+
     suspend fun openPayload(payload: NotificationPayload) {
         if (!payload.patientId.equals(patientId, true)) { unavailable = true; return }
         if (payload.type == AppNotificationTypes.MESSAGE_RECEIVED) {
@@ -346,6 +358,7 @@ fun PatientModeScreen(
         composable("questionnaires") {
             LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.Questionnaire) }
             PatientQuestionnaireHubScreen(
+                cachedHistory = questionnaireHistory,
                 loadAssignments = { loadAssignments().also { assignments = it } },
                 loadHistory = loadQuestionnaireHistory,
                 onNew = { id -> if (assignments.any { it.id == id && it.cancelledAt == null } && com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("questionnaire/$id") },
@@ -377,6 +390,7 @@ fun PatientModeScreen(
         composable("diary-one") {
             LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.DiaryOne) }
             PatientDiaryOneHubScreen(
+                cachedEntries = diaryEntries,
                 active = assignments.any { it.type == PatientAssignmentType.DiaryOne && it.isOpen },
                 loadEntries = {
                     val loaded = loadDiaryOneHistory()
@@ -412,25 +426,40 @@ fun PatientModeScreen(
             var detail by remember(entryId, diaryEntries) {
                 mutableStateOf(diaryEntries.firstOrNull { it.id.equals(entryId, true) })
             }
-            LaunchedEffect(entryId) {
+            var loading by remember(entryId) { mutableStateOf(detail == null) }
+            var failed by remember(entryId) { mutableStateOf(false) }
+            var retry by remember(entryId) { mutableStateOf(0) }
+            LaunchedEffect(entryId, retry) {
                 if (detail == null) {
-                    val loaded = runCatching { loadDiaryOneHistory() }.getOrDefault(emptyList())
-                    diaryEntries = loaded
-                    detail = loaded.firstOrNull { it.id.equals(entryId, true) }
+                    loading = true
+                    failed = false
+                    try {
+                        val loaded = loadDiaryOneHistory()
+                        diaryEntries = loaded
+                        detail = loaded.firstOrNull { it.id.equals(entryId, true) }
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                    catch (_: Exception) { failed = true }
+                    finally { loading = false }
                 }
             }
             val current = detail
             if (current != null) {
                 PatientDiaryOneDetailScreen(entry = current, onBack = { nav.popScreen() })
             } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Theme.colors.gold)
+                Column(Modifier.fillMaxSize().themedScreen(Theme.colors.gold).safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    TextButton(onClick = { nav.popScreen() }) { Text(stringResource(R.string.back)) }
+                    if (loading) CircularProgressIndicator(color = Theme.colors.gold)
+                    else {
+                        Text(stringResource(if (failed) R.string.patient_diary_history_failed else R.string.notification_target_unavailable), color = Theme.colors.textBody)
+                        TextButton(onClick = { retry++ }) { Text(stringResource(R.string.retry_action)) }
+                    }
                 }
             }
         }
         composable("diary-two") {
             LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.DiaryTwo) }
             PatientDiaryTwoHubScreen(
+                cachedEntries = diaryTwoEntries,
                 patientId = patientId, service = diaryTwo,
                 active = assignments.any { it.type == PatientAssignmentType.DiaryTwo && it.cancelledAt == null },
                 onLoaded = { diaryTwoEntries = it },
@@ -488,6 +517,7 @@ fun PatientModeScreen(
         composable("diary-three") {
             LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.DiaryThree) }
             PatientDiaryThreeHubScreen(
+                cachedEntries = diaryThreeEntries,
                 patientId = patientId, service = diaryThree,
                 active = !diaryThreeUnavailable && assignments.any { it.type == PatientAssignmentType.DiaryThree && it.cancelledAt == null },
                 onLoaded = { diaryThreeEntries = it },
@@ -580,6 +610,11 @@ fun PatientModeScreen(
             )
         }
     }
+    if (toolConnectionFailed) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { toolConnectionFailed = false },
+        text = { Text(stringResource(R.string.patient_tool_connection_error)) },
+        confirmButton = { TextButton(onClick = { toolConnectionFailed = false }) { Text(stringResource(R.string.ok)) } },
+    )
     if (unavailable) androidx.compose.material3.AlertDialog(
         onDismissRequest = { unavailable = false },
         text = { Text(stringResource(R.string.patient_inbox_unavailable)) },

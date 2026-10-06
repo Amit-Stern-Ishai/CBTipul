@@ -957,13 +957,11 @@ final class PatientStore {
         saveCachedPatients()
     }
 
-    /// Persists the therapist's formulation: in memory and the local cache
-    /// immediately, then the patient's `patient_formulation` column.
+    /// Publish the formulation locally only after the server accepts it.
     func saveFormulation(_ formulation: PatientFormulation, for patient: Patient) async throws {
         try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id))
-        patient.formulation = formulation
-        saveCachedPatients()
         if DemoData.isDemoID(patient.id) {
+            patient.formulation = formulation
             markFormulationSafe(formulation)
             persistDemoClinic()
             return
@@ -974,7 +972,6 @@ final class PatientStore {
 
         // Anonymize every free-text field before anything is sent; a
         // failure aborts the update without uploading any original text.
-        // (The local write above is unaffected — it never leaves the device.)
         let anonymizedFormulation = try await anonymized(formulation)
         // Select the updated rows back: with row-level security a blocked
         // update "succeeds" with zero rows, which must not pass as saved.
@@ -1043,6 +1040,7 @@ final class PatientStore {
         if let id = session.databaseID, DemoData.isDemoID(id) {
             textGate.markSafe(session.notes)
             markAnalysisSafe(session.structuredNotes)
+            publishSavedSession(session)
             persistDemoClinic()
             return
         }
@@ -1050,6 +1048,7 @@ final class PatientStore {
         if isDemoMode {
             textGate.markSafe(session.notes)
             markAnalysisSafe(session.structuredNotes)
+            publishSavedSession(session)
             persistDemoClinic()
             return
         }
@@ -1082,7 +1081,17 @@ final class PatientStore {
         session.notes = anonymizedNotes ?? ""
         session.structuredNotes = anonymizedAnalysis
         AppLog.store.info("Session updated: \(sessionID.queryValue, privacy: .public)")
+        publishSavedSession(session)
         saveCachedPatients()
+    }
+
+    private func publishSavedSession(_ draft: Session) {
+        for patient in patients {
+            for saved in patient.sessions where saved.id == draft.id ||
+                (draft.databaseID != nil && saved.databaseID == draft.databaseID) {
+                saved.applySavedContent(from: draft)
+            }
+        }
     }
 
     /// Deletes a saved session's row and removes it from its patient.

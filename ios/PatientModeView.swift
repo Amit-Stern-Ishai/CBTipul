@@ -19,6 +19,7 @@ struct PatientModeView: View {
     @State private var refreshingHome = false
     @State private var refreshHomeAgain = false
     @State private var unavailableItem = false
+    @State private var toolConnectionFailed = false
     @State private var openedAssignmentID: UUID?
     @State private var acknowledgedAssignments: Set<UUID> = []
     private var inboxItems: [PatientInboxItem] {
@@ -73,7 +74,7 @@ struct PatientModeView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: $isShowingQuestionnaireHub) {
                 if let patientId = appContext.current?.patientId {
-                    PatientQuestionnaireHubView(patientId: patientId, openFormRequest: $questionnaireFormRequest,
+                    PatientQuestionnaireHubView(patientId: patientId, cachedHistory: homeSnapshot.questionnaires ?? [], openFormRequest: $questionnaireFormRequest,
                         onAssignmentsChanged: { await loadAssignments() })
                         .task(id: openedAssignmentID) { await acknowledgeOpenedAssignment(type: .questionnaire) }
                 }
@@ -109,6 +110,7 @@ struct PatientModeView: View {
             .navigationDestination(isPresented: $showingDiaryOneHistory) {
                 PatientDiaryOneHubView(
                     isActive: openAssignments.contains { $0.type == .diaryOne },
+                    cachedEntries: homeSnapshot.diaryOne ?? [],
                     onAssignmentsRefresh: { await loadAssignments() },
                     onEntrySubmitted: { didSubmitDiaryOne = true; await loadAssignments() }
                 )
@@ -152,6 +154,7 @@ struct PatientModeView: View {
             .navigationDestination(isPresented: $isShowingDiaryTwoHub) {
                 PatientDiaryTwoHubView(
                     isActive: assignments.contains { $0.type == .diaryTwo && $0.cancelledAt == nil },
+                    cachedEntries: homeSnapshot.diaryTwo ?? [],
                     onAssignmentsRefresh: { await loadAssignments() },
                     onDiaryInactive: {
                         assignments.removeAll { $0.type == .diaryTwo }
@@ -164,6 +167,7 @@ struct PatientModeView: View {
             .navigationDestination(isPresented: $isShowingDiaryThreeHub) {
                 PatientDiaryThreeHubView(
                     isActive: assignments.contains { $0.type == .diaryThree && $0.cancelledAt == nil },
+                    cachedEntries: homeSnapshot.diaryThree ?? [],
                     onAssignmentsRefresh: { await loadAssignments() },
                     onDiaryInactive: {
                         assignments.removeAll { $0.type == .diaryThree }
@@ -225,6 +229,9 @@ struct PatientModeView: View {
                     do { try await Task.sleep(for: .seconds(60)) } catch { return }
                     await refreshPatientHome(lightweight: true)
                 }
+            }
+            .alert(L10n.patientToolConnectionError, isPresented: $toolConnectionFailed) {
+                Button(L10n.ok, role: .cancel) {}
             }
             .alert(L10n.patientInboxUnavailable, isPresented: $unavailableItem) {
                 Button(L10n.closeAction, role: .cancel) {}
@@ -701,16 +708,28 @@ struct PatientModeView: View {
     }
 
     private func openDirectTool(_ type: PatientAssignmentType) async {
-        if let current = openAssignments.first(where: { $0.type == type }) {
-            guard let patientID = appContext.current?.patientId,
-                  let fresh = try? await PatientAssignmentService(client: auth.client).patientAssignments(patientId: patientID),
-                  patientID == appContext.current?.patientId,
-                  fresh.contains(where: { $0.id == current.id && $0.type == type && $0.cancelledAt == nil })
-            else { unavailableItem = true; return }
-            assignments = fresh
-            openedAssignmentID = current.id
-        } else { openedAssignmentID = nil }
+        // History navigation never depends on a successful access refresh.
+        openedAssignmentID = nil
         showTool(type)
+        guard let patientID = appContext.current?.patientId else { return }
+        do {
+            let fresh = try await PatientAssignmentService(client: auth.client).patientAssignments(patientId: patientID)
+            guard patientID == appContext.current?.patientId, !Task.isCancelled else { return }
+            assignments = fresh
+            let stillShowing: Bool = switch type {
+            case .questionnaire: isShowingQuestionnaireHub
+            case .diaryOne: showingDiaryOneHistory
+            case .diaryTwo: isShowingDiaryTwoHub
+            case .diaryThree: isShowingDiaryThreeHub
+            }
+            if stillShowing {
+                openedAssignmentID = fresh.first { $0.type == type && $0.cancelledAt == nil }?.id
+            }
+        } catch is CancellationError {
+        } catch {
+            guard patientID == appContext.current?.patientId else { return }
+            toolConnectionFailed = true
+        }
     }
 
     private func showTool(_ type: PatientAssignmentType) {

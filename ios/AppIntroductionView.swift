@@ -227,7 +227,7 @@ struct AppIntroductionView: View {
                 .accessibilityHidden(!isLastPage)
                 .accessibilityIdentifier("introduction.sample")
             }
-            Button(L10n.introductionSkip, action: onContinue)
+            Button(isLastPage ? L10n.closeAction : L10n.introductionSkip, action: onContinue)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textBody)
                 .frame(minWidth: 48, minHeight: 48)

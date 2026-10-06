@@ -90,7 +90,9 @@ internal fun PatientToolAccessControl(patient: Patient, repository: PatientAssig
             assignmentId != null -> TextButton(onClick = { confirmStop = true }, enabled = !busy && !parentBusy) {
                 Text(stringResource(R.string.access_stop), color = Theme.colors.error)
             }
-            connection == ConnectionUi.Connected -> Button(onClick = ::changeAccess, enabled = !busy && !parentBusy, modifier = Modifier.entitlementCreateControl()) {
+            connection == ConnectionUi.Connected -> Button(onClick = ::changeAccess, enabled = !busy && !parentBusy,
+                modifier = Modifier.fillMaxWidth().entitlementCreateControl(),
+                colors = ButtonDefaults.buttonColors(containerColor = Theme.colors.accentFill, contentColor = Theme.colors.textOnAccent)) {
                 Text(stringResource(R.string.access_activate))
             }
             else -> Text(stringResource(R.string.patient_not_connected_body), color = Theme.colors.textBody)

@@ -68,15 +68,18 @@ fun PatientDiaryTwoHubScreen(
     onAddEntry: () -> Unit,
     onOpenEntry: (DiaryTwoEntry) -> Unit,
     onBack: () -> Unit,
+    cachedEntries: List<DiaryTwoEntry> = emptyList(),
 ) {
     val colors = Theme.colors
     val vm: PatientDiaryTwoViewModel = viewModel(key = "patient-diary-two-hub-$patientId", factory = viewModelFactory {
         initializer { PatientDiaryTwoViewModel(patientId, service, createSavedStateHandle()) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
-    val entries = state.entries
+    val entries = if (state.entries.isEmpty() && (state.loading || state.historyFailed)) cachedEntries else state.entries
     val loadState = if (state.loading) DiaryTwoHubLoadState.Loading else if (state.historyFailed) DiaryTwoHubLoadState.Failed else DiaryTwoHubLoadState.Loaded
-    LaunchedEffect(entries) { onLoaded(entries) }
+    LaunchedEffect(entries, state.loading, state.historyFailed) {
+        if (!state.loading && !state.historyFailed) onLoaded(entries)
+    }
     LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { vm.refresh() }
 
     Scaffold(

@@ -4,6 +4,7 @@ import SwiftUI
 /// Patient Mode Diary 1 hub: history of patient-created entries, plus new entry.
 struct PatientDiaryOneHubView: View {
     var isActive: Bool
+    var cachedEntries: [DiaryOneEntry] = []
     var onAssignmentsRefresh: () async -> Void
     @State private var locallyInactive = false
     var onEntrySubmitted: () async -> Void
@@ -103,7 +104,7 @@ struct PatientDiaryOneHubView: View {
                 .background(Theme.base)
             }
         }
-        .task { await onAssignmentsRefresh(); await loadEntries() }
+        .task { entries = cachedEntries; await loadEntries() }
     }
 
     private func patientHistoryRow(_ entry: DiaryOneEntry) -> some View {

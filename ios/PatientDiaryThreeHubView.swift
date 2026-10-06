@@ -4,6 +4,7 @@ import SwiftUI
 /// Patient Mode Diary 3 hub: history of patient-created entries, plus new entry.
 struct PatientDiaryThreeHubView: View {
     var isActive: Bool
+    var cachedEntries: [DiaryThreeEntry] = []
     var onAssignmentsRefresh: () async -> Void
     var onDiaryInactive: () async -> Void
     var onEntryVisibilityChange: (Bool) -> Void = { _ in }
@@ -124,7 +125,7 @@ struct PatientDiaryThreeHubView: View {
                     .frame(maxWidth: .infinity).background(Theme.base)
             }
         }
-        .task { await onAssignmentsRefresh(); await loadEntries() }
+        .task { entries = cachedEntries; await loadEntries() }
         .refreshable { await loadEntries(); await onAssignmentsRefresh() }
     }
 

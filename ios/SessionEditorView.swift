@@ -7,13 +7,20 @@ import SwiftUI
 /// sessions the saved questionnaire, if any, is shown as a compact row that
 /// opens the full read-only questionnaire.
 struct SessionEditorView: View {
-    @Bindable var session: Session
+    @State private var session: Session
     let patient: Patient?
     var isNew: Bool
     /// The session's 1-based number in the patient's history, shown in the
     /// title when editing an existing session.
     var sessionNumber: Int? = nil
     
+    init(session: Session, patient: Patient?, isNew: Bool, sessionNumber: Int? = nil) {
+        _session = State(initialValue: session.editingCopy())
+        self.patient = patient
+        self.isNew = isNew
+        self.sessionNumber = sessionNumber
+    }
+
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
@@ -454,8 +461,7 @@ struct SessionEditorView: View {
                 Button(L10n.discardChangesAction, role: .destructive) {
                     guard recovery.discard() else { return }
                     recoveryClosed = true
-                    // The session object is shared, so revert the edits
-                    // instead of leaving them in memory unsaved.
+                    // Reset the editor-owned draft before dismissing it.
                     if let initialDate { session.date = initialDate }
                     if let initialNotes { session.notes = initialNotes }
                     session.type = initialType

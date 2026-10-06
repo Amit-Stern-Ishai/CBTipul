@@ -851,7 +851,7 @@
     <string name="introduction_patient_body">מטרת הטיפול, הפגישות, שאלוני מצב הרוח ויומני המחשבות — בתיק אחד.\nכתבו סיכום פגישה או הקליטו אותו וקבלו תמלול.</string>
     <string name="introduction_chat_title">חושבים יחד, עם AI</string>
     <string name="introduction_chat_body">אפשר לשאול כל שאלה על המטופל/ת.\nהתשובות מבוססות על המידע שבתיק.</string>
-    <string name="introduction_chat_disclaimer">AI עלול לטעות. יש לבדוק את התשובות ולהפעיל שיקול דעת מקצועי.</string>
+    <string name="introduction_chat_disclaimer">הבינה המלאכותית (AI) עלולה לטעות. יש לבדוק את התשובות ולהפעיל שיקול דעת מקצועי.</string>
     <string name="introduction_chat_patterns">זיהוי דפוסים לאורך הטיפול</string>
     <string name="introduction_chat_preparation">הכנה לפגישה הבאה</string>
     <string name="introduction_session_title">מתעדים בדרך שנוחה לכם</string>
@@ -1025,12 +1025,12 @@
     <string name="access_tools_explanation">כלים פעילים זמינים למילוי חוזר באפליקציית המטופל/ת.</string>
     <string name="access_active">פעיל אצל המטופל/ת</string>
     <string name="access_inactive">לא פעיל</string>
-    <string name="access_activate">הפעלת גישה</string>
+    <string name="access_activate">הפעלה למטופל/ת</string>
     <string name="access_stop">הפסקת גישה</string>
     <string name="access_stop_explanation">לא ניתן יהיה לשלוח מילויים חדשים בכלי זה. כל המידע שכבר נשלח יישמר.</string>
     <string name="access_error">לא ניתן לעדכן את הגישה כרגע. נסו שוב.</string>
     <string name="access_questionnaires_title">שאלוני מצב רוח</string>
-    <string name="access_questionnaires_description">שאלות קצרות על חרדה ומצב רוח בתקופה האחרונה. ממלאים לפי פרק הזמן שמופיע בשאלות; כל מילוי נשמר בנפרד.</string>
+    <string name="access_questionnaires_description">ההפעלה מאפשרת למטופל/ת למלא שאלוני מצב רוח באפליקציה. ניתן למלא שוב; כל מילוי נשמר בנפרד.</string>
     <string name="question_trend_better">טוב יותר מההתחלה</string>
     <string name="question_trend_better_help">הציון האחרון נמוך מהראשון, אך היו גם עליות בדרך.</string>
     <string name="question_trend_worse">גרוע יותר מההתחלה</string>
@@ -1127,4 +1127,6 @@
     <string name="patient_inbox_unavailable">הפריט אינו זמין כעת. ייתכן שהוסר או שהגישה אליו בוטלה. ניתן לרענן ולנסות שוב.</string>
     <string name="patient_inbox_refresh_failed">לא הצלחנו לעדכן את ההודעות. המידע המוצג עשוי להיות חלקי.</string>
     <string name="patient_inbox_tool_enabled">המטפל/ת הפעיל/ה עבורך את %1$s</string>
+    <string name="patient_tool_connection_error">לא ניתן לעדכן כרגע את מצב הגישה. ניתן לצפות בהיסטוריה; מילוי חדש דורש חיבור לאינטרנט וגישה פעילה.</string>
+    <string name="patient_diary_history_failed">לא ניתן לטעון את הרשומה כרגע. בדקו את החיבור לאינטרנט ונסו שוב.</string>
 </resources>

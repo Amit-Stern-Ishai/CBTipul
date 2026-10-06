@@ -9,6 +9,7 @@ enum L10n {
     static let patientInboxTitle = "הודעות ועדכונים"
     static let patientInboxAll = "הצג הכול"
     static let patientInboxEmpty = "אין עדיין הודעות או עדכונים."
+    static let patientToolConnectionError = "לא ניתן לעדכן כרגע את מצב הגישה. ניתן לצפות בהיסטוריה; מילוי חדש דורש חיבור לאינטרנט וגישה פעילה."
     static let patientInboxUnavailable = "הפריט אינו זמין כעת. ייתכן שהוסר או שהגישה אליו בוטלה. ניתן לרענן ולנסות שוב."
     static let patientInboxRefreshFailed = "לא הצלחנו לעדכן את ההודעות. המידע המוצג עשוי להיות חלקי."
     static func patientInboxUnread(_ count: Int) -> String { "\(count) לא נקראו" }
@@ -101,12 +102,12 @@ enum L10n {
     static let accessToolsExplanation = "כלים פעילים זמינים למילוי חוזר באפליקציית המטופל/ת."
     static let accessActive = "פעיל אצל המטופל/ת"
     static let accessInactive = "לא פעיל"
-    static let accessActivate = "הפעלת גישה"
+    static let accessActivate = "הפעלה למטופל/ת"
     static let accessStop = "הפסקת גישה"
     static let accessStopExplanation = "לא ניתן יהיה לשלוח מילויים חדשים בכלי זה. כל המידע שכבר נשלח יישמר."
     static let accessError = "לא ניתן לעדכן את הגישה כרגע. נסו שוב."
     static let accessQuestionnairesTitle = "שאלוני מצב רוח"
-    static let accessQuestionnairesDescription = "שאלות קצרות על חרדה ומצב רוח בתקופה האחרונה. ממלאים לפי פרק הזמן שמופיע בשאלות; כל מילוי נשמר בנפרד."
+    static let accessQuestionnairesDescription = "ההפעלה מאפשרת למטופל/ת למלא שאלוני מצב רוח באפליקציה. ניתן למלא שוב; כל מילוי נשמר בנפרד."
 
     static let diaryFivePartsOptional = "5 חלקים · החלק האחרון לבחירה"
     static let diaryEntryGuide = "ממלאים חלק אחד בכל פעם. אפשר לפתוח כל חלק כדי לעיין או לשנות."
@@ -406,7 +407,7 @@ enum L10n {
     static let introductionPatientBody = "מטרת הטיפול, הפגישות, שאלוני מצב הרוח ויומני המחשבות — בתיק אחד.\nכתבו סיכום פגישה או הקליטו אותו וקבלו תמלול."
     static let introductionChatTitle = "חושבים יחד, עם AI"
     static let introductionChatBody = "אפשר לשאול כל שאלה על המטופל/ת.\nהתשובות מבוססות על המידע שבתיק."
-    static let introductionChatDisclaimer = "AI עלול לטעות. יש לבדוק את התשובות ולהפעיל שיקול דעת מקצועי."
+    static let introductionChatDisclaimer = "הבינה המלאכותית (AI) עלולה לטעות. יש לבדוק את התשובות ולהפעיל שיקול דעת מקצועי."
     static let introductionChatPatterns = "זיהוי דפוסים לאורך הטיפול"
     static let introductionChatPreparation = "הכנה לפגישה הבאה"
     static let introductionSessionTitle = "מתעדים בדרך שנוחה לכם"
@@ -1419,17 +1420,24 @@ amitishai@gmail.com
         """
         ‏הזמנה אישית ל־CBTipul
 
-        ‏היי, \(therapistName) מזמין/ה אותך להצטרף ל־CBTipul כחלק מהטיפול.
+        ‏שלום,
+
+        ‏\(therapistName) מזמין/ה אותך להתחבר לאפליקציה כחלק מהטיפול.
 
         ‏באפליקציה ניתן:
+
         ‏• למלא שאלוני מצב רוח
+
         ‏• לתעד מחשבות ורגשות ביומני מחשבות
+
         ‏• לקרוא הודעות מהמטפל/ת
 
-        ‏לפתיחת ההזמנה בטלפון:
+        ‏כדי להתחיל, פתחו את הקישור בטלפון:
+
         \(invitationUrl)
 
-        ‏הקישור ידריך אותך בהתקנה ובחיבור למטפל/ת.
+        ‏הקישור ידריך אתכם בהורדת האפליקציה ובחיבור למטפל/ת.
+
         ‏ההזמנה אישית ומיועדת עבורך בלבד.
         """
     }
@@ -1442,35 +1450,26 @@ amitishai@gmail.com
                 .replacingOccurrences(of: "\"", with: "&quot;")
                 .replacingOccurrences(of: "'", with: "&#39;")
         }
+        // Keep paragraph breaks in the content itself. Mail share targets can
+        // strip CSS margins and table padding when importing the invitation.
         return """
         <!doctype html>
         <html lang="he" dir="rtl">
         <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-        <body dir="rtl" style="margin:0;padding:0;background-color:#f2f5f7;color:#172b43;font-family:Arial,Helvetica,sans-serif;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f2f5f7;">
-        <tr><td align="center" style="padding:16px 8px;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:480px;background-color:#ffffff;border:1px solid #dfe6eb;border-radius:12px;">
-        <tr><td dir="rtl" align="right" style="padding:24px;background-color:#172b43;border-radius:12px 20px 0 0;">
-        <p dir="ltr" style="margin:0;text-align:right;color:#ffffff;font-size:24px;font-weight:bold;letter-spacing:0.3px;">CBTipul</p>
-        <p style="margin:8px 0 0;color:#d8e4ed;font-size:14px;">הזמנה אישית מהמטפל/ת שלך</p>
-        </td></tr>
-        <tr><td dir="rtl" align="right" style="padding:24px 20px;">
-        <h1 style="margin:0 0 20px;color:#172b43;font-size:23px;line-height:1.4;">הזמנה להתחבר ל־CBTipul</h1>
-        <p style="margin:0 0 16px;font-size:16px;line-height:1.7;"><strong>\(escape(therapistName))</strong> הזמין/ה אותך להתחבר ל־<span dir="ltr">CBTipul</span>.</p>
-        <p style="margin:0 0 20px;color:#46596c;font-size:16px;line-height:1.8;">שאלוני מצב רוח<br>יומני מחשבות ורגשות<br>הודעות מהמטפל/ת</p>
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-        <tr><td align="center" bgcolor="#18766f" style="border-radius:12px;">
-        <a href="\(escape(invitationUrl))" style="display:block;padding:16px 20px;border:1px solid #18766f;border-radius:12px;color:#ffffff;background-color:#18766f;font-size:18px;font-weight:bold;text-decoration:none;text-align:center;">פתיחת ההזמנה</a>
-        </td></tr></table>
-        <p style="margin:16px 0 0;color:#46596c;font-size:14px;line-height:1.8;">פתחו את ההזמנה בטלפון. הקישור ידריך אתכם בהתקנה ובחיבור למטפל/ת.</p>
-        </td></tr>
-        <tr><td dir="rtl" align="right" style="padding:20px 24px;border-top:1px solid #e5ebef;">
-        <p style="margin:0 0 10px;color:#46596c;font-size:13px;line-height:1.7;">הכפתור לא נפתח? אפשר להעתיק את הקישור לדפדפן:</p>
-        <p dir="ltr" style="margin:0;text-align:left;font-size:12px;line-height:1.8;word-break:break-all;overflow-wrap:anywhere;"><a href="\(escape(invitationUrl))" style="color:#176d68;text-decoration:underline;">\(escape(invitationUrl))</a></p>
-        </td></tr>
-        </table>
-        <p dir="rtl" style="margin:16px 12px 0;color:#536578;font-size:12px;line-height:1.8;">ההזמנה אישית ומיועדת עבורך בלבד.</p>
-        </td></tr></table>
+        <body dir="rtl" style="font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.7;text-align:right;">
+        <div dir="rtl">
+        <strong style="font-size:23px;">הזמנה אישית ל־<span dir="ltr">CBTipul</span></strong><br><br>
+        שלום,<br><br>
+        <strong>\(escape(therapistName))</strong> מזמין/ה אותך להתחבר לאפליקציה כחלק מהטיפול.<br><br>
+        <strong>באפליקציה ניתן:</strong><br><br>
+        • למלא שאלוני מצב רוח<br><br>
+        • לתעד מחשבות ורגשות ביומני מחשבות<br><br>
+        • לקרוא הודעות מהמטפל/ת<br><br>
+        <strong>כדי להתחיל, פתחו את הקישור בטלפון:</strong><br><br>
+        <a href="\(escape(invitationUrl))" style="font-size:19px;font-weight:bold;">פתיחת ההזמנה</a><br><br>
+        הקישור ידריך אתכם בהורדת האפליקציה ובחיבור למטפל/ת.<br><br>
+        ההזמנה אישית ומיועדת עבורך בלבד.
+        </div>
         </body></html>
         """
     }

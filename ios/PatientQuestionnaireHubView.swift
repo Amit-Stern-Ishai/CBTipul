@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PatientQuestionnaireHubView: View {
     let patientId: UUID
+    var cachedHistory: [CompletedQuestionnaire] = []
     @Binding var openFormRequest: UUID?
     var onAssignmentsChanged: () async -> Void
     @Environment(AuthManager.self) private var auth
@@ -84,7 +85,7 @@ struct PatientQuestionnaireHubView: View {
         .navigationTitle(L10n.patientQuestionnaireCardTitle)
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await refresh() }
-        .task(id: patientId) { applyFormRequest(); await refresh() }
+        .task(id: patientId) { history = cachedHistory; applyFormRequest(); await refresh() }
         .onChange(of: openFormRequest) { _, _ in applyFormRequest() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await refresh() } } }
         .navigationDestination(item: $formAssignmentID) { id in

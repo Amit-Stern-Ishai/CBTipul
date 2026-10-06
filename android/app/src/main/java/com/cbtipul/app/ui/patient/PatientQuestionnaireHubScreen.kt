@@ -38,9 +38,10 @@ fun PatientQuestionnaireHubScreen(
     onOpen: (CompletedQuestionnaire) -> Unit,
     onLoaded: (List<CompletedQuestionnaire>) -> Unit,
     onBack: () -> Unit,
+    cachedHistory: List<CompletedQuestionnaire> = emptyList(),
 ) {
     var assignment by remember { mutableStateOf<PatientAssignment?>(null) }
-    var history by remember { mutableStateOf<List<CompletedQuestionnaire>>(emptyList()) }
+    var history by remember { mutableStateOf(cachedHistory) }
     var loading by remember { mutableStateOf(true) }
     var historyFailed by remember { mutableStateOf(false) }
     var accessFailed by remember { mutableStateOf(false) }

@@ -61,11 +61,12 @@ fun PatientDiaryOneHubScreen(
     onAddEntry: () -> Unit,
     onOpenEntry: (DiaryOneEntry) -> Unit,
     onBack: () -> Unit,
+    cachedEntries: List<DiaryOneEntry> = emptyList(),
 ) {
     val colors = Theme.colors
     val scope = rememberCoroutineScope()
     var loadState by remember { mutableStateOf(DiaryHubLoadState.Loading) }
-    var entries by remember { mutableStateOf<List<DiaryOneEntry>>(emptyList()) }
+    var entries by remember { mutableStateOf(cachedEntries) }
 
     suspend fun reload() {
         if (entries.isEmpty()) loadState = DiaryHubLoadState.Loading

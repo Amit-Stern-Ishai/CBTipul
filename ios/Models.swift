@@ -198,6 +198,19 @@ final class Session: Identifiable {
     /// AI-generated structured summary of the notes, once one has been saved.
     var structuredNotes: WhisperService.CBTSessionAnalysis?
 
+    /// An editor owns its values independently of background store refreshes.
+    func editingCopy() -> Session {
+        Session(id: id, databaseID: databaseID, date: date, notes: notes, type: type,
+                questionnaire: questionnaire, structuredNotes: structuredNotes)
+    }
+
+    func applySavedContent(from draft: Session) {
+        date = draft.date
+        notes = draft.notes
+        type = draft.type
+        structuredNotes = draft.structuredNotes
+    }
+
     init(id: UUID = UUID(),
          databaseID: DatabaseID? = nil,
          date: Date = .now,
