@@ -10,6 +10,7 @@ struct PatientSettingsView: View {
 
     @State private var presentedLink: SettingsOfficialLink?
     @State private var showIntroduction = false
+    @State private var returnHomeAfterIntroduction = false
     @State private var isConfirmingLeave = false
     @State private var isLeaving = false
     @State private var leaveError: String?
@@ -116,8 +117,16 @@ struct PatientSettingsView: View {
             }
             .patientAtmosphere(Theme.gold)
             .themedScreen()
-            .fullScreenCover(isPresented: $showIntroduction) {
-                AppIntroductionView(isReview: true, isPatientMode: true, onTrySample: {}, onContinue: { showIntroduction = false }).appTextSize()
+            .fullScreenCover(isPresented: $showIntroduction, onDismiss: {
+                if returnHomeAfterIntroduction {
+                    returnHomeAfterIntroduction = false
+                    dismiss()
+                }
+            }) {
+                AppIntroductionView(isReview: true, isPatientMode: true, onTrySample: {}, onContinue: {
+                    returnHomeAfterIntroduction = true
+                    showIntroduction = false
+                }).appTextSize()
             }
             .navigationTitle(L10n.settingsTitle)
             .toolbar {

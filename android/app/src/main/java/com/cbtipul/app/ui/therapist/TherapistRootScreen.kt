@@ -132,6 +132,43 @@ fun TherapistRootScreen(
         }
     }
 
+    var showDemoReminder by remember { mutableStateOf(false) }
+    var nextDemoReminder by remember { mutableStateOf(android.os.SystemClock.elapsedRealtime() + 180_000L) }
+    LaunchedEffect(isDemoMode) {
+        showDemoReminder = false
+        nextDemoReminder = android.os.SystemClock.elapsedRealtime() + 180_000L
+    }
+    LaunchedEffect(lifecycleOwner, isDemoMode) {
+        if (!isDemoMode) return@LaunchedEffect
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (isActive) {
+                delay(1_000)
+                if (android.os.SystemClock.elapsedRealtime() >= nextDemoReminder) showDemoReminder = true
+            }
+        }
+    }
+    if (isDemoMode && showDemoReminder) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { /* Choose explicitly; do not leave users in demo accidentally. */ },
+            title = { Text(stringResource(R.string.demo_reminder_title)) },
+            text = { Text(stringResource(R.string.demo_reminder_body)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    showDemoReminder = false
+                    nextDemoReminder = android.os.SystemClock.elapsedRealtime() + 180_000L
+                    onCloseSettingsOverlay?.invoke()
+                    viewModel.exitDemoMode()
+                }) { Text(stringResource(R.string.demo_mode_exit_short)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    showDemoReminder = false
+                    nextDemoReminder = android.os.SystemClock.elapsedRealtime() + 180_000L
+                }) { Text(stringResource(R.string.demo_reminder_continue)) }
+            },
+        )
+    }
+
     LaunchedEffect(pending, clinicState.hasLoaded, inboxEntry != null) {
         val destination = pending ?: return@LaunchedEffect
         if (destination is AppDestination.DiaryThreeEntry && (!clinicState.hasLoaded || currentEntry == null)) return@LaunchedEffect

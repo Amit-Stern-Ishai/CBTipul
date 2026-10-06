@@ -637,8 +637,8 @@ private fun PatientHomeContent(
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(stringResource(R.string.patient_available_help), color = colors.textBody, fontSize = 14.sp)
                     if (!com.cbtipul.app.ui.entitlementCanWrite()) {
@@ -705,7 +705,7 @@ private fun PatientHomeContent(
 private fun TaskCard(title: String, body: String, action: String?, hint: String? = null, available: Boolean? = null, onStart: () -> Unit) {
     val colors = Theme.colors
     GroupedListCard(accent = colors.gold) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold)
             available?.let {
                 IconLabel(stringResource(if (it) R.string.patient_tool_enabled else R.string.patient_tool_disabled),

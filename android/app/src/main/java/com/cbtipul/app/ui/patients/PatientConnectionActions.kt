@@ -2,6 +2,9 @@ package com.cbtipul.app.ui.patients
 
 import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.HourglassEmpty
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Assignment
@@ -25,6 +28,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -49,7 +53,7 @@ internal fun rememberPatientConnection(patient: Patient?, repository: PatientAss
     var state by remember(id, isDemo, repository) { mutableStateOf(cachedState() ?: ConnectionUi.Checking) }
     var revision by remember { mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { revision++ }
-    LaunchedEffect(id, isDemo, revision) {
+    LaunchedEffect(id, isDemo, repository, revision) {
         if (!available) {
             state = ConnectionUi.Unavailable
         } else {
@@ -75,35 +79,76 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
     val (connection, refresh) = rememberPatientConnection(patient, repository, isDemo)
     var sheet by remember { mutableStateOf<String?>(null) }
     var sending by remember { mutableStateOf(false) }
+    // Keep the card footprint stable while cached status refreshes, including larger text.
+    val textScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val statusColor = when (connection) {
+        ConnectionUi.Connected -> colors.success
+        ConnectionUi.Failed -> colors.error
+        else -> colors.textBody
+    }
+    val statusIcon = when (connection) {
+        ConnectionUi.Connected -> Icons.Filled.CheckCircle
+        ConnectionUi.Checking -> Icons.Outlined.HourglassEmpty
+        ConnectionUi.Failed -> Icons.Outlined.ErrorOutline
+        else -> Icons.Outlined.Lock
+    }
+    val statusLabel = when (connection) {
+        ConnectionUi.Connected -> R.string.patient_connected_status
+        ConnectionUi.Checking -> R.string.patient_connection_checking
+        ConnectionUi.Failed -> R.string.patient_connection_unavailable_status
+        ConnectionUi.Unavailable -> R.string.patient_invitation_demo_status
+        ConnectionUi.NotConnected -> R.string.patient_not_connected_status
+    }
     GroupedListCard(accent = PatientAvatarColor.background(patient.id)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            when (connection) {
-                ConnectionUi.Checking -> Text(stringResource(R.string.patient_connection_checking), color = colors.textBody)
-                ConnectionUi.Connected -> {
-                    IconLabel(stringResource(R.string.patient_connected_status), Icons.Filled.CheckCircle, color = colors.success)
-                    OutlinedButton(onClick = { sheet = "invite" }, enabled = !busy && !sending, modifier = Modifier.entitlementCreateControl()) {
-                        IconLabel(stringResource(R.string.patient_reinvite_action), Icons.Outlined.PersonAdd)
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                Modifier.fillMaxWidth().height(48.dp * textScale),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(20.dp))
+                Text(stringResource(statusLabel), color = statusColor,
+                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                    maxLines = 2, modifier = Modifier.weight(1f))
+                if (connection == ConnectionUi.Connected) {
+                    IconButton(onClick = { sheet = "invite" }, enabled = !busy && !sending,
+                        modifier = Modifier.size(48.dp).entitlementCreateControl()) {
+                        Icon(Icons.Outlined.PersonAdd, contentDescription = stringResource(R.string.patient_reinvite_action), tint = colors.gold)
                     }
-                    TextButton(onClick = { sheet = "send" }, enabled = !busy && !sending, modifier = Modifier.entitlementCreateControl()) {
-                        Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.send_to_patient_action), fontWeight = FontWeight.SemiBold)
-                    }
-                }
-                ConnectionUi.NotConnected, ConnectionUi.Unavailable -> {
-                    TextButton(onClick = { sheet = "invite" }, enabled = !busy, modifier = Modifier.entitlementCreateControl()) {
-                        Icon(Icons.Outlined.PersonAdd, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.patient_invite_to_app_action), fontWeight = FontWeight.SemiBold)
-                    }
-                    IconLabel(stringResource(if (connection == ConnectionUi.Unavailable) R.string.patient_invitation_demo_status else R.string.patient_not_connected_status), Icons.Outlined.Lock, color = colors.textBody)
-                }
-                ConnectionUi.Failed -> {
-                    Text(stringResource(R.string.patient_connection_check_error), color = colors.textBody)
-                    TextButton(onClick = refresh) { Text(stringResource(R.string.retry)) }
+                } else Spacer(Modifier.width(48.dp))
+            }
+            val checking = connection == ConnectionUi.Checking
+            val actionLabel = when (connection) {
+                ConnectionUi.Connected, ConnectionUi.Checking -> R.string.send_to_patient_action
+                ConnectionUi.Failed -> R.string.retry
+                else -> R.string.patient_invite_to_app_action
+            }
+            // Keep the action slot present before the first result, without a misleading action.
+            Box(Modifier.fillMaxWidth().height(48.dp * textScale)) {
+                if (!checking) Button(
+                    onClick = {
+                        when (connection) {
+                            ConnectionUi.Connected -> sheet = "send"
+                            ConnectionUi.Failed -> refresh()
+                            else -> sheet = "invite"
+                        }
+                    },
+                    enabled = !busy && !sending,
+                    modifier = Modifier.fillMaxSize().then(if (connection == ConnectionUi.Failed) Modifier else Modifier.entitlementCreateControl()),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
+                ) {
+                    Icon(when (connection) {
+                        ConnectionUi.Connected -> Icons.AutoMirrored.Outlined.Send
+                        ConnectionUi.Failed -> Icons.Outlined.Refresh
+                        else -> Icons.Outlined.PersonAdd
+                    },
+                        contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(actionLabel), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 2)
                 }
             }
-            if (sending) CircularProgressIndicator()
         }
     }
     if (sheet != null) ModalBottomSheet(onDismissRequest = { if (!sending) sheet = null },

@@ -83,7 +83,10 @@ fun PatientSettingsScreen(
 ) {
     var showIntroduction by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     if (showIntroduction) {
-        com.cbtipul.app.ui.onboarding.AppIntroductionScreen(isReview = true, isPatientMode = true, onTrySample = {}, onContinue = { showIntroduction = false })
+        com.cbtipul.app.ui.onboarding.AppIntroductionScreen(isReview = true, isPatientMode = true, onTrySample = {}, onContinue = {
+            showIntroduction = false
+            onDone()
+        })
         return
     }
     val colors = Theme.colors

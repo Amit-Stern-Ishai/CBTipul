@@ -91,7 +91,7 @@ class CbTipulApp : Application() {
     override fun onCreate() {
         super.onCreate()
         com.cbtipul.app.data.Entitlements.explanation = { patient ->
-            getString(if (patient) R.string.entitlement_patient_unavailable else R.string.entitlement_read_only_explanation)
+            getString(if (com.cbtipul.app.data.Entitlements.state.value.access == null) R.string.entitlement_access_unverified_body else if (patient) R.string.entitlement_patient_unavailable else R.string.entitlement_read_only_explanation)
         }
         applicationScope.launch { appVersion.check(coldLaunch = true) }
         preferences = AppPreferences(this)
@@ -126,12 +126,24 @@ class CbTipulApp : Application() {
             textGate = ClinicalTextGate { anonymizer.anonymize(it) },
             whisper = WhisperService(client, aiConsentStore),
             ai = AiService(client, aiConsentStore),
+            resetDemoContent = { patients ->
+                diaryOne.clearDemoContent()
+                diaryTwo.clearDemoContent()
+                diaryThree.clearDemoContent()
+                formDrafts.resetDemo(authRepository.currentUserId(), patients)
+            },
             demoClinicStore = demoClinicStore,
             aiConsentStore = aiConsentStore,
         )
         appContext = AppContextRepository(client)
         invitations = PatientInvitationService(client)
-        assignments = PatientAssignmentRepository(client)
+        val connectionPreferences = getSharedPreferences("patient-connection-status", MODE_PRIVATE)
+        assignments = PatientAssignmentRepository(client, com.cbtipul.app.data.PatientConnectionCache(
+            read = { key ->
+                if (connectionPreferences.contains(key)) connectionPreferences.getBoolean(key, false) else null
+            },
+            write = { key, connected -> connectionPreferences.edit().putBoolean(key, connected).apply() },
+        ))
         patientQuestionnaires = com.cbtipul.app.data.PatientQuestionnaireHistoryRepository(client)
         diaryOne = DiaryOneRepository(client)
         diaryThree = DiaryThreeRepository(client)

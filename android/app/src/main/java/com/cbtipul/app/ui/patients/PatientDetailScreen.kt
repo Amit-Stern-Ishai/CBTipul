@@ -41,6 +41,10 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.Icons
@@ -301,8 +305,8 @@ fun PatientDetailScreen(
                 .padding(padding)
                 .imePadding()
                 .editorScroll()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             val accent = PatientAvatarColor.background(patient.id)
             if (!showNotes) {
@@ -329,14 +333,40 @@ fun PatientDetailScreen(
                 }
             }
 
+            val statusLabel = stringResource(if (patient.status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive)
+            val statusTitle = stringResource(R.string.status_label)
+            val statusColor = if (patient.status == PatientStatus.Active) colors.success else colors.error
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                TextButton(onClick = { statusExpanded = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy) {
-                    Text(stringResource(if (patient.status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive))
-                }
-                DropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
-                    PatientStatus.entries.forEach { status ->
-                        DropdownMenuItem(text = { Text(stringResource(if (status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive)) },
-                            onClick = { statusExpanded = false; onStatusChange(status) })
+                // Anchor the menu to the badge itself, not the full screen width.
+                Box {
+                    TextButton(onClick = {
+                        if (com.cbtipul.app.data.Entitlements.allowMutation()) statusExpanded = true
+                    }, enabled = !busy, modifier = Modifier.semantics {
+                        contentDescription = statusTitle
+                        stateDescription = statusLabel
+                    }) {
+                        Row(
+                            Modifier.background(statusColor.copy(alpha = 0.12f), RoundedCornerShape(50))
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(statusLabel, color = statusColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                            Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    DropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
+                        PatientStatus.entries.forEach { status ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(if (status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive)) },
+                                trailingIcon = { if (status == patient.status) Icon(Icons.Outlined.Check, contentDescription = null) },
+                                enabled = !busy,
+                                onClick = {
+                                    statusExpanded = false
+                                    if (status != patient.status) onStatusChange(status)
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -399,7 +429,7 @@ fun PatientDetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, top = 14.dp, end = 8.dp, bottom = 14.dp),
+                        .padding(start = 14.dp, top = 10.dp, end = 8.dp, bottom = 10.dp),
                 ) {
                     NotesField(
                         value = notes,
@@ -455,7 +485,7 @@ fun PatientDetailScreen(
                 if (isTranscribing || isAnonymizingTranscription) {
                     GroupedListDivider()
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {

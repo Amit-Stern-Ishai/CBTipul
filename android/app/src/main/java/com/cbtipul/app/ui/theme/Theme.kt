@@ -110,18 +110,18 @@ fun CbTipulTheme(
         MaterialTheme(
             colorScheme = scheme,
             typography = defaults.copy(
-                titleLarge = defaults.titleLarge.copy(fontWeight = FontWeight.SemiBold, lineHeight = 30.sp),
+                titleLarge = defaults.titleLarge.copy(fontWeight = FontWeight.SemiBold, lineHeight = 28.sp),
                 titleMedium = defaults.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                bodyLarge = defaults.bodyLarge.copy(lineHeight = 26.sp),
-                bodyMedium = defaults.bodyMedium.copy(lineHeight = 23.sp),
+                bodyLarge = defaults.bodyLarge.copy(lineHeight = 23.sp),
+                bodyMedium = defaults.bodyMedium.copy(lineHeight = 20.sp),
                 labelLarge = defaults.labelLarge.copy(fontWeight = FontWeight.SemiBold),
             ),
             shapes = Shapes(
                 extraSmall = RoundedCornerShape(8.dp),
                 small = RoundedCornerShape(12.dp),
-                medium = RoundedCornerShape(16.dp),
-                large = RoundedCornerShape(20.dp),
-                extraLarge = RoundedCornerShape(28.dp),
+                medium = RoundedCornerShape(14.dp),
+                large = RoundedCornerShape(16.dp),
+                extraLarge = RoundedCornerShape(22.dp),
             ),
             content = content,
         )

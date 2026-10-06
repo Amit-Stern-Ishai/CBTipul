@@ -185,8 +185,8 @@ fun PatientQuestionnairesScreen(
         val chartHeight = ((maxHeight.value - 300f) / 2f).coerceIn(90f, 170f)
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(if (graphsMode) 12.dp else 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(if (graphsMode) 12.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (loadError != null) item {
                 Text(loadError, color = colors.error)

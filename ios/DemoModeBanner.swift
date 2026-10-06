@@ -66,3 +66,55 @@ extension View {
         modifier(DemoModeBannerInset())
     }
 }
+
+private struct DemoModeReminder: ViewModifier {
+    @Environment(PatientStore.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var nextReminder = Date().addingTimeInterval(180)
+    @State private var presentedReminder: UIAlertController?
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: store.isDemoMode) { _, _ in
+                nextReminder = Date().addingTimeInterval(180)
+                presentedReminder?.dismiss(animated: false)
+                presentedReminder = nil
+            }
+            .task(id: store.isDemoMode && scenePhase == .active) {
+                guard store.isDemoMode, scenePhase == .active else { return }
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                    guard Date() >= nextReminder, presentedReminder == nil else { continue }
+                    presentReminder()
+                }
+            }
+    }
+
+    @MainActor
+    private func presentReminder() {
+        guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+              var top = scene.windows.first(where: \.isKeyWindow)?.rootViewController else { return }
+        while let presented = top.presentedViewController { top = presented }
+        // Do not interrupt another confirmation or a presentation transition.
+        guard !(top is UIAlertController), !top.isBeingDismissed, !top.isBeingPresented else { return }
+        let alert = UIAlertController(title: L10n.demoReminderTitle,
+                                      message: L10n.demoReminderBody, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: L10n.demoReminderContinue, style: .cancel) { _ in
+            nextReminder = Date().addingTimeInterval(180)
+            presentedReminder = nil
+        })
+        alert.addAction(UIAlertAction(title: L10n.demoModeExitShort, style: .default) { _ in
+            nextReminder = Date().addingTimeInterval(180)
+            presentedReminder = nil
+            scene.windows.first(where: \.isKeyWindow)?.rootViewController?.dismiss(animated: false)
+            Task { await store.exitDemoMode() }
+        })
+        presentedReminder = alert
+        top.present(alert, animated: true)
+    }
+}
+
+extension View {
+    func demoModeReminder() -> some View { modifier(DemoModeReminder()) }
+}

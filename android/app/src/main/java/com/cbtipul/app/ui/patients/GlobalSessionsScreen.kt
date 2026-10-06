@@ -111,7 +111,7 @@ fun GlobalSessionsScreen(
             OutlinedTextField(value = query, onValueChange = { query = it }, singleLine = true,
                 label = { Text(stringResource(R.string.sessions_search_prompt)) },
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
             when {
                 patients.isEmpty() && ui.isLoading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = colors.gold)
@@ -130,7 +130,7 @@ fun GlobalSessionsScreen(
                     listOf(true to upcoming, false to past).forEach { (isUpcoming, section) ->
                     item(key = "section-$isUpcoming") {
                         Text(stringResource(if (isUpcoming) R.string.upcoming_sessions_section else R.string.past_sessions_section),
-                            fontWeight = FontWeight.Bold, color = colors.textBright, modifier = Modifier.padding(top = 24.dp))
+                            fontWeight = FontWeight.Bold, color = colors.textBright, modifier = Modifier.padding(top = 14.dp))
                         if (isUpcoming && section.isEmpty()) Text(stringResource(R.string.no_upcoming_sessions_body), color = colors.textBody)
                     }
                     section.forEach { group ->
@@ -139,7 +139,7 @@ fun GlobalSessionsScreen(
                                 hebrewMonthYear(group.month),
                                 color = colors.gold,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                             )
                         }
                         item(key = "group-$isUpcoming-${group.month.time}") {
@@ -147,36 +147,20 @@ fun GlobalSessionsScreen(
                                 group.items.forEachIndexed { row, item ->
                                     val sessionKey = item.session.databaseId?.queryValue ?: item.session.id.toString()
                                     val records = questionnaires[item.patient.id.queryValue].orEmpty()
-                                    val linked = GlobalSessions.linkedQuestionnaire(item.session, records)
-                                    Row(
-                                        Modifier.fillMaxWidth().clickable {
-                                            onOpenSession(item.patient.id.queryValue, sessionKey)
-                                        }.padding(horizontal = 16.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                                        ) {
-                                            Icon(Icons.Outlined.CalendarMonth, contentDescription = null,
-                                                tint = colors.gold, modifier = Modifier.size(24.dp))
-                                            Text("${item.number}", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                        }
-                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(item.patient.displayName(unnamed), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                Text(hebrewDate(item.session.date), color = colors.textBody, fontSize = 14.sp)
-                                                if (linked != null) {
-                                                    Icon(Icons.Outlined.Description, contentDescription = null, tint = colors.textBody, modifier = Modifier.size(16.dp))
-                                                }
-                                            }
-                                            item.session.type?.let {
-                                                Text(stringResource(it.labelRes()), color = colors.textBody, fontSize = 13.sp)
-                                            }
-                                        }
-                                    }
-                                    if (row < group.items.lastIndex) GroupedListDivider(startInset = 62.dp)
+                                    val patientSessions = item.patient.sessions.sortedByDescending { it.date.time }
+                                    SessionListRow(
+                                        session = item.session,
+                                        number = item.number,
+                                        patientName = item.patient.displayName(unnamed),
+                                        scores = sessionScores(
+                                            item.session,
+                                            patientSessions.indexOfFirst { it.id == item.session.id },
+                                            patientSessions,
+                                            records,
+                                        ),
+                                        onClick = { onOpenSession(item.patient.id.queryValue, sessionKey) },
+                                    )
+                                    if (row < group.items.lastIndex) GroupedListDivider(startInset = 0.dp)
                                 }
                             }
                         }
@@ -188,7 +172,7 @@ fun GlobalSessionsScreen(
                 label = stringResource(if (hasRecovery) R.string.resume_session_summary else if (groups.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action),
                 icon = Icons.Outlined.Add,
                 onClick = onCreateSession,
-                modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp).entitlementCreateControl(),
+                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp, bottom = 8.dp).entitlementCreateControl(),
             )
         }
     }

@@ -11,7 +11,7 @@ interface DeviceDraftStorage {
     fun clear(key: String)
 }
 
-/** Drafts stay on this device, encrypted and isolated by account and form target. */
+/** Real drafts are encrypted on-device; demo drafts live only in memory for this visit. */
 class DeviceFormDraftStore(context: Context) : DeviceDraftStorage {
     private val preferences by lazy {
         EncryptedSharedPreferences.create(
@@ -22,16 +22,39 @@ class DeviceFormDraftStore(context: Context) : DeviceDraftStorage {
         )
     }
 
-    override fun read(key: String): String? = preferences.getString(key, null)
+    private val demoDrafts = mutableMapOf<String, String>()
+    fun resetDemo(account: String?, patients: List<com.cbtipul.app.model.Patient>) {
+        demoDrafts.clear()
+        demoGeneration = java.util.UUID.randomUUID().toString()
+        if (account == null) return
+        val targets = listOf("_:new") + patients.flatMap { patient ->
+            listOf("${patient.id.queryValue}:new") + patient.sessions.map { "${patient.id.queryValue}:${it.id}" }
+        }
+        val editor = preferences.edit()
+        targets.forEach { editor.remove(legacyKey(account, "demo-session", it)) }
+        editor.apply()
+    }
+    override fun read(key: String): String? =
+        if (key.startsWith("demo:")) demoDrafts[key] else preferences.getString(key, null)
     override fun write(key: String, value: String) {
+        if (key.startsWith("demo:")) {
+            if (key.startsWith("demo:$demoGeneration:")) demoDrafts[key] = value
+            return
+        }
         check(preferences.edit().putString(key, value).commit()) { "Draft could not be saved" }
     }
     override fun clear(key: String) {
+        if (key.startsWith("demo:")) { demoDrafts.remove(key); return }
         check(preferences.edit().remove(key).commit()) { "Draft could not be removed" }
     }
 
     companion object {
+        private var demoGeneration = java.util.UUID.randomUUID().toString()
         fun key(account: String, kind: String, target: String): String {
+            val hash = legacyKey(account, kind, target)
+            return if (kind == "demo-session") "demo:$demoGeneration:$hash" else hash
+        }
+        private fun legacyKey(account: String, kind: String, target: String): String {
             require(account.isNotBlank() && target.isNotBlank())
             val parts = listOf(account, kind, target).joinToString("") { "${it.length}:$it" }
             return MessageDigest.getInstance("SHA-256").digest(parts.toByteArray()).joinToString("") { "%02x".format(it) }

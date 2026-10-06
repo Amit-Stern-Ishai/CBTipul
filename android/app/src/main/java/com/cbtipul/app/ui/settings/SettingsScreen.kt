@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -200,8 +201,8 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .editorScroll(mainScroll)
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     GroupedListCard(accent = colors.gold) {
                         SettingsRow(
@@ -403,7 +404,8 @@ internal fun SettingsRow(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (clickable) Modifier.clickable(onClick = onClick!!) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .heightIn(min = 48.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -471,7 +473,7 @@ fun AppearancePicker(selected: AppAppearance, onSelect: (AppAppearance) -> Unit,
             )
         },
     ) { padding ->
-        Row(Modifier.fillMaxWidth().padding(padding).padding(24.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(Modifier.fillMaxWidth().padding(padding).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             AppAppearance.entries.forEach { option ->
                 val palette = cbTipulColors(option == AppAppearance.Dark)
                 val label = stringResource(if (option == AppAppearance.Light) R.string.appearance_light else R.string.appearance_dark)
@@ -538,7 +540,7 @@ private fun TextSizePicker(
             )
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(24.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             GroupedListCard(accent = colors.gold) {
                 AppTextSize.entries.forEachIndexed { index, size ->
                     SettingsRow(
@@ -674,7 +676,7 @@ private fun DisplayNameEditor(
                 modifier = Modifier
                     .fillMaxSize()
                     .editorScroll()
-                    .padding(24.dp),
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(

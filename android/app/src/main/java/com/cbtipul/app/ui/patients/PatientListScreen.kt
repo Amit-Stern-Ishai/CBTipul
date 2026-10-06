@@ -214,7 +214,7 @@ fun PatientListScreen(
                                             stringResource(title, group.size),
                                             color = colors.textBody,
                                             fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+                                            modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
                                         )
                                     }
                                     items(group, key = { it.id.queryValue }) { patient ->
@@ -281,7 +281,7 @@ internal fun PatientRow(
             .tutorialPulse(pulse)
             .semantics { stateDescription = status }
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -345,8 +345,8 @@ private fun PersistentAddButton(
         label = label,
         icon = Icons.Outlined.Add,
         onClick = onClick,
-        modifier = Modifier.padding(horizontal = 24.dp)
-            .padding(top = 8.dp, bottom = 12.dp).tutorialPulse(pulse).entitlementCreateControl(),
+        modifier = Modifier.padding(horizontal = 16.dp)
+            .padding(top = 6.dp, bottom = 8.dp).tutorialPulse(pulse).entitlementCreateControl(),
     )
 }
 

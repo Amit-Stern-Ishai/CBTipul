@@ -172,7 +172,7 @@ fun AddPatientScreen(
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
                 ) {
-                    Text(stringResource(R.string.add_patient_action), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.save_patient_action), fontWeight = FontWeight.SemiBold)
                 }
             }
         }

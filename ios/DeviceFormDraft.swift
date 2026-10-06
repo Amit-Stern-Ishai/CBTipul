@@ -2,10 +2,31 @@ import Foundation
 import Security
 import SwiftUI
 
-/// Drafts stay in this device's Keychain, separate from clinical server records.
+/// Real drafts stay in this device's Keychain; demo drafts live only in memory.
 /// The account, form kind and target all participate in the key.
 struct DeviceDraftStorage {
     var service = "CBTipul.device-form-drafts.v1"
+    private static var demoGeneration = UUID().uuidString
+    private static var demoDrafts: [String: Data] = [:]
+
+    static func resetDemo() {
+        demoDrafts.removeAll()
+        demoGeneration = UUID().uuidString
+        let storage = DeviceDraftStorage()
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: storage.service, kSecReturnAttributes as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let items = result as? [[String: Any]] else { return }
+        for item in items {
+            guard let key = item[kSecAttrAccount as String] as? String,
+                  let data = Data(base64Encoded: key),
+                  let parts = try? JSONDecoder().decode([String].self, from: data),
+                  parts.count == 3, parts[1] == "demo-session" else { continue }
+            try? storage.remove(key: key)
+        }
+    }
 
     private func query(_ key: String) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
@@ -15,16 +36,21 @@ struct DeviceDraftStorage {
     }
 
     static func key(userID: String, kind: String, target: String) throws -> String {
-        try JSONEncoder().encode([userID, kind, target]).base64EncodedString()
+        let key = try JSONEncoder().encode([userID, kind, target]).base64EncodedString()
+        return kind == "demo-session" ? "demo:\(demoGeneration):\(key)" : key
     }
 
     func contains(key: String) -> Bool {
+        if key.hasPrefix("demo:") { return Self.demoDrafts[key] != nil }
         var attributes = query(key)
         attributes[kSecMatchLimit as String] = kSecMatchLimitOne
         return SecItemCopyMatching(attributes as CFDictionary, nil) == errSecSuccess
     }
 
     func load<Value: Decodable>(_ type: Value.Type, key: String) throws -> Value? {
+        if key.hasPrefix("demo:") {
+            return try Self.demoDrafts[key].map { try JSONDecoder().decode(type, from: $0) }
+        }
         var attributes = query(key)
         attributes[kSecReturnData as String] = true
         attributes[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -39,6 +65,10 @@ struct DeviceDraftStorage {
 
     func save<Value: Encodable>(_ value: Value, key: String) throws {
         let data = try JSONEncoder().encode(value)
+        if key.hasPrefix("demo:") {
+            if key.hasPrefix("demo:\(Self.demoGeneration):") { Self.demoDrafts[key] = data }
+            return
+        }
         let attributes = query(key)
         var status = SecItemUpdate(attributes as CFDictionary,
                                    [kSecValueData as String: data] as CFDictionary)
@@ -52,6 +82,7 @@ struct DeviceDraftStorage {
     }
 
     func remove(key: String) throws {
+        if key.hasPrefix("demo:") { Self.demoDrafts[key] = nil; return }
         let status = SecItemDelete(query(key) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw DraftError.storage(status)

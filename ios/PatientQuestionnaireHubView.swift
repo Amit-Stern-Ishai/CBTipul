@@ -32,6 +32,7 @@ struct PatientQuestionnaireHubView: View {
                 }
                 if submitted { Label(L10n.patientQuestionnaireSubmittedTitle, systemImage: "checkmark.circle") }
             }
+            .listRowBackground(Theme.surface)
             Section(L10n.patientQuestionnaireHistory) {
                 if historyFailed {
                     Text(L10n.patientQuestionnaireHistoryError).foregroundStyle(Theme.error)
@@ -50,6 +51,8 @@ struct PatientQuestionnaireHubView: View {
                     } label: {
                         HStack(spacing: 12) {
                             Label(record.answeredDate.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: Locale(identifier: "he_IL"))), systemImage: "list.clipboard")
+                                .font(.headline)
+                                .foregroundStyle(Theme.textBright)
                             Spacer(minLength: 8)
                             VStack(alignment: .trailing, spacing: 6) {
                                 ScoreCapsule.gad7(record.questionnaire)
@@ -59,7 +62,10 @@ struct PatientQuestionnaireHubView: View {
                     }
                 }
             }
+            .listRowBackground(Theme.surface)
         }
+        .listStyle(.insetGrouped)
+        .listRowSeparatorTint(Theme.borderFaint)
         .themedScreen()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if let assignment = activeAssignment {

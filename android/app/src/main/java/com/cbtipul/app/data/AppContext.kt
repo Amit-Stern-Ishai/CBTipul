@@ -8,6 +8,9 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,6 +44,8 @@ data class AppContext(
 }
 
 class AppContextRepository(private val client: SupabaseClient) {
+    private val refreshMutex = Mutex()
+    private var generation = 0L
     private var lastRefresh = 0L
     private var account: String? = null
     private val _current = MutableStateFlow<AppContext?>(null)
@@ -49,31 +54,50 @@ class AppContextRepository(private val client: SupabaseClient) {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    suspend fun getCurrentAppContext(): AppContext {
+    suspend fun getCurrentAppContext(): AppContext = refreshMutex.withLock { fetchCurrentAppContext() }
+
+    private suspend fun fetchCurrentAppContext(): AppContext {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-        val identity = client.auth.currentSessionOrNull()?.user?.id
+        client.auth.awaitInitialization()
+        val identity = client.auth.currentSessionOrNull()?.user?.id ?: throw IllegalStateException("not_signed_in")
+        val requestGeneration = generation
         if (account != identity) { _current.value = null; lastRefresh = 0; account = identity }
         Entitlements.setIdentity(identity)
         _isLoading.value = true
         return try {
-            val http = client.functions.invoke(
-                function = "get-app-context",
-                headers = Headers.build {
-                    append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                },
-            )
-            val context = EdgePayload.json.decodeFromString(AppContext.serializer(), http.bodyAsText())
-            if (identity != client.auth.currentSessionOrNull()?.user?.id || identity != account) throw kotlinx.coroutines.CancellationException()
+            suspend fun request(): AppContext {
+                val http = client.functions.invoke(
+                    function = "get-app-context",
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                    },
+                )
+                return EdgePayload.json.decodeFromString(AppContext.serializer(), http.bodyAsText())
+            }
+            val context = try {
+                request()
+            } catch (error: Exception) {
+                if (error is CancellationException || EdgePayload.httpStatus(error) != 401) throw error
+                // The restored session may no longer be accepted by the server. Refresh once.
+                if (identity != client.auth.currentSessionOrNull()?.user?.id || requestGeneration != generation) throw CancellationException()
+                client.auth.refreshCurrentSession()
+                if (identity != client.auth.currentSessionOrNull()?.user?.id || requestGeneration != generation) throw CancellationException()
+                request()
+            }
+            if (identity != client.auth.currentSessionOrNull()?.user?.id || identity != account || requestGeneration != generation) throw CancellationException()
             _current.value = context
             lastRefresh = System.currentTimeMillis()
             Entitlements.apply(context)
+            runCatching { InviteDebugLog.d("get-app-context resolved: role=${context.role}, access=${context.entitlement?.access ?: "unknown"}") }
             context
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
-            if (identity == account && identity == client.auth.currentSessionOrNull()?.user?.id) Entitlements.invalidate()
-            InviteDebugLog.e("get-app-context", error)
+            if (requestGeneration == generation && identity == account && identity == client.auth.currentSessionOrNull()?.user?.id) Entitlements.invalidate()
+            runCatching { InviteDebugLog.e("get-app-context", error) }
             throw error
         } finally {
-            _isLoading.value = false
+            if (requestGeneration == generation) _isLoading.value = false
         }
     }
 
@@ -82,6 +106,7 @@ class AppContextRepository(private val client: SupabaseClient) {
         runCatching { getCurrentAppContext() }
     }
     fun clear() {
+        generation++
         account = null; lastRefresh = 0
         Entitlements.clear()
         _current.value = null

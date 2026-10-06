@@ -148,8 +148,31 @@ class AssignmentStatusCache {
     }
 }
 
-class PatientAssignmentRepository(private val client: SupabaseClient) {
-    private val connectionCache = mutableMapOf<Pair<String, String>, Boolean>()
+/** Last known state, isolated by signed-in account and patient, with optional disk backing. */
+class PatientConnectionCache(
+    private val read: (String) -> Boolean? = { null },
+    private val write: (String, Boolean) -> Unit = { _, _ -> },
+) {
+    private val values = mutableMapOf<String, Boolean>()
+
+    fun value(account: String?, patient: String): Boolean? {
+        if (account == null) return null
+        val key = "$account/$patient"
+        return values[key] ?: runCatching { read(key) }.getOrNull()?.also { values[key] = it }
+    }
+
+    fun store(account: String, patient: String, connected: Boolean) {
+        val key = "$account/$patient"
+        values[key] = connected
+        // Cache persistence must never turn a successful refresh into an error.
+        runCatching { write(key, connected) }
+    }
+}
+
+class PatientAssignmentRepository(
+    private val client: SupabaseClient,
+    private val connectionCache: PatientConnectionCache = PatientConnectionCache(),
+) {
     private val assignmentCache = AssignmentStatusCache()
     private fun currentAccount() = client.auth.currentSessionOrNull()?.user?.id
     fun cachedOngoingAssignment(patientId: String, type: PatientAssignmentType) =
@@ -161,7 +184,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
     }
 
     fun cachedPatientConnection(patientId: String): Boolean? =
-        client.auth.currentSessionOrNull()?.user?.id?.let { connectionCache[it to patientId] }
+        connectionCache.value(currentAccount(), patientId)
 
     suspend fun isPatientConnected(patientId: String): Boolean {
         ensureConfigured()
@@ -172,7 +195,7 @@ class PatientAssignmentRepository(private val client: SupabaseClient) {
         )
         val connected = Json.parseToJsonElement(result.data).jsonPrimitive.boolean
         if (userId != null && userId == client.auth.currentSessionOrNull()?.user?.id) {
-            connectionCache[userId to patientId] = connected
+            connectionCache.store(userId, patientId, connected)
         }
         return connected
     }

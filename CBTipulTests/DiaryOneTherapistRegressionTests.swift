@@ -22,6 +22,9 @@ struct DiaryOneTherapistRegressionTests {
         #expect(updated.createdBy == .therapist && updated.createdAt == entry.createdAt)
         #expect(updated.automaticThoughts == ["second", "first"])
         #expect(try await store.loadEntries(for: patient).count == 1)
+        store.clearDemoContent()
+        #expect(store.entries(for: patient).isEmpty)
+        #expect(try await store.loadEntries(for: patient).isEmpty)
         try await store.deleteEntry(id: entry.id, patientId: patient)
         #expect(store.entries(for: patient).isEmpty)
     }

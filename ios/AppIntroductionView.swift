@@ -19,9 +19,9 @@ struct AppIntroductionView: View {
         if isPatientMode { return [L10n.patientIntroWelcomeTitle, L10n.patientIntroQuestionnairesTitle, L10n.patientIntroDiariesTitle, L10n.patientIntroUpdatesTitle][index] }
         return switch index {
         case 0: L10n.introductionPatientTitle
-        case 1: L10n.introductionSessionTitle
-        case 2: L10n.introductionConnectTitle
-        case 3: L10n.introductionProgressTitle
+        case 1: L10n.introductionProgressTitle
+        case 2: L10n.introductionChatTitle
+        case 3: L10n.introductionConnectTitle
         default: L10n.introductionSampleTitle
         }
     }
@@ -29,9 +29,9 @@ struct AppIntroductionView: View {
         if isPatientMode { return [L10n.patientIntroWelcomeTitle, L10n.patientIntroQuestionnairesTitle, L10n.patientIntroDiariesTitle, L10n.patientIntroUpdatesTitle][index] }
         return switch index {
         case 0: L10n.introductionTopicPatient
-        case 1: L10n.introductionTopicSession
-        case 2: L10n.introductionTopicConnect
-        case 3: L10n.introductionTopicProgress
+        case 1: L10n.introductionTopicProgress
+        case 2: L10n.aiPatientPickerTitle
+        case 3: L10n.introductionTopicConnect
         default: L10n.introductionTopicSample
         }
     }
@@ -39,9 +39,9 @@ struct AppIntroductionView: View {
         if isPatientMode { return [L10n.patientIntroWelcomeBody, L10n.patientIntroQuestionnairesBody, L10n.patientIntroDiariesBody, L10n.patientIntroUpdatesBody][index] }
         return switch index {
         case 0: L10n.introductionPatientBody
-        case 1: L10n.introductionSessionBody
-        case 2: L10n.introductionConnectBody
-        case 3: L10n.introductionProgressBody
+        case 1: L10n.introductionProgressBody
+        case 2: L10n.introductionChatBody
+        case 3: L10n.introductionConnectBody
         default: L10n.introductionSampleBody
         }
     }
@@ -109,10 +109,19 @@ struct AppIntroductionView: View {
                             .foregroundStyle(Theme.textBright)
                             .accessibilityAddTraits(.isHeader)
                             .accessibilityFocused($focusedPage, equals: index)
-                        Text(explanation(for: index))
-                            .font(.body)
-                            .foregroundStyle(Theme.textBody)
-                            .lineSpacing(2)
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(explanation(for: index).components(separatedBy: "\n"), id: \.self) { point in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text("•").foregroundStyle(Theme.gold).accessibilityHidden(true)
+                                    Text(point)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .accessibilityElement(children: .combine)
+                            }
+                        }
+                        .font(.body)
+                        .foregroundStyle(Theme.textBody)
+                        .multilineTextAlignment(.leading)
                         if !isPatientMode && index == pageCount - 1 {
                             Text(L10n.introductionSampleHint)
                                 .font(.callout)
@@ -129,6 +138,17 @@ struct AppIntroductionView: View {
                 .padding(.vertical, 8)
                 .frame(maxWidth: 540)
                 .frame(maxWidth: .infinity)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !isPatientMode && index == 2 {
+                    Text(L10n.introductionChatDisclaimer)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.textBody)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 492)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 8)
+                }
             }
             .scrollBounceBehavior(.basedOnSize)
         }
@@ -252,28 +272,25 @@ struct AppIntroductionView: View {
                     Text(L10n.patientRecordsTitle).font(.headline).foregroundStyle(Theme.textBright)
                     Spacer()
                 }
-                illustrationRow(L10n.introductionGoal, symbol: "scope")
+                illustrationRow(L10n.introductionRecord, symbol: "mic")
                 HStack(spacing: 10) {
                     illustrationRow(L10n.therapistTabSessions, symbol: "calendar")
                     illustrationRow(L10n.patientDiariesTitle, symbol: "book.closed")
                 }
-            case 1:
+            case 2:
                 HStack(spacing: 14) {
-                    icon("waveform")
-                    Text(L10n.introductionSessionNotes).font(.headline).foregroundStyle(Theme.textBright)
+                    icon("bubble.left.and.bubble.right")
+                    Text(L10n.aiPatientPickerTitle).font(.headline).foregroundStyle(Theme.textBright)
                     Spacer()
                 }
-                HStack(spacing: 10) {
-                    illustrationRow(L10n.introductionWrite, symbol: "pencil")
-                    illustrationRow(L10n.introductionRecord, symbol: "mic")
-                }
-                illustrationRow(L10n.introductionAI, symbol: "sparkles")
-            case 2:
+                illustrationRow(L10n.introductionChatPatterns, symbol: "sparkles")
+                illustrationRow(L10n.introductionChatPreparation, symbol: "calendar")
+            case 3:
                 Text(L10n.introductionConnected).font(.caption.weight(.semibold)).foregroundStyle(Theme.gold)
                 illustrationRow(L10n.introductionMessage, symbol: "bubble.left")
                 illustrationRow(L10n.introductionQuestionnaire, symbol: "list.clipboard")
                 illustrationRow(L10n.introductionDiary, symbol: "book.closed")
-            case 3:
+            case 1:
                 HStack {
                     icon("chart.xyaxis.line")
                     Spacer()

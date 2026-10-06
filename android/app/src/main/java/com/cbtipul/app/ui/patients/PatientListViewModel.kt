@@ -139,6 +139,8 @@ class PatientListViewModel(
     fun exitDemoMode() {
         viewModelScope.launch {
             gettingStartedRouter.resetShowcaseReveal()
+            val demoIds = repository.patients.value.map { it.id.queryValue }.toSet()
+            _ui.update { it.copy(savedPreparations = it.savedPreparations - demoIds, pendingAnalysis = null) }
             repository.exitDemoMode()
             refreshGettingStartedProgress()
             refresh()

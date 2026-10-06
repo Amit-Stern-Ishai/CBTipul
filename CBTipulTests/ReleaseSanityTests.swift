@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import CBTipul
 
-/// Offline release sanity: populated sample mode, edits, and restoration.
+/// Offline release sanity: populated sample mode, edits, and fresh demo sessions.
 @MainActor
 struct ReleaseSanityTests {
 
@@ -77,29 +77,28 @@ struct ReleaseSanityTests {
         let removedSample = try #require(showcase.last)
         try await store.deletePatient(removedSample)
 
-        // A fresh store restores both sample edits and user-created demo records.
+        // A fresh entry discards both sample edits and user-created demo records.
         let restored = makeStore()
         restored.enterDemoMode()
-        #expect(restored.patients.first { $0.id == sample.id }?.notes == "Saved sample edit")
-        #expect(!restored.patients.contains { $0.id == removedSample.id })
-        let restoredPatient = try #require(restored.patients.first { $0.id == patient.id })
-        #expect(restoredPatient.sessions.first?.notes == "updated session notes")
-        #expect(restored.cachedQuestionnaires(for: restoredPatient)?.count == 1)
+        #expect(restored.patients.first { $0.id == sample.id }?.notes != "Saved sample edit")
+        #expect(restored.patients.contains { $0.id == removedSample.id })
+        #expect(!restored.patients.contains { $0.id == patient.id })
+        #expect(restored.cachedQuestionnaires(for: patient) == nil)
         let restoredCount = restored.patients.count
         restored.enterDemoMode()
         restored.loadShowcaseDemoData()
         #expect(restored.patients.count == restoredCount)
 
-        // Leaving sample mode must preserve its disk snapshot for the next visit.
+        // Leaving sample mode removes the disk snapshot before loading real patients.
         await restored.exitDemoMode()
         #expect(!restored.isDemoMode)
         #expect(!restored.patients.contains { DemoData.isDemoID($0.id) })
-        #expect(DemoClinicStore.loadClinic()?.includesSampleData == true)
+        #expect(DemoClinicStore.loadClinic() == nil)
         restored.enterDemoMode()
         #expect(restored.patients.count == restoredCount)
-        #expect(restored.patients.first { $0.id == sample.id }?.notes == "Saved sample edit")
+        #expect(restored.patients.first { $0.id == sample.id }?.notes != "Saved sample edit")
 
-        // Old tutorial snapshots gain samples without losing the therapist's work.
+        // Legacy persisted demos are discarded too.
         var legacy = try #require(DemoClinicStore.loadClinic())
         legacy.includesSampleData = nil
         legacy.patients.removeAll { DemoData.isShowcaseID($0.id) }
@@ -109,8 +108,8 @@ struct ReleaseSanityTests {
         DemoClinicStore.saveClinic(legacy)
         let migrated = makeStore()
         migrated.enterDemoMode()
-        #expect(migrated.patients.count == sampleCount + 1)
-        #expect(migrated.patients.first { $0.id == patient.id }?.sessions.first?.notes == "updated session notes")
+        #expect(migrated.patients.count == sampleCount)
+        #expect(!migrated.patients.contains { $0.id == patient.id })
         #expect(migrated.showcaseDataLoaded)
     }
 }

@@ -52,6 +52,7 @@ class PatientRepository(
     private val ai: AiService,
     private val demoClinicStore: DemoClinicStore,
     private val aiConsentStore: AiConsentStore,
+    private val resetDemoContent: (List<Patient>) -> Unit = {},
 ) {
     private val _patients = MutableStateFlow<List<Patient>>(emptyList())
     val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
@@ -93,7 +94,7 @@ class PatientRepository(
         cache.save(_patients.value, _questionnaires.value)
     }
 
-    /** Restore the local sample clinic, seeding examples only on first entry. */
+    /** Start a fresh local sample clinic on every entry. */
     fun enterDemoMode() {
         if (_isDemoMode.value) return
         Entitlements.setLocalDemo(true)
@@ -102,11 +103,12 @@ class PatientRepository(
         _showcaseDataLoaded.value = false
         _patients.value = emptyList()
         _questionnaires.value = emptyMap()
-        val snapshot = demoClinicStore.loadClinic()
-        if (snapshot != null) {
-            applyTutorialOnlySnapshot(snapshot)
-            _showcaseDataLoaded.value = snapshot.hasLoadedSampleData
-        }
+        // Read legacy patient/session IDs only to remove old demo draft keys.
+        demoClinicStore.loadClinic()?.let { applyTutorialOnlySnapshot(it) }
+        resetDemoContent(_patients.value)
+        demoClinicStore.clearAll()
+        _patients.value = emptyList()
+        _questionnaires.value = emptyMap()
         loadShowcaseDemoData()
     }
 
@@ -147,7 +149,8 @@ class PatientRepository(
 
     suspend fun exitDemoMode() {
         if (!_isDemoMode.value) return
-        persistDemoClinic()
+        resetDemoContent(_patients.value)
+        demoClinicStore.clearAll()
         Entitlements.setLocalDemo(false)
         _isDemoMode.value = false
         aiConsentStore.setDemoBypass(false)
@@ -821,7 +824,10 @@ class PatientRepository(
         patient(patientId)?.sessions?.find { it.id.toString() == sessionId || it.databaseId?.queryValue == sessionId }
 
     fun clearAllCaches() {
-        if (_isDemoMode.value) persistDemoClinic()
+        if (_isDemoMode.value) {
+            resetDemoContent(_patients.value)
+            demoClinicStore.clearAll()
+        }
         _isDemoMode.value = false
         Entitlements.setLocalDemo(false)
         aiConsentStore.setDemoBypass(false)
@@ -832,6 +838,7 @@ class PatientRepository(
 
     fun wipeLocalData() {
         if (_isDemoMode.value) {
+            resetDemoContent(_patients.value)
             demoClinicStore.clearAll()
             Entitlements.setLocalDemo(false)
             _isDemoMode.value = false

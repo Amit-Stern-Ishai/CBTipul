@@ -351,7 +351,7 @@ fun SessionEditorScreen(
                                 input()
                             }
                         }, readOnly = !canWrite || busy)
-                    Text(stringResource(if (isSaving) R.string.session_saving else if (hasUnsavedChanges || isNew) R.string.session_not_saved else R.string.session_saved), color = colors.textBody,
+                    if (isSaving) Text(stringResource(R.string.session_saving), color = colors.textBody,
                         fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
                     errorMessage?.let { Text(it, color = colors.error, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
                 }
@@ -424,15 +424,13 @@ fun SessionEditorScreen(
                     recorder.recordingFile != null -> R.string.session_recording_needs_transcription
                     patient == null -> R.string.session_choose_patient_help
                     isNew -> R.string.session_not_created
-                    hasUnsavedChanges -> R.string.session_not_saved
-                    else -> R.string.session_saved
+                    else -> null
                 }
-                IconLabel(
+                if (status != null) IconLabel(
                     stringResource(status),
                     icon = when {
                         recorder.isRecording -> Icons.Filled.Mic
                         busy -> Icons.Outlined.HourglassEmpty
-                        !isNew && !hasUnsavedChanges -> Icons.Filled.CheckCircle
                         else -> Icons.Outlined.EditNote
                     },
                     color = if (recorder.isRecording) colors.error else colors.textBody,

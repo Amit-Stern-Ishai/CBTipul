@@ -122,7 +122,7 @@ fun AIPatientPickerScreen(viewModel: PatientListViewModel, unnamed: String, onSe
                                     Text(
                                         stringResource(title, group.size), color = colors.textBody,
                                         fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+                                        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
                                     )
                                 }
                                 items(group, key = { it.id.queryValue }) { patient ->

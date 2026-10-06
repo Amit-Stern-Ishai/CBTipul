@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -90,8 +91,8 @@ fun AppIntroductionScreen(
                     }
 
                 }
-                val topics = if (isPatientMode) listOf(R.string.patient_intro_welcome_title, R.string.patient_intro_questionnaires_title, R.string.patient_intro_diaries_title, R.string.patient_intro_updates_title) else listOf(R.string.introduction_topic_patient, R.string.introduction_topic_session,
-                    R.string.introduction_topic_connect, R.string.introduction_topic_progress, R.string.introduction_topic_sample)
+                val topics = if (isPatientMode) listOf(R.string.patient_intro_welcome_title, R.string.patient_intro_questionnaires_title, R.string.patient_intro_diaries_title, R.string.patient_intro_updates_title) else listOf(R.string.introduction_topic_patient, R.string.introduction_topic_progress,
+                    R.string.ai_patient_picker_title, R.string.introduction_topic_connect, R.string.introduction_topic_sample)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     topics.forEachIndexed { index, topic ->
                         val label = stringResource(topic)
@@ -153,22 +154,23 @@ private fun IntroductionSlide(index: Int, isPatientMode: Boolean) {
     val colors = Theme.colors
     val title = if (isPatientMode) listOf(R.string.patient_intro_welcome_title, R.string.patient_intro_questionnaires_title, R.string.patient_intro_diaries_title, R.string.patient_intro_updates_title)[index] else when (index) {
         0 -> R.string.introduction_patient_title
-        1 -> R.string.introduction_session_title
-        2 -> R.string.introduction_connect_title
-        3 -> R.string.introduction_progress_title
+        1 -> R.string.introduction_progress_title
+        2 -> R.string.introduction_chat_title
+        3 -> R.string.introduction_connect_title
         else -> R.string.introduction_sample_title
     }
     val body = if (isPatientMode) listOf(R.string.patient_intro_welcome_body, R.string.patient_intro_questionnaires_body, R.string.patient_intro_diaries_body, R.string.patient_intro_updates_body)[index] else when (index) {
         0 -> R.string.introduction_patient_body
-        1 -> R.string.introduction_session_body
-        2 -> R.string.introduction_connect_body
-        3 -> R.string.introduction_progress_body
+        1 -> R.string.introduction_progress_body
+        2 -> R.string.introduction_chat_body
+        3 -> R.string.introduction_connect_body
         else -> R.string.introduction_sample_body
     }
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         val compact = maxHeight < 520.dp
         val patientIllustrationHeight = minOf(230.dp, maxHeight * 0.45f)
-        Column(Modifier.widthIn(max = 540.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
+        Column(Modifier.widthIn(max = 540.dp).fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 18.dp)) {
             if (isPatientMode) {
                 Box(Modifier.fillMaxWidth().height(patientIllustrationHeight).background(colors.goldGhost, RoundedCornerShape(28.dp)), contentAlignment = Alignment.Center) {
@@ -178,13 +180,28 @@ private fun IntroductionSlide(index: Int, isPatientMode: Boolean) {
             Column(Modifier.widthIn(max = 492.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(stringResource(title), color = colors.textBright, fontSize = 28.sp, lineHeight = 34.sp,
                     fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
-                Text(stringResource(body), color = colors.textBody, fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center)
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    stringResource(body).split("\n").forEach { point ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                            Text("•", color = colors.gold, fontSize = 16.sp, lineHeight = 22.sp,
+                                modifier = Modifier.clearAndSetSemantics { })
+                            Text(point, color = colors.textBody, fontSize = 16.sp, lineHeight = 22.sp,
+                                textAlign = TextAlign.Start, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
                 if (!isPatientMode && index == 4) {
                     Text(stringResource(R.string.introduction_sample_hint), color = colors.textBody, fontSize = 14.sp, lineHeight = 22.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().background(colors.goldGhost, RoundedCornerShape(18.dp)).padding(12.dp))
                 }
             }
+        }
+        if (!isPatientMode && index == 2) {
+            Text(stringResource(R.string.introduction_chat_disclaimer), color = colors.textBody,
+                fontSize = 13.sp, lineHeight = 18.sp, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp))
+        }
         }
     }
 }
@@ -196,20 +213,20 @@ private fun IntroductionIllustration(index: Int) {
         shape = RoundedCornerShape(28.dp), color = colors.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, colors.borderFaint), shadowElevation = 2.dp) {
         Column(Modifier.heightIn(min = 240.dp).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            if (index == 2) {
+            if (index == 3) {
                 Text(stringResource(R.string.introduction_connected), color = colors.gold, fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             } else {
                 val icon = when (index) {
                     0 -> Icons.Outlined.Badge
-                    1 -> Icons.Outlined.GraphicEq
-                    3 -> Icons.Outlined.ShowChart
+                    2 -> Icons.AutoMirrored.Outlined.Chat
+                    1 -> Icons.Outlined.ShowChart
                     else -> Icons.Outlined.RecentActors
                 }
                 val title = when (index) {
                     0 -> R.string.patient_records_title
-                    1 -> R.string.introduction_session_notes
-                    3 -> R.string.introduction_trend
+                    2 -> R.string.ai_patient_picker_title
+                    1 -> R.string.introduction_trend
                     else -> R.string.introduction_sample_badge
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -220,61 +237,53 @@ private fun IntroductionIllustration(index: Int) {
             }
             when (index) {
                 0 -> {
-                    IllustrationRow(R.string.introduction_goal, Icons.Outlined.TrackChanges)
+                    IllustrationRow(R.string.introduction_record, Icons.Outlined.Mic)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         IllustrationRow(R.string.therapist_tab_sessions, Icons.Outlined.CalendarToday, Modifier.weight(1f))
                         IllustrationRow(R.string.patient_diaries_title, Icons.Outlined.MenuBook, Modifier.weight(1f))
                     }
                 }
-                1 -> {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        IllustrationRow(R.string.introduction_write, Icons.Outlined.Edit, Modifier.weight(1f))
-                        IllustrationRow(R.string.introduction_record, Icons.Outlined.Mic, Modifier.weight(1f))
-                    }
-                    IllustrationRow(R.string.introduction_ai, Icons.Outlined.AutoAwesome)
-                }
                 2 -> {
+                    IllustrationRow(R.string.introduction_chat_patterns, Icons.Outlined.AutoAwesome)
+                    IllustrationRow(R.string.introduction_chat_preparation, Icons.Outlined.CalendarToday)
+                }
+                3 -> {
                     IllustrationRow(R.string.introduction_message, Icons.AutoMirrored.Outlined.Chat)
                     IllustrationRow(R.string.introduction_questionnaire, Icons.Outlined.Assignment)
                     IllustrationRow(R.string.introduction_diary, Icons.Outlined.MenuBook)
                 }
-                3 -> {
-                    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+                1 -> {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.introduction_graph_measure), color = colors.textBody, fontSize = 12.sp)
                         Canvas(Modifier.fillMaxWidth().height(130.dp).padding(8.dp)) {
                             repeat(3) { row ->
                                 val y = size.height * (row + 1) / 4
-                                drawLine(colors.borderFaint, Offset(0f, y), Offset(size.width, y),
+                                drawLine(colors.textBody.copy(alpha = 0.22f), Offset(0f, y), Offset(size.width, y),
+                                    strokeWidth = 1.dp.toPx(),
                                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 5.dp.toPx())))
                             }
-                            val values = listOf(.15f, .30f, .27f, .52f, .63f, .83f)
+                            val values = listOf(.22f, .39f, .32f, .61f, .58f, .79f)
                             val points = values.mapIndexed { i, value ->
                                 val fraction = i.toFloat() / values.lastIndex
-                                Offset(size.width * (if (rtl) 1f - fraction else fraction), size.height * value)
+                                Offset(size.width * fraction, size.height * value)
                             }
-                            val area = Path().apply {
-                                moveTo(points.first().x, size.height)
-                                points.forEach { lineTo(it.x, it.y) }
-                                lineTo(points.last().x, size.height)
-                                close()
-                            }
-                            drawPath(area, colors.success.copy(alpha = .12f))
                             val line = Path().apply {
                                 moveTo(points.first().x, points.first().y)
                                 points.drop(1).forEach { lineTo(it.x, it.y) }
                             }
-                            drawPath(line, colors.success, style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round))
+                            drawPath(line, colors.gold, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                             points.forEach {
                                 drawCircle(colors.surface, 6.dp.toPx(), it)
-                                drawCircle(colors.success, 4.dp.toPx(), it)
+                                drawCircle(colors.gold, 4.dp.toPx(), it)
                             }
                         }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(stringResource(R.string.introduction_graph_start), color = colors.textBody, fontSize = 12.sp)
-                            Text(stringResource(R.string.introduction_graph_latest), color = colors.textBody, fontSize = 12.sp)
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(stringResource(R.string.introduction_graph_start), color = colors.textBody, fontSize = 12.sp)
+                                Text(stringResource(R.string.introduction_graph_latest), color = colors.textBody, fontSize = 12.sp)
+                            }
                         }
-                        Text(stringResource(R.string.introduction_graph_hint), color = colors.success, fontSize = 12.sp)
+                        Text(stringResource(R.string.introduction_graph_hint), color = colors.gold, fontSize = 12.sp)
                     }
                 }
                 else -> {

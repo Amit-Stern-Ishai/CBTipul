@@ -165,7 +165,7 @@ fun PatientSessionsScreen(
                                 hebrewMonth(group.month),
                                 color = colors.gold,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                             )
                         }
                         item(key = "group-${group.month.time}") {
@@ -173,54 +173,17 @@ fun PatientSessionsScreen(
                                 group.items.forEachIndexed { row, item ->
                                     val number = sorted.size - item.index
                                     val isLatest = item.session.id == sorted.firstOrNull()?.id
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .tutorialPulse(
-                                                isLatest &&
-                                                    gettingStarted?.shouldPulse(TutorialHighlight.LatestSession) == true,
-                                            )
-                                            .clickable { onOpenSession(item.session) }
-                                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                                        ) {
-                                            Icon(Icons.Outlined.CalendarMonth, contentDescription = null,
-                                                tint = colors.gold, modifier = Modifier.size(24.dp))
-                                            Text("$number", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                        }
-                                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                Text(hebrewDate(item.session.date), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                                                if (item.session.structuredNotes != null) {
-                                                    Icon(
-                                                        Icons.Outlined.Description,
-                                                        contentDescription = stringResource(R.string.has_structured_summary_label),
-                                                        tint = colors.textBody,
-                                                        modifier = Modifier.size(16.dp),
-                                                    )
-                                                }
-                                            }
-                                            item.session.type?.let {
-                                                Text(stringResource(it.labelRes()), color = colors.textBody, fontSize = 14.sp)
-                                            }
-                                        }
-                                        sessionScores(item.session, item.index, sorted, questionnaires)?.let { preview ->
-                                            Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
-                                                GAD7ScoreCapsule(preview.first, preview.second)
-                                                PHQ9ScoreCapsule(preview.first, preview.second)
-                                            }
-                                        }
-                                    }
+                                    SessionListRow(
+                                        session = item.session,
+                                        number = number,
+                                        scores = sessionScores(item.session, item.index, sorted, questionnaires),
+                                        modifier = Modifier.tutorialPulse(
+                                            isLatest && gettingStarted?.shouldPulse(TutorialHighlight.LatestSession) == true,
+                                        ),
+                                        onClick = { onOpenSession(item.session) },
+                                    )
                                     if (row < group.items.lastIndex) {
-                                        GroupedListDivider(startInset = 62.dp)
+                                        GroupedListDivider(startInset = 0.dp)
                                     }
                                 }
                             }
@@ -232,7 +195,7 @@ fun PatientSessionsScreen(
                 label = stringResource(if (hasRecovery) R.string.resume_session_summary else if (sorted.isEmpty()) R.string.empty_sessions_primary_action else R.string.add_session_action),
                 icon = Icons.Outlined.Add,
                 onClick = onAdd,
-                modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp, bottom = 8.dp)
                     .tutorialPulse(pulseAddSession).entitlementCreateControl(),
             )
         }
@@ -267,7 +230,7 @@ private fun groupByHebrewMonth(sortedNewestFirst: List<Session>): List<MonthGrou
 private fun hebrewMonth(date: Date): String =
     SimpleDateFormat("LLLL yyyy", Locale.forLanguageTag("he-IL")).format(date)
 
-private fun sessionScores(
+internal fun sessionScores(
     session: Session,
     index: Int,
     sortedNewestFirst: List<Session>,
@@ -297,6 +260,64 @@ internal fun PatientContextTitle(title: String, name: String, onOpenPatient: () 
                     modifier = Modifier.weight(1f, fill = false))
                 Icon(androidx.compose.material.icons.Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                     contentDescription = null, tint = Theme.colors.gold)
+            }
+        }
+    }
+}
+
+/** Shared session row for both the global tab and the patient's history. */
+@Composable
+internal fun SessionListRow(
+    session: Session,
+    number: Int,
+    scores: Pair<CombinedMoodQuestionnaire, CombinedMoodQuestionnaire?>?,
+    modifier: Modifier = Modifier,
+    patientName: String? = null,
+    onClick: () -> Unit,
+) {
+    val colors = Theme.colors
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(Icons.Outlined.CalendarMonth, contentDescription = null,
+                tint = colors.gold, modifier = Modifier.size(24.dp))
+            Text("$number", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            patientName?.let {
+                Text(it, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(hebrewDate(session.date), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                if (session.structuredNotes != null) {
+                    Icon(
+                        Icons.Outlined.Description,
+                        contentDescription = stringResource(R.string.has_structured_summary_label),
+                        tint = colors.textBody,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+            session.type?.let {
+                Text(stringResource(it.labelRes()), color = colors.textBody, fontSize = 14.sp)
+            }
+        }
+        scores?.let { preview ->
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
+                GAD7ScoreCapsule(preview.first, preview.second)
+                PHQ9ScoreCapsule(preview.first, preview.second)
             }
         }
     }

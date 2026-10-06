@@ -111,6 +111,8 @@ final class DiaryTwoStore {
     private let client: SupabaseClient
     private var entriesByPatient: [String: [DiaryTwoEntry]] = [:]
     /// Demo clinic only — not used for real patients.
+    func clearDemoContent() { demoEntriesByPatient.removeAll() }
+
     private var demoEntriesByPatient: [String: [DiaryTwoEntry]] = [:]
 
     init(client: SupabaseClient) {

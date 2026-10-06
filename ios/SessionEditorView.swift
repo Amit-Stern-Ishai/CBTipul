@@ -89,7 +89,7 @@ struct SessionEditorView: View {
         storePatient != nil && !isWorking && voiceRecorder.recordingURL == nil && (isNew || hasUnsavedChanges)
     }
 
-    private var saveStatus: String {
+    private var saveStatus: String? {
         if voiceRecorder.isRecording { return L10n.sessionRecordingInProgress }
         if isTranscribing { return L10n.transcribingLabel }
         if isAnonymizingTranscription { return L10n.anonymizingStatusLabel }
@@ -99,7 +99,7 @@ struct SessionEditorView: View {
         if voiceRecorder.recordingURL != nil { return L10n.sessionRecordingNeedsTranscription }
         if storePatient == nil { return L10n.sessionChoosePatientHelp }
         if isNew { return L10n.sessionNotCreated }
-        return hasUnsavedChanges ? L10n.sessionNotSaved : L10n.sessionSaved
+        return nil
     }
 
     /// This session's saved questionnaire, read live from the store's cache
@@ -397,14 +397,15 @@ struct SessionEditorView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
-                    Label(saveStatus,
-                          systemImage: voiceRecorder.isRecording ? "mic.fill"
-                            : (isWorking ? "hourglass"
-                               : (!isNew && !hasUnsavedChanges ? "checkmark.circle.fill" : "pencil.circle")))
-                        .font(.footnote)
-                        .foregroundStyle(voiceRecorder.isRecording ? Theme.error : Theme.textBody)
-                        .multilineTextAlignment(.center)
-                        .accessibilityIdentifier("session.saveStatus")
+                    if let saveStatus {
+                        Label(saveStatus,
+                              systemImage: voiceRecorder.isRecording ? "mic.fill"
+                                : (isWorking ? "hourglass" : "pencil.circle"))
+                            .font(.footnote)
+                            .foregroundStyle(voiceRecorder.isRecording ? Theme.error : Theme.textBody)
+                            .multilineTextAlignment(.center)
+                            .accessibilityIdentifier("session.saveStatus")
+                    }
                     Button(action: { save() }) {
                         Text(L10n.saveSessionAction)
                             .fontWeight(.semibold)
@@ -495,10 +496,12 @@ struct SessionEditorView: View {
                                 .scrollDismissesKeyboard(.interactively)
                                 .padding(.horizontal, 24).padding(.vertical, 16)
                         }
-                        Text(saveStatus)
-                            .font(.caption).foregroundStyle(Theme.textBody)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 24).padding(.vertical, 12)
+                        if let saveStatus {
+                            Text(saveStatus)
+                                .font(.caption).foregroundStyle(Theme.textBody)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 24).padding(.vertical, 12)
+                        }
                     }
                     .background(Theme.surface)
                     .navigationTitle(L10n.sessionSummarySection)

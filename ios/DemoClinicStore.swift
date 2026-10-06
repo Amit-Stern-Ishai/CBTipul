@@ -5,8 +5,7 @@ import OSLog
 ///
 /// Kept completely separate from the real Keychain identity store, the real
 /// patients disk cache, and real preparation files — so demo edits never
-/// touch production data, and re-entering demo restores what the therapist
-/// last left there.
+/// touch production data. Demo content is discarded on exit and fresh entry.
 enum DemoClinicStore {
     private static let logger = Logger(subsystem: "CBTipul", category: "DemoClinicStore")
 

@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-private val GroupCornerRadius = 20.dp
+private val GroupCornerRadius = 14.dp
 
 @Composable
 fun Modifier.groupedListCard(accent: Color? = null): Modifier {

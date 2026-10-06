@@ -75,7 +75,7 @@ struct AddPatientView: View {
                             ProgressView()
                                 .tint(Theme.textOnAccent)
                         } else {
-                            Text(L10n.addPatientAction)
+                            Text(L10n.savePatientAction)
                                 .fontWeight(.semibold)
                         }
                     }

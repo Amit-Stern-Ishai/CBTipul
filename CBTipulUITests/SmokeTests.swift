@@ -4,6 +4,41 @@ import XCTest
 final class SmokeTests: XCTestCase {
 
     @MainActor
+    func testPatientStatusCanBeChangedFromHeader() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["patients.root"].waitForExistence(timeout: 20))
+        let name = "Status" + UUID().uuidString.prefix(6)
+        app.navigationBars.buttons["הוספת מטופל/ת"].tap()
+        XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5))
+        app.textFields.firstMatch.tap()
+        app.textFields.firstMatch.typeText(name)
+        app.buttons["שמירת מטופל/ת"].tap()
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(name + "\n")
+        let patient = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+        XCTAssertTrue(patient.waitForExistence(timeout: 5))
+        patient.tap()
+        let status = app.buttons["סטטוס"]
+        XCTAssertTrue(status.waitForExistence(timeout: 5))
+        status.tap()
+        let inactive = app.buttons["לא פעיל/ה"]
+        XCTAssertTrue(inactive.waitForExistence(timeout: 5))
+        inactive.tap()
+        let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@ AND enabled == true", "לא פעיל/ה"), object: status)
+        XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 10), .completed)
+        status.tap()
+        let active = app.buttons["פעיל/ה"]
+        XCTAssertTrue(active.waitForExistence(timeout: 5))
+        active.tap()
+        let restored = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@ AND enabled == true", "פעיל/ה"), object: status)
+        XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 10), .completed)
+    }
+
+    @MainActor
     func testTherapistAIPatientSelectionAndBack() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting"]
@@ -14,7 +49,7 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5))
         app.textFields.firstMatch.tap()
         app.textFields.firstMatch.typeText(name)
-        app.buttons.matching(identifier: "הוספת מטופל/ת").firstMatch.tap()
+        app.buttons.matching(identifier: "שמירת מטופל/ת").firstMatch.tap()
         let aiTab = app.tabBars.buttons["AI"]
         XCTAssertTrue(aiTab.waitForExistence(timeout: 5))
         XCTAssertEqual(app.tabBars.buttons.count, 5)
@@ -45,8 +80,8 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5))
         app.textFields.firstMatch.tap()
         app.textFields.firstMatch.typeText(name)
-        app.buttons.matching(identifier: "הוספת מטופל/ת").firstMatch.tap()
-        // The demo clinic persists across runs; filter before locating its new row.
+        app.buttons.matching(identifier: "שמירת מטופל/ת").firstMatch.tap()
+        // Filter the bundled samples before locating the newly added row.
         let search = app.searchFields["חיפוש מטופלים"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap()
@@ -161,7 +196,7 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5))
         app.textFields.firstMatch.tap()
         app.textFields.firstMatch.typeText(name)
-        app.buttons.matching(identifier: "הוספת מטופל/ת").firstMatch.tap()
+        app.buttons.matching(identifier: "שמירת מטופל/ת").firstMatch.tap()
         XCTAssertTrue(app.searchFields["חיפוש מטופלים"].waitForExistence(timeout: 5))
         app.tabBars.buttons["פגישות"].tap()
         app.navigationBars.buttons["פגישה חדשה"].tap()
@@ -212,8 +247,8 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5))
         app.textFields.firstMatch.tap()
         app.textFields.firstMatch.typeText(name)
-        app.buttons.matching(identifier: "הוספת מטופל/ת").firstMatch.tap()
-        // The demo clinic persists across runs; filter before locating its new row.
+        app.buttons.matching(identifier: "שמירת מטופל/ת").firstMatch.tap()
+        // Filter the bundled samples before locating the newly added row.
         let search = app.searchFields["חיפוש מטופלים"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap()
@@ -247,14 +282,16 @@ final class SmokeTests: XCTestCase {
         row.tap()
         XCTAssertTrue(save.waitForExistence(timeout: 5))
         XCTAssertFalse(save.isEnabled)
-        XCTAssertTrue(app.staticTexts["כל השינויים נשמרו"].exists)
+        XCTAssertFalse(app.staticTexts["כל השינויים נשמרו"].exists)
 
         let notes = app.textViews.firstMatch
         notes.tap()
         notes.typeText("Session notes for UX verification")
         XCTAssertTrue(save.isEnabled)
         save.tap()
-        XCTAssertTrue(app.staticTexts["כל השינויים נשמרו"].waitForExistence(timeout: 10))
+        let saved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == false"), object: save)
+        XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 10), .completed)
+        XCTAssertFalse(app.staticTexts["כל השינויים נשמרו"].exists)
         XCTAssertFalse(save.isEnabled)
         app.navigationBars.buttons["חזרה"].firstMatch.tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))

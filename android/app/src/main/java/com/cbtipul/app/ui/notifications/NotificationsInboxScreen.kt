@@ -141,8 +141,8 @@ fun NotificationsInboxScreen(
                 onRefresh = { scope.launch { loadAndMarkSeen(showLoading = true) } },
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (failed) item(key = "refresh-error") {
                         Column {
                             Text(stringResource(R.string.notifications_refresh_failed), color = colors.textBody)
@@ -199,14 +199,14 @@ private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> 
         is AppDestination.DiaryOneEntry, is AppDestination.DiaryTwoEntry, is AppDestination.DiaryThreeEntry -> R.string.notification_open_diary
         else -> null
     }
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = colors.surface),
         border = BorderStroke(1.dp, if (item.isUnread) colors.gold.copy(alpha = 0.4f) else colors.borderFaint)) {
-        Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(42.dp).background(eventColor.copy(alpha = 0.12f), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = eventColor, modifier = Modifier.size(22.dp))
+        Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(34.dp).background(eventColor.copy(alpha = 0.12f), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = eventColor, modifier = Modifier.size(20.dp))
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(patientName, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     if (item.isUnread) {
@@ -215,8 +215,8 @@ private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> 
                     }
                 }
                 Text(inboxMessage(item.type), color = colors.textBody, fontSize = 14.sp)
-                FlowRow(modifier = Modifier.fillMaxWidth().padding(top = 3.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(inboxTimestamp(item.createdAt), color = colors.textFaint, fontSize = 12.sp, modifier = Modifier.padding(end = 12.dp))
                     if (action != null) Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(action), color = colors.gold, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)

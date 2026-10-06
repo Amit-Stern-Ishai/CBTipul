@@ -1,6 +1,14 @@
 package com.cbtipul.app.ui.patients
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,17 +40,22 @@ fun ScoreCapsule(
     val colors = Theme.colors
     Row(
         modifier = Modifier
+            .width(94.dp * LocalDensity.current.fontScale)
+            .heightIn(min = 24.dp)
             .background(color.copy(alpha = 0.12f), RoundedCornerShape(50))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 7.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(text, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        if (delta != null && delta != 0) {
-            Icon(
+        Text(text, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+            style = TextStyle(textDirection = TextDirection.Ltr))
+        // Reserve the trend slot even when unchanged, keeping every badge the same size.
+        Box(Modifier.size(12.dp), contentAlignment = Alignment.Center) {
+            if (delta != null && delta != 0) Icon(
                 if (delta > 0) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
                 contentDescription = null,
                 tint = if (delta > 0) colors.error else colors.success,
-                modifier = Modifier.padding(start = 2.dp),
+                modifier = Modifier.size(12.dp),
             )
         }
     }

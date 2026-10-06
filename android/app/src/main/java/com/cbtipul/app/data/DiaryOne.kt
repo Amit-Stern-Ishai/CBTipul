@@ -260,6 +260,12 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         }
     }
 
+    fun clearDemoContent() {
+        val keys = demoEntries.keys.toSet()
+        demoEntries.clear()
+        _entries.update { it - keys }
+    }
+
     fun clear() {
         _entries.value = emptyMap()
         demoEntries.clear()

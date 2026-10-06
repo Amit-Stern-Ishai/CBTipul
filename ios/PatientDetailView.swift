@@ -57,6 +57,7 @@ struct PatientDetailView: View {
     @State private var isSendingToPatient = false
     @State private var sendFeedbackTitle: String?
     @State private var sendFeedbackMessage: String?
+    @ScaledMetric(relativeTo: .subheadline) private var connectionRowHeight = 48.0
     @State private var refreshedConnectionState: PatientConnectionState?
 
     private var connectionState: PatientConnectionState {
@@ -168,7 +169,31 @@ struct PatientDetailView: View {
                         .buttonStyle(.borderless)
                     }
                     .frame(maxWidth: .infinity)
-                    StatusBadge(status: patient.status)
+                    Menu {
+                        Picker(L10n.statusLabel, selection: Binding(
+                            get: { patient.status },
+                            set: { savePatientStatus($0) }
+                        )) {
+                            ForEach(PatientStatus.allCases) { status in
+                                Text(L10n.patientStatus(status)).tag(status)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            StatusBadge(status: patient.status)
+                            Image(systemName: "chevron.down")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.textBody)
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .entitlementCreateControl()
+                    .disabled(isSaving)
+                    .accessibilityLabel(L10n.statusLabel)
+                    .accessibilityValue(L10n.patientStatus(patient.status))
+                    .accessibilityIdentifier("patient.status")
                 }
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
@@ -179,11 +204,8 @@ struct PatientDetailView: View {
 
             Section {
                 connectionCard
-                    .listRowBackground(groupBorderedRow(connectionState == .connected ? .first : .only))
-                if connectionState == .connected {
-                    sendingActions
-                        .listRowBackground(groupBorderedRow(.last))
-                }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                    .listRowBackground(groupBorderedRow(.only))
             }
 
             PatientRecentActivityView(patient: patient)
@@ -720,55 +742,91 @@ struct PatientDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var connectionCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            switch connectionState {
-            case .checking:
-                ProgressView(L10n.patientConnectionChecking)
-            case .connected:
-                Label(L10n.patientConnectedStatus, systemImage: "checkmark.circle.fill")
-                    .font(.headline)
-                Button { isShowingConnectionInfo = true } label: {
-                    Label(L10n.patientReinviteAction, systemImage: "person.crop.circle.badge.plus")
-                }.entitlementCreateControl()
-                .buttonStyle(.bordered)
-                .disabled(isCreatingInvitation || isSaving)
-                .accessibilityIdentifier("patient.reinvite")
-            case .notConnected, .unavailable:
-                Button {
-                    isShowingConnectionInfo = true
-                } label: {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Label(L10n.patientInviteToAppAction, systemImage: "person.crop.circle.badge.plus")
-                                .font(.headline)
-                                .foregroundStyle(Theme.gold)
-                            Text(connectionState == .notConnected
-                                 ? L10n.patientNotConnectedStatus : L10n.patientInvitationDemoStatus)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.forward")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .contentShape(Rectangle())
-                }.entitlementCreateControl()
-                .buttonStyle(.plain)
-                .disabled(isCreatingInvitation || isSaving)
-                .accessibilityIdentifier("patient.connectionInfo")
-            case .failed:
-                Text(L10n.patientConnectionCheckError)
-                    .font(.subheadline)
-                Button(L10n.retry) {
-                    Task { await refreshConnectionState() }
-                }
-                .buttonStyle(.bordered)
-            }
+    private var connectionStatusTitle: String {
+        switch connectionState {
+        case .connected: L10n.patientConnectedStatus
+        case .notConnected: L10n.patientNotConnectedStatus
+        case .unavailable: L10n.patientInvitationDemoStatus
+        case .checking: L10n.patientConnectionChecking
+        case .failed: L10n.patientConnectionUnavailableStatus
         }
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.vertical, 6)
+    }
+
+    private var connectionStatusIcon: String {
+        switch connectionState {
+        case .connected: "checkmark.circle.fill"
+        case .checking: "hourglass"
+        case .failed: "exclamationmark.circle"
+        default: "lock"
+        }
+    }
+
+    private var connectionActionTitle: String {
+        switch connectionState {
+        case .connected, .checking: L10n.sendToPatientAction
+        case .failed: L10n.retry
+        default: L10n.patientInviteToAppAction
+        }
+    }
+
+    private var connectionCard: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Label(connectionStatusTitle, systemImage: connectionStatusIcon)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(connectionState == .connected ? Theme.success : Theme.textBody)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+                if connectionState == .connected {
+                    Button { isShowingConnectionInfo = true } label: {
+                        Image(systemName: "person.crop.circle.badge.plus")
+                            .foregroundStyle(Theme.gold)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .entitlementCreateControl()
+                    .disabled(isCreatingInvitation || isSaving || isSendingToPatient)
+                    .accessibilityLabel(L10n.patientReinviteAction)
+                    .accessibilityIdentifier("patient.reinvite")
+                } else {
+                    Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
+                }
+            }
+            .frame(height: connectionRowHeight)
+
+            // Same two slots in every state, including the first uncached load.
+            ZStack {
+                Color.clear
+                if connectionState != .checking {
+                    Button {
+                        if connectionState == .failed {
+                            Task { await refreshConnectionState() }
+                        } else if EntitlementState.shared.allowMutation() {
+                            if connectionState == .connected {
+                                pendingSendAction = nil
+                                isShowingSendOptions = true
+                            } else {
+                                isShowingConnectionInfo = true
+                            }
+                        }
+                    } label: {
+                        Label(connectionActionTitle, systemImage: connectionState == .connected ? "paperplane" : (connectionState == .failed ? "arrow.clockwise" : "person.crop.circle.badge.plus"))
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.horizontal, 12)
+                            .foregroundStyle(Theme.textOnAccent)
+                            .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isCreatingInvitation || isSaving || isSendingToPatient)
+                    .accessibilityIdentifier(connectionState == .connected ? "patient.sending" : "patient.connectionInfo")
+                }
+            }
+            .frame(height: connectionRowHeight)
+        }
         .accessibilityIdentifier("patient.connection")
     }
 
@@ -828,31 +886,6 @@ struct PatientDetailView: View {
 
     private enum PatientSendAction {
         case message, diaryOne, diaryTwo, diaryThree
-    }
-
-    @ViewBuilder
-    private var sendingActions: some View {
-        if connectionState == .connected {
-            Button {
-                pendingSendAction = nil
-                if EntitlementState.shared.allowMutation() { isShowingSendOptions = true }
-            } label: {
-                HStack(spacing: 12) {
-                    workspaceRow("paperplane", title: L10n.sendToPatientAction,
-                                 detail: L10n.patientSendingDescription)
-                    Image(systemName: "chevron.forward")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .contentShape(Rectangle())
-            }.entitlementCreateControl()
-            .buttonStyle(.plain)
-            .disabled(isSendingToPatient || isSaving)
-        .entitlementCreateControl()
-            .accessibilityIdentifier("patient.sending")
-        } else {
-            sendingUnavailableNotice
-        }
     }
 
     private var sendingUnavailableNotice: some View {
@@ -1330,6 +1363,24 @@ struct PatientDetailView: View {
         firstNameDraft = parts.first ?? ""
         lastNameDraft = parts.count > 1 ? parts[1] : ""
         isEditingName = true
+    }
+
+    private func savePatientStatus(_ status: PatientStatus) {
+        guard EntitlementState.shared.allowMutation(), !isSaving, status != patient.status else { return }
+        let previousStatus = patient.status
+        errorMessage = nil
+        busyLabel = nil
+        isSaving = true
+        patient.status = status
+        Task {
+            defer { isSaving = false }
+            do {
+                try await store.updatePatientStatus(patient)
+            } catch {
+                patient.status = previousStatus
+                errorMessage = error.userFacingMessage
+            }
+        }
     }
 
     private func saveEditedName() {

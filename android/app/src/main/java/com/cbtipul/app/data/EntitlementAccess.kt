@@ -58,6 +58,7 @@ object Entitlements {
     fun apply(context: AppContext) {
         mutable.value = mutable.value.copy(role = context.role,
             access = if (context.isIncompletePatient) null else context.entitlement?.access)
+        if (context.entitlement?.access == EntitlementAccess.Full) blocked.value = false
     }
     fun invalidate() { mutable.value = mutable.value.copy(access = null) }
     fun clear() { PatientHomeCache.clear(); mutable.value = EntitlementSnapshot(); blocked.value = false }

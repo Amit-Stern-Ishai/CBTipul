@@ -297,3 +297,24 @@ struct GettingStartedProgressTests {
         #expect(GettingStartedProgress.missingPreparationAction(for: patient) == .addQuestionnaire)
     }
 }
+
+@MainActor @Suite(.serialized)
+struct DemoResetTests {
+    @Test func resetDiscardsDemoDraftAndRejectsLateEditorSave() async throws {
+        await EntitlementTestIsolation.acquire()
+        defer { EntitlementTestIsolation.release() }
+        let storage = DeviceDraftStorage(service: "CBTipul.demo-reset-tests")
+        let real = try DeviceDraftStorage.key(userID: "test", kind: "therapist-session", target: "new:global")
+        try storage.save("real notes", key: real)
+        defer { try? storage.remove(key: real) }
+        let demo = try DeviceDraftStorage.key(userID: "test", kind: "demo-session", target: "new:global")
+        try storage.save("fake notes", key: demo)
+        #expect(try storage.load(String.self, key: demo) == "fake notes")
+        DeviceDraftStorage.resetDemo()
+        try storage.save("late fake notes", key: demo)
+        let fresh = try DeviceDraftStorage.key(userID: "test", kind: "demo-session", target: "new:global")
+        #expect(fresh != demo)
+        #expect(!storage.contains(key: demo) && !storage.contains(key: fresh))
+        #expect(try storage.load(String.self, key: real) == "real notes")
+    }
+}

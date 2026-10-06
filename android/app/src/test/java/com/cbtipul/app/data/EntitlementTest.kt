@@ -41,6 +41,7 @@ class EntitlementTest {
         assertFalse(Entitlements.allowMutation())
         assertTrue(Entitlements.explanationVisible.value)
         Entitlements.apply(context(EntitlementAccess.Full)); Entitlements.requireWrite()
+        assertFalse(Entitlements.explanationVisible.value)
         Entitlements.setIdentity("two")
         assertFalse(Entitlements.canWrite)
         assertFalse(Entitlements.explanationVisible.value)

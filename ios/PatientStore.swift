@@ -331,7 +331,15 @@ final class PatientStore {
         identityStore.mirrorExistingNamesToAppGroup()
     }
 
-    /// Opens the separate local sample clinic, preserving previous demo edits.
+    var resetDemoContent: () -> Void = {}
+
+    private func clearDemoContent() {
+        DemoClinicStore.clearAll()
+        DeviceDraftStorage.resetDemo()
+        resetDemoContent()
+    }
+
+    /// Opens a fresh, separate local sample clinic.
     func enterDemoMode() {
         guard !isDemoMode else { return }
         EntitlementState.shared.setLocalDemo(true)
@@ -341,11 +349,7 @@ final class PatientStore {
         patients = []
         questionnairesByPatient = [:]
 
-        if let snapshot = DemoClinicStore.loadClinic() {
-            applyDemoSnapshot(snapshot)
-            showcaseDataLoaded = snapshot.includesSampleData
-                ?? snapshot.patients.contains { DemoData.isShowcaseID($0.id) }
-        }
+        clearDemoContent()
         loadShowcaseDemoData()
     }
 
@@ -389,10 +393,10 @@ final class PatientStore {
         AppLog.store.notice("Loaded showcase demo patients")
     }
 
-    /// Saves the sample clinic separately, then reloads the real clinic.
+    /// Discards the sample clinic, then reloads the real clinic.
     func exitDemoMode() async {
         guard isDemoMode else { return }
-        persistDemoClinic()
+        clearDemoContent()
         EntitlementState.shared.setLocalDemo(false)
         isDemoMode = false
         AIDataSharingConsentStore.shared.setDemoBypass(false)
@@ -405,7 +409,7 @@ final class PatientStore {
         } catch {
             AppLog.store.error("Reload after demo exit failed: \(error.localizedDescription, privacy: .public)")
         }
-        AppLog.store.notice("Exited demo mode; preserved sample clinic")
+        AppLog.store.notice("Exited demo mode; discarded sample clinic")
     }
 
     /// Removes therapist-created tutorial patients so the checklist can run again.
@@ -794,7 +798,7 @@ final class PatientStore {
     /// in-memory data), so nothing leaks into the next session on sign-out.
     func clearAllCaches() {
         if isDemoMode {
-            persistDemoClinic()
+            clearDemoContent()
             EntitlementState.shared.setLocalDemo(false)
             isDemoMode = false
         }
@@ -811,7 +815,7 @@ final class PatientStore {
             try? identityStore.delete(patientID: patient.id)
             SavedPreparation.delete(for: patient.id)
         }
-        DemoClinicStore.clearAll()
+        clearDemoContent()
         EntitlementState.shared.setLocalDemo(false)
         isDemoMode = false
         clearCachedPatients()

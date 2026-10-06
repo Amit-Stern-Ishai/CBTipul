@@ -39,7 +39,7 @@ internal fun DiaryEntrySection(number: Int, title: String, summary: String, issu
         if (expanded) { withFrameNanos { }; requester.bringIntoView() }
     }
     GroupedListCard(accent = Theme.colors.gold) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth().bringIntoViewRequester(requester).heightIn(min = 48.dp)
                 .semantics { stateDescription = state }
                 .clickable(role = Role.Button) { focus.clearFocus(); onActive(if (expanded) 0 else number) },

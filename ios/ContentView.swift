@@ -31,19 +31,29 @@ struct MyApp: App {
 
         let auth = AuthManager()
         _auth = State(initialValue: auth)
-        _store = State(initialValue: PatientStore(client: auth.client))
+        let store = PatientStore(client: auth.client)
+        let diaryOne = DiaryOneStore(client: auth.client)
+        let diaryTwo = DiaryTwoStore(client: auth.client)
+        let diaryThree = DiaryThreeStore(client: auth.client)
+        store.resetDemoContent = {
+            diaryOne.clearDemoContent()
+            diaryTwo.clearDemoContent()
+            diaryThree.clearDemoContent()
+        }
+        _store = State(initialValue: store)
         _therapistProfiles = State(initialValue: TherapistProfileService(client: auth.client))
         _appContext = State(initialValue: AppContextService(client: auth.client))
         _invitationFlow = State(initialValue: PatientInvitationFlow())
-        _diaryOne = State(initialValue: DiaryOneStore(client: auth.client))
-        _diaryThree = State(initialValue: DiaryThreeStore(client: auth.client))
-        _diaryTwo = State(initialValue: DiaryTwoStore(client: auth.client))
+        _diaryOne = State(initialValue: diaryOne)
+        _diaryThree = State(initialValue: diaryThree)
+        _diaryTwo = State(initialValue: diaryTwo)
         _notificationStore = State(initialValue: NotificationStore(client: auth.client))
     }
 
     var body: some Scene {
         WindowGroup {
             AppVersionGateView { ContentView() }
+                .demoModeReminder()
                 .environment(auth)
                 .environment(store)
                 .environment(therapistProfiles)

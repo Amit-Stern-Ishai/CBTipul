@@ -69,10 +69,7 @@ fun RootScreen() {
     val signedIn = session as? AuthSession.SignedIn
     val entitlement by com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle()
     val entitlementExplanation by com.cbtipul.app.data.Entitlements.explanationVisible.collectAsStateWithLifecycle()
-    androidx.compose.runtime.DisposableEffect(signedIn?.userId) {
-        com.cbtipul.app.data.Entitlements.setIdentity(signedIn?.userId)
-        onDispose { }
-    }
+    // AuthRepository owns entitlement identity. Loading/refreshing is not a sign-out.
     val entitlementScope = rememberCoroutineScope()
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
         entitlementScope.launch { app.appContext.refreshOnForeground() }
@@ -217,8 +214,13 @@ fun RootScreen() {
     if (entitlementExplanation) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = com.cbtipul.app.data.Entitlements::dismissExplanation,
-            title = { androidx.compose.material3.Text(stringResource(if (isAnonymous) R.string.entitlement_patient_unavailable else R.string.entitlement_read_only_title)) },
-            text = { if (!isAnonymous) androidx.compose.material3.Text(stringResource(if (entitlement.localDemo) R.string.entitlement_demo_online_unavailable else R.string.entitlement_read_only_explanation)) },
+            title = { androidx.compose.material3.Text(stringResource(if (entitlement.access == null) R.string.entitlement_access_unverified_title else if (isAnonymous) R.string.entitlement_patient_unavailable else R.string.entitlement_read_only_title)) },
+            text = { if (!isAnonymous) androidx.compose.material3.Text(stringResource(if (entitlement.localDemo) R.string.entitlement_demo_online_unavailable else if (entitlement.access == null) R.string.entitlement_access_unverified_body else R.string.entitlement_read_only_explanation)) },
+            dismissButton = {
+                if (entitlement.access == null && !contextLoading) androidx.compose.material3.TextButton(onClick = {
+                    entitlementScope.launch { runCatching { app.appContext.getCurrentAppContext() } }
+                }) { androidx.compose.material3.Text(stringResource(R.string.retry)) }
+            },
             confirmButton = { androidx.compose.material3.TextButton(onClick = com.cbtipul.app.data.Entitlements::dismissExplanation) { androidx.compose.material3.Text(stringResource(R.string.ok)) } },
         )
     }
