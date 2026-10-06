@@ -11,6 +11,12 @@ class AppNotificationTest {
     private val uuid = "11111111-1111-1111-1111-111111111111"
     private val patient = "22222222-2222-2222-2222-222222222222"
 
+    @Test fun diaryDeepLinkStartsAtExactDetailWithoutHistory() {
+        assertEquals("detail/$uuid", NotificationRouting.diaryStartRoute(uuid))
+        assertEquals("history", NotificationRouting.diaryStartRoute(null))
+        assertEquals("history", NotificationRouting.diaryStartRoute(""))
+    }
+
     @Test
     fun completedQuestionnaireHasAHistoryScreenToGoBackTo() {
         assertEquals(
@@ -95,7 +101,8 @@ class AppNotificationTest {
         val dest = NotificationRouting.destination(
             NotificationPayload("message_received", null, patient, null, null, "message", uuid),
         )
-        assertEquals(AppDestination.PatientMessage(uuid), dest)
+        assertEquals(uuid, (dest as AppDestination.PatientMessage).messageId)
+        assertEquals(patient, dest.payload?.patientId)
         assertNull(NotificationRouting.messageId("assignment", uuid))
     }
 
@@ -104,7 +111,8 @@ class AppNotificationTest {
         val dest = NotificationRouting.destination(
             NotificationPayload("diary_1_assigned", null, patient, null, uuid, "assignment", uuid),
         )
-        assertEquals(AppDestination.PatientDiaryOneForm(uuid), dest)
+        assertEquals(uuid, (dest as AppDestination.PatientDiaryOneForm).assignmentId)
+        assertEquals(patient, dest.payload?.patientId)
     }
 
     @Test

@@ -27,7 +27,10 @@ struct PatientSettingsView: View {
                 Section {
                     Button { showIntroduction = true } label: {
                         Label(L10n.introductionReview, systemImage: "rectangle.stack")
+                            .foregroundStyle(Theme.gold)
+                            .padding(.vertical, 4)
                     }
+                    .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
                 }
                 NotificationsSettingsSection(explanation: L10n.settingsNotificationsPatientExplanation)
 

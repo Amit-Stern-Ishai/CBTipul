@@ -43,8 +43,16 @@ struct PatientDiaryTwoHubView: View {
             case .loading, .loaded, .failed:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(L10n.patientDiaryTwoDescription).font(.subheadline).foregroundStyle(Theme.textBody)
-                        PatientToolStatusView(active: isActive && !locallyInactive)
+                        VStack(alignment: .leading, spacing: 10) {
+                            PatientToolStatusView(active: isActive && !locallyInactive)
+                            Text(L10n.patientDiaryTwoDescription)
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.textBody)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                        .themedCard()
                         if loadState == .failed {
                             Text(L10n.diaryTwoLoadFailed).foregroundStyle(Theme.error)
                             Button(L10n.retryAction) { Task { await loadEntries() } }
@@ -53,12 +61,23 @@ struct PatientDiaryTwoHubView: View {
                         Text(L10n.diaryOneMyEntriesTitle)
                             .font(.headline)
                             .foregroundStyle(Theme.textBright)
-                            .padding(.top, 8)
+                            .accessibilityAddTraits(.isHeader)
+                            .padding(.top, 4)
 
                         if entries.isEmpty {
-                            Text(L10n.diaryTwoEmptyTitle)
-                                .font(.body)
-                                .foregroundStyle(Theme.textBody)
+                            HStack(alignment: .top, spacing: 12) {
+                                Image(systemName: "book.closed")
+                                    .font(.title3)
+                                    .foregroundStyle(Theme.textBody)
+                                    .accessibilityHidden(true)
+                                Text(L10n.diaryTwoEmptyTitle)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.textBody)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(16)
+                            .themedCard()
                         } else {
                             ForEach(entries) { entry in
                                 NavigationLink {
@@ -70,6 +89,7 @@ struct PatientDiaryTwoHubView: View {
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
                     .padding(.bottom, 28)
@@ -121,24 +141,39 @@ struct PatientDiaryTwoHubView: View {
     }
 
     private func patientHistoryRow(_ entry: DiaryTwoEntry) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.hebrewDateTime(entry.createdAt))
-                .font(.headline)
-                .foregroundStyle(Theme.textBright)
-            Text(entry.event)
-                .font(.body)
-                .foregroundStyle(Theme.textBody)
-                .lineLimit(2)
-            if !entry.automaticThoughtsPreview.isEmpty {
-                Text(entry.automaticThoughtsPreview)
-                    .font(.subheadline)
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "book.closed")
+                .font(.title3)
+                .foregroundStyle(Theme.gold)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.hebrewDateTime(entry.createdAt))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textBright)
+                Text(entry.event)
+                    .font(.body)
                     .foregroundStyle(Theme.textBody)
                     .lineLimit(2)
+                if !entry.automaticThoughtsPreview.isEmpty {
+                    Text(entry.automaticThoughtsPreview)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textBody)
+                        .lineLimit(2)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.forward")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.textBody)
+                .padding(.top, 3)
+                .accessibilityHidden(true)
         }
-        .padding(16)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .themedCard()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 
     private func loadEntries() async {

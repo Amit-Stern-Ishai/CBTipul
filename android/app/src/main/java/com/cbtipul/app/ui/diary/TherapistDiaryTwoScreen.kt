@@ -53,18 +53,19 @@ fun TherapistDiaryTwoScreen(
     val draft by vm.draft.collectAsStateWithLifecycle()
     val nav = rememberNavController()
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { vm.refreshConnection() }
-    var consumedFocus by rememberSaveable(patientId.queryValue, focusEntryId) { mutableStateOf(false) }
-    LaunchedEffect(focusEntryId, state.loading) {
-        // Finish the initial history load first so it cannot overwrite the exact-entry cache.
+    var consumedFocus by remember(patientId.queryValue, focusEntryId) { mutableStateOf(false) }
+    var focusedEntry by remember(patientId.queryValue, focusEntryId) { mutableStateOf<DiaryTwoEntry?>(null) }
+    var focusRetry by remember { mutableIntStateOf(0) }
+    LaunchedEffect(focusEntryId, state.loading, focusRetry) {
+        // Resolve the exact entry after history loading so its cache cannot overwrite it.
         if (!state.loading && !consumedFocus && focusEntryId != null) {
-            val entry = try { diary.loadEntry(focusEntryId, patientId) }
+            focusedEntry = try { diary.loadEntry(focusEntryId, patientId) }
                 catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
                 catch (_: Exception) { null }
             consumedFocus = true
-            if (entry != null) nav.navigate("detail/${entry.id}") { launchSingleTop = true }
         }
     }
-    NavHost(navController = nav, startDestination = "history") {
+    NavHost(navController = nav, startDestination = NotificationRouting.diaryStartRoute(focusEntryId)) {
         composable("history") {
             var stop by rememberSaveable { mutableStateOf(false) }
             DiaryTwoFrame(patientName, atmosphere, onBack, bottom = {
@@ -115,7 +116,8 @@ fun TherapistDiaryTwoScreen(
         }
         composable("detail/{entryId}") { destination ->
             val id = destination.arguments?.getString("entryId")
-            val entry = entries.find { it.id == id }
+            val entry = if (id == focusEntryId && (!consumedFocus || focusedEntry == null)) null
+                else entries.find { it.id == id } ?: focusedEntry?.takeIf { it.id == id }
             fun closeDetail() { if (returnDirectly && id == focusEntryId) onBack() else nav.popBackStack() }
             var delete by rememberSaveable { mutableStateOf(false) }
             DiaryTwoFrame(patientName, atmosphere, { if (!state.busy) closeDetail() }, actions = {
@@ -135,11 +137,14 @@ fun TherapistDiaryTwoScreen(
                     DiaryTwoCard(stringResource(R.string.diary_two_feelings_title)) { entry.feelings.forEach { Text("${it.name} — ${it.intensity}%") } }
                     DiaryTwoCard(stringResource(R.string.diary_thinking_errors_title)) { entry.thinkingErrors.forEach { Text(stringResource(it.title)) } }
                     DiaryTwoCard(stringResource(R.string.diary_alternative_thoughts_title)) { entry.alternativeThoughts.forEach { Text(it) } }
-                } else if (state.loading) {
+                } else if (state.loading || (id == focusEntryId && !consumedFocus)) {
                     CircularProgressIndicator()
                 } else {
                     Text(stringResource(if (state.loadFailed) R.string.diary_two_load_failed else R.string.notification_target_unavailable))
-                    if (state.loadFailed) TextButton(onClick = vm::refresh) { Text(stringResource(R.string.retry_action)) }
+                    if (state.loadFailed || id == focusEntryId) TextButton(onClick = {
+                        if (id == focusEntryId) { consumedFocus = false; focusRetry++ }
+                        else vm.refresh()
+                    }) { Text(stringResource(R.string.retry_action)) }
                 }
                 state.error?.let { Text(stringResource(it), color = Theme.colors.error) }
             }

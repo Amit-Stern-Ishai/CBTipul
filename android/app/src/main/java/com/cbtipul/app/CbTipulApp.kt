@@ -100,7 +100,7 @@ class CbTipulApp : Application() {
         authRepository = AuthRepository(client) {
             if (::pushManager.isInitialized) pushManager.unregisterCurrentToken()
         }
-        notifications = NotificationRepository(client, onInboxSeen = {
+        notifications = NotificationRepository(client, currentUserId = { authRepository.currentUserId() }, onInboxSeen = {
             getSystemService(NotificationManager::class.java)?.cancelAll()
         })
         messages = PatientMessageRepository(client)

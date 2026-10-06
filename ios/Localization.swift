@@ -6,6 +6,14 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
+    static let patientInboxTitle = "הודעות ועדכונים"
+    static let patientInboxAll = "הצג הכול"
+    static let patientInboxEmpty = "אין עדיין הודעות או עדכונים."
+    static let patientInboxUnavailable = "הפריט אינו זמין כעת. ייתכן שהוסר או שהגישה אליו בוטלה. ניתן לרענן ולנסות שוב."
+    static let patientInboxRefreshFailed = "לא הצלחנו לעדכן את ההודעות. המידע המוצג עשוי להיות חלקי."
+    static func patientInboxUnread(_ count: Int) -> String { "\(count) לא נקראו" }
+    static func patientToolEnabled(_ title: String) -> String { "המטפל/ת הפעיל/ה עבורך את \(title)" }
+
     static let therapistTabAI = "AI"
     static let aiPatientPickerTitle = "שיחת AI"
     static let aiPatientPickerPrompt = "בחירת מטופל/ת לשיחת AI"
@@ -59,7 +67,8 @@ enum L10n {
     static let patientSubmissionReadOnly = "מולא על ידי המטופל/ת · לצפייה בלבד"
     static let patientHistoryOnly = "היסטוריה בלבד · המילוי אינו פעיל"
     static let patientAvailableTitle = "שאלוני מצב רוח ויומני מחשבות"
-    static let patientAvailableHelp = "למילוי בהתאם למה שסיכמתם עם המטפל/ת."
+    static let patientToolsSectionTitle = "הכלים שלך"
+    static let patientAvailableHelp = "מילוי חדש וצפייה במילויים קודמים"
     static let patientResumeAction = "המשך מילוי"
     static let patientLocalOnly = "נשמר במכשיר בלבד · עדיין לא נשלח"
     static let patientSharingHelp = "בלחיצה על שליחה, הרשומה תשותף עם המטפל/ת. עד אז היא נשמרת במכשיר בלבד."

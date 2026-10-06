@@ -120,11 +120,15 @@ struct NotificationsSettingsSection: View {
             ))
             .disabled(isBusy)
             .accessibilityIdentifier("settings.notifications.toggle")
+            .tint(Theme.gold)
+            .listRowBackground(groupBorderedRow(osDenied ? .first : .only, accent: Theme.gold))
             if osDenied {
                 Button(L10n.settingsNotificationsOpenSystemSettings) {
                     PushNotificationManager.shared.openSystemNotificationSettings()
                 }
                 .accessibilityIdentifier("settings.notifications.openSystemSettings")
+                .foregroundStyle(Theme.gold)
+                .listRowBackground(groupBorderedRow(.last, accent: Theme.gold))
             }
         } header: {
             Text(L10n.settingsNotificationsSectionTitle)

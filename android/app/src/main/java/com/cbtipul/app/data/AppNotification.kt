@@ -98,11 +98,15 @@ sealed class AppDestination {
     data class PatientDiaryThreeForm(val payload: NotificationPayload) : AppDestination()
     data class DiaryOneEntry(val patientId: String, val entryId: String?) : AppDestination()
     data class PatientQuestionnaire(val assignmentId: String, val payload: NotificationPayload? = null) : AppDestination()
-    data class PatientMessage(val messageId: String?) : AppDestination()
-    data class PatientDiaryOneForm(val assignmentId: String) : AppDestination()
+    data class PatientMessage(val messageId: String?, val payload: NotificationPayload? = null) : AppDestination()
+    data class PatientDiaryOneForm(val assignmentId: String, val payload: NotificationPayload? = null) : AppDestination()
 }
 
 object NotificationRouting {
+    /** An exact diary link starts at the detail, never the history underneath it. */
+    fun diaryStartRoute(entryId: String?): String = entryId?.takeIf { it.isNotBlank() }
+        ?.let { "detail/$it" } ?: "history"
+
     /** Root-to-leaf history; Back from a result should reveal its history screen. */
     /** The inbox itself is the only parent; Back returns directly to it. */
     fun inboxRoute(destination: AppDestination): String? = therapistRoutes(destination).lastOrNull()
@@ -149,9 +153,9 @@ object NotificationRouting {
         AppNotificationTypes.QUESTIONNAIRE_ASSIGNED ->
             assignmentId(payload)?.let { AppDestination.PatientQuestionnaire(it, payload) }
         AppNotificationTypes.MESSAGE_RECEIVED ->
-            AppDestination.PatientMessage(messageId(payload.resourceType, payload.resourceId))
+            AppDestination.PatientMessage(messageId(payload.resourceType, payload.resourceId), payload)
         AppNotificationTypes.DIARY_ONE_ASSIGNED ->
-            assignmentId(payload)?.let(AppDestination::PatientDiaryOneForm)
+            assignmentId(payload)?.let { AppDestination.PatientDiaryOneForm(it, payload) }
         else -> null
     }
 

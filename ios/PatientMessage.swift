@@ -194,6 +194,14 @@ final class PatientModeMessageCoordinator {
         isReady = false
     }
 
+    func consumePendingPayload() -> AppNotificationPayload? {
+        guard isReady, let payload = pendingPayload else { return nil }
+        pendingPayload = nil
+        guard payload.routingFingerprint != lastConsumedFingerprint else { return nil }
+        lastConsumedFingerprint = payload.routingFingerprint
+        return payload
+    }
+
     func consumePending() -> PatientModePushDestination? {
         guard isReady, let payload = pendingPayload else { return nil }
         if lastConsumedFingerprint == payload.routingFingerprint {
@@ -438,5 +446,79 @@ enum PatientQuestionnaireAssignedRouter {
         load: () async throws -> [PatientAssignment]) async -> PatientAssignment? {
         guard let assignments = try? await load() else { return nil }
         return matchingAssignment(in: assignments, payload: payload, patientId: patientId)
+    }
+}
+
+
+/// A message and its delivery notification are one inbox item, keyed by message ID.
+struct PatientInboxItem: Identifiable {
+    let id: String
+    let message: PatientMessage?
+    let notification: AppNotification?
+    var createdAt: Date { message?.createdAt ?? notification!.createdAt }
+    var isUnread: Bool { message?.isUnread ?? notification!.isUnread }
+    var title: String {
+        if message != nil || notification?.type == .messageReceived { return L10n.messageFromTherapist }
+        let title = switch notification?.type {
+        case .questionnaireAssigned: L10n.questionnairesTitle
+        case .diaryOneAssigned: L10n.diaryOneTitle
+        case .diaryTwoAssigned: L10n.diaryTwoTitle
+        default: L10n.diaryThreeTitle
+        }
+        return L10n.patientToolEnabled(title)
+    }
+    var preview: String? { message.map { PatientMessage.preview($0.body) } }
+    var icon: String {
+        if message != nil || notification?.type == .messageReceived { return "envelope" }
+        return notification?.type == .questionnaireAssigned ? "list.clipboard" : "book.closed"
+    }
+    static func assignment(payload: AppNotificationPayload, patientID: UUID, assignments: [PatientAssignment]) -> PatientAssignment? {
+        guard payload.patientId.flatMap(UUID.init(uuidString:)) == patientID else { return nil }
+        let explicit = payload.assignmentId.flatMap(UUID.init(uuidString:))
+        let resource = payload.resourceType == "assignment" ? payload.resourceId.flatMap(UUID.init(uuidString:)) : nil
+        guard explicit == nil || resource == nil || explicit == resource, let id = explicit ?? resource else { return nil }
+        let type: PatientAssignmentType?
+        switch payload.type {
+        case .questionnaireAssigned: type = .questionnaire
+        case .diaryOneAssigned: type = .diaryOne
+        case .diaryTwoAssigned: type = .diaryTwo
+        case .diaryThreeAssigned: type = .diaryThree
+        default: type = nil
+        }
+        guard let type else { return nil }
+        return assignments.first { $0.id == id && $0.patientId == patientID && $0.type == type && $0.cancelledAt == nil }
+    }
+
+    static func items(patientID: UUID, messages: [PatientMessage], notifications: [AppNotification]) -> [Self] {
+        let messages = Array(Dictionary(messages.filter { $0.patientId == patientID }.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values)
+        let notifications = notifications.filter { $0.type.routesInPatientMode && $0.patientId.flatMap(UUID.init(uuidString:)) == patientID }
+        let ids = Set(messages.map(\.id))
+        var items = messages.map { Self(id: "message:\($0.id)", message: $0, notification: nil) }
+        items += notifications.compactMap { notification in
+            if notification.type == .messageReceived, notification.resourceType == "message",
+               let id = notification.resourceId.flatMap(UUID.init(uuidString:)), ids.contains(id) { return nil }
+            let key = notification.type == .messageReceived && notification.resourceType == "message"
+                ? "message:\(notification.resourceId?.lowercased() ?? notification.id.uuidString)" : notification.id.uuidString
+            return Self(id: key, message: nil, notification: notification)
+        }
+        return Array(Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values).sorted { $0.createdAt > $1.createdAt }
+    }
+}
+
+extension AppNotification {
+    var patientAssignmentType: PatientAssignmentType? {
+        switch type {
+        case .questionnaireAssigned: .questionnaire
+        case .diaryOneAssigned: .diaryOne
+        case .diaryTwoAssigned: .diaryTwo
+        case .diaryThreeAssigned: .diaryThree
+        default: nil
+        }
+    }
+    var exactAssignmentID: UUID? {
+        let explicit = assignmentId.flatMap(UUID.init(uuidString:))
+        let resource = resourceType == "assignment" ? resourceId.flatMap(UUID.init(uuidString:)) : nil
+        if let explicit, let resource, explicit != resource { return nil }
+        return explicit ?? resource
     }
 }

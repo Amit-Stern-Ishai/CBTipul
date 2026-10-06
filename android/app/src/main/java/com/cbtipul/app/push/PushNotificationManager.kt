@@ -326,6 +326,16 @@ class PushNotificationManager(
         return identityStore.name(DatabaseId.Integer(intId))?.trim()?.takeIf { it.isNotEmpty() }
     }
 
+    fun clearPatientModeNotifications(notificationIds: Set<String>) {
+        val manager = appContext.getSystemService(NotificationManager::class.java) ?: return
+        manager.activeNotifications.forEach { item ->
+            val id = item.tag?.let { android.net.Uri.parse(it).lastPathSegment }
+            if (item.notification.extras.getBoolean("cbtipul.patientMode", false) || id in notificationIds) {
+                manager.cancel(item.tag, item.id)
+            }
+        }
+    }
+
     private fun showVisibleNotification(
         personalized: PatientPushPersonalizer.Result,
         messageId: String?,
@@ -360,6 +370,9 @@ class PushNotificationManager(
                 personalized.title.ifBlank { appContext.getString(R.string.app_name) },
             )
             .setContentText(personalized.body)
+            .addExtras(android.os.Bundle().apply {
+                putBoolean("cbtipul.patientMode", personalized.type in setOf("message_received", "questionnaire_assigned", "diary_1_assigned", "diary_2_assigned", "diary_3_assigned"))
+            })
             .setAutoCancel(true)
             .setContentIntent(pending)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

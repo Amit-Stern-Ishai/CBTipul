@@ -5,6 +5,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,7 @@ private data class NotificationRow(
 class NotificationRepository(
     private val client: SupabaseClient,
     private val onInboxSeen: () -> Unit = {},
+    private val currentUserId: (() -> String?)? = null,
 ) {
     private val _items = MutableStateFlow<List<AppNotification>>(emptyList())
     val items: StateFlow<List<AppNotification>> = _items.asStateFlow()
@@ -46,6 +48,7 @@ class NotificationRepository(
     val failed: StateFlow<Boolean> = _failed.asStateFlow()
 
     private var hasLoaded = false
+    private var generation = 0
 
     var isDemoInbox: Boolean = false
     private var uiTestItems: List<AppNotification>? = null
@@ -64,6 +67,7 @@ class NotificationRepository(
     }
 
     fun clear() {
+        generation++
         uiTestItems = null
         hasLoaded = false
         _items.value = emptyList()
@@ -94,10 +98,17 @@ class NotificationRepository(
             _isLoading.value = showLoading || !hasLoaded
             _failed.value = false
         }
+        val recipient = currentUserId?.invoke()
+        if (currentUserId != null && recipient == null) { clear(); return }
+        val requestGeneration = generation
         try {
             val rows = client.from("notifications")
-                .select(columns) { order("created_at", Order.DESCENDING) }
+                .select(columns) {
+                    if (recipient != null) filter { eq("recipient_user_id", recipient) }
+                    order("created_at", Order.DESCENDING)
+                }
                 .decodeList<NotificationRow>()
+            if (requestGeneration != generation || currentUserId?.invoke() != recipient) return
             if (isDemoInbox) { clear(); return }
             _items.value = rows.map { it.toDomain() }
             hasLoaded = true
@@ -112,20 +123,28 @@ class NotificationRepository(
         }
     }
 
-    suspend fun markInboxSeen() {
+    suspend fun markInboxSeen(clearSystemNotifications: Boolean = true) = refreshMutex.withLock {
+        markInboxSeenLocked(clearSystemNotifications)
+    }
+
+    private suspend fun markInboxSeenLocked(clearSystemNotifications: Boolean) {
         if (isDemoInbox || !SupabaseConfig.isConfigured) return
         try {
             client.postgrest.rpc("mark_notifications_seen")
             _items.value = NotificationInbox.applyingSeen(_items.value, Date())
             _unseenCount.value = 0
             // A previously seen inbox can still have notifications in the system tray.
-            onInboxSeen()
+            if (clearSystemNotifications) onInboxSeen()
         } catch (_: Exception) {
             // Keep unseen until the next successful refresh.
         }
     }
 
-    suspend fun markRead(notification: AppNotification) {
+    suspend fun markRead(notification: AppNotification) = refreshMutex.withLock {
+        markReadLocked(notification)
+    }
+
+    private suspend fun markReadLocked(notification: AppNotification) {
         if (!notification.isUnread || isDemoInbox || !SupabaseConfig.isConfigured) return
         try {
             client.postgrest.rpc(
@@ -137,6 +156,14 @@ class NotificationRepository(
             _unseenCount.value = fetchUnseenCount() ?: NotificationInbox.unseenCount(_items.value)
         } catch (_: Exception) {
             // Keep unread until a later refresh.
+        }
+    }
+
+    suspend fun markPatientResourceRead(patientId: String, messageId: String? = null, assignmentId: String? = null) {
+        items.value.filter { it.patientId.equals(patientId, true) && NotificationPayload.from(it).isPatientMode() }.forEach {
+            val message = messageId != null && it.type == AppNotificationTypes.MESSAGE_RECEIVED && it.resourceType == "message" && it.resourceId.equals(messageId, true)
+            val assignment = assignmentId != null && PatientInbox.assignmentType(it.type) != null && PatientInbox.assignmentId(NotificationPayload.from(it)).equals(assignmentId, true)
+            if (message || assignment) markRead(it)
         }
     }
 

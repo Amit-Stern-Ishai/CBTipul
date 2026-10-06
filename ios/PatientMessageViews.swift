@@ -617,9 +617,9 @@ struct PatientMessageDetailView: View {
     }
 
     private func markReadIfNeeded() async {
-        guard message.isUnread else { return }
         do {
-            try await PatientMessageService(client: auth.client).markRead(id: message.id)
+            if message.isUnread { try await PatientMessageService(client: auth.client).markRead(id: message.id) }
+            await NotificationStore.shared?.markPatientResourceRead(patientID: message.patientId, messageID: message.id)
             onMarkedRead(message.markedRead(at: Date()))
         } catch {
             #if DEBUG
@@ -628,5 +628,25 @@ struct PatientMessageDetailView: View {
             )
             #endif
         }
+    }
+}
+
+
+struct PatientInboxRow: View {
+    let item: PatientInboxItem
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: item.icon).foregroundStyle(Theme.gold).frame(width: 24)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(item.title).font(.subheadline.weight(item.isUnread ? .semibold : .regular)).foregroundStyle(Theme.textBright)
+                    if let preview = item.preview { Text(preview).font(.subheadline).foregroundStyle(Theme.textBody).lineLimit(2) }
+                    Text(L10n.notificationTimestamp(item.createdAt)).font(.caption).foregroundStyle(Theme.textBody)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                if item.isUnread { Circle().fill(Theme.gold).frame(width: 7, height: 7).accessibilityLabel(L10n.messageNewBadge) }
+                Image(systemName: "chevron.forward").font(.caption).foregroundStyle(Theme.textBody)
+            }.padding(12).contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityElement(children: .combine)
     }
 }

@@ -4,6 +4,7 @@ import androidx.compose.material.icons.outlined.MenuBook
 
 import androidx.compose.material.icons.outlined.Assignment
 
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.layout.size
@@ -50,6 +51,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import com.cbtipul.app.data.PatientInbox
+import com.cbtipul.app.data.PatientInboxItem
+import com.cbtipul.app.data.NotificationPayload
+import com.cbtipul.app.data.AppNotificationTypes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,6 +99,7 @@ import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.hebrewDateTime
 import com.cbtipul.app.ui.theme.themedScreen
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -123,13 +132,6 @@ fun PatientModeScreen(
     val introContext = androidx.compose.ui.platform.LocalContext.current
     val introPreferences = remember { introContext.getSharedPreferences("patient_introduction", android.content.Context.MODE_PRIVATE) }
     var showIntroduction by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(!introPreferences.getBoolean("completed.v1", false)) }
-    if (showIntroduction) {
-        com.cbtipul.app.ui.onboarding.AppIntroductionScreen(isPatientMode = true, onTrySample = {}, onContinue = {
-            introPreferences.edit().putBoolean("completed.v1", true).apply()
-            showIntroduction = false
-        })
-        return
-    }
     val scope = rememberCoroutineScope()
     val nav = rememberNavController()
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
@@ -140,7 +142,7 @@ fun PatientModeScreen(
     var refreshAgain by remember(cacheKey) { mutableStateOf(false) }
     var loadState by remember(cacheKey) { mutableStateOf(if (cached.assignments != null) TasksLoadState.Loaded else TasksLoadState.Loading) }
     var assignments by remember(cacheKey) { mutableStateOf(cached.assignments.orEmpty()) }
-    var messages by remember { mutableStateOf<List<PatientMessage>>(emptyList()) }
+    var messages by remember(cacheKey) { mutableStateOf<List<PatientMessage>>(emptyList()) }
     var questionnaireHistory by remember(cacheKey) { mutableStateOf(cached.questionnaires.orEmpty()) }
     var didSubmitQuestionnaire by remember { mutableStateOf(false) }
     var pendingDiaryOneSuccess by remember { mutableStateOf(false) }
@@ -152,23 +154,81 @@ fun PatientModeScreen(
     var didSubmitDiaryTwo by remember { mutableStateOf(false) }
     var diaryEntries by remember(cacheKey) { mutableStateOf(cached.diaryOne.orEmpty()) }
 
+    val notifications by app.notifications.items.collectAsState()
+    val notificationsFailed by app.notifications.failed.collectAsState()
+    var messagesFailed by remember(cacheKey) { mutableStateOf(false) }
+    var unavailable by remember { mutableStateOf(false) }
+    var openedAssignmentId by remember(cacheKey) { mutableStateOf<String?>(null) }
+    val acknowledgedAssignments = remember(cacheKey) { mutableSetOf<String>() }
+    val inboxItems = PatientInbox.items(patientId, messages, notifications)
+    suspend fun acknowledgeAssignment(type: PatientAssignmentType) {
+        val id = openedAssignmentId ?: return
+        if (assignments.none { it.id == id && it.type == type && it.cancelledAt == null }) return
+        acknowledgedAssignments.add(id)
+        app.notifications.markPatientResourceRead(patientId, assignmentId = id)
+        if (openedAssignmentId == id) openedAssignmentId = null
+    }
+    fun openTool(type: PatientAssignmentType, exactId: String? = null) {
+        openedAssignmentId = exactId ?: assignments.firstOrNull { it.type == type && it.cancelledAt == null }?.id
+        nav.navigate(when (type) {
+            PatientAssignmentType.Questionnaire -> "questionnaires"
+            PatientAssignmentType.DiaryOne -> "diary-one"
+            PatientAssignmentType.DiaryTwo -> "diary-two"
+            PatientAssignmentType.DiaryThree -> "diary-three"
+        }) { launchSingleTop = true }
+    }
+    suspend fun openDirectTool(type: PatientAssignmentType) {
+        val current = assignments.firstOrNull { it.type == type && it.cancelledAt == null }
+        if (current != null) {
+            val fresh = runCatching { loadAssignments() }.getOrNull()
+            if (fresh == null || fresh.none { it.id == current.id && it.type == type && it.cancelledAt == null }) {
+                unavailable = true; return
+            }
+            assignments = fresh
+        }
+        openTool(type, current?.id)
+    }
+    suspend fun openPayload(payload: NotificationPayload) {
+        if (!payload.patientId.equals(patientId, true)) { unavailable = true; return }
+        if (payload.type == AppNotificationTypes.MESSAGE_RECEIVED) {
+            val id = payload.resourceId.takeIf { payload.resourceType == "message" }
+            if (id == null || runCatching { java.util.UUID.fromString(id) }.isFailure) { unavailable = true; return }
+            nav.navigate("message/$id") { launchSingleTop = true }
+            return
+        }
+        val type = PatientInbox.assignmentType(payload.type)
+        val loaded = runCatching { loadAssignments() }.getOrNull()
+        val match = loaded?.let { PatientInbox.assignment(payload, patientId, it) }
+        if (match == null) { unavailable = true; return }
+        if (cacheKey != "${app.authRepository.currentUserId()}:$patientId") return
+        assignments = loaded.orEmpty()
+        openTool(type ?: return, match.id)
+    }
+    fun openItem(item: PatientInboxItem) {
+        item.message?.let { nav.navigate("message/${it.id}"); return }
+        item.notification?.let { scope.launch { openPayload(NotificationPayload.from(it)) } }
+    }
+
     SideEffect {
         if (loadState == TasksLoadState.Loaded) PatientHomeCache.save(cacheKey,
             PatientHomeSnapshot(assignments, questionnaireHistory, diaryEntries, diaryTwoEntries, diaryThreeEntries))
     }
-    suspend fun reload() {
+    suspend fun reload(lightweight: Boolean = false) {
         if (refreshing) { refreshAgain = true; return }
         refreshing = true
         try {
             coroutineScope {
                 val tasks = async { runCatching { loadAssignments() }.getOrNull() }
                 val inbox = async { runCatching { loadMessages() }.getOrNull() }
-                val questionnaires = async { runCatching { loadQuestionnaireHistory() }.getOrNull() }
-                val one = async { runCatching { loadDiaryOneHistory() }.getOrNull() }
-                val two = async { runCatching { diaryTwo.loadPatientCreatedEntries(patientId) }.getOrNull() }
-                val three = async { runCatching { diaryThree.loadPatientCreatedEntries(patientId) }.getOrNull() }
+                val updates = async { app.notifications.refresh() }
+                val questionnaires = async { if (lightweight) questionnaireHistory else runCatching { loadQuestionnaireHistory() }.getOrNull() }
+                val one = async { if (lightweight) diaryEntries else runCatching { loadDiaryOneHistory() }.getOrNull() }
+                val two = async { if (lightweight) diaryTwoEntries else runCatching { diaryTwo.loadPatientCreatedEntries(patientId) }.getOrNull() }
+                val three = async { if (lightweight) diaryThreeEntries else runCatching { diaryThree.loadPatientCreatedEntries(patientId) }.getOrNull() }
                 val fetchedTasks = tasks.await()
                 val fetchedInbox = inbox.await()
+                updates.await()
+                messagesFailed = fetchedInbox == null
                 val fetchedQuestionnaires = questionnaires.await()
                 val fetchedOne = one.await()
                 val fetchedTwo = two.await()
@@ -183,6 +243,8 @@ fun PatientModeScreen(
                 if (fetchedTasks != null) loadState = TasksLoadState.Loaded
                 else if (loadState != TasksLoadState.Loaded) loadState = TasksLoadState.Failed
             }
+            messages.filter { !it.isUnread }.forEach { app.notifications.markPatientResourceRead(patientId, messageId = it.id) }
+            acknowledgedAssignments.toList().forEach { app.notifications.markPatientResourceRead(patientId, assignmentId = it) }
         } finally { refreshing = false }
         if (refreshAgain) { refreshAgain = false; reload() }
     }
@@ -196,67 +258,39 @@ fun PatientModeScreen(
         } finally { manualRefreshing = false }
     }
 
-    LaunchedEffect(cacheKey) { app.patientPushRevision.collect { reload() } }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { scope.launch { reload() } }
-    LaunchedEffect(pendingDestination) {
-        val destination = pendingDestination as? AppDestination.PatientDiaryTwoForm ?: return@LaunchedEffect
-        val assignment = com.cbtipul.app.data.PatientDiaryTwoNotificationRouting.resolve(destination.payload, patientId) {
-            loadAssignments().also { assignments = it }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(cacheKey, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            app.notifications.isDemoInbox = false
+            app.pushManager.clearPatientModeNotifications(inboxItems.mapNotNull { it.notification?.id }.toSet())
+            app.notifications.markInboxSeen(clearSystemNotifications = false)
+            launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { app.patientPushRevision.drop(1).collect { reload() } }
+            reload()
+            app.pushManager.clearPatientModeNotifications(app.notifications.items.value.filter { it.patientId.equals(patientId, true) && NotificationPayload.from(it).isPatientMode() }.map { it.id }.toSet())
+            while (true) { kotlinx.coroutines.delay(60_000); reload(lightweight = true) }
         }
-        nav.popBackStack("home", inclusive = false)
-        if (assignment != null) if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-two/new") { launchSingleTop = true }
-        onConsumePending()
     }
-    LaunchedEffect(pendingDestination) {
-        val destination = pendingDestination as? AppDestination.PatientDiaryThreeForm ?: return@LaunchedEffect
-        val assignment = com.cbtipul.app.data.PatientDiaryThreeNotificationRouting.resolve(destination.payload, patientId) {
-            loadAssignments().also { assignments = it }
-        }
-        val route = if (PatientAssignmentType.diaryThreeSendingEnabled) "diary-three/new" else "diary-three"
-        // Preserve the current screen when the same notification is opened again.
-        if (assignment == null || nav.currentDestination?.route != route) {
-            nav.popBackStack("home", inclusive = false)
-            if (assignment != null) nav.navigate(route) { launchSingleTop = true }
-        }
-        onConsumePending()
-    }
-    LaunchedEffect(pendingDestination) {
-        val destination = pendingDestination as? AppDestination.PatientQuestionnaire ?: return@LaunchedEffect
-        val payload = destination.payload ?: run { onConsumePending(); return@LaunchedEffect }
-        val assignment = com.cbtipul.app.data.PatientQuestionnaireNotificationRouting.resolve(payload, patientId) {
-            loadAssignments().also { assignments = it }
-        }
-        if (assignment != null && nav.currentBackStackEntry?.arguments?.getString("assignmentId") != assignment.id) {
-            nav.popBackStack("home", inclusive = false)
-            nav.navigate("questionnaires")
-            if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("questionnaire/${assignment.id}") { launchSingleTop = true }
-        }
-        onConsumePending()
-    }
-    LaunchedEffect(loadState, pendingDestination) {
-        if (loadState != TasksLoadState.Loaded) return@LaunchedEffect
+    LaunchedEffect(pendingDestination, showIntroduction) {
+        if (showIntroduction) return@LaunchedEffect
         val destination = pendingDestination ?: return@LaunchedEffect
-        when (destination) {
-            is AppDestination.PatientMessage,
-            is AppDestination.PatientDiaryOneForm,
-            -> {
-                onConsumePending()
-                when (destination) {
-                    is AppDestination.PatientMessage -> {
-                        val id = destination.messageId
-                        if (id != null) nav.navigate("message/$id") else nav.navigate("messages")
-                    }
-                    is AppDestination.PatientDiaryOneForm -> {
-                        val assignment = NotificationRouting.matchingOpenAssignment(
-                            assignments, destination.assignmentId, PatientAssignmentType.DiaryOne,
-                        )
-                        if (assignment != null) if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-one/new")
-                    }
-                    else -> Unit
-                }
-            }
-            else -> Unit
+        val payload = when (destination) {
+            is AppDestination.PatientQuestionnaire -> destination.payload
+            is AppDestination.PatientDiaryTwoForm -> destination.payload
+            is AppDestination.PatientDiaryThreeForm -> destination.payload
+            is AppDestination.PatientDiaryOneForm -> destination.payload ?: NotificationPayload(AppNotificationTypes.DIARY_ONE_ASSIGNED, null, patientId, null, destination.assignmentId, "assignment", destination.assignmentId)
+            is AppDestination.PatientMessage -> destination.payload ?: NotificationPayload(AppNotificationTypes.MESSAGE_RECEIVED, null, patientId, null, null, "message", destination.messageId)
+            else -> null
         }
+        if (payload != null) openPayload(payload) else unavailable = true
+        onConsumePending()
+    }
+
+    if (showIntroduction) {
+        com.cbtipul.app.ui.onboarding.AppIntroductionScreen(isPatientMode = true, onTrySample = {}, onContinue = {
+            introPreferences.edit().putBoolean("completed.v1", true).apply()
+            showIntroduction = false
+        })
+        return
     }
 
     val navigationDirection = LocalLayoutDirection.current
@@ -273,6 +307,9 @@ fun PatientModeScreen(
                 loadState = loadState,
                 assignments = assignments,
                 messages = messages,
+                inboxItems = inboxItems,
+                inboxFailed = messagesFailed || notificationsFailed,
+                onOpenInboxItem = ::openItem,
                 patientId = patientId,
                 lastQuestionnaire = questionnaireHistory.maxByOrNull { it.answeredDate }?.answeredDate,
                 lastSubmissions = mapOf(
@@ -286,6 +323,7 @@ fun PatientModeScreen(
                         diaryTwo = diaryTwoEntries, diaryThree = diaryThreeEntries).hasHistory(type)
                 }.toSet(),
                 onResume = { assignment ->
+                    openedAssignmentId = assignment.id
                     when (assignment.type) {
                         PatientAssignmentType.Questionnaire -> { nav.navigate("questionnaires"); if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("questionnaire/${assignment.id}") }
                         PatientAssignmentType.DiaryOne -> if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-one/new")
@@ -297,15 +335,16 @@ fun PatientModeScreen(
                 manualRefreshing = manualRefreshing,
                 onBackgroundRefresh = { scope.launch { reload() } },
                 onRefresh = { scope.launch { manualReload() } },
-                onOpenQuestionnaire = { nav.navigate("questionnaires") },
-                onOpenDiaryOne = { nav.navigate("diary-one") },
-                onOpenDiaryTwo = { nav.navigate("diary-two") },
-                onOpenDiaryThree = { diaryThreeUnavailable = false; nav.navigate("diary-three") },
+                onOpenQuestionnaire = { scope.launch { openDirectTool(PatientAssignmentType.Questionnaire) } },
+                onOpenDiaryOne = { scope.launch { openDirectTool(PatientAssignmentType.DiaryOne) } },
+                onOpenDiaryTwo = { scope.launch { openDirectTool(PatientAssignmentType.DiaryTwo) } },
+                onOpenDiaryThree = { diaryThreeUnavailable = false; scope.launch { openDirectTool(PatientAssignmentType.DiaryThree) } },
                 onOpenMessage = { nav.navigate("message/$it") },
                 onOpenAllMessages = { nav.navigate("messages") },
             )
         }
         composable("questionnaires") {
+            LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.Questionnaire) }
             PatientQuestionnaireHubScreen(
                 loadAssignments = { loadAssignments().also { assignments = it } },
                 loadHistory = loadQuestionnaireHistory,
@@ -321,6 +360,7 @@ fun PatientModeScreen(
         }
         composable("questionnaire/{assignmentId}", arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })) { entry ->
             val assignmentId = entry.arguments?.getString("assignmentId").orEmpty()
+            LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.Questionnaire) }
             PatientQuestionnaireScreen(
                 assignmentId = assignmentId,
                 onSubmit = { gad7, phq9, interference ->
@@ -335,6 +375,7 @@ fun PatientModeScreen(
             )
         }
         composable("diary-one") {
+            LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.DiaryOne) }
             PatientDiaryOneHubScreen(
                 active = assignments.any { it.type == PatientAssignmentType.DiaryOne && it.isOpen },
                 loadEntries = {
@@ -348,6 +389,7 @@ fun PatientModeScreen(
             )
         }
         composable("diary-one/new") {
+            LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.DiaryOne) }
             PatientDiaryOneEntryScreen(
                 draftTarget = assignments.firstOrNull { it.type == PatientAssignmentType.DiaryOne }?.patientId ?: "diary-one",
                 onSubmit = { event, automaticThoughts, feelings, behaviour, physicalSymptoms ->
@@ -387,6 +429,7 @@ fun PatientModeScreen(
             }
         }
         composable("diary-two") {
+            LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.DiaryTwo) }
             PatientDiaryTwoHubScreen(
                 patientId = patientId, service = diaryTwo,
                 active = assignments.any { it.type == PatientAssignmentType.DiaryTwo && it.cancelledAt == null },
@@ -397,6 +440,7 @@ fun PatientModeScreen(
             )
         }
         composable("diary-two/new") {
+            LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.DiaryTwo) }
             PatientDiaryTwoEntryScreen(patientId, diaryTwo,
                 onSubmitted = {
                     nav.popScreen()
@@ -442,6 +486,7 @@ fun PatientModeScreen(
             }
         }
         composable("diary-three") {
+            LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.DiaryThree) }
             PatientDiaryThreeHubScreen(
                 patientId = patientId, service = diaryThree,
                 active = !diaryThreeUnavailable && assignments.any { it.type == PatientAssignmentType.DiaryThree && it.cancelledAt == null },
@@ -453,6 +498,7 @@ fun PatientModeScreen(
             )
         }
         composable("diary-three/new") {
+            LaunchedEffect(openedAssignmentId) { acknowledgeAssignment(PatientAssignmentType.DiaryThree) }
             if (!PatientAssignmentType.diaryThreeSendingEnabled) {
                 // A back stack restored after an app update may still contain the entry form.
                 LaunchedEffect(Unit) {
@@ -509,25 +555,24 @@ fun PatientModeScreen(
             }
         }
         composable("messages") {
-            MessageListScreen(
-                title = stringResource(R.string.messages_title),
-                load = {
-                    val loaded = loadMessages()
-                    messages = loaded
-                    loaded
-                },
-                emptyText = stringResource(R.string.patient_messages_empty),
-                showReadState = false,
-                onBack = { nav.popScreen() },
-                onOpen = { nav.navigate("message/${it.id}") },
-            )
+            Scaffold(containerColor = Color.Transparent, modifier = Modifier.themedScreen(Theme.colors.gold), topBar = {
+                TopAppBar(title = { Text(stringResource(R.string.patient_inbox_title)) }, navigationIcon = {
+                    TextButton(onClick = { nav.popScreen() }) { Text(stringResource(R.string.back)) }
+                })
+            }) { padding ->
+                Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp)) {
+                    PatientInboxSection(inboxItems, messagesFailed || notificationsFailed, history = true, onOpen = ::openItem)
+                    TextButton(onClick = { scope.launch { manualReload() } }) { Text(stringResource(R.string.patient_tasks_refresh)) }
+                }
+            }
         }
         composable("message/{messageId}", arguments = listOf(navArgument("messageId") { type = NavType.StringType })) { entry ->
             val messageId = entry.arguments?.getString("messageId").orEmpty()
             PatientMessageDetailScreen(
-                load = { loadMessage(messageId) ?: messages.firstOrNull { it.id.equals(messageId, true) } },
+                load = { loadMessage(messageId)?.takeIf { it.patientId.equals(patientId, true) } },
                 markRead = {
-                    markMessageRead(it.id)
+                    if (it.isUnread) markMessageRead(it.id)
+                    app.notifications.markPatientResourceRead(patientId, messageId = it.id)
                     messages = messages.map { item -> if (item.id == it.id) item.markedRead(Date()) else item }
                 },
                 showNoReply = true,
@@ -535,6 +580,11 @@ fun PatientModeScreen(
             )
         }
     }
+    if (unavailable) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { unavailable = false },
+        text = { Text(stringResource(R.string.patient_inbox_unavailable)) },
+        confirmButton = { TextButton(onClick = { unavailable = false }) { Text(stringResource(R.string.close_action)) } },
+    )
     MessageOverlay(visible = didSubmitQuestionnaire, title = stringResource(R.string.patient_questionnaire_submitted), message = "", onDismiss = { didSubmitQuestionnaire = false })
     if (didSubmitDiaryThree) androidx.compose.material3.AlertDialog(
         onDismissRequest = { didSubmitDiaryThree = false },
@@ -562,6 +612,9 @@ private fun PatientHomeContent(
     loadState: TasksLoadState,
     assignments: List<PatientAssignment>,
     messages: List<PatientMessage>,
+    inboxItems: List<PatientInboxItem>,
+    inboxFailed: Boolean,
+    onOpenInboxItem: (PatientInboxItem) -> Unit,
     patientId: String,
     lastQuestionnaire: Date?,
     lastSubmissions: Map<PatientAssignmentType, Date?>,
@@ -584,7 +637,7 @@ private fun PatientHomeContent(
     val account = app.authRepository.currentUserId()
     var draftRevision by remember { mutableStateOf(0) }
     var resumable by remember(account, patientId) { mutableStateOf<List<PatientAssignment>>(emptyList()) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { draftRevision++; onBackgroundRefresh() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { draftRevision++ }
     LaunchedEffect(account, patientId, assignments, draftRevision) {
         resumable = withContext(Dispatchers.IO) {
             if (account == null) emptyList() else openAssignments.filter { assignment ->
@@ -625,12 +678,6 @@ private fun PatientHomeContent(
         },
     ) { padding ->
         when {
-            loadState == TasksLoadState.Loading && assignments.isEmpty() ->
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.gold) }
-            loadState == TasksLoadState.Failed && assignments.isEmpty() -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.Center) {
-                Text(stringResource(R.string.patient_tasks_load_error), color = colors.textBody)
-                GoldActionButton(stringResource(R.string.patient_activation_retry), onRefresh, Modifier.padding(top = 16.dp))
-            }
             else -> PullToRefreshBox(
                 isRefreshing = manualRefreshing,
                 onRefresh = onRefresh,
@@ -640,7 +687,21 @@ private fun PatientHomeContent(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(stringResource(R.string.patient_available_help), color = colors.textBody, fontSize = 14.sp)
+                    PatientInboxSection(inboxItems, inboxFailed, onAll = onOpenAllMessages, onOpen = onOpenInboxItem)
+                    if (loadState == TasksLoadState.Loading) CircularProgressIndicator(color = colors.gold)
+                    if (loadState == TasksLoadState.Failed) Text(stringResource(R.string.patient_tasks_load_error), color = colors.error)
+                    Column(
+                        Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        androidx.compose.material3.HorizontalDivider(
+                            color = colors.textFaint.copy(alpha = 0.25f),
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                        Text(stringResource(R.string.patient_tools_section_title), color = colors.textBright,
+                            fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.semantics { heading() })
+                        Text(stringResource(R.string.patient_available_help), color = colors.textBody, fontSize = 13.sp)
+                    }
                     if (!com.cbtipul.app.ui.entitlementCanWrite()) {
                         Text(stringResource(R.string.entitlement_patient_unavailable), color = colors.textBody, fontSize = 13.sp)
                     }
@@ -688,13 +749,7 @@ private fun PatientHomeContent(
                         Text(stringResource(R.string.patient_tasks_empty_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                         Text(stringResource(R.string.patient_tasks_empty_body), color = colors.textBody)
                     }
-                    GroupedListCard(accent = colors.gold) {
-                        Row(Modifier.fillMaxWidth().clickable(onClick = onOpenAllMessages).padding(16.dp).heightIn(min = 32.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(Icons.Outlined.MailOutline, contentDescription = null, tint = colors.gold)
-                            Text(stringResource(if (unread.isEmpty()) R.string.patient_messages_title else R.string.all_messages_action_with_count, unread.size), color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
-                        }
-                    }
+
                 }
             }
         }

@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.therapist
 
+import com.cbtipul.app.ui.theme.popScreen
+
 import androidx.compose.material.icons.outlined.AutoAwesome
 import com.cbtipul.app.ui.patients.AIPatientPickerScreen
 import androidx.compose.material.icons.filled.Settings
@@ -201,7 +203,13 @@ fun TherapistRootScreen(
             }
             // The mounted Patients stack must not handle Back behind another tab.
             // Child settings pages register later and keep their own Back behavior.
-            BackHandler(enabled = tab != TherapistRootTab.Patients) { tab = TherapistRootTab.Patients }
+            BackHandler(enabled = tab != TherapistRootTab.Patients) {
+                if (tab == TherapistRootTab.Notifications && inboxEntry?.destination?.route != "list") {
+                    inboxNav.popScreen()
+                } else {
+                    tab = TherapistRootTab.Patients
+                }
+            }
             CompositionLocalProvider(LocalTabReselections provides reselections.getValue(tab)) {
                 when (tab) {
                     TherapistRootTab.Patients -> Unit

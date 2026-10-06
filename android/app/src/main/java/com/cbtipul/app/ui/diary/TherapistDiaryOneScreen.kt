@@ -102,7 +102,8 @@ fun TherapistDiaryOneScreen(
     var assignmentError by remember { mutableStateOf<String?>(null) }
     var showStopConfirm by remember { mutableStateOf(false) }
     var editor by remember { mutableStateOf<DiaryOneEntry?>(null) }
-    var consumedFocus by remember { mutableStateOf(false) }
+    var consumedFocus by remember(patientId.queryValue, focusEntryId) { mutableStateOf(false) }
+    var focusRetry by remember { mutableStateOf(0) }
     var isCreating by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var editorError by remember { mutableStateOf<String?>(null) }
@@ -165,12 +166,24 @@ fun TherapistDiaryOneScreen(
         scope.launch { loadPatientMode() }
     }
 
-    LaunchedEffect(focusEntryId, loadState) {
+    LaunchedEffect(focusEntryId, loadState, focusRetry) {
         val id = focusEntryId ?: return@LaunchedEffect
         if (consumedFocus || loadState == DiaryLoadState.Loading) return@LaunchedEffect
+        val loaded = try { diary.loadEntry(id, patientId) }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { null }
+        editor = loaded
         consumedFocus = true
-        val loaded = runCatching { diary.loadEntry(id, patientId) }.getOrNull()
-        if (loaded != null) editor = loaded
+    }
+
+    if (focusEntryId != null && editor == null && (returnDirectly || !consumedFocus)) {
+        androidx.activity.compose.BackHandler(onBack = onBack)
+        com.cbtipul.app.ui.patients.NotificationTargetScreen(
+            onBack = onBack,
+            loading = !consumedFocus,
+            onRetry = { consumedFocus = false; focusRetry++ },
+        )
+        return
     }
 
     val patientEntry = editor?.takeIf { it.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Patient }

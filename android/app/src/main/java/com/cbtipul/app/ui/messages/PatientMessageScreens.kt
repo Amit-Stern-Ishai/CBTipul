@@ -250,7 +250,9 @@ fun PatientMessageDetailScreen(
             val loaded = load()
             message = loaded
             missing = loaded == null
-            if (showNoReply && loaded != null && loaded.isUnread) {
+            loading = false
+            androidx.compose.runtime.withFrameNanos { }
+            if (showNoReply && loaded != null) {
                 try {
                     markRead(loaded)
                     message = loaded.markedRead(Date())

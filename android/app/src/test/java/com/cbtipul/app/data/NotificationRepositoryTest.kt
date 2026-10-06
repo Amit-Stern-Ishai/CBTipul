@@ -67,10 +67,16 @@ class NotificationRepositoryTest {
             assertEquals(2, trayClears)
             assertEquals(3, markRequests.get())
 
+            // Patient activation uses the same server reset without clearing therapist tray items.
+            repository.markInboxSeen(clearSystemNotifications = false)
+            assertTrue(repository.items.value.single().isUnread)
+            assertEquals(2, trayClears)
+            assertEquals(4, markRequests.get())
+
             repository.isDemoInbox = true
             repository.markInboxSeen()
             assertEquals(2, trayClears)
-            assertEquals(3, markRequests.get())
+            assertEquals(4, markRequests.get())
         } finally {
             client.close()
             server.stop(0)

@@ -1051,7 +1051,8 @@
     <string name="patient_diary_two_purpose">בחינת מחשבות ומציאת חלופה</string>
     <string name="patient_attention_title">להמשך ולקריאה</string>
     <string name="patient_available_title">שאלוני מצב רוח ויומני מחשבות</string>
-    <string name="patient_available_help">למילוי בהתאם למה שסיכמתם עם המטפל/ת.</string>
+    <string name="patient_tools_section_title">הכלים שלך</string>
+    <string name="patient_available_help">מילוי חדש וצפייה במילויים קודמים</string>
     <string name="patient_resume_action">המשך מילוי</string>
     <string name="patient_local_only">נשמר במכשיר בלבד · עדיין לא נשלח</string>
     <string name="patient_sharing_help">בלחיצה על שליחה, הרשומה תשותף עם המטפל/ת. עד אז היא נשמרת במכשיר בלבד.</string>
@@ -1118,4 +1119,12 @@
     <string name="introduction_graph_start">בתחילת המעקב</string>
     <string name="introduction_graph_latest">לאחרונה</string>
     <string name="introduction_graph_hint">דוגמה: ירידה בעוצמת התסמינים לאורך זמן</string>
+    <string name="patient_inbox_title">הודעות ועדכונים</string>
+    <string name="patient_inbox_all">הצג הכול</string>
+    <string name="patient_inbox_unread">%1$d לא נקראו</string>
+    <string name="patient_inbox_new">חדש</string>
+    <string name="patient_inbox_empty">אין עדיין הודעות או עדכונים.</string>
+    <string name="patient_inbox_unavailable">הפריט אינו זמין כעת. ייתכן שהוסר או שהגישה אליו בוטלה. ניתן לרענן ולנסות שוב.</string>
+    <string name="patient_inbox_refresh_failed">לא הצלחנו לעדכן את ההודעות. המידע המוצג עשוי להיות חלקי.</string>
+    <string name="patient_inbox_tool_enabled">המטפל/ת הפעיל/ה עבורך את %1$s</string>
 </resources>

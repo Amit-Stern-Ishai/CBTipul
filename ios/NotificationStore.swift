@@ -13,9 +13,12 @@ final class NotificationStore {
     private(set) var notifications: [AppNotification] = []
     private(set) var isLoading = false
     private var isRefreshing = false
+    private var receiptWrites = 0
+    private var generation = 0
     private(set) var didFailLastLoad = false
     /// Demo clinic must not show live therapist notifications.
     var isDemoInbox = false
+    var patientModeActive = false
 
     /// Persistent rows the therapist has not opened (`readAt == nil`).
     var unreadCount: Int {
@@ -35,6 +38,7 @@ final class NotificationStore {
     }
 
     func clear() {
+        generation += 1
         notifications = []
         didFailLastLoad = false
         isLoading = false
@@ -61,7 +65,8 @@ final class NotificationStore {
     #endif
 
     func refresh(silently: Bool = false) async {
-        guard !isRefreshing else { return }
+        guard !isRefreshing, receiptWrites == 0 else { return }
+        let requestGeneration = generation
         isRefreshing = true
         defer { isRefreshing = false }
         guard !AuthManager.isUITesting else { return }
@@ -82,23 +87,26 @@ final class NotificationStore {
             await synchronizeAppIconBadge()
             return
         }
+        let recipientID: UUID
         do {
-            _ = try await client.auth.session
+            recipientID = try await client.auth.session.user.id
         } catch {
             // A cancelled or transiently failed silent refresh must keep the
             // last successful inbox and badge, including during backgrounding.
             guard !silently, !Task.isCancelled else { return }
-            notifications = []
+            didFailLastLoad = true
             await synchronizeAppIconBadge()
             return
         }
         do {
             let rows: [NotificationRow] = try await client.from("notifications")
                 .select("id, type, patient_id, session_id, assignment_id, resource_type, resource_id, created_at, seen_at, read_at")
+                .eq("recipient_user_id", value: recipientID.uuidString)
                 .order("created_at", ascending: false)
                 .execute()
                 .value
-            guard !Task.isCancelled, !isDemoInbox else { return }
+            guard !Task.isCancelled, !isDemoInbox, requestGeneration == generation,
+                  (try? await client.auth.session.user.id) == recipientID else { return }
             didFailLastLoad = false
             notifications = rows.map(\.asAppNotification)
             await synchronizeAppIconBadge()
@@ -115,8 +123,13 @@ final class NotificationStore {
 
     /// Marks currently unseen inbox rows as seen via `mark_notifications_seen`.
     /// Does not change `readAt`. No-ops when there is nothing unseen (avoids RPC loops).
-    func markInboxSeen() async {
-        guard unseenCount > 0 else { return }
+    func markInboxSeen(force: Bool = false) async {
+        while isRefreshing {
+            do { try await Task.sleep(for: .milliseconds(25)) } catch { return }
+        }
+        receiptWrites += 1
+        defer { receiptWrites -= 1 }
+        guard force || unseenCount > 0 else { return }
         guard !isDemoInbox, !AuthManager.isUITesting else { return }
         guard SupabaseConfig.isConfigured else { return }
         do {
@@ -134,6 +147,11 @@ final class NotificationStore {
 
     /// Persists `read_at` via `mark_notification_read`. Does not invent a local-only read.
     func markRead(_ notification: AppNotification) async {
+        while isRefreshing {
+            do { try await Task.sleep(for: .milliseconds(25)) } catch { return }
+        }
+        receiptWrites += 1
+        defer { receiptWrites -= 1 }
         guard notification.isUnread else { return }
         guard !AuthManager.isUITesting, SupabaseConfig.isConfigured else { return }
         do {
@@ -152,6 +170,14 @@ final class NotificationStore {
         }
     }
 
+    func markPatientResourceRead(patientID: UUID, messageID: UUID? = nil, assignmentID: UUID? = nil) async {
+        for item in notifications where item.type.routesInPatientMode && item.patientId.flatMap(UUID.init(uuidString:)) == patientID {
+            let matchesMessage = messageID != nil && item.type == .messageReceived && item.resourceType == "message" && item.resourceId.flatMap(UUID.init(uuidString:)) == messageID
+            let matchesAssignment = assignmentID != nil && item.patientAssignmentType != nil && item.exactAssignmentID == assignmentID
+            if matchesMessage || matchesAssignment { await markRead(item) }
+        }
+    }
+
     private func apply(_ notification: AppNotification) {
         if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
             notifications[index] = notification
@@ -162,7 +188,7 @@ final class NotificationStore {
     /// App icon follows `unseenCount`. Failures here must not
     /// affect fetch or mark-read. Does not request notification permission.
     private func synchronizeAppIconBadge() async {
-        await ApplicationIconBadge.sync(count: unseenCount)
+        await ApplicationIconBadge.sync(count: patientModeActive ? 0 : unseenCount)
     }
 }
 

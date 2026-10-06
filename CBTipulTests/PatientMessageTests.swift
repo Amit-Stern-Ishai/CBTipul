@@ -257,3 +257,50 @@ struct PatientMessageTests {
         #expect(items.contains(where: { !$0.isUnread }))
     }
 }
+
+struct PatientUnifiedInboxTests {
+    let patient = UUID()
+    let messageID = UUID()
+    let assignmentID = UUID()
+    func notice(_ type: AppNotificationType, resource: String, id: UUID, patientID: UUID? = nil) -> AppNotification {
+        AppNotification(id: UUID(), type: type, patientId: (patientID ?? patient).uuidString,
+            sessionId: nil, assignmentId: resource == "assignment" ? id.uuidString : nil,
+            resourceType: resource, resourceId: id.uuidString, createdAt: Date(timeIntervalSince1970: 20), seenAt: nil, readAt: nil)
+    }
+    @Test func deduplicatesMessagesAndUsesMessageReceipt() {
+        let message = PatientMessage(id: messageID, patientId: patient, body: "hello", createdAt: Date(), readAt: Date())
+        let notification = notice(.messageReceived, resource: "message", id: messageID)
+        let items = PatientInboxItem.items(patientID: patient, messages: [message], notifications: [notification])
+        #expect(items.count == 1)
+        #expect(!items[0].isUnread)
+    }
+    @Test func filtersOtherPatientsAndTherapistEvents() {
+        let items = PatientInboxItem.items(patientID: patient, messages: [], notifications: [
+            notice(.diaryOneAssigned, resource: "assignment", id: assignmentID),
+            notice(.questionnaireAssigned, resource: "assignment", id: UUID(), patientID: UUID()),
+            notice(.questionnaireCompleted, resource: "questionnaire", id: UUID())
+        ])
+        #expect(items.count == 1)
+        #expect(items[0].notification?.exactAssignmentID == assignmentID)
+    }
+    @Test func ongoingQuestionnaireIgnoresCompletedAtButRejectsCancellationAndWrongIDs() {
+        let active = PatientAssignment(id: assignmentID, patientId: patient, therapistId: nil, sessionId: nil,
+            typeValue: "questionnaire", createdAt: Date(), completedAt: Date(), cancelledAt: nil)
+        let payload = AppNotificationPayload.from(notification: notice(.questionnaireAssigned, resource: "assignment", id: assignmentID))
+        #expect(PatientInboxItem.assignment(payload: payload, patientID: patient, assignments: [active])?.id == assignmentID)
+        let cancelled = PatientAssignment(id: assignmentID, patientId: patient, therapistId: nil, sessionId: nil,
+            typeValue: "questionnaire", createdAt: Date(), completedAt: nil, cancelledAt: Date())
+        #expect(PatientInboxItem.assignment(payload: payload, patientID: patient, assignments: [cancelled]) == nil)
+        #expect(PatientInboxItem.assignment(payload: payload, patientID: UUID(), assignments: [active]) == nil)
+        #expect(PatientInboxItem.assignment(payload: payload, patientID: patient, assignments: []) == nil)
+    }
+    @Test func seeingDoesNotReadAndConflictingIdsAreRejected() {
+        let notification = notice(.questionnaireAssigned, resource: "assignment", id: assignmentID)
+        #expect(notification.acknowledged(at: Date()).isUnread)
+        #expect(notification.exactAssignmentID == assignmentID)
+        let conflict = AppNotification(id: UUID(), type: .diaryOneAssigned, patientId: patient.uuidString,
+            sessionId: nil, assignmentId: assignmentID.uuidString, resourceType: "assignment", resourceId: UUID().uuidString,
+            createdAt: Date(), seenAt: nil, readAt: nil)
+        #expect(conflict.exactAssignmentID == nil)
+    }
+}
