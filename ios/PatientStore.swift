@@ -191,7 +191,7 @@ private nonisolated struct UpdatedPatientStatusRecord: Encodable {
 }
 
 /// Row shape for updates of an existing `Sessions` row.
-private nonisolated struct UpdatedSessionRecord: Encodable {
+nonisolated struct UpdatedSessionRecord: Encodable {
     let sessionDate: String
     let notes: String?
     let sessionType: SessionType?
@@ -204,12 +204,12 @@ private nonisolated struct UpdatedSessionRecord: Encodable {
         case structuredNotes = "structured_notes"
     }
 
-    // Encode the type explicitly so clearing it writes NULL instead of
+    // Encode notes and type explicitly so clearing them writes NULL instead of
     // leaving the column untouched (synthesized encoding skips nil keys).
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(sessionDate, forKey: .sessionDate)
-        try container.encodeIfPresent(notes, forKey: .notes)
+        try container.encode(notes, forKey: .notes)
         try container.encode(sessionType, forKey: .sessionType)
         try container.encodeIfPresent(structuredNotes, forKey: .structuredNotes)
     }

@@ -6,6 +6,18 @@ import Testing
 @MainActor
 struct ReleaseSanityTests {
 
+    @Test func clearingSessionSummaryWritesExplicitNull() throws {
+        let record = UpdatedSessionRecord(sessionDate: "2026-10-07", notes: nil,
+            sessionType: nil, structuredNotes: nil)
+        let data = try JSONEncoder().encode(record)
+        let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(body["notes"] is NSNull)
+        let populated = UpdatedSessionRecord(sessionDate: "2026-10-07", notes: "Summary",
+            sessionType: nil, structuredNotes: nil)
+        let populatedBody = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(populated)) as? [String: Any])
+        #expect(populatedBody["notes"] as? String == "Summary")
+    }
+
     private func makeStore() -> PatientStore {
         PatientStore(client: AuthManager().client) { $0 }
     }

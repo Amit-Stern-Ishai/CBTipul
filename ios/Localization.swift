@@ -1398,6 +1398,8 @@ amitishai@gmail.com
 
     static let patientInvitationInvalidPatientError = "לא ניתן להזמין מטופל/ת זה/ו."
 
+    static let patientInvitationEmailAction = "שליחה בדוא״ל"
+
     static let patientInvitationShareSubject = "הזמנה להתחבר ל-CBTipul"
 
     static func patientInvitationShareMessage(therapistName: String, invitationUrl: String) -> String {
@@ -1415,7 +1417,7 @@ amitishai@gmail.com
         """
     }
 
-    /// Plain text for Gmail's share extension, which does not reliably accept HTML.
+    /// Plain-text fallback for email sharing when no HTML body is supplied.
     static func patientInvitationEmailMessage(therapistName: String, invitationUrl: String) -> String {
         """
         ‏הזמנה אישית ל־CBTipul

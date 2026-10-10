@@ -9,6 +9,19 @@ import org.junit.Test
 import java.util.Date
 
 class SessionEditorDraftTest {
+    @Test fun clearedSummaryWritesExplicitNullInsteadOfOmittingTheUpdate() = kotlinx.coroutines.runBlocking {
+        val draft = SessionEditorViewModel().getOrCreate(Session(notes = "Saved summary"))
+        draft.notes = ""
+        assertNotEquals(draft.baselineNotes, draft.snapshot().notes)
+        val gate = ClinicalTextGate { error("Empty notes must not require AI") }
+        val prepared = gate.prepare(draft.snapshot().notes)
+        val body = PatientRepository.sessionWriteBody(draft.date, prepared, draft.type)
+        assertTrue(body.containsKey("notes"))
+        assertEquals(kotlinx.serialization.json.JsonNull, body["notes"])
+        val populated = PatientRepository.sessionWriteBody(draft.date, "Summary", draft.type)
+        assertEquals(kotlinx.serialization.json.JsonPrimitive("Summary"), populated["notes"])
+    }
+
     @Test fun editingNotesAllowsRegenerationUntilUpdatedDraftIsAccepted() {
         val original = CBTSessionAnalysis(sessionSummary = "Original summary")
         val draft = SessionEditorViewModel().getOrCreate(Session(notes = "Original notes", structuredNotes = original))

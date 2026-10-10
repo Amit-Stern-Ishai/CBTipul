@@ -78,12 +78,13 @@ struct PatientInvitationShareTests {
         #expect(!html.contains("<כהן>"))
     }
 
-    @Test @MainActor func mailReceivesHTMLAndGmailReceivesNonemptyText() {
+    @Test @MainActor func mailReceivesHTMLButGmailNeverReceivesMarkup() {
         let html = L10n.patientInvitationEmailHTML(therapistName: therapistName, invitationUrl: invitationUrl)
         let item = InvitationShareActivityItem(body: "plain invitation", subject: "subject", htmlBody: html, emailBody: "email invitation")
         let controller = UIActivityViewController(activityItems: [], applicationActivities: nil)
         #expect(item.activityViewController(controller, itemForActivityType: .mail) as? String == html)
         #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: .mail) == "public.html")
+        #expect(html.contains("<br><br>"))
         let gmail = UIActivity.ActivityType(rawValue: "com.google.Gmail.ShareExtension")
         #expect(item.activityViewController(controller, itemForActivityType: gmail) as? String == "email invitation")
         #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: gmail) == "public.plain-text")
@@ -95,6 +96,21 @@ struct PatientInvitationShareTests {
             #expect(item.activityViewController(controller, itemForActivityType: target) as? String == "plain invitation")
             #expect(item.activityViewController(controller, dataTypeIdentifierForActivityType: target) == "public.plain-text")
         }
+    }
+
+    @Test @MainActor func directEmailPreservesParagraphsHebrewAndExactInvitationLink() throws {
+        let link = "https://cbtipul.com/invite/token?first=a+b&second=100%25#part"
+        let body = L10n.patientInvitationEmailMessage(therapistName: "דנה כהן", invitationUrl: link)
+        let url = try #require(InvitationEmailActivity.composeURL(subject: "הזמנה & טיפול", body: body))
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(components.scheme == "mailto")
+        #expect(components.queryItems?.count == 2)
+        #expect(components.queryItems?.first { $0.name == "subject" }?.value == "הזמנה & טיפול")
+        let decoded = try #require(components.queryItems?.first { $0.name == "body" }?.value)
+        #expect(decoded == body.replacingOccurrences(of: "\n", with: "\r\n"))
+        #expect(decoded.contains(link))
+        #expect(url.absoluteString.contains("%0D%0A%0D%0A"))
+        #expect(!decoded.contains("<br>"))
     }
 
 }

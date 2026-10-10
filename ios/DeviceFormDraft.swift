@@ -104,6 +104,10 @@ final class DeviceFormDraft<Value: Codable> {
 
     init(storage: DeviceDraftStorage = DeviceDraftStorage()) { self.storage = storage }
 
+    // No actor-bound teardown is needed. Avoid Swift 6.3's optimized generic
+    // isolated-deinit crash when back-deploying to iOS 18 (swiftlang/swift#90625).
+    nonisolated deinit {}
+
     func restore(userID: String?, kind: String, target: String) -> Value? {
         guard !hasLoaded else { return nil }
         hasLoaded = true

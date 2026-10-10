@@ -138,7 +138,9 @@ struct ActivityShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
+        let invitation = items.compactMap { $0 as? InvitationShareActivityItem }.first
+        let emailActions = invitation.map { [InvitationEmailActivity(invitation: $0)] }
+        return UIActivityViewController(activityItems: items, applicationActivities: emailActions)
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
@@ -169,8 +171,8 @@ final class InvitationShareActivityItem: NSObject, UIActivityItemSource {
         _ activityViewController: UIActivityViewController,
         itemForActivityType activityType: UIActivity.ActivityType?
     ) -> Any? {
-        // Gmail's iOS extension can discard HTML data and open an empty body.
-        // Keep a String payload for third-party targets, matching the placeholder.
+        // Gmail displays HTML Strings literally (and HTML Data can produce an
+        // empty body). Only Apple Mail receives HTML; Gmail must receive text.
         if activityType == .mail { return htmlBody ?? emailBody ?? body }
         if activityType?.rawValue == "com.google.Gmail.ShareExtension" { return emailBody ?? body }
         return body
@@ -188,5 +190,47 @@ final class InvitationShareActivityItem: NSObject, UIActivityItemSource {
         subjectForActivityType activityType: UIActivity.ActivityType?
     ) -> String {
         subject
+    }
+}
+
+/// Opens an editable draft through the default email app, bypassing share-extension
+/// text import. Never sends the invitation automatically.
+final class InvitationEmailActivity: UIActivity {
+    private let invitation: InvitationShareActivityItem
+
+    init(invitation: InvitationShareActivityItem) {
+        self.invitation = invitation
+        super.init()
+    }
+
+    override var activityType: UIActivity.ActivityType? {
+        UIActivity.ActivityType(rawValue: "com.CBTipul.emailInvitation")
+    }
+    override var activityTitle: String? { L10n.patientInvitationEmailAction }
+    override var activityImage: UIImage? { UIImage(systemName: "envelope") }
+    override func canPerform(withActivityItems activityItems: [Any]) -> Bool { true }
+
+    override func perform() {
+        guard let url = Self.composeURL(subject: invitation.subject,
+            body: invitation.emailBody ?? invitation.body) else {
+            activityDidFinish(false)
+            return
+        }
+        UIApplication.shared.open(url, options: [:]) { [weak self] opened in
+            self?.activityDidFinish(opened)
+        }
+    }
+
+    static func composeURL(subject: String, body: String) -> URL? {
+        // RFC 6068: body line breaks must be CRLF, encoded as %0D%0A.
+        // Encode values individually so invitation query parameters remain intact.
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
+        let normalizedBody = body.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: "\n", with: "\r\n")
+        guard let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: allowed),
+              let encodedBody = normalizedBody.addingPercentEncoding(withAllowedCharacters: allowed)
+        else { return nil }
+        return URL(string: "mailto:?subject=\(encodedSubject)&body=\(encodedBody)")
     }
 }

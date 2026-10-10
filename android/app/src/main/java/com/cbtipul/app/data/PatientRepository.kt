@@ -262,9 +262,8 @@ class PatientRepository(
             )
             patient.copy(localName = identityStore.name(patient.id))
         }
-        identityStore.upsertIdentities(
-            loaded.associate { it.id to it.backendName },
-        )
+        // Names are local-only. Cached first/last names may predate a rename;
+        // a server refresh must never write them back over the identity store.
         _patients.value = loaded.map { it.copy(localName = identityStore.name(it.id)) }
         persistCache()
     }
@@ -332,6 +331,7 @@ class PatientRepository(
                 }
             }
         }
+        persistCache()
     }
 
     suspend fun deletePatient(patientId: DatabaseId) {
@@ -860,30 +860,6 @@ class PatientRepository(
         }
     }
 
-    private fun sessionWriteBody(
-        date: Date,
-        notes: String?,
-        type: SessionType?,
-        patientId: DatabaseId? = null,
-        analysis: CBTSessionAnalysis? = null,
-    ) = buildJsonObject {
-        if (patientId != null) put("patient_id", patientId.toJsonElement())
-        put("session_date", JsonPrimitive(dateOnly.format(date)))
-        if (notes != null) put("notes", JsonPrimitive(notes))
-        put(
-            "type",
-            if (type == null) JsonNull else json.encodeToJsonElement(SessionType.serializer(), type),
-        )
-        if (analysis != null) {
-            put("structured_notes", json.encodeToJsonElement(CBTSessionAnalysis.serializer(), analysis))
-        }
-    }
-
-    private fun DatabaseId.toJsonElement(): JsonElement = when (this) {
-        is DatabaseId.Integer -> JsonPrimitive(value)
-        is DatabaseId.Text -> JsonPrimitive(value)
-    }
-
     private fun parseDate(raw: String): Date {
         dateOnly.parse(raw)?.let { return it }
         isoFractional.parse(raw)?.let { return it }
@@ -986,6 +962,31 @@ class PatientRepository(
     }
 
     companion object {
+        internal fun sessionWriteBody(
+            date: Date,
+            notes: String?,
+            type: SessionType?,
+            patientId: DatabaseId? = null,
+            analysis: CBTSessionAnalysis? = null,
+        ) = buildJsonObject {
+            if (patientId != null) put("patient_id", patientId.toJsonElement())
+            put("session_date", JsonPrimitive(dateOnly.format(date)))
+            // Explicit null clears an existing summary; omitting the field preserves it.
+            put("notes", notes?.let(::JsonPrimitive) ?: JsonNull)
+            put(
+                "type",
+                if (type == null) JsonNull else json.encodeToJsonElement(SessionType.serializer(), type),
+            )
+            if (analysis != null) {
+                put("structured_notes", json.encodeToJsonElement(CBTSessionAnalysis.serializer(), analysis))
+            }
+        }
+
+        private fun DatabaseId.toJsonElement(): JsonElement = when (this) {
+            is DatabaseId.Integer -> JsonPrimitive(value)
+            is DatabaseId.Text -> JsonPrimitive(value)
+        }
+
         private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
         private val dateOnly = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
