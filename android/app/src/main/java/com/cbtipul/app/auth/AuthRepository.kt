@@ -59,9 +59,9 @@ class AuthRepository(
         abandonBrowserSignIn()
         val attempt = callbackGate.revision
         client.auth.codeVerifierCache.deleteCodeVerifier()
-        val url = client.auth.getOAuthUrl(Apple, redirectUrl = SupabaseConfig.AUTH_CALLBACK) {
-            scopes.addAll(listOf("email", "name"))
-        }
+        // SDK 3.2.2 interpolates redirect_to without encoding. An unencoded
+        // cbtipul:// value is dropped and Auth falls back to the site URL.
+        val url = appleAuthorizationUrl(client)
         // SDK 3.2.2 saves asynchronously. Wait until the current URL's verifier
         // is in the SDK's persistent cache before handing control to the browser.
         val challenge = android.net.Uri.parse(url).getQueryParameter("code_challenge")
@@ -365,6 +365,25 @@ enum class AuthErrorKind {
 }
 
 class AuthException(val kind: AuthErrorKind) : Exception()
+
+internal fun appleAuthorizationUrl(client: SupabaseClient): String {
+    val generated = client.auth.getOAuthUrl(Apple, redirectUrl = SupabaseConfig.AUTH_CALLBACK) {
+        scopes.addAll(listOf("email", "name"))
+    }
+    return generated.withEncodedRedirect(SupabaseConfig.AUTH_CALLBACK)
+}
+
+private fun String.withEncodedRedirect(redirectUrl: String): String {
+    val encoded = java.net.URLEncoder.encode(redirectUrl, Charsets.UTF_8)
+    val prefix = "redirect_to="
+    val start = indexOf(prefix)
+    require(start >= 0) { "OAuth authorization URL omitted redirect_to" }
+    val valueStart = start + prefix.length
+    val valueEnd = indexOf('&', valueStart).let { if (it < 0) length else it }
+    val current = substring(valueStart, valueEnd)
+    require(current == redirectUrl || current == encoded) { "Unexpected redirect_to" }
+    return if (current == encoded) this else replaceRange(valueStart, valueEnd, encoded)
+}
 
 @Serializable
 data class AccountDeletionResponse(

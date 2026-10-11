@@ -2,6 +2,7 @@ package com.cbtipul.app.ui.auth
 
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Row
 import androidx.activity.compose.BackHandler
@@ -262,17 +263,41 @@ private fun AuthCard(
                     Text(stringResource(R.string.auth_google_sign_in), fontWeight = FontWeight.Medium)
                 }
             }
-            OutlinedButton(
-                onClick = onAppleSignIn, enabled = !state.isWorking,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color.White),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.Black, contentColor = Color.White,
-                    disabledContainerColor = Color.Black.copy(alpha = 0.55f),
-                ),
-            ) {
-                Text(stringResource(R.string.auth_apple_sign_in), fontWeight = FontWeight.Medium)
+            // Use the app's actual surface, including its explicit theme setting.
+            val appleFill = if (colors.surface.luminance() < 0.5f) Color.White else Color.Black
+            val appleInk = if (appleFill == Color.White) Color.Black else Color.White
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onAppleSignIn, enabled = !state.isWorking,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = null,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = maxWidth * 0.08f, vertical = 0.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = appleFill, contentColor = appleInk,
+                        disabledContainerColor = appleFill,
+                        disabledContentColor = appleInk.copy(alpha = 0.55f),
+                    ),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        // Apple's SVG includes its own padding. Scale the entire
+                        // 31×44 viewport to button height; never crop or mirror it.
+                        Image(
+                            painter = painterResource(
+                                if (appleFill == Color.White) R.drawable.apple_sign_in_logo_black
+                                else R.drawable.apple_sign_in_logo_white,
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(width = (48f * 31f / 44f).dp, height = 48.dp),
+                            alpha = if (state.isWorking) 0.55f else 1f,
+                        )
+                        Text(stringResource(R.string.auth_apple_sign_in),
+                            fontWeight = FontWeight.Medium, fontSize = 16.sp, maxLines = 1)
+                    }
+                }
             }
             Text(stringResource(R.string.auth_existing_account_guidance),
                 color = colors.textBody, fontSize = 12.sp)
