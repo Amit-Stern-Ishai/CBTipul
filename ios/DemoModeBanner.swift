@@ -1,5 +1,11 @@
 import SwiftUI
 
+// Temporary screenshot mode. Set to false after capturing screenshots.
+// Only hides demo presentation; sample data isolation and cleanup stay active.
+private enum DemoScreenshotMode {
+    static let enabled = true
+}
+
 private struct DemoChromeExtendsIntoBottomSafeAreaKey: EnvironmentKey {
     static let defaultValue = true
 }
@@ -52,7 +58,7 @@ private struct DemoModeBannerInset: ViewModifier {
 
     func body(content: Content) -> some View {
         content.safeAreaInset(edge: .top, spacing: 0) {
-            if store.isDemoMode {
+            if store.isDemoMode && !DemoScreenshotMode.enabled {
                 DemoModeBanner()
                     .transaction { $0.animation = nil }
             }
@@ -81,7 +87,8 @@ private struct DemoModeReminder: ViewModifier {
                 presentedReminder = nil
             }
             .task(id: store.isDemoMode && scenePhase == .active) {
-                guard store.isDemoMode, scenePhase == .active else { return }
+                guard store.isDemoMode, scenePhase == .active,
+                      !DemoScreenshotMode.enabled else { return }
                 while !Task.isCancelled {
                     do { try await Task.sleep(for: .seconds(1)) } catch { return }
                     guard Date() >= nextReminder, presentedReminder == nil else { continue }
