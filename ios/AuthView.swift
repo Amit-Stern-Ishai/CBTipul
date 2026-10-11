@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Sign-in / sign-up screen using email and password.
+/// Therapist sign-in / sign-up using email/password or native Google sign-in.
 struct AuthView: View {
     private enum Mode: CaseIterable {
         case signIn
@@ -161,6 +161,7 @@ struct AuthView: View {
                 ForEach(Mode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
+            .disabled(isWorking)
 
             VStack(spacing: 12) {
                 inputRow(systemImage: "envelope") { emailField }
@@ -213,6 +214,14 @@ struct AuthView: View {
             .buttonStyle(.pressableProminent)
             .accessibilityIdentifier("auth.submit")
             .disabled(email.isEmpty || password.isEmpty || !isPasswordValidForSubmit || isWorking)
+
+            NativeGoogleSignInButton(isEnabled: !isWorking && !auth.isSigningInWithGoogle) {
+                authenticate {
+                    try await auth.signInWithGoogle()
+                    return nil
+                }
+            }
+            .frame(height: 48)
 
             if mode == .signIn {
                 Button(L10n.forgotPasswordAction, action: forgotPassword)
@@ -341,16 +350,17 @@ struct AuthView: View {
     /// Runs an async auth action, surfacing errors and toggling the busy state.
     /// The action may return an informational message to display on success.
     private func authenticate(_ action: @escaping () async throws -> String?) {
+        guard !isWorking else { return }
         errorMessage = nil
         infoMessage = nil
         isWorking = true
         Task {
+            defer { isWorking = false }
             do {
                 infoMessage = try await action()
             } catch {
                 errorMessage = error.localizedDescription
             }
-            isWorking = false
         }
     }
 }

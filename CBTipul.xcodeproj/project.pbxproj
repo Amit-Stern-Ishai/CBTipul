@@ -17,6 +17,7 @@
 		A7E10014 /* CBTipulNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A7E10004 /* CBTipulNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A7E10200 /* ios/PatientNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E10201 /* ios/PatientNameResolver.swift */; };
 		A7E10202 /* ios/PatientPushPersonalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E10203 /* ios/PatientPushPersonalizer.swift */; };
+		AAB100000000000000000001 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AAB100000000000000000002 /* GoogleSignIn */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -109,6 +110,7 @@
 				452035D4301BA785006FC5A3 /* PostgREST in Frameworks */,
 				452035D2301BA785006FC5A3 /* Functions in Frameworks */,
 				452035DA301BA785006FC5A3 /* Supabase in Frameworks */,
+				AAB100000000000000000001 /* GoogleSignIn in Frameworks */,
 				452035D0301BA785006FC5A3 /* Auth in Frameworks */,
 				452035D8301BA785006FC5A3 /* Storage in Frameworks */,
 				452035D6301BA785006FC5A3 /* Realtime in Frameworks */,
@@ -194,6 +196,7 @@
 				452035D5301BA785006FC5A3 /* Realtime */,
 				452035D7301BA785006FC5A3 /* Storage */,
 				452035D9301BA785006FC5A3 /* Supabase */,
+				AAB100000000000000000002 /* GoogleSignIn */,
 			);
 			productName = CBTipul;
 			productReference = 000000000000000000000120 /* CBTipul.app */;
@@ -295,6 +298,7 @@
 			mainGroup = 000000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				AAB100000000000000000003 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				452035CE301BA785006FC5A3 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			preferredProjectObjectVersion = 90;
@@ -826,6 +830,14 @@
 				minimumVersion = 2.5.1;
 			};
 		};
+		AAB100000000000000000003 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = exactVersion;
+				version = 10.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -858,6 +870,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 452035CE301BA785006FC5A3 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		AAB100000000000000000002 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AAB100000000000000000003 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

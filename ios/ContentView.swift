@@ -77,12 +77,15 @@ struct MyApp: App {
     /// Auth custom-scheme callbacks stay on `cbtipul://`. Invitation
     /// Universal Links are `https://cbtipul.com/invite/<TOKEN>` only.
     private func handleIncomingURL(_ url: URL) {
+        if NativeGoogleSignIn.handles(url) { return }
         if url.scheme == "cbtipul",
            url.host() == "auth-callback" || url.host() == "password-reset" {
+            auth.cancelPendingGoogleSignIn()
             Task { await auth.handleAuthCallback(url) }
             return
         }
         guard let token = InvitationLink.token(from: url) else { return }
+        auth.cancelPendingGoogleSignIn()
         Task {
             await invitationFlow.start(
                 token: token,

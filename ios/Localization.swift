@@ -245,6 +245,10 @@ enum L10n {
     static let authModePickerTitle = "מצב"
     static let authSignInAction = "התחברות"
     static let authSignUpAction = "הרשמה"
+    static let googleSignInAction = "כניסה באמצעות Google"
+    static let googleSignInFailed = "לא הצלחנו להתחבר באמצעות Google. יש לבדוק את החיבור לאינטרנט ולנסות שוב. ניתן גם להתחבר עם אימייל וסיסמה."
+    static let googleSignInUnavailable = "לא ניתן לפתוח כרגע את ההתחברות באמצעות Google. יש לנסות שוב."
+
     static let emailPlaceholder = "אימייל"
     static let passwordPlaceholder = "סיסמה"
     static let forgotPasswordAction = "איפוס סיסמה"

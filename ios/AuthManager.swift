@@ -1,6 +1,7 @@
 import SwiftUI
 import OSLog
 import Supabase
+import GoogleSignIn
 
 /// The third-party identity providers offered on the sign-in screen.
 //enum AuthProvider: String {
@@ -33,8 +34,7 @@ enum AuthError: LocalizedError {
 
 /// Holds the current authentication state for the app, backed by Supabase Auth.
 ///
-/// Email/password sign-up and sign-in are implemented. OAuth (Google/Facebook)
-/// is still a stub and will be added later.
+/// Email/password and native Google login share the same Supabase session flow.
 @Observable
 @MainActor
 final class AuthManager {
@@ -49,6 +49,8 @@ final class AuthManager {
     let client: SupabaseClient
 
     private(set) var currentUserEmail: String?
+    private var googleSignInAttempt: UUID?
+    private(set) var isSigningInWithGoogle = false
 
     /// Supabase Auth user id for the signed-in session. Used to namespace
     /// device-local preferences that must not key off email.
@@ -143,6 +145,53 @@ final class AuthManager {
         }
     }
 
+    /// Supabase performs verified-email identity linking. Never creates a custom
+    /// profile, merges accounts, or links a Patient Mode anonymous identity.
+    func signInWithGoogle() async throws {
+        try ensureConfigured()
+        guard !hasSession, !isSigningInWithGoogle else { return }
+        guard let presenter = NativeGoogleSignIn.presenter() else { throw GoogleLoginError.unavailable }
+        let attempt = UUID()
+        googleSignInAttempt = attempt
+        isSigningInWithGoogle = true
+        defer {
+            isSigningInWithGoogle = false
+            if googleSignInAttempt == attempt { googleSignInAttempt = nil }
+        }
+        do {
+            let nonce = try NativeGoogleSignIn.nonce()
+            let result = try await GIDSignIn.sharedInstance.signIn(
+                withPresenting: presenter, hint: nil, additionalScopes: nil,
+                nonce: NativeGoogleSignIn.hash(nonce))
+            // An invitation or auth callback may have taken over while Google was open.
+            guard googleSignInAttempt == attempt, !hasSession else {
+                GIDSignIn.sharedInstance.signOut()
+                return
+            }
+            guard let idToken = result.user.idToken?.tokenString, !idToken.isEmpty else {
+                throw GoogleLoginError.failed
+            }
+            try await client.auth.signInWithIdToken(credentials: .init(
+                provider: .google, idToken: idToken,
+                accessToken: result.user.accessToken.tokenString, nonce: nonce))
+            callbackError = nil
+            // The existing authStateChanges observer applies the Supabase session.
+            AppLog.auth.info("Google sign-in succeeded")
+        } catch {
+            GIDSignIn.sharedInstance.signOut()
+            if NativeGoogleSignIn.isCancellation(error) || error is CancellationError
+                || googleSignInAttempt != attempt { return }
+            // Never log provider error descriptions: they may contain OAuth details.
+            AppLog.auth.error("Google sign-in failed")
+            throw GoogleLoginError.failed
+        }
+    }
+
+    func cancelPendingGoogleSignIn() {
+        googleSignInAttempt = nil
+        GIDSignIn.sharedInstance.signOut()
+    }
+
     /// Creates a new account. Returns `true` when the user must confirm their
     /// email address before they can sign in (no session was returned).
     /// The confirmation link redirects back into the app.
@@ -234,6 +283,7 @@ final class AuthManager {
 //    }
 
     func signOut() {
+        cancelPendingGoogleSignIn()
         AppLog.auth.info("Sign-out requested")
         isRecoveringPassword = false
         Task { await clearLocalSession() }
@@ -241,6 +291,7 @@ final class AuthManager {
 
     /// Awaits sign-out so a following anonymous sign-in cannot race.
     func signOutAndWait() async {
+        cancelPendingGoogleSignIn()
         AppLog.auth.info("Sign-out requested")
         isRecoveringPassword = false
         await clearLocalSession()
@@ -271,6 +322,7 @@ final class AuthManager {
     }
 
     private func clearLocalSession() async {
+        cancelPendingGoogleSignIn()
         await PushNotificationManager.shared.unregisterCurrentToken()
         try? await client.auth.signOut()
         currentUserEmail = nil
@@ -286,6 +338,7 @@ final class AuthManager {
         try ensureConfigured()
         do {
             try await client.functions.invoke("delete-account")
+            cancelPendingGoogleSignIn()
             AppLog.auth.notice("Account deleted")
         } catch {
             AppLog.auth.error("Account deletion failed: \(error.localizedDescription, privacy: .public)")
