@@ -126,6 +126,10 @@ final class DiaryThreeStore {
     private let client: SupabaseClient
     private var entriesByPatient: [String: [DiaryThreeEntry]] = [:]
     /// Demo clinic only — not used for real patients.
+    func clearCachedEntries(patientIDs: [DatabaseID]) {
+        for id in patientIDs { entriesByPatient[id.queryValue] = nil }
+    }
+
     func clearDemoContent() { demoEntriesByPatient.removeAll() }
 
     private var demoEntriesByPatient: [String: [DiaryThreeEntry]] = [:]

@@ -6,12 +6,12 @@ import Testing
 @MainActor
 struct NativeGoogleSignInTests {
     @Test func nonceIsRandomAndUsesSupabaseSHA256Contract() throws {
-        let first = try NativeGoogleSignIn.nonce()
-        let second = try NativeGoogleSignIn.nonce()
+        let first = try NativeSignInNonce.nonce()
+        let second = try NativeSignInNonce.nonce()
         #expect(first.count == 64)
         #expect(first != second)
         #expect(first.allSatisfy { "0123456789abcdef".contains($0) })
-        #expect(NativeGoogleSignIn.hash("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        #expect(NativeSignInNonce.hash("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
     }
 
     @Test func configurationIncludesBothClientsAndPreservesExistingScheme() throws {

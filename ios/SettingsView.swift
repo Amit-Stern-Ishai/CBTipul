@@ -199,6 +199,9 @@ struct SettingsView: View {
     @State private var isShowingDeleteAccountConfirmation = false
     @State private var isShowingDeleteAccountCodeChallenge = false
     @State private var isDeletingAccount = false
+    @Environment(DiaryOneStore.self) private var diaryOne
+    @Environment(DiaryTwoStore.self) private var diaryTwo
+    @Environment(DiaryThreeStore.self) private var diaryThree
     @State private var deleteAccountError: String?
     @State private var displayNameLoadFailed = false
     // Tutorial consent is presented by TherapistRootView — not here — so
@@ -562,17 +565,25 @@ struct SettingsView: View {
     /// sign-out happens inside `deleteAccount`, which drops the app back to
     /// the sign-in screen.
     private func deleteAccount() {
+        guard !isDeletingAccount else { return }
         isDeletingAccount = true
         Task {
             do {
-                // Capture before Auth sign-out clears the active user id.
-                let userId = auth.currentUserId
-                try await auth.deleteAccount()
-                if let userId {
+                guard let userId = auth.currentUserId else { throw AccountActionError.failed }
+                // Resolve owned IDs under the current session before deletion, even if
+                // the visible clinic/cache has not loaded every patient.
+                let generation = auth.accountActions.identityGeneration
+                let patientIDs = try await store.accountDeletionPatientIDs()
+                guard auth.currentUserId == userId, generation == auth.accountActions.identityGeneration else { throw AccountActionError.identityChanged }
+                try await auth.deleteAccount {
                     onboarding.clearPersistedState(for: userId)
+                    store.wipeLocalData(patientIDs: patientIDs)
+                    diaryOne.clearCachedEntries(patientIDs: patientIDs)
+                    diaryTwo.clearCachedEntries(patientIDs: patientIDs)
+                    diaryThree.clearCachedEntries(patientIDs: patientIDs)
+                    DeviceDraftStorage().removeAccountDrafts(userID: userId)
+                    therapistProfiles.clearCache()
                 }
-                store.wipeLocalData()
-                therapistProfiles.clearCache()
             } catch {
                 deleteAccountError = error.localizedDescription
             }

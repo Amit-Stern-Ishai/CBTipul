@@ -2,6 +2,7 @@ import SwiftUI
 import OSLog
 import Supabase
 import GoogleSignIn
+import AuthenticationServices
 
 /// The third-party identity providers offered on the sign-in screen.
 //enum AuthProvider: String {
@@ -15,6 +16,7 @@ enum AuthError: LocalizedError {
     case emailNotConfirmed
     case verificationFailed
     case tooManyRequests
+    case signInInProgress
 
     var errorDescription: String? {
         switch self {
@@ -28,13 +30,15 @@ enum AuthError: LocalizedError {
             return L10n.verificationFailedError
         case .tooManyRequests:
             return L10n.tooManyRequestsError
+        case .signInInProgress:
+            return L10n.signInInProgress
         }
     }
 }
 
 /// Holds the current authentication state for the app, backed by Supabase Auth.
 ///
-/// Email/password and native Google login share the same Supabase session flow.
+/// Email/password and native provider logins share the same Supabase session flow.
 @Observable
 @MainActor
 final class AuthManager {
@@ -47,9 +51,15 @@ final class AuthManager {
 
     /// The shared Supabase client, also used for database access later.
     let client: SupabaseClient
+    let accountActions: AccountActions
 
     private(set) var currentUserEmail: String?
     private var googleSignInAttempt: UUID?
+    private var appleSignInAttempt: AppleSignInAttempt?
+    private var appleRetryUserID: String?
+    private var appleRetryGeneration: UUID?
+    private(set) var isSigningInWithApple = false
+    var isProviderSignInInProgress: Bool { isSigningInWithGoogle || isSigningInWithApple }
     private(set) var isSigningInWithGoogle = false
 
     /// Supabase Auth user id for the signed-in session. Used to namespace
@@ -91,10 +101,23 @@ final class AuthManager {
     static let uiTestingUserId = "ui-testing-user"
 
     init() {
-        client = SupabaseClient(
+        let client = SupabaseClient(
             supabaseURL: SupabaseConfig.url,
             supabaseKey: SupabaseConfig.anonKey
         )
+        self.client = client
+        accountActions = AccountActions(register: { code, token in
+            // The shared Supabase client's fetchWithAuth overrides Authorization
+            // at send time. Pin this single-use request to its initiating session.
+            let functions = FunctionsClient(url: SupabaseConfig.url.appendingPathComponent("functions/v1"),
+                headers: ["apikey": SupabaseConfig.anonKey, "Authorization": "Bearer \(token)"])
+            return try await functions.invoke("register-apple-token", options: .init(
+                body: AppleTokenRegistrationRequest(authorizationCode: code)))
+        }, delete: { token in
+            let functions = FunctionsClient(url: SupabaseConfig.url.appendingPathComponent("functions/v1"),
+                headers: ["apikey": SupabaseConfig.anonKey, "Authorization": "Bearer \(token)"])
+            return try await functions.invoke("delete-account")
+        })
         PushNotificationManager.shared.attach(client: client)
 
         // Keep local state in sync with Supabase (session restore on launch,
@@ -130,6 +153,7 @@ final class AuthManager {
     }
 
     func signIn(email: String, password: String) async throws {
+        guard !isProviderSignInInProgress else { throw AuthError.signInInProgress }
         try ensureConfigured()
         do {
             try await client.auth.signIn(email: Self.normalized(email: email), password: password)
@@ -149,7 +173,7 @@ final class AuthManager {
     /// profile, merges accounts, or links a Patient Mode anonymous identity.
     func signInWithGoogle() async throws {
         try ensureConfigured()
-        guard !hasSession, !isSigningInWithGoogle else { return }
+        guard !hasSession, !isSigningInWithGoogle, !isSigningInWithApple else { return }
         guard let presenter = NativeGoogleSignIn.presenter() else { throw GoogleLoginError.unavailable }
         let attempt = UUID()
         googleSignInAttempt = attempt
@@ -159,10 +183,10 @@ final class AuthManager {
             if googleSignInAttempt == attempt { googleSignInAttempt = nil }
         }
         do {
-            let nonce = try NativeGoogleSignIn.nonce()
+            let nonce = try NativeSignInNonce.nonce()
             let result = try await GIDSignIn.sharedInstance.signIn(
                 withPresenting: presenter, hint: nil, additionalScopes: nil,
-                nonce: NativeGoogleSignIn.hash(nonce))
+                nonce: NativeSignInNonce.hash(nonce))
             // An invitation or auth callback may have taken over while Google was open.
             guard googleSignInAttempt == attempt, !hasSession else {
                 GIDSignIn.sharedInstance.signOut()
@@ -187,8 +211,84 @@ final class AuthManager {
         }
     }
 
-    func cancelPendingGoogleSignIn() {
+    func prepareAppleSignIn(_ request: ASAuthorizationAppleIDRequest) throws {
+        try ensureConfigured()
+        guard !hasSession, !isSigningInWithGoogle, !isSigningInWithApple else {
+            throw AppleLoginError.failed
+        }
+        appleRetryUserID = nil
+        let attempt = try AppleSignInAttempt()
+        attempt.configure(request)
+        appleSignInAttempt = attempt
+        isSigningInWithApple = true
+    }
+
+    func prepareAppleTokenRetry(_ request: ASAuthorizationAppleIDRequest) throws {
+        guard isTherapistAuthenticated, let userID = currentUserId,
+              !isProviderSignInInProgress, !accountActions.isRegistering, !accountActions.isDeleting else {
+            throw AppleLoginError.failed
+        }
+        let attempt = try AppleSignInAttempt()
+        attempt.configure(request)
+        appleSignInAttempt = attempt
+        appleRetryUserID = userID
+        appleRetryGeneration = accountActions.identityGeneration
+        isSigningInWithApple = true
+    }
+
+    func completeAppleSignIn(_ result: Result<ASAuthorization, Error>) async throws {
+        guard let attempt = appleSignInAttempt, isSigningInWithApple else { return }
+        // Consume once; duplicate callbacks must not exchange the token twice.
+        appleSignInAttempt = nil
+        let retryUserID = appleRetryUserID
+        let retryGeneration = appleRetryGeneration
+        appleRetryUserID = nil
+        appleRetryGeneration = nil
+        defer { isSigningInWithApple = false }
+        do {
+            let authorization = try result.get()
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  credential.state == attempt.state else {
+                throw AppleLoginError.failed
+            }
+            // Capture before routing changes; never persist or reuse this single-use code.
+            let code = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+            if let retryUserID {
+                guard currentUserId == retryUserID, isTherapistAuthenticated else { return }
+                let session = try await client.auth.session
+                guard currentUserId == retryUserID, session.user.id.uuidString == retryUserID,
+                      retryGeneration == accountActions.identityGeneration else { return }
+                // Deliberately no sign-in/link call: backend checks Apple subject ownership.
+                await accountActions.register(code: code, userID: retryUserID, accessToken: session.accessToken)
+                return
+            }
+            guard !hasSession else { return }
+            let idToken = try attempt.identityToken(credential.identityToken, returnedState: credential.state)
+            let session = try await client.auth.signInWithIdToken(credentials: .init(
+                provider: .apple, idToken: idToken, nonce: attempt.nonce))
+            apply(userId: session.user.id, email: session.user.email, isAnonymous: session.user.isAnonymous)
+            await accountActions.register(code: code, userID: session.user.id.uuidString,
+                accessToken: session.accessToken)
+            guard currentUserId == session.user.id.uuidString else { return }
+            // fullName/email are first-authorization-only hints. Do not overwrite
+            // therapist_profiles or merge accounts using these client values.
+            // The existing profile/name gate remains responsible for name setup.
+            callbackError = nil
+            AppLog.auth.info("Apple sign-in succeeded")
+        } catch {
+            if AppleSignInAttempt.isCancellation(error) || error is CancellationError { return }
+            AppLog.auth.error("Apple sign-in failed")
+            throw AppleLoginError.failed
+        }
+    }
+
+    func cancelPendingProviderSignIn() {
         googleSignInAttempt = nil
+        appleSignInAttempt = nil
+        appleRetryUserID = nil
+        appleRetryGeneration = nil
+        accountActions.invalidatePending()
+        isSigningInWithApple = false
         GIDSignIn.sharedInstance.signOut()
     }
 
@@ -196,6 +296,7 @@ final class AuthManager {
     /// email address before they can sign in (no session was returned).
     /// The confirmation link redirects back into the app.
     func signUp(email: String, password: String) async throws -> Bool {
+        guard !isProviderSignInInProgress else { throw AuthError.signInInProgress }
         try ensureConfigured()
         do {
             let response = try await client.auth.signUp(
@@ -283,7 +384,7 @@ final class AuthManager {
 //    }
 
     func signOut() {
-        cancelPendingGoogleSignIn()
+        cancelPendingProviderSignIn()
         AppLog.auth.info("Sign-out requested")
         isRecoveringPassword = false
         Task { await clearLocalSession() }
@@ -291,7 +392,7 @@ final class AuthManager {
 
     /// Awaits sign-out so a following anonymous sign-in cannot race.
     func signOutAndWait() async {
-        cancelPendingGoogleSignIn()
+        cancelPendingProviderSignIn()
         AppLog.auth.info("Sign-out requested")
         isRecoveringPassword = false
         await clearLocalSession()
@@ -322,7 +423,7 @@ final class AuthManager {
     }
 
     private func clearLocalSession() async {
-        cancelPendingGoogleSignIn()
+        cancelPendingProviderSignIn()
         await PushNotificationManager.shared.unregisterCurrentToken()
         try? await client.auth.signOut()
         currentUserEmail = nil
@@ -334,21 +435,25 @@ final class AuthManager {
     /// privileges, so the deletion itself (auth user plus all their rows)
     /// is performed by the `delete-account` Edge Function acting on the
     /// caller's identity; afterwards the local session is discarded.
-    func deleteAccount() async throws {
+    func deleteAccount(cleanup: () -> Void) async throws {
         try ensureConfigured()
+        guard isTherapistAuthenticated, let userID = currentUserId else { throw AccountActionError.failed }
+        let generation = accountActions.identityGeneration
+        let session = try await client.auth.session
+        guard currentUserId == userID, session.user.id.uuidString == userID,
+              generation == accountActions.identityGeneration else { throw AccountActionError.identityChanged }
         do {
-            try await client.functions.invoke("delete-account")
-            cancelPendingGoogleSignIn()
-            AppLog.auth.notice("Account deleted")
+            _ = try await accountActions.delete(userID: userID, accessToken: session.accessToken, cleanup: cleanup)
         } catch {
-            AppLog.auth.error("Account deletion failed: \(error.localizedDescription, privacy: .public)")
-            throw error
+            // Do not expose function response bodies or credentials in logs/errors.
+            throw AccountActionError.failed
         }
-        await PushNotificationManager.shared.unregisterCurrentToken()
-        try? await client.auth.signOut()
-        currentUserEmail = nil
-        currentUserId = nil
-        isAnonymousUser = false
+        cancelPendingProviderSignIn()
+        // Supabase removes the local session before its logout network request;
+        // local scope avoids invalidating other devices as part of local cleanup.
+        try? await client.auth.signOut(scope: .local)
+        apply(userId: nil, email: nil, isAnonymous: false)
+        isRecoveringPassword = false
     }
 
     /// Patient installation identity. No email, password, or registration.
@@ -369,6 +474,7 @@ final class AuthManager {
     /// Applies Auth session fields. Anonymous users are never therapists,
     /// regardless of a non-nil/empty `user.email`.
     private func apply(userId: UUID?, email: String?, isAnonymous: Bool) {
+        accountActions.setIdentity(userId?.uuidString)
         let previousUserId = currentUserId
         isAnonymousUser = isAnonymous
         EntitlementState.shared.setIdentity(userId?.uuidString)

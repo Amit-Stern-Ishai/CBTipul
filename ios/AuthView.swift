@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 /// Therapist sign-in / sign-up using email/password or native Google sign-in.
 struct AuthView: View {
@@ -215,13 +216,43 @@ struct AuthView: View {
             .accessibilityIdentifier("auth.submit")
             .disabled(email.isEmpty || password.isEmpty || !isPasswordValidForSubmit || isWorking)
 
-            NativeGoogleSignInButton(isEnabled: !isWorking && !auth.isSigningInWithGoogle) {
+            NativeGoogleSignInButton(isEnabled: !isWorking && !auth.isProviderSignInInProgress) {
                 authenticate {
                     try await auth.signInWithGoogle()
                     return nil
                 }
             }
             .frame(height: 48)
+
+            SignInWithAppleButton(.signIn, onRequest: { request in
+                guard !isWorking, !auth.isProviderSignInInProgress else { return }
+                errorMessage = nil
+                infoMessage = nil
+                isWorking = true
+                do {
+                    try auth.prepareAppleSignIn(request)
+                } catch {
+                    errorMessage = L10n.appleSignInFailed
+                    isWorking = false
+                }
+            }, onCompletion: { result in
+                Task {
+                    defer { isWorking = false }
+                    do { try await auth.completeAppleSignIn(result) }
+                    catch { errorMessage = L10n.appleSignInFailed }
+                }
+            })
+            .signInWithAppleButtonStyle(.whiteOutline)
+            .environment(\.locale, Locale(identifier: "he"))
+            .frame(height: 48)
+            .disabled(isWorking || auth.isSigningInWithGoogle || auth.isSigningInWithApple)
+            .accessibilityLabel(L10n.appleSignInAction)
+            .accessibilityIdentifier("auth.apple")
+
+            Text(L10n.existingAccountSignInGuidance)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             if mode == .signIn {
                 Button(L10n.forgotPasswordAction, action: forgotPassword)
@@ -350,7 +381,7 @@ struct AuthView: View {
     /// Runs an async auth action, surfacing errors and toggling the busy state.
     /// The action may return an informational message to display on success.
     private func authenticate(_ action: @escaping () async throws -> String?) {
-        guard !isWorking else { return }
+        guard !isWorking, !auth.isProviderSignInInProgress else { return }
         errorMessage = nil
         infoMessage = nil
         isWorking = true

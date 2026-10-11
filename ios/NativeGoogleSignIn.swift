@@ -1,6 +1,4 @@
-import CryptoKit
 import GoogleSignIn
-import Security
 import SwiftUI
 
 /// Google is only an identity provider; Supabase remains the session authority.
@@ -14,18 +12,6 @@ enum NativeGoogleSignIn {
     static func handles(_ url: URL) -> Bool {
         guard let scheme = callbackScheme, url.scheme?.lowercased() == scheme.lowercased() else { return false }
         return GIDSignIn.sharedInstance.handle(url)
-    }
-
-    static func nonce() throws -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            throw GoogleLoginError.failed
-        }
-        return bytes.map { String(format: "%02x", $0) }.joined()
-    }
-
-    static func hash(_ nonce: String) -> String {
-        SHA256.hash(data: Data(nonce.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     static func isCancellation(_ error: Error) -> Bool {

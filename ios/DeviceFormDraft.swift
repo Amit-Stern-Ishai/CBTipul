@@ -89,6 +89,23 @@ struct DeviceDraftStorage {
         }
     }
 
+    /// Delete only drafts whose encoded owner matches the confirmed deleted account.
+    func removeAccountDrafts(userID: String) {
+        let attributes: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service, kSecReturnAttributes as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(attributes as CFDictionary, &result) == errSecSuccess,
+              let items = result as? [[String: Any]] else { return }
+        for item in items {
+            guard let key = item[kSecAttrAccount as String] as? String,
+                  let data = Data(base64Encoded: key),
+                  let parts = try? JSONDecoder().decode([String].self, from: data),
+                  parts.count == 3, parts[0] == userID else { continue }
+            try? remove(key: key)
+        }
+    }
+
     enum DraftError: Error { case storage(OSStatus) }
 }
 

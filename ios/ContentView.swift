@@ -53,6 +53,7 @@ struct MyApp: App {
     var body: some Scene {
         WindowGroup {
             AppVersionGateView { ContentView() }
+                .safeAreaInset(edge: .top, spacing: 0) { AccountActionNotices() }
                 .demoModeReminder()
                 .environment(auth)
                 .environment(store)
@@ -80,12 +81,12 @@ struct MyApp: App {
         if NativeGoogleSignIn.handles(url) { return }
         if url.scheme == "cbtipul",
            url.host() == "auth-callback" || url.host() == "password-reset" {
-            auth.cancelPendingGoogleSignIn()
+            auth.cancelPendingProviderSignIn()
             Task { await auth.handleAuthCallback(url) }
             return
         }
         guard let token = InvitationLink.token(from: url) else { return }
-        auth.cancelPendingGoogleSignIn()
+        auth.cancelPendingProviderSignIn()
         Task {
             await invitationFlow.start(
                 token: token,

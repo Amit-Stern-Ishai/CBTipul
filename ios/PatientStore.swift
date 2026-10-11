@@ -810,10 +810,15 @@ final class PatientStore {
     /// Removes everything stored locally for the signed-in user — caches,
     /// saved preparations, and the locally kept patient names — used after
     /// the account itself is deleted.
-    func wipeLocalData() {
-        for patient in patients where !DemoData.isDemoID(patient.id) {
-            try? identityStore.delete(patientID: patient.id)
-            SavedPreparation.delete(for: patient.id)
+    func accountDeletionPatientIDs() async throws -> [DatabaseID] {
+        let rows: [InsertedRow] = try await client.from("Patients").select("id").execute().value
+        return rows.map(\.id)
+    }
+
+    func wipeLocalData(patientIDs: [DatabaseID]) {
+        for id in patientIDs where !DemoData.isDemoID(id) {
+            try? identityStore.delete(patientID: id)
+            SavedPreparation.delete(for: id)
         }
         clearDemoContent()
         EntitlementState.shared.setLocalDemo(false)
