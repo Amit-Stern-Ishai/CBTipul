@@ -25,7 +25,9 @@
     <string name="auth_google_failed">הכניסה באמצעות Google לא הושלמה. יש לבדוק את החיבור לאינטרנט ולנסות שוב.</string>
     <string name="auth_notice_ok">אישור</string>
     <string name="auth_apple_manual_revocation">החשבון והנתונים נמחקו. כדי לבטל גם את הרשאת הכניסה דרך Apple, יש לפתוח את הגדרות חשבון Apple, לבחור ״כניסה באמצעות Apple״, לבחור CBTipul ולבטל את השימוש בכניסה באמצעות Apple.</string>
-    <string name="auth_apple_soon">כניסה באמצעות Apple · בקרוב</string>
+    <string name="auth_apple_sign_in">כניסה באמצעות Apple</string>
+    <string name="auth_apple_failed">הכניסה באמצעות Apple לא הושלמה. יש לבדוק את החיבור ולנסות שוב.</string>
+    <string name="auth_existing_account_guidance">כבר יש לך חשבון? כדאי להיכנס באותה דרך שבה נרשמת. הסתרת האימייל ב־Apple עשויה ליצור חשבון נפרד.</string>
     <string name="auth_back_to_methods">חזרה</string>
     <string name="auth_mode_sign_in">התחברות</string>
     <string name="auth_mode_sign_up">הרשמה</string>

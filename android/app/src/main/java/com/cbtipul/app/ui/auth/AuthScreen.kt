@@ -87,6 +87,7 @@ fun AuthScreen(
     onResend: () -> Unit,
     onBackToSignIn: () -> Unit,
     onGoogleSignIn: () -> Unit,
+    onAppleSignIn: () -> Unit,
     onCancelGoogleSignIn: () -> Unit,
 ) {
     DisposableEffect(Unit) { onDispose { onCancelGoogleSignIn() } }
@@ -152,6 +153,7 @@ fun AuthScreen(
                 onSubmit = onSubmit,
                 onForgotPassword = onForgotPassword,
                 onGoogleSignIn = onGoogleSignIn,
+                onAppleSignIn = onAppleSignIn,
             )
         }
     }
@@ -170,6 +172,7 @@ private fun AuthCard(
     onSubmit: () -> Unit,
     onForgotPassword: () -> Unit,
     onGoogleSignIn: () -> Unit,
+    onAppleSignIn: () -> Unit,
 ) {
     val colors = Theme.colors
     var showingEmailForm by rememberSaveable { mutableStateOf(false) }
@@ -260,12 +263,20 @@ private fun AuthCard(
                 }
             }
             OutlinedButton(
-                onClick = {}, enabled = false,
+                onClick = onAppleSignIn, enabled = !state.isWorking,
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.White),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.Black, contentColor = Color.White,
+                    disabledContainerColor = Color.Black.copy(alpha = 0.55f),
+                ),
             ) {
-                Text(stringResource(R.string.auth_apple_soon))
+                Text(stringResource(R.string.auth_apple_sign_in), fontWeight = FontWeight.Medium)
             }
+            Text(stringResource(R.string.auth_existing_account_guidance),
+                color = colors.textBody, fontSize = 12.sp)
+
         } else {
             TextButton(
                 onClick = { showingEmailForm = false },

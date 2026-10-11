@@ -47,6 +47,14 @@ class AuthViewModel(
     ) { session, signedOut -> effectiveAuthSession(session, signedOut) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, AuthSession.Loading)
 
+    init {
+        viewModelScope.launch {
+            auth.callbackCompleted.collect { completed ->
+                if (completed > 0) _treatAsSignedOut.value = false
+            }
+        }
+    }
+
     private val _listSession = MutableStateFlow(0)
     val listSession: StateFlow<Int> = _listSession.asStateFlow()
 
@@ -54,7 +62,9 @@ class AuthViewModel(
     val callbackError: StateFlow<String?> = auth.callbackError
 
     private val _ui = MutableStateFlow(AuthUiState())
-    val ui: StateFlow<AuthUiState> = _ui.asStateFlow()
+    val ui: StateFlow<AuthUiState> = combine(_ui, auth.callbackBusy) { state, callbackBusy ->
+        state.copy(isWorking = state.isWorking || callbackBusy)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, AuthUiState())
 
     private var googleJob: Job? = null
     private var googleAttempt: Any? = null
@@ -62,8 +72,27 @@ class AuthViewModel(
     val appleRevocationNotice = _appleRevocationNotice.asStateFlow()
     fun dismissAppleRevocationNotice() { _appleRevocationNotice.value = false }
 
+    fun signInApple(failureMessage: String, openBrowser: (String) -> Unit) {
+        if (_ui.value.isWorking || auth.callbackBusy.value || auth.hasSession()) return
+        _treatAsSignedOut.value = false
+        _ui.update { it.copy(isWorking = true, errorMessage = null, infoMessage = null) }
+        viewModelScope.launch {
+            try {
+                auth.startAppleSignIn(openBrowser)
+            } catch (_: CancellationException) {
+                // Quiet cancellation.
+            } catch (_: Exception) {
+                _ui.update { it.copy(errorMessage = failureMessage) }
+            } finally {
+                // Browser navigation is not a suspended login operation. Back/close
+                // returns to usable buttons; the callback owns its own busy state.
+                _ui.update { it.copy(isWorking = false) }
+            }
+        }
+    }
+
     fun signInGoogle(failureMessage: String, credential: suspend (String) -> String) {
-        if (_ui.value.isWorking || auth.hasSession()) return
+        if (_ui.value.isWorking || auth.callbackBusy.value || auth.hasSession()) return
         val attempt = Any()
         googleAttempt = attempt
         _ui.update { it.copy(isWorking = true, errorMessage = null, infoMessage = null) }
@@ -263,7 +292,7 @@ class AuthViewModel(
         tooManyRequests: String,
         action: suspend () -> String?,
     ) {
-        if (_ui.value.isWorking) return
+        if (_ui.value.isWorking || auth.callbackBusy.value) return
         _ui.update { it.copy(isWorking = true, errorMessage = null, infoMessage = null) }
         viewModelScope.launch {
             _treatAsSignedOut.value = false

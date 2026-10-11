@@ -66,8 +66,12 @@ class MainActivity : ComponentActivity() {
     private fun handleAuthIntent(intent: Intent?) {
         val app = application as CbTipulApp
         val message = getString(R.string.verification_failed_error)
-        lifecycleScope.launch {
-            app.authRepository.handleAuthIntent(intent, message)
+        val data = intent?.data ?: return
+        if (data.scheme != "cbtipul" || data.host !in setOf("auth-callback", "password-reset")) return
+        val callbackIntent = Intent().setData(data)
+        intent.data = null // Do not replay the credential URL on activity recreation.
+        app.applicationScope.launch {
+            app.authRepository.handleAuthIntent(callbackIntent, message)
         }
     }
 

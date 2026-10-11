@@ -1,6 +1,12 @@
 package com.cbtipul.app.auth
 
 import android.content.Intent
+import android.content.SharedPreferences
+import io.github.jan.supabase.auth.providers.Apple
+import io.github.jan.supabase.auth.parseSessionFromFragment
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.ktor.client.call.body
@@ -13,8 +19,6 @@ import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthErrorCode
 import io.github.jan.supabase.auth.exception.AuthRestException
-import io.github.jan.supabase.auth.handleDeeplinks
-import io.github.jan.supabase.auth.parseFragmentAndImportSession
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.user.UserSession
@@ -29,13 +33,65 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class AuthRepository(
     private val client: SupabaseClient,
+    private val browserPreferences: SharedPreferences,
     private val clearCredentialState: suspend () -> Unit = {},
     private val unregisterPush: suspend () -> Unit = {},
 ) {
+    private val callbackGate = BrowserCallbackGate(
+        { browserPreferences.getString("consumed", null) },
+        { browserPreferences.edit().putString("consumed", it).commit(); Unit },
+    )
+    private val _callbackCompleted = MutableStateFlow(0)
+    val callbackCompleted = _callbackCompleted.asStateFlow()
+    private val _callbackBusy = MutableStateFlow(false)
+    val callbackBusy = _callbackBusy.asStateFlow()
+
+    private fun abandonBrowserSignIn() {
+        callbackGate.invalidate()
+        browserPreferences.edit().remove("apple_started").commit()
+    }
+
+    suspend fun startAppleSignIn(openBrowser: (String) -> Unit) {
+        ensureConfigured()
+        client.auth.awaitInitialization()
+        check(!hasSession() && !callbackGate.isBusy)
+        cancelGoogleSignIn()
+        abandonBrowserSignIn()
+        val attempt = callbackGate.revision
+        client.auth.codeVerifierCache.deleteCodeVerifier()
+        val url = client.auth.getOAuthUrl(Apple, redirectUrl = SupabaseConfig.AUTH_CALLBACK) {
+            scopes.addAll(listOf("email", "name"))
+        }
+        // SDK 3.2.2 saves asynchronously. Wait until the current URL's verifier
+        // is in the SDK's persistent cache before handing control to the browser.
+        val challenge = android.net.Uri.parse(url).getQueryParameter("code_challenge")
+        withTimeout(5_000) {
+            while (true) {
+                val verifier = client.auth.codeVerifierCache.loadCodeVerifier()
+                val actual = verifier?.let {
+                    Base64.encodeToString(java.security.MessageDigest.getInstance("SHA-256")
+                        .digest(it.toByteArray(Charsets.UTF_8)), Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+                }
+                if (challenge != null && actual == challenge) break
+                delay(20)
+            }
+        }
+        if (attempt != callbackGate.revision || hasSession()) throw CancellationException()
+        browserPreferences.edit().putLong("apple_started", System.currentTimeMillis()).commit()
+        try { openBrowser(url) }
+        catch (error: Exception) {
+            abandonBrowserSignIn()
+            client.auth.codeVerifierCache.deleteCodeVerifier()
+            throw error
+        }
+    }
+
     private val googleSignIn = GoogleSignInFlow()
     fun cancelGoogleSignIn() = googleSignIn.invalidate()
 
     suspend fun signInWithGoogle(credential: suspend (String) -> String) {
+        abandonBrowserSignIn()
+        client.auth.codeVerifierCache.deleteCodeVerifier()
         ensureConfigured()
         googleSignIn.run(
             hasSession = ::hasSession,
@@ -84,6 +140,8 @@ class AuthRepository(
     }
 
     suspend fun signIn(email: String, password: String) {
+        abandonBrowserSignIn()
+        client.auth.codeVerifierCache.deleteCodeVerifier()
         cancelGoogleSignIn()
         ensureConfigured()
         try {
@@ -101,6 +159,7 @@ class AuthRepository(
 
     /** @return true when the user must confirm email before they can sign in. */
     suspend fun signUp(email: String, password: String): Boolean {
+        abandonBrowserSignIn()
         cancelGoogleSignIn()
         ensureConfigured()
         client.auth.signUpWith(Email, redirectUrl = SupabaseConfig.AUTH_CALLBACK) {
@@ -126,6 +185,7 @@ class AuthRepository(
     }
 
     suspend fun resetPassword(email: String) {
+        abandonBrowserSignIn()
         ensureConfigured()
         client.auth.resetPasswordForEmail(
             normalize(email),
@@ -142,6 +202,8 @@ class AuthRepository(
     }
 
     suspend fun signOut() {
+        abandonBrowserSignIn()
+        client.auth.codeVerifierCache.deleteCodeVerifier()
         cancelGoogleSignIn()
         _isRecoveringPassword.value = false
         runCatching { unregisterPush() }
@@ -150,6 +212,8 @@ class AuthRepository(
     }
 
     suspend fun signInAnonymously() {
+        abandonBrowserSignIn()
+        client.auth.codeVerifierCache.deleteCodeVerifier()
         cancelGoogleSignIn()
         ensureConfigured()
         client.auth.signInAnonymously()
@@ -165,6 +229,8 @@ class AuthRepository(
     }
 
     suspend fun signOutPatientMode() {
+        abandonBrowserSignIn()
+        client.auth.codeVerifierCache.deleteCodeVerifier()
         cancelGoogleSignIn()
         if (!isAnonymousSession()) {
             throw AuthException(AuthErrorKind.VerificationFailed)
@@ -176,6 +242,7 @@ class AuthRepository(
     }
 
     suspend fun deleteAccount(): AccountDeletionResponse {
+        abandonBrowserSignIn()
         cancelGoogleSignIn()
         ensureConfigured()
         val result = client.functions.invoke("delete-account").body<AccountDeletionResponse>()
@@ -187,27 +254,54 @@ class AuthRepository(
         return result
     }
 
-    @OptIn(SupabaseInternal::class)
+    @OptIn(kotlin.time.ExperimentalTime::class)
     suspend fun handleAuthIntent(intent: Intent?, verificationFailedMessage: String) {
-        val uri = intent?.data ?: return
-        if (uri.scheme != "cbtipul") return
-        val host = uri.host ?: return
-        if (host != "auth-callback" && host != "password-reset") return
-        cancelGoogleSignIn()
+        val callback = runCatching {
+            intent?.data?.toString()?.let(BrowserAuthCallback::parse)
+        }.getOrNull() ?: return
+        if (_callbackBusy.value) return
+        _callbackBusy.value = true
+        val wasRecovering = _isRecoveringPassword.value
         try {
-            if (host == "password-reset") {
-                val fragment = uri.fragment ?: uri.query.orEmpty()
-                client.auth.parseFragmentAndImportSession(fragment) {
-                    _isRecoveringPassword.value = true
-                    _callbackError.value = null
+            client.auth.awaitInitialization()
+            if (isAnonymousSession() || (hasSession() && !callback.recovery)) return
+            val originalUser = currentUserId()
+            cancelGoogleSignIn()
+            callbackGate.handle(callback, resolve = {
+                if (callback.error) {
+                    if (callback.cancelled) throw CancellationException()
+                    error("auth_callback_failed")
                 }
-            } else {
-                client.handleDeeplinks(intent) {
-                    _callbackError.value = null
+                val appleStarted = browserPreferences.getLong("apple_started", 0)
+                if (appleStarted != 0L) {
+                    check(System.currentTimeMillis() - appleStarted in 0..600_000)
+                    // Never downgrade an Apple PKCE attempt to an implicit callback.
+                    check(callback.code != null)
                 }
-            }
+                when {
+                    callback.code != null -> client.auth.exchangeCodeForSession(callback.code, saveSession = false)
+                    callback.legacyFragment != null -> {
+                        val session = client.auth.parseSessionFromFragment(callback.legacyFragment)
+                        session.copy(user = client.auth.retrieveUser(session.accessToken))
+                    }
+                    else -> error("invalid_auth_callback")
+                }
+            }, commit = { session ->
+                check(currentUserId() == originalUser && !isAnonymousSession())
+                if (originalUser != null) check(session.user?.id == originalUser)
+                _isRecoveringPassword.value = callback.recovery
+                client.auth.importSession(session)
+                _callbackError.value = null
+                _callbackCompleted.value++
+            })
+        } catch (_: CancellationException) {
+            // Includes an explicit provider cancellation or superseded attempt.
         } catch (_: Exception) {
+            _isRecoveringPassword.value = wasRecovering
             _callbackError.value = verificationFailedMessage
+        } finally {
+            browserPreferences.edit().remove("apple_started").commit()
+            _callbackBusy.value = false
         }
     }
 

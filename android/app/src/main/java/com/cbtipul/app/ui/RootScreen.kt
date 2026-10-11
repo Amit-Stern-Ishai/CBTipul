@@ -116,6 +116,7 @@ fun RootScreen() {
     val recovering by authViewModel.isRecoveringPassword.collectAsStateWithLifecycle()
     val callbackError by authViewModel.callbackError.collectAsStateWithLifecycle()
     val ui by authViewModel.ui.collectAsStateWithLifecycle()
+    val appleFailure = stringResource(R.string.auth_apple_failed)
     val googleFailure = stringResource(R.string.auth_google_failed)
     val credentialContext = androidx.compose.ui.platform.LocalContext.current
     val appleRevocationNotice by authViewModel.appleRevocationNotice.collectAsStateWithLifecycle()
@@ -528,6 +529,12 @@ fun RootScreen() {
                         }
                     },
                     onCancelGoogleSignIn = authViewModel::cancelGoogleSignIn,
+                    onAppleSignIn = {
+                        authViewModel.signInApple(appleFailure) { url ->
+                            androidx.browser.customtabs.CustomTabsIntent.Builder().build()
+                                .launchUrl(credentialContext, android.net.Uri.parse(url))
+                        }
+                    },
                 )
             }
         }
