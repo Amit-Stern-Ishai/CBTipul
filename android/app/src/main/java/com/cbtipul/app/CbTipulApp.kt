@@ -97,7 +97,9 @@ class CbTipulApp : Application() {
         preferences = AppPreferences(this)
         val client = createCbTipulSupabaseClient()
         val identityStore = PatientIdentityStore(this)
-        authRepository = AuthRepository(client) {
+        authRepository = AuthRepository(client,
+            clearCredentialState = { com.cbtipul.app.auth.NativeGoogleSignIn.clearState(this) },
+        ) {
             if (::pushManager.isInitialized) pushManager.unregisterCurrentToken()
         }
         notifications = NotificationRepository(client, currentUserId = { authRepository.currentUserId() }, onInboxSeen = {

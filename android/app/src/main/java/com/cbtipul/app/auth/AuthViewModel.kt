@@ -1,5 +1,7 @@
 package com.cbtipul.app.auth
 
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -53,6 +55,45 @@ class AuthViewModel(
 
     private val _ui = MutableStateFlow(AuthUiState())
     val ui: StateFlow<AuthUiState> = _ui.asStateFlow()
+
+    private var googleJob: Job? = null
+    private var googleAttempt: Any? = null
+    private val _appleRevocationNotice = MutableStateFlow(false)
+    val appleRevocationNotice = _appleRevocationNotice.asStateFlow()
+    fun dismissAppleRevocationNotice() { _appleRevocationNotice.value = false }
+
+    fun signInGoogle(failureMessage: String, credential: suspend (String) -> String) {
+        if (_ui.value.isWorking || auth.hasSession()) return
+        val attempt = Any()
+        googleAttempt = attempt
+        _ui.update { it.copy(isWorking = true, errorMessage = null, infoMessage = null) }
+        _treatAsSignedOut.value = false
+        googleJob = viewModelScope.launch {
+            try {
+                auth.signInWithGoogle(credential)
+            } catch (_: CancellationException) {
+                // User cancellation, screen disposal, or a superseded session.
+            } catch (_: Exception) {
+                if (googleAttempt === attempt && !auth.hasSession()) {
+                    _ui.update { it.copy(errorMessage = failureMessage) }
+                }
+            } finally {
+                if (googleAttempt === attempt) {
+                    googleAttempt = null
+                    _ui.update { it.copy(isWorking = false) }
+                }
+            }
+        }
+    }
+
+    fun cancelGoogleSignIn() {
+        if (googleAttempt == null) return
+        googleAttempt = null
+        auth.cancelGoogleSignIn()
+        googleJob?.cancel()
+        googleJob = null
+        _ui.update { it.copy(isWorking = false) }
+    }
 
     fun updateEmail(value: String) = _ui.update { it.copy(email = value, errorMessage = null) }
     fun updatePassword(value: String) = _ui.update { it.copy(password = value, errorMessage = null) }
@@ -177,12 +218,17 @@ class AuthViewModel(
     }
 
     fun signOut() {
+        cancelGoogleSignIn()
         _treatAsSignedOut.value = true
         _listSession.update { it + 1 }
-        _ui.value = AuthUiState()
+        _ui.value = AuthUiState(isWorking = true)
         viewModelScope.launch {
-            auth.signOut()
-            patients.clearAllCaches()
+            try {
+                auth.signOut()
+                patients.clearAllCaches()
+            } finally {
+                _ui.update { it.copy(isWorking = false) }
+            }
         }
     }
 
@@ -195,7 +241,8 @@ class AuthViewModel(
     ) {
         viewModelScope.launch {
             try {
-                auth.deleteAccount()
+                val deletion = auth.deleteAccount()
+                _appleRevocationNotice.value = deletion.appleManualRevocationRequired
                 patients.wipeLocalData()
                 _ui.value = AuthUiState()
                 _listSession.update { it + 1 }
@@ -216,9 +263,10 @@ class AuthViewModel(
         tooManyRequests: String,
         action: suspend () -> String?,
     ) {
+        if (_ui.value.isWorking) return
+        _ui.update { it.copy(isWorking = true, errorMessage = null, infoMessage = null) }
         viewModelScope.launch {
             _treatAsSignedOut.value = false
-            _ui.update { it.copy(isWorking = true, errorMessage = null, infoMessage = null) }
             try {
                 val info = action()
                 _ui.update { it.copy(isWorking = false, infoMessage = info) }

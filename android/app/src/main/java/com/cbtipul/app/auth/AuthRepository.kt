@@ -1,6 +1,10 @@
 package com.cbtipul.app.auth
 
 import android.content.Intent
+import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.IDToken
+import io.ktor.client.call.body
+import kotlinx.serialization.Serializable
 import android.util.Base64
 import com.cbtipul.app.data.SupabaseConfig
 import io.github.jan.supabase.SupabaseClient
@@ -25,8 +29,32 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class AuthRepository(
     private val client: SupabaseClient,
+    private val clearCredentialState: suspend () -> Unit = {},
     private val unregisterPush: suspend () -> Unit = {},
 ) {
+    private val googleSignIn = GoogleSignInFlow()
+    fun cancelGoogleSignIn() = googleSignIn.invalidate()
+
+    suspend fun signInWithGoogle(credential: suspend (String) -> String) {
+        ensureConfigured()
+        googleSignIn.run(
+            hasSession = ::hasSession,
+            credential = credential,
+            exchange = { token, rawNonce ->
+                var result: UserSession? = null
+                // Use the existing SDK transport, but defer import until the attempt
+                // is still current. signInWith would import before that check.
+                IDToken.login(client, onSuccess = { result = it }, redirectUrl = null) {
+                    idToken = token
+                    provider = Google
+                    nonce = rawNonce
+                }
+                requireNotNull(result)
+            },
+            commit = { client.auth.importSession(it) },
+        )
+    }
+
     internal val supabaseClient: SupabaseClient get() = client
 
     val session = client.auth.sessionStatus.map { status ->
@@ -56,6 +84,7 @@ class AuthRepository(
     }
 
     suspend fun signIn(email: String, password: String) {
+        cancelGoogleSignIn()
         ensureConfigured()
         try {
             client.auth.signInWith(Email) {
@@ -72,6 +101,7 @@ class AuthRepository(
 
     /** @return true when the user must confirm email before they can sign in. */
     suspend fun signUp(email: String, password: String): Boolean {
+        cancelGoogleSignIn()
         ensureConfigured()
         client.auth.signUpWith(Email, redirectUrl = SupabaseConfig.AUTH_CALLBACK) {
             this.email = normalize(email)
@@ -112,12 +142,15 @@ class AuthRepository(
     }
 
     suspend fun signOut() {
+        cancelGoogleSignIn()
         _isRecoveringPassword.value = false
         runCatching { unregisterPush() }
         runCatching { client.auth.signOut() }
+        runCatching { clearCredentialState() }
     }
 
     suspend fun signInAnonymously() {
+        cancelGoogleSignIn()
         ensureConfigured()
         client.auth.signInAnonymously()
     }
@@ -132,6 +165,7 @@ class AuthRepository(
     }
 
     suspend fun signOutPatientMode() {
+        cancelGoogleSignIn()
         if (!isAnonymousSession()) {
             throw AuthException(AuthErrorKind.VerificationFailed)
         }
@@ -141,12 +175,16 @@ class AuthRepository(
         _isRecoveringPassword.value = false
     }
 
-    suspend fun deleteAccount() {
+    suspend fun deleteAccount(): AccountDeletionResponse {
+        cancelGoogleSignIn()
         ensureConfigured()
-        client.functions.invoke("delete-account")
+        val result = client.functions.invoke("delete-account").body<AccountDeletionResponse>()
+        check(result.success)
         _isRecoveringPassword.value = false
         runCatching { unregisterPush() }
         runCatching { client.auth.signOut() }
+        runCatching { clearCredentialState() }
+        return result
     }
 
     @OptIn(SupabaseInternal::class)
@@ -155,6 +193,7 @@ class AuthRepository(
         if (uri.scheme != "cbtipul") return
         val host = uri.host ?: return
         if (host != "auth-callback" && host != "password-reset") return
+        cancelGoogleSignIn()
         try {
             if (host == "password-reset") {
                 val fragment = uri.fragment ?: uri.query.orEmpty()
@@ -232,3 +271,9 @@ enum class AuthErrorKind {
 }
 
 class AuthException(val kind: AuthErrorKind) : Exception()
+
+@Serializable
+data class AccountDeletionResponse(
+    val success: Boolean,
+    val appleManualRevocationRequired: Boolean = false,
+)

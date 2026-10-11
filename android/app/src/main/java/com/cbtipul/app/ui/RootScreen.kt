@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui
 
+import androidx.compose.material3.Text
+
 import android.Manifest
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -114,6 +116,20 @@ fun RootScreen() {
     val recovering by authViewModel.isRecoveringPassword.collectAsStateWithLifecycle()
     val callbackError by authViewModel.callbackError.collectAsStateWithLifecycle()
     val ui by authViewModel.ui.collectAsStateWithLifecycle()
+    val googleFailure = stringResource(R.string.auth_google_failed)
+    val credentialContext = androidx.compose.ui.platform.LocalContext.current
+    val appleRevocationNotice by authViewModel.appleRevocationNotice.collectAsStateWithLifecycle()
+    if (appleRevocationNotice) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = authViewModel::dismissAppleRevocationNotice,
+            text = { Text(stringResource(R.string.auth_apple_manual_revocation)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = authViewModel::dismissAppleRevocationNotice) {
+                    Text(stringResource(R.string.auth_notice_ok))
+                }
+            },
+        )
+    }
     val termsAccepted = remember(therapistIdentity) { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(therapistIdentity) {
         val identity = therapistIdentity
@@ -506,6 +522,12 @@ fun RootScreen() {
                         )
                     },
                     onBackToSignIn = authViewModel::backToSignIn,
+                    onGoogleSignIn = {
+                        authViewModel.signInGoogle(googleFailure) { nonce ->
+                            com.cbtipul.app.auth.NativeGoogleSignIn.token(credentialContext, nonce)
+                        }
+                    },
+                    onCancelGoogleSignIn = authViewModel::cancelGoogleSignIn,
                 )
             }
         }

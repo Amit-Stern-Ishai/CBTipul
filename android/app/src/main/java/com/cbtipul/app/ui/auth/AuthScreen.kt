@@ -1,5 +1,13 @@
 package com.cbtipul.app.ui.auth
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Row
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.WarningAmber
@@ -78,7 +86,10 @@ fun AuthScreen(
     onForgotPassword: () -> Unit,
     onResend: () -> Unit,
     onBackToSignIn: () -> Unit,
+    onGoogleSignIn: () -> Unit,
+    onCancelGoogleSignIn: () -> Unit,
 ) {
+    DisposableEffect(Unit) { onDispose { onCancelGoogleSignIn() } }
     val colors = Theme.colors
     Box(Modifier.fillMaxSize()) {
     Column(
@@ -140,6 +151,7 @@ fun AuthScreen(
                 onModeChange = onModeChange,
                 onSubmit = onSubmit,
                 onForgotPassword = onForgotPassword,
+                onGoogleSignIn = onGoogleSignIn,
             )
         }
     }
@@ -157,8 +169,13 @@ private fun AuthCard(
     onModeChange: (AuthMode) -> Unit,
     onSubmit: () -> Unit,
     onForgotPassword: () -> Unit,
+    onGoogleSignIn: () -> Unit,
 ) {
     val colors = Theme.colors
+    var showingEmailForm by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = showingEmailForm) {
+        if (!state.isWorking) showingEmailForm = false
+    }
     val canSubmit = state.email.isNotBlank() &&
         state.password.isNotEmpty() &&
         !state.isWorking &&
@@ -178,6 +195,7 @@ private fun AuthCard(
             AuthMode.entries.forEachIndexed { index, mode ->
                 SegmentedButton(
                     selected = state.mode == mode,
+                    enabled = !state.isWorking,
                     onClick = { onModeChange(mode) },
                     shape = SegmentedButtonDefaults.itemShape(index, AuthMode.entries.size),
                     colors = SegmentedButtonDefaults.colors(
@@ -201,67 +219,119 @@ private fun AuthCard(
             }
         }
 
-        AuthField(
-            value = state.email,
-            onValueChange = onEmailChange,
-            placeholder = stringResource(R.string.email_placeholder),
-            leading = { Icon(Icons.Outlined.Email, contentDescription = null, tint = colors.textBody) },
-            keyboardType = KeyboardType.Email,
-        )
-        AuthField(
-            value = state.password,
-            onValueChange = onPasswordChange,
-            placeholder = stringResource(R.string.password_placeholder),
-            leading = { Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textBody) },
-            isPassword = true,
-        )
-        if (state.mode == AuthMode.SignUp) {
-            AuthField(
-                value = state.confirmPassword,
-                onValueChange = onConfirmPasswordChange,
-                placeholder = stringResource(R.string.confirm_password_placeholder),
-                leading = { Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textBody) },
-                isPassword = true,
-            )
-            PasswordRulesChecklist(password = state.password)
-            if (state.confirmPassword.isNotEmpty() &&
-                state.confirmPassword.length >= state.password.length &&
-                state.password != state.confirmPassword
-            ) {
-                IconLabel(stringResource(R.string.passwords_dont_match_error), Icons.Outlined.WarningAmber, color = colors.error, fontSize = 13.sp)
-            }
-        }
-
         state.errorMessage?.let { IconLabel(it, Icons.Outlined.WarningAmber, color = colors.error, fontSize = 13.sp) }
         callbackError?.let { IconLabel(it, Icons.Outlined.WarningAmber, color = colors.error, fontSize = 13.sp) }
         state.infoMessage?.let { IconLabel(it, Icons.Filled.CheckCircle, color = colors.success, fontSize = 13.sp) }
 
-        Button(
-            onClick = onSubmit,
-            enabled = canSubmit,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.accentFill,
-                contentColor = colors.textOnAccent,
-                disabledContainerColor = colors.goldDim,
-            ),
-            shape = RoundedCornerShape(14.dp),
-        ) {
-            if (state.isWorking) {
-                CircularProgressIndicator(modifier = Modifier.size(22.dp), color = colors.textOnAccent, strokeWidth = 2.dp)
-            } else {
-                Text(
-                    stringResource(
-                        if (state.mode == AuthMode.SignIn) R.string.auth_mode_sign_in else R.string.auth_mode_sign_up,
-                    ),
-                    fontWeight = FontWeight.SemiBold,
+        if (!showingEmailForm) {
+            Button(
+                onClick = { showingEmailForm = true },
+                enabled = !state.isWorking,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accentFill,
+                    contentColor = colors.textOnAccent,
+                ),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                IconLabel(
+                    stringResource(if (state.mode == AuthMode.SignIn) R.string.auth_email_sign_in else R.string.auth_email_sign_up),
+                    Icons.Outlined.Email,
+                    color = colors.textOnAccent,
                 )
             }
-        }
+            OutlinedButton(
+                onClick = onGoogleSignIn,
+                enabled = !state.isWorking,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFF747775)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF1F1F1F),
+                    disabledContainerColor = Color.White.copy(alpha = 0.55f),
+                ),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Image(painterResource(R.drawable.google_sign_in_logo),
+                        contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.auth_google_sign_in), fontWeight = FontWeight.Medium)
+                }
+            }
+            OutlinedButton(
+                onClick = {}, enabled = false,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Text(stringResource(R.string.auth_apple_soon))
+            }
+        } else {
+            TextButton(
+                onClick = { showingEmailForm = false },
+                enabled = !state.isWorking,
+            ) {
+                IconLabel(stringResource(R.string.auth_back_to_methods),
+                    Icons.AutoMirrored.Outlined.ArrowBack, color = colors.gold)
+            }
+            AuthField(
+                value = state.email,
+                onValueChange = onEmailChange,
+                placeholder = stringResource(R.string.email_placeholder),
+                leading = { Icon(Icons.Outlined.Email, contentDescription = null, tint = colors.textBody) },
+                keyboardType = KeyboardType.Email,
+            )
+            AuthField(
+                value = state.password,
+                onValueChange = onPasswordChange,
+                placeholder = stringResource(R.string.password_placeholder),
+                leading = { Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textBody) },
+                isPassword = true,
+            )
+            if (state.mode == AuthMode.SignUp) {
+                AuthField(
+                    value = state.confirmPassword,
+                    onValueChange = onConfirmPasswordChange,
+                    placeholder = stringResource(R.string.confirm_password_placeholder),
+                    leading = { Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textBody) },
+                    isPassword = true,
+                )
+                PasswordRulesChecklist(password = state.password)
+                if (state.confirmPassword.isNotEmpty() &&
+                    state.confirmPassword.length >= state.password.length &&
+                    state.password != state.confirmPassword
+                ) {
+                    IconLabel(stringResource(R.string.passwords_dont_match_error), Icons.Outlined.WarningAmber, color = colors.error, fontSize = 13.sp)
+                }
+            }
 
-        if (state.mode == AuthMode.SignIn) {
-            TextButton(onClick = onForgotPassword, enabled = !state.isWorking, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text(stringResource(R.string.forgot_password_action), color = colors.gold)
+            Button(
+                onClick = onSubmit,
+                enabled = canSubmit,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accentFill,
+                    contentColor = colors.textOnAccent,
+                    disabledContainerColor = colors.goldDim,
+                ),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                if (state.isWorking) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), color = colors.textOnAccent, strokeWidth = 2.dp)
+                } else {
+                    Text(
+                        stringResource(
+                            if (state.mode == AuthMode.SignIn) R.string.auth_mode_sign_in else R.string.auth_mode_sign_up,
+                        ),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
+            if (state.mode == AuthMode.SignIn) {
+                TextButton(onClick = onForgotPassword, enabled = !state.isWorking, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Text(stringResource(R.string.forgot_password_action), color = colors.gold)
+                }
             }
         }
     }

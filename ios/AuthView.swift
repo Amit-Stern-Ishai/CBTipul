@@ -18,6 +18,7 @@ struct AuthView: View {
     @Environment(AuthManager.self) private var auth
 
     @State private var mode: Mode = .signIn
+    @State private var showingEmailForm = false
     @State private var email = ""
     @State private var password = ""
     @State private var confirmPassword = ""
@@ -59,6 +60,20 @@ struct AuthView: View {
             }
             .contentShape(Rectangle())
             .dismissesKeyboardOnTap()
+            .toolbar {
+                if showingEmailForm && verificationEmail == nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showingEmailForm = false
+                            errorMessage = nil
+                            infoMessage = nil
+                        } label: {
+                            Label(L10n.authBackToMethods, systemImage: "chevron.backward")
+                        }
+                        .disabled(isWorking || auth.isProviderSignInInProgress)
+                    }
+                }
+            }
             .subtleAnimation(value: verificationEmail)
             .task {
                 // Hold Auth long enough for smoke to assert IDs, then inject demo.
@@ -162,8 +177,56 @@ struct AuthView: View {
                 ForEach(Mode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
-            .disabled(isWorking)
+            .disabled(isWorking || auth.isProviderSignInInProgress)
 
+            if let errorMessage {
+                message(errorMessage, systemImage: "exclamationmark.triangle.fill", color: Theme.error)
+            }
+
+            // A failed email-verification deep link surfaces here, since the
+            // sign-in screen is where the user lands afterwards.
+            if let callbackError = auth.callbackError {
+                message(callbackError, systemImage: "exclamationmark.triangle.fill", color: Theme.error)
+            }
+
+            if let infoMessage {
+                message(infoMessage, systemImage: "checkmark.circle.fill", color: Theme.positive)
+            }
+
+            if showingEmailForm {
+                emailForm
+            } else {
+                Button {
+                    errorMessage = nil
+                    infoMessage = nil
+                    showingEmailForm = true
+                } label: {
+                    Label(mode == .signIn ? L10n.emailSignInAction : L10n.emailSignUpAction,
+                          systemImage: "envelope")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                }
+                .buttonStyle(.pressableProminent)
+                .disabled(isWorking || auth.isProviderSignInInProgress)
+                .accessibilityIdentifier("auth.chooseEmail")
+
+                providerButtons
+            }
+        }
+        .padding(20)
+        .themedCard(cornerRadius: 28)
+        .overlay(RoundedRectangle(cornerRadius: 28)
+            .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1))
+        .shadow(color: .black.opacity(0.08), radius: 20, y: 12)
+        .subtleAnimation(value: mode)
+        .subtleAnimation(value: showingEmailForm)
+        .subtleAnimation(value: errorMessage)
+        .subtleAnimation(value: infoMessage)
+        .onChange(of: mode) { confirmPassword = "" }
+    }
+
+    private var emailForm: some View {
+        VStack(spacing: 16) {
             VStack(spacing: 12) {
                 inputRow(systemImage: "envelope") { emailField }
                 inputRow(systemImage: "lock") { passwordField }
@@ -186,20 +249,6 @@ struct AuthView: View {
                         systemImage: "exclamationmark.triangle.fill", color: Theme.error)
             }
 
-            if let errorMessage {
-                message(errorMessage, systemImage: "exclamationmark.triangle.fill", color: Theme.error)
-            }
-
-            // A failed email-verification deep link surfaces here, since the
-            // sign-in screen is where the user lands afterwards.
-            if let callbackError = auth.callbackError {
-                message(callbackError, systemImage: "exclamationmark.triangle.fill", color: Theme.error)
-            }
-
-            if let infoMessage {
-                message(infoMessage, systemImage: "checkmark.circle.fill", color: Theme.positive)
-            }
-
             Button(action: submit) {
                 Group {
                     if isWorking {
@@ -216,6 +265,16 @@ struct AuthView: View {
             .accessibilityIdentifier("auth.submit")
             .disabled(email.isEmpty || password.isEmpty || !isPasswordValidForSubmit || isWorking)
 
+            if mode == .signIn {
+                Button(L10n.forgotPasswordAction, action: forgotPassword)
+                    .font(.footnote)
+                    .disabled(isWorking)
+            }
+        }
+    }
+
+    private var providerButtons: some View {
+        VStack(spacing: 16) {
             NativeGoogleSignInButton(isEnabled: !isWorking && !auth.isProviderSignInInProgress) {
                 authenticate {
                     try await auth.signInWithGoogle()
@@ -254,21 +313,7 @@ struct AuthView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if mode == .signIn {
-                Button(L10n.forgotPasswordAction, action: forgotPassword)
-                    .font(.footnote)
-                    .disabled(isWorking)
-            }
         }
-        .padding(20)
-        .themedCard(cornerRadius: 28)
-        .overlay(RoundedRectangle(cornerRadius: 28)
-            .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1))
-        .shadow(color: .black.opacity(0.08), radius: 20, y: 12)
-        .subtleAnimation(value: mode)
-        .subtleAnimation(value: errorMessage)
-        .subtleAnimation(value: infoMessage)
-        .onChange(of: mode) { confirmPassword = "" }
     }
 
     private func inputRow(systemImage: String, @ViewBuilder field: () -> some View) -> some View {

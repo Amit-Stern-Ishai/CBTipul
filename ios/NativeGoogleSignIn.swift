@@ -38,31 +38,50 @@ enum GoogleLoginError: LocalizedError {
     }
 }
 
-/// Keep Google's supplied artwork, dimensions, and styling. The SDK draws its
-/// accessibility label as the visible title; set it to the app's Hebrew copy.
-struct NativeGoogleSignInButton: UIViewRepresentable {
+/// Google's unmodified SDK logo in a full-width native button. The light
+/// branding palette keeps the mark and Hebrew label clear in either app theme.
+struct NativeGoogleSignInButton: View {
     var isEnabled: Bool
     let action: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(action: action) }
-    func makeUIView(context: Context) -> GIDSignInButton {
-        let button = GIDSignInButton()
-        button.style = .wide
-        button.colorScheme = .light
-        button.semanticContentAttribute = .forceLeftToRight
-        button.addTarget(context.coordinator, action: #selector(Coordinator.signIn), for: .touchUpInside)
-        return button
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image("GoogleSignInLogo")
+                    .renderingMode(.original)
+                    .accessibilityHidden(true)
+                Text(L10n.googleSignInAction)
+                    .font(.system(size: 16, weight: .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .environment(\.layoutDirection, .rightToLeft)
+            }
+            .environment(\.layoutDirection, .leftToRight)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(GoogleSignInButtonStyle())
+        .disabled(!isEnabled)
+        .accessibilityLabel(L10n.googleSignInAction)
+        .accessibilityIdentifier("auth.google")
     }
-    func updateUIView(_ button: GIDSignInButton, context: Context) {
-        context.coordinator.action = action
-        button.isEnabled = isEnabled
-        button.accessibilityLabel = L10n.googleSignInAction
-        button.accessibilityIdentifier = "auth.google"
-        button.setNeedsDisplay()
-    }
-    final class Coordinator: NSObject {
-        var action: () -> Void
-        init(action: @escaping () -> Void) { self.action = action }
-        @objc func signIn() { action() }
+}
+
+private struct GoogleSignInButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color(red: 31 / 255, green: 31 / 255, blue: 31 / 255))
+            .background(
+                configuration.isPressed ? Color(white: 0.94) : .white,
+                in: RoundedRectangle(cornerRadius: 12)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color(red: 116 / 255, green: 119 / 255, blue: 117 / 255), lineWidth: 1)
+            }
+            .opacity(isEnabled ? 1 : 0.55)
     }
 }
