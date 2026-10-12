@@ -1091,8 +1091,8 @@
     <string name="introduction_topic_progress">מעקב</string>
     <string name="introduction_topic_sample">התנסות</string>
     <string name="introduction_navigation_hint">החליקו או לחצו על נושא כדי לעבור בין המסכים.</string>
-    <string name="entitlement_access_unverified_title">הרשאות הגישה טרם אומתו</string>
-    <string name="entitlement_access_unverified_body">יש לאמת את הרשאות הגישה לפני ביצוע שינויים. בדקו את החיבור לאינטרנט ונסו שוב.</string>
+    <string name="entitlement_access_unverified_title">הרשאות הגישה עדיין לא נטענו</string>
+    <string name="entitlement_access_unverified_body">הרשאות הגישה עדיין לא התקבלו מהשרת, ולכן לא ניתן לבצע שינויים. בדקו את החיבור ונסו שוב. אין צורך לסגור את האפליקציה.</string>
     <string name="entitlement_read_only_title">מצב צפייה בלבד</string>
     <string name="entitlement_read_only_explanation">ניתן לצפות במידע הקיים, אך לא ניתן לבצע שינויים או ליצור תוכן חדש.</string>
     <string name="entitlement_patient_unavailable">לא ניתן לשלוח תוכן חדש כרגע.</string>
@@ -1139,4 +1139,17 @@
     <string name="patient_inbox_tool_enabled">המטפל/ת הפעיל/ה עבורך את %1$s</string>
     <string name="patient_tool_connection_error">לא ניתן לעדכן כרגע את מצב הגישה. ניתן לצפות בהיסטוריה; מילוי חדש דורש חיבור לאינטרנט וגישה פעילה.</string>
     <string name="patient_diary_history_failed">לא ניתן לטעון את הרשומה כרגע. בדקו את החיבור לאינטרנט ונסו שוב.</string>
+    <string name="invite_switch_title">מעבר למצב מטופל/ת</string>
+    <string name="invite_switch_body">במכשיר מחובר כעת חשבון מטפל/ת. כדי להמשיך בהזמנה יש להתנתק מחשבון זה ולעבור למצב מטופל/ת. המעבר יתבצע רק לאחר אישור. ביטול ישאיר את חשבון המטפל/ת מחובר.</string>
+    <string name="invite_switch_confirm">התנתקות ומעבר למצב מטופל/ת</string>
+    <string name="invite_switch_cancel">ביטול וחזרה לחשבון הנוכחי</string>
+    <string name="invite_existing_patient_title">קיימת במכשיר זהות במצב מטופל/ת</string>
+    <string name="invite_existing_patient_body">זהות המטופל/ת הקיימת וכל חיבור קיים נשמרים ולא שונו. לא ניתן לקבוע מהתצוגה המקדימה אם ההזמנה מיועדת לאותו מטופל/ת, ולכן לא ניתן להפעיל אותה עם הזהות הקיימת. יש לפנות למטפל/ת להנחיות.</string>
+    <string name="access_resolution_loading_title">בודקים הרשאות גישה</string>
+    <string name="access_resolution_loading_body">הרשאות הגישה נטענות מהשרת. ניתן לבצע שינויים רק לאחר קבלת אישור.</string>
+    <string name="access_resolution_failed_title">לא ניתן לטעון את הרשאות הגישה</string>
+    <string name="access_resolution_failed_body">אין כרגע אישור לביצוע שינויים. בדקו את החיבור ונסו שוב. אין צורך לסגור את האפליקציה.</string>
+    <string name="access_resolution_missing_body">השרת לא החזיר הרשאות גישה תקינות. ניתן לנסות שוב; אם הבעיה נמשכת יש לפנות לתמיכה.</string>
+    <string name="access_resolution_session_body">טעינת ההתחברות לא הושלמה. בדקו את החיבור ונסו שוב.</string>
+    <string name="session_resolution_failed_title">לא ניתן להשלים את ההתחברות כרגע</string>
 </resources>

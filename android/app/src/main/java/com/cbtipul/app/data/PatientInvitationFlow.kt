@@ -1,18 +1,24 @@
 package com.cbtipul.app.data
 
 import com.cbtipul.app.auth.AuthRepository
-import com.cbtipul.app.debug.InviteDebugLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+
+internal data class InvitationSession(val userId: String, val isAnonymous: Boolean)
+internal data class InvitationDependencies(
+    val preview: suspend (String) -> PatientInvitationPreview,
+    val awaitInitialization: suspend () -> Unit,
+    val session: () -> InvitationSession?,
+    val signOutLocally: suspend (String) -> Unit,
+    val signInAnonymously: suspend () -> Unit,
+    val clearContext: () -> Unit,
+    val context: suspend () -> AppContext,
+    val claim: suspend (String) -> String,
+)
 
 sealed interface InvitationPhase {
     data object Idle : InvitationPhase
@@ -21,203 +27,186 @@ sealed interface InvitationPhase {
     data class Unavailable(val status: PatientInvitationPreviewStatus) : InvitationPhase
     data object Failed : InvitationPhase
     data object Consent : InvitationPhase
+    data object ConfirmTherapistSwitch : InvitationPhase
+    data object ExistingPatient : InvitationPhase
     data object Activating : InvitationPhase
     data class ActivationFailed(val failure: ActivationFailure) : InvitationPhase
 }
-
 sealed interface ActivationFailure {
     data object SignIn : ActivationFailure
     data class Claim(val status: PatientInvitationPreviewStatus?) : ActivationFailure
     data object Context : ActivationFailure
 }
 
-class PatientInvitationFlow(
-    private val invitations: PatientInvitationService,
-    private val auth: AuthRepository,
-    private val appContext: AppContextRepository,
-    private val patients: PatientRepository,
+/** Main-thread, application-owned flow. Only injected effects touch auth/backend. */
+class PatientInvitationFlow internal constructor(
+    private val dependencies: InvitationDependencies,
     private val scope: CoroutineScope,
 ) {
-    private val mutex = Mutex()
+    constructor(invitations: PatientInvitationService, auth: AuthRepository,
+                appContext: AppContextRepository, scope: CoroutineScope) : this(
+        InvitationDependencies(
+            preview = { invitations.getPatientInvitation(it) },
+            awaitInitialization = { auth.awaitInvitationSessionInitialization() },
+            session = { auth.currentUserId()?.let { InvitationSession(it, auth.isAnonymousSession()) } },
+            signOutLocally = { auth.signOutLocallyForInvitation(it) },
+            signInAnonymously = { auth.signInAnonymously() },
+            clearContext = { appContext.clear() },
+            context = { appContext.getCurrentAppContext() },
+            claim = { invitations.claimPatientInvitation(it).patientId },
+        ), scope,
+    )
+
     private val _phase = MutableStateFlow<InvitationPhase>(InvitationPhase.Idle)
     val phase: StateFlow<InvitationPhase> = _phase.asStateFlow()
-
     var token: String? = null
         private set
     var therapistDisplayName: String? = null
         private set
-    var didSucceedClaim: Boolean = false
+    var didSucceedClaim = false
         private set
-
+    private var generation = 0L
+    private var inFlight = false
+    private var switchUserId: String? = null
+    private var activationIdentity: InvitationSession? = null
+    private var claimedPatientId: String? = null
     val isActive: Boolean get() = _phase.value !is InvitationPhase.Idle
 
-    suspend fun start(token: String) {
+    /** Reserve the root synchronously before restoration or Compose can route. */
+    fun start(token: String) {
+        if (inFlight) return
+        if (this.token == token && isActive) return
+        generation++
+        val request = generation
         this.token = token
+        therapistDisplayName = null
         didSucceedClaim = false
+        activationIdentity = null
+        claimedPatientId = null
+        switchUserId = null
         _phase.value = InvitationPhase.Loading
-        try {
-            val preview = invitations.getPatientInvitation(token)
-            if (this.token != token) return
-            when (preview.status) {
-                PatientInvitationPreviewStatus.Valid -> {
-                    val name = preview.therapistDisplayName?.trim().orEmpty()
-                    therapistDisplayName = name
-                    _phase.value = InvitationPhase.Preview(name)
+        scope.launch {
+            try {
+                val preview = dependencies.preview(token)
+                if (request != generation || _phase.value !is InvitationPhase.Loading) return@launch
+                if (preview.status == PatientInvitationPreviewStatus.Valid) {
+                    therapistDisplayName = preview.therapistDisplayName?.trim().orEmpty()
+                    _phase.value = InvitationPhase.Preview(therapistDisplayName.orEmpty())
+                } else {
+                    _phase.value = InvitationPhase.Unavailable(preview.status)
                 }
-                else -> _phase.value = InvitationPhase.Unavailable(preview.status)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                if (request == generation && _phase.value is InvitationPhase.Loading) _phase.value = InvitationPhase.Failed
             }
-        } catch (error: Exception) {
-            if (this.token != token) return
-            _phase.value = InvitationPhase.Failed
         }
     }
 
     fun continueToConsent() {
-        if (_phase.value is InvitationPhase.Preview) {
-            _phase.value = InvitationPhase.Consent
-        }
+        if (_phase.value is InvitationPhase.Preview) _phase.value = InvitationPhase.Consent
     }
-
     fun returnToPreview() {
-        if (token == null) return
-        _phase.value = InvitationPhase.Preview(therapistDisplayName.orEmpty())
+        if (!inFlight && token != null) _phase.value = InvitationPhase.Preview(therapistDisplayName.orEmpty())
     }
-
     fun accept() {
-        InviteDebugLog.d("Launching accept from PatientInvitationFlow applicationScope")
-        InviteDebugLog.d("Activation owner Job = ${scope.coroutineContext[Job]}")
-        scope.launch { activate() }
+        if (_phase.value !is InvitationPhase.Consent && _phase.value !is InvitationPhase.ActivationFailed) return
+        launchActivation(null)
+    }
+    fun confirmTherapistSwitch() {
+        if (_phase.value !is InvitationPhase.ConfirmTherapistSwitch) return
+        val identity = switchUserId ?: return
+        launchActivation(identity)
     }
 
-    private suspend fun activate() {
-        mutex.withLock {
-            val current = _phase.value
-            if (current !is InvitationPhase.Consent && current !is InvitationPhase.ActivationFailed) return
-            _phase.value = InvitationPhase.Activating
-            InviteDebugLog.d("Accept flow started")
-            InviteDebugLog.d("Phase set to Activating")
-            InviteDebugLog.d("activate() Job = ${currentCoroutineContext()[Job]}")
-            InviteDebugLog.d("Token available: ${token != null}")
-            InviteDebugLog.d("Current auth state: ${authStateLabel()}")
+    private fun launchActivation(confirmedTherapist: String?) {
+        if (inFlight) return
+        inFlight = true
+        _phase.value = InvitationPhase.Activating
+        scope.launch {
+            val d = dependencies
+            var failure: ActivationFailure = ActivationFailure.SignIn
             try {
-                if (!didSucceedClaim) {
-                    ensureAnonymousSession()
-                    val currentToken = token ?: run {
-                        InviteDebugLog.e("claim-patient-invitation", IllegalStateException("token unavailable"))
-                        _phase.value = InvitationPhase.ActivationFailed(ActivationFailure.Claim(null))
-                        return
+                d.awaitInitialization()
+                var session = d.session()
+                if (activationIdentity != null && session != activationIdentity) {
+                    _phase.value = InvitationPhase.ActivationFailed(ActivationFailure.SignIn)
+                    return@launch
+                }
+                if (session != null && !session.isAnonymous) {
+                    if (didSucceedClaim) {
+                        _phase.value = InvitationPhase.ActivationFailed(ActivationFailure.Context); return@launch
                     }
-                    InviteDebugLog.d("Calling claim-patient-invitation...")
-                    invitations.claimPatientInvitation(currentToken)
-                    InviteDebugLog.d("Claim succeeded")
+                    if (confirmedTherapist != session.userId) {
+                        switchUserId = session.userId
+                        _phase.value = InvitationPhase.ConfirmTherapistSwitch
+                        return@launch
+                    }
+                    d.clearContext()
+                    d.signOutLocally(session.userId)
+                    check(d.session() == null)
+                    session = null
+                } else if (confirmedTherapist != null) {
+                    _phase.value = InvitationPhase.ActivationFailed(ActivationFailure.SignIn); return@launch
+                }
+                if (!didSucceedClaim) {
+                    if (session != null) {
+                        failure = ActivationFailure.Context
+                        val context = d.context()
+                        check(d.session() == session)
+                        // The public preview has no patient ID. Do not guess whether
+                        // this is the same patient or silently rebind a connected one.
+                        // Incomplete does not establish that a restored identity
+                        // has never been bound. Reuse only our current activation's
+                        // newly created anonymous identity for same-token retries.
+                        if (activationIdentity == null || context.patientId != null || context.isActivePatient) {
+                            _phase.value = InvitationPhase.ExistingPatient; return@launch
+                        }
+                        check(context.isIncompletePatient)
+                    } else {
+                        failure = ActivationFailure.SignIn
+                        d.signInAnonymously()
+                    }
+                    val anonymous = d.session()
+                    check(anonymous != null && anonymous.isAnonymous)
+                    activationIdentity = anonymous
+                    failure = ActivationFailure.Claim(null)
+                    val currentToken = checkNotNull(token)
+                    claimedPatientId = d.claim(currentToken)
                     didSucceedClaim = true
-                    token = null
-                } else {
-                    InviteDebugLog.d("Claim already succeeded, skipping claim")
                 }
-                InviteDebugLog.d("Calling get-app-context...")
-                val context = appContext.getCurrentAppContext()
-                InviteDebugLog.d("get-app-context succeeded")
-                InviteDebugLog.d("role = ${context.role.name.lowercase()}")
-                InviteDebugLog.d("activation = ${context.activation?.name?.lowercase() ?: "null"}")
-                InviteDebugLog.d("patientId present = ${InviteDebugLog.present(context.patientId)}")
-                if (!context.isActivePatient) {
-                    InviteDebugLog.d("[ERROR] Patient Mode context is not active after get-app-context")
-                    _phase.value = InvitationPhase.ActivationFailed(ActivationFailure.Context)
-                    return
-                }
+                failure = ActivationFailure.Context
+                check(d.session() == activationIdentity)
+                d.clearContext()
+                val context = d.context()
+                check(d.session() == activationIdentity && context.isActivePatient && context.patientId == claimedPatientId)
+                token = null
                 therapistDisplayName = null
-                InviteDebugLog.d("session exists: ${auth.hasSession()}")
-                InviteDebugLog.d("isAnonymous: ${auth.isAnonymousSession()}")
-                InviteDebugLog.d("claim succeeded: $didSucceedClaim")
-                InviteDebugLog.d("root destination selected: anonymouspatient")
                 _phase.value = InvitationPhase.Idle
-                InviteDebugLog.d("Patient Mode activation complete")
             } catch (error: CancellationException) {
-                InviteDebugLog.d("[CANCELLED] activate() coroutine was cancelled")
-                InviteDebugLog.e("activate (cancelled)", error)
+                _phase.value = InvitationPhase.ActivationFailed(failure)
                 throw error
             } catch (error: PatientInvitationClaimError.Status) {
-                InviteDebugLog.e("claim-patient-invitation", error)
                 _phase.value = InvitationPhase.ActivationFailed(ActivationFailure.Claim(error.status))
-            } catch (error: PatientInvitationClaimError.Failed) {
-                InviteDebugLog.e("claim-patient-invitation", error)
+            } catch (_: PatientInvitationClaimError.Failed) {
                 _phase.value = InvitationPhase.ActivationFailed(ActivationFailure.Claim(null))
-            } catch (error: Exception) {
-                val mapped = when {
-                    didSucceedClaim -> ActivationFailure.Context
-                    auth.isAnonymousSession() -> ActivationFailure.Claim(null)
-                    else -> ActivationFailure.SignIn
-                }
-                val step = when (mapped) {
-                    ActivationFailure.SignIn -> "anonymous sign-in"
-                    is ActivationFailure.Claim -> "claim-patient-invitation"
-                    ActivationFailure.Context -> "get-app-context"
-                }
-                InviteDebugLog.e(step, error)
-                _phase.value = InvitationPhase.ActivationFailed(mapped)
+            } catch (_: Exception) {
+                _phase.value = InvitationPhase.ActivationFailed(failure)
+            } finally {
+                inFlight = false
             }
         }
     }
 
     fun dismiss() {
+        if (inFlight) return
+        generation++
         token = null
         therapistDisplayName = null
         didSucceedClaim = false
+        activationIdentity = null
+        claimedPatientId = null
+        switchUserId = null
         _phase.value = InvitationPhase.Idle
-    }
-
-    private suspend fun ensureAnonymousSession() {
-        if (auth.hasSession() && auth.isAnonymousSession()) {
-            InviteDebugLog.d("Existing anonymous session, skipping sign-in")
-            InviteDebugLog.d("Anonymous user id: ${InviteDebugLog.shortId(auth.currentUserId())}")
-            InviteDebugLog.d("user.isAnonymous = true")
-            return
-        }
-        if (auth.hasSession() && !auth.isAnonymousSession()) {
-            InviteDebugLog.d("Signing out existing therapist session...")
-            try {
-                auth.signOut()
-                patients.clearAllCaches()
-                InviteDebugLog.d("Therapist sign-out succeeded")
-            } catch (error: Exception) {
-                InviteDebugLog.e("therapist sign-out", error)
-                throw error
-            }
-        }
-        InviteDebugLog.d("Starting anonymous sign-in...")
-        val before = currentCoroutineContext()
-        InviteDebugLog.d("signInAnonymously coroutine Job = ${before[Job]}")
-        InviteDebugLog.d("signInAnonymously coroutine active before call = ${before.isActive}")
-        try {
-            auth.signInAnonymously()
-            InviteDebugLog.d("signInAnonymously returned")
-            InviteDebugLog.d(
-                "signInAnonymously coroutine active after return = ${currentCoroutineContext().isActive}",
-            )
-        } catch (error: CancellationException) {
-            InviteDebugLog.d("[CANCELLED] anonymous sign-in coroutine was cancelled")
-            InviteDebugLog.d("signInAnonymously coroutine active after cancel = ${before.isActive}")
-            InviteDebugLog.e("anonymous sign-in (cancelled)", error)
-            throw error
-        } catch (error: Exception) {
-            InviteDebugLog.e("anonymous sign-in", error)
-            throw error
-        }
-        val anonymous = auth.hasSession() && auth.isAnonymousSession()
-        InviteDebugLog.d("Anonymous user id: ${InviteDebugLog.shortId(auth.currentUserId())}")
-        InviteDebugLog.d("user.isAnonymous = $anonymous")
-        if (!anonymous) {
-            val error = IllegalStateException("anonymous_sign_in_failed")
-            InviteDebugLog.e("anonymous sign-in", error)
-            throw error
-        }
-        InviteDebugLog.d("Anonymous sign-in succeeded")
-    }
-
-    private fun authStateLabel(): String = when {
-        !auth.hasSession() -> "no_session"
-        auth.isAnonymousSession() -> "anonymous"
-        else -> "therapist"
     }
 }

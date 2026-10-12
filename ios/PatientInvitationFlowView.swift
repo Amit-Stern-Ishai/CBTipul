@@ -26,6 +26,11 @@ struct PatientInvitationFlowView: View {
                 )
             case .consent:
                 PatientInvitationConsentView()
+            case .confirmTherapistSwitch:
+                switchConfirmation
+            case .existingPatient:
+                messageScreen(title: L10n.inviteExistingPatientTitle,
+                              body: L10n.inviteExistingPatientBody, showsClose: true)
             case .activating:
                 activating
             case .activationFailed(let failure):
@@ -33,6 +38,23 @@ struct PatientInvitationFlowView: View {
             }
         }
         .appTextSize()
+    }
+
+    private var switchConfirmation: some View {
+        invitationChrome {
+            Text(L10n.inviteSwitchTitle).font(.title.bold()).foregroundStyle(Theme.textBright)
+            Text(L10n.inviteSwitchBody).foregroundStyle(Theme.textBody)
+        } footer: {
+            Button(L10n.inviteSwitchConfirm) {
+                Task {
+                    await flow.confirmTherapistSwitch(auth: auth,
+                        invitations: PatientInvitationService(client: auth.client), appContext: appContext)
+                }
+            }
+            .buttonStyle(.pressableProminent)
+            Button(L10n.inviteSwitchCancel) { flow.dismiss() }
+                .buttonStyle(.plain).foregroundStyle(Theme.textBody).padding(.vertical, 12)
+        }
     }
 
     private var loading: some View {

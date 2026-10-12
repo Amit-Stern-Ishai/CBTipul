@@ -54,6 +54,9 @@ final class AuthManager {
     let accountActions: AccountActions
 
     private(set) var currentUserEmail: String?
+    var onIdentityChanged: (() -> Void)?
+    private var invitationSessionInitialized = false
+    private var invitationInitializationWaiters: [CheckedContinuation<Void, Never>] = []
     private var googleSignInAttempt: UUID?
     private var appleSignInAttempt: AppleSignInAttempt?
     private var appleRetryUserID: String?
@@ -127,6 +130,15 @@ final class AuthManager {
             for await (event, session) in stream {
                 // UI tests inject a fake session; ignore live Auth updates.
                 if Self.isUITesting { continue }
+                if event == .initialSession {
+                    self?.invitationSessionInitialized = true
+                    self?.invitationInitializationWaiters.forEach { $0.resume() }
+                    self?.invitationInitializationWaiters.removeAll()
+                }
+                // Queued old sign-in/sign-out events must not replace the SDK's
+                // current identity after an invitation switches accounts.
+                let observed = session.map { InvitationSession(userID: $0.user.id.uuidString, isAnonymous: $0.user.isAnonymous) }
+                guard AuthSessionObservation.isCurrent(observed, current: self?.invitationSession) else { continue }
                 AppLog.auth.info("Auth state changed: \(event.rawValue, privacy: .public), signed in: \(session != nil)")
                 self?.apply(
                     userId: session?.user.id,
@@ -280,6 +292,13 @@ final class AuthManager {
             AppLog.auth.error("Apple sign-in failed")
             throw AppleLoginError.failed
         }
+    }
+
+    /// Opening/cancelling an invitation must leave an already authenticated
+    /// provider alone. Only cancel a credential exchange that is still pending.
+    func cancelPendingSignInForInvitation() {
+        guard isProviderSignInInProgress else { return }
+        cancelPendingProviderSignIn()
     }
 
     func cancelPendingProviderSignIn() {
@@ -456,6 +475,32 @@ final class AuthManager {
         isRecoveringPassword = false
     }
 
+    func awaitInvitationSessionInitialization() async {
+        if invitationSessionInitialized { return }
+        await withCheckedContinuation { invitationInitializationWaiters.append($0) }
+    }
+
+    var invitationSession: InvitationSession? {
+        client.auth.currentSession.map {
+            InvitationSession(userID: $0.user.id.uuidString, isAnonymous: $0.user.isAnonymous)
+        }
+    }
+
+    /// Invitation-only switch: revoke this session locally, never global logout.
+    /// No installation marker or other Keychain/preferences entries are touched.
+    func signOutLocallyForInvitation(expectedUserID: String) async throws {
+        await awaitInvitationSessionInitialization()
+        guard let session = invitationSession, session.userID == expectedUserID,
+              !session.isAnonymous else { throw AuthError.verificationFailed }
+        cancelPendingProviderSignIn()
+        client.auth.stopAutoRefresh()
+        // Swift SDK removes local auth first, even if the logout request fails.
+        try? await client.auth.signOut(scope: .local)
+        guard client.auth.currentSession == nil else { throw AuthError.verificationFailed }
+        isRecoveringPassword = false
+        apply(userId: nil, email: nil, isAnonymous: false)
+    }
+
     /// Patient installation identity. No email, password, or registration.
     func signInAnonymously() async throws {
         try ensureConfigured()
@@ -468,6 +513,7 @@ final class AuthManager {
         guard hasSession, isAnonymousUser else {
             throw AuthError.verificationFailed
         }
+        client.auth.startAutoRefresh()
         AppLog.auth.info("Anonymous sign-in succeeded")
     }
 
@@ -476,6 +522,7 @@ final class AuthManager {
     private func apply(userId: UUID?, email: String?, isAnonymous: Bool) {
         accountActions.setIdentity(userId?.uuidString)
         let previousUserId = currentUserId
+        if previousUserId != userId?.uuidString { onIdentityChanged?() }
         isAnonymousUser = isAnonymous
         EntitlementState.shared.setIdentity(userId?.uuidString)
         currentUserId = userId?.uuidString

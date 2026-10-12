@@ -1,6 +1,5 @@
 import Foundation
 import OSLog
-import Supabase
 import SwiftUI
 
 enum AppRole: String, Codable, Sendable {
@@ -49,36 +48,43 @@ nonisolated struct AppContext: Codable, Equatable, Sendable {
 @Observable
 @MainActor
 final class AppContextService {
-    private let client: SupabaseClient
+    private let identity: () -> String?
+    private let requestContext: () async throws -> AppContext
     private var lastRefresh: Date?
     private var account: String?
+    private var generation = 0
+    private var requestSequence = 0
 
     private(set) var current: AppContext?
     private(set) var isLoading = false
     private(set) var loadError: String?
 
-    init(client: SupabaseClient) {
-        self.client = client
+    init(identity: @escaping () -> String?, request: @escaping () async throws -> AppContext) {
+        self.identity = identity
+        self.requestContext = request
     }
 
     func getCurrentAppContext() async throws -> AppContext {
-        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        let identity = client.auth.currentUser?.id.uuidString
+        let identity = self.identity()
+        guard identity != nil else { throw AuthError.verificationFailed }
+        let requestGeneration = generation
+        requestSequence += 1
+        let request = requestSequence
         if account != identity { current = nil; lastRefresh = nil; account = identity }
         EntitlementState.shared.setIdentity(identity)
         isLoading = true
         loadError = nil
-        defer { isLoading = false }
+        defer { if requestGeneration == generation && request == requestSequence { isLoading = false } }
         do {
-            let context: AppContext = try await client.functions.invoke("get-app-context")
-            guard identity == client.auth.currentUser?.id.uuidString, identity == account else { throw CancellationError() }
+            let context = try await requestContext()
+            guard requestGeneration == generation, request == requestSequence, identity == self.identity(), identity == account else { throw CancellationError() }
             current = context
             lastRefresh = Date()
             EntitlementState.shared.apply(context)
             AppLog.auth.info("App context received, role: \(context.role.rawValue, privacy: .public)")
             return context
         } catch {
-            if identity == account && identity == client.auth.currentUser?.id.uuidString {
+            if requestGeneration == generation && request == requestSequence && identity == account && identity == self.identity() {
                 EntitlementState.shared.invalidate()
                 loadError = error.localizedDescription
             }
@@ -87,12 +93,13 @@ final class AppContextService {
     }
 
     func refreshOnForeground() async {
-        guard client.auth.currentUser != nil, !isLoading else { return }
+        guard identity() != nil, !isLoading else { return }
         if let lastRefresh, Date().timeIntervalSince(lastRefresh) < 60 { return }
         _ = try? await getCurrentAppContext()
     }
 
     func clear() {
+        generation += 1
         account = nil; lastRefresh = nil
         EntitlementState.shared.clear()
         current = nil

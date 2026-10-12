@@ -1,13 +1,15 @@
 package com.cbtipul.app.data
 
 import com.cbtipul.app.debug.InviteDebugLog
+import com.cbtipul.app.auth.AuthRepository
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
+import io.github.jan.supabase.network.supabaseApi
 import io.ktor.client.request.header
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
-import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.content.TextContent
 import kotlinx.serialization.Serializable
@@ -85,11 +87,15 @@ class PatientInvitationService(private val client: SupabaseClient) {
 
     suspend fun getPatientInvitation(token: String): PatientInvitationPreview {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-        val http = client.functions.invoke(
-            function = "get-patient-invitation",
-            body = GetPatientInvitationRequest(token = token),
-            headers = jsonHeaders(),
-        )
+        // Public preview bypasses authenticatedSupabaseApi and any restored
+        // therapist session refresh. This matches the no-session request auth.
+        val http = client.supabaseApi(client.functions).post("get-patient-invitation") {
+            header(HttpHeaders.Authorization, "Bearer ${SupabaseConfig.ANON_KEY}")
+            header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody(TextContent(EdgePayload.json.encodeToString(
+                GetPatientInvitationRequest.serializer(), GetPatientInvitationRequest(token),
+            ), ContentType.Application.Json))
+        }
         return EdgePayload.json.decodeFromString(
             PatientInvitationPreview.serializer(),
             http.bodyAsText(),
@@ -98,12 +104,19 @@ class PatientInvitationService(private val client: SupabaseClient) {
 
     suspend fun claimPatientInvitation(token: String): ClaimedPatientInvitation {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
+        val session = client.auth.currentSessionOrNull()
+        if (session == null || !AuthRepository.isAnonymousSession(session)) throw PatientInvitationClaimError.Failed
         try {
-            val http = client.functions.invoke(
-                function = "claim-patient-invitation",
-                body = GetPatientInvitationRequest(token = token),
-                headers = jsonHeaders(),
-            )
+            // SDK 3.2.2 adds dynamic auth before this builder. Replace it with
+            // the anonymous session checked above, even if auth changes later.
+            val http = client.functions.invoke("claim-patient-invitation") {
+                headers.remove(HttpHeaders.Authorization)
+                header(HttpHeaders.Authorization, "Bearer ${session.accessToken}")
+                header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                setBody(TextContent(EdgePayload.json.encodeToString(
+                    GetPatientInvitationRequest.serializer(), GetPatientInvitationRequest(token),
+                ), ContentType.Application.Json))
+            }
             val claimed = EdgePayload.json.decodeFromString(
                 ClaimedPatientInvitation.serializer(),
                 http.bodyAsText(),
@@ -116,7 +129,7 @@ class PatientInvitationService(private val client: SupabaseClient) {
         } catch (error: PatientInvitationClaimError) {
             throw error
         } catch (error: Exception) {
-            InviteDebugLog.e("claim-patient-invitation", error)
+            InviteDebugLog.d("Invitation claim failed")
             val body = EdgePayload.responseBody(error)
             val preview = runCatching {
                 EdgePayload.json.decodeFromString(PatientInvitationPreview.serializer(), body)
@@ -126,10 +139,6 @@ class PatientInvitationService(private val client: SupabaseClient) {
             }
             throw PatientInvitationClaimError.Failed
         }
-    }
-
-    private fun jsonHeaders() = Headers.build {
-        append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
     }
 
     companion object {

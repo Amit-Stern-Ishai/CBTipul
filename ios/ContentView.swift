@@ -42,7 +42,9 @@ struct MyApp: App {
         }
         _store = State(initialValue: store)
         _therapistProfiles = State(initialValue: TherapistProfileService(client: auth.client))
-        _appContext = State(initialValue: AppContextService(client: auth.client))
+        let appContext = AppContextService(client: auth.client)
+        auth.onIdentityChanged = { appContext.clear() }
+        _appContext = State(initialValue: appContext)
         _invitationFlow = State(initialValue: PatientInvitationFlow())
         _diaryOne = State(initialValue: diaryOne)
         _diaryThree = State(initialValue: diaryThree)
@@ -86,12 +88,10 @@ struct MyApp: App {
             return
         }
         guard let token = InvitationLink.token(from: url) else { return }
-        auth.cancelPendingProviderSignIn()
+        auth.cancelPendingSignInForInvitation()
+        invitationFlow.receive(token: token)
         Task {
-            await invitationFlow.start(
-                token: token,
-                service: PatientInvitationService(client: auth.client)
-            )
+            await invitationFlow.loadPreview(service: PatientInvitationService(client: auth.client))
         }
     }
 }
@@ -160,7 +160,7 @@ struct ContentView: View {
             Text(entitlement.role == .patient ? L10n.entitlementPatientUnavailable : entitlement.isLocalDemo ? L10n.entitlementDemoOnlineUnavailable : L10n.entitlementReadOnlyExplanation)
         }
         .onChange(of: entitlementScenePhase) { _, phase in
-            if phase == .active && !AuthManager.isUITesting { Task { await appContext.refreshOnForeground() } }
+            if phase == .active && !invitationFlow.isActive && !AuthManager.isUITesting { Task { await appContext.refreshOnForeground() } }
         }
         .safeAreaInset(edge: .bottom) {
             if appVersion.optionalVisible && !isShowingSplash && !invitationFlow.isActive
@@ -353,7 +353,7 @@ struct ContentView: View {
     }
 
     private func resolveAnonymousAppContext() async {
-        guard auth.hasSession, !AuthManager.isUITesting else {
+        guard auth.hasSession, !invitationFlow.isActive, !AuthManager.isUITesting else {
             return
         }
         do {

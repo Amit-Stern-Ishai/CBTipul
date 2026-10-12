@@ -48,7 +48,13 @@ object Entitlements {
     val state = mutable.asStateFlow()
     private val blocked = MutableStateFlow(false)
     val explanationVisible = blocked.asStateFlow()
-    var explanation: (Boolean) -> String = { "read_only" }
+    var explanation: (Boolean) -> String = { patient ->
+        when {
+            mutable.value.access == null -> "access_unresolved"
+            patient -> "patient_unavailable"
+            else -> "read_only"
+        }
+    }
     val canWrite get() = mutable.value.canWrite
     val canUseAI get() = mutable.value.canUseAI
     val canPatientWrite get() = mutable.value.canPatientWrite

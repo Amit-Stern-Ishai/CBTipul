@@ -84,4 +84,59 @@ class AppContextRefreshTest {
             assertFalse(repository.isLoading.value)
         } finally { release.countDown(); client.close(); server.stop(0) }
     }
+    @Test fun transientServerFailureRetriesButForbiddenDoesNotInventReadOnly() = runBlocking {
+        for (status in listOf(503, 403)) {
+            val requests = AtomicInteger()
+            val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+            server.createContext("/") { exchange ->
+                val count = requests.incrementAndGet()
+                val failed = status == 403 || count < 3
+                val body = if (failed) """{"error":"fixture unavailable"}""" else full
+                val bytes = body.toByteArray()
+                exchange.responseHeaders.add("Content-Type", "application/json")
+                exchange.sendResponseHeaders(if (failed) status else 200, bytes.size.toLong())
+                exchange.responseBody.use { it.write(bytes) }
+            }
+            server.start()
+            val client = client(server.address.port)
+            try {
+                client.auth.importSession(UserSession("mock-token", "mock-refresh", expiresIn = 3600,
+                    tokenType = "bearer", user = UserInfo(aud = "authenticated", id = user)))
+                val repo = AppContextRepository(client)
+                val result = runCatching { repo.getCurrentAppContext() }
+                if (status == 503) {
+                    assertTrue(result.isSuccess); assertEquals(3, requests.get()); assertTrue(Entitlements.canWrite)
+                } else {
+                    assertTrue(result.isFailure); assertEquals(1, requests.get())
+                    assertEquals(AppContextLoadState.Failed(AppContextFailure.ServerResponse), repo.loadState.value)
+                    assertNull(Entitlements.state.value.access); assertFalse(Entitlements.canWrite)
+                }
+            } finally { client.close(); server.stop(0); Entitlements.clear() }
+        }
+    }
+
+    @Test fun transientAuthRefreshFailureRecoversWithinTheSameBoundedBudget() = runBlocking {
+        val requests = AtomicInteger(); val refreshes = AtomicInteger()
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/") { exchange ->
+            val refresh = exchange.requestURI.path == "/auth/v1/token"
+            val refreshNumber = if (refresh) refreshes.incrementAndGet() else refreshes.get()
+            if (!refresh) requests.incrementAndGet()
+            val status = if (refresh && refreshNumber == 1) 503 else if (!refresh && refreshNumber < 2) 401 else 200
+            val body = if (status != 200) """{"error":"fixture unavailable"}""" else if (refresh) sessionResponse else full
+            val bytes = body.toByteArray()
+            exchange.responseHeaders.add("Content-Type", "application/json")
+            exchange.sendResponseHeaders(status, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
+        server.start(); val client = client(server.address.port)
+        try {
+            client.auth.importSession(UserSession("mock-token", "mock-refresh", expiresIn = 3600,
+                tokenType = "bearer", user = UserInfo(aud = "authenticated", id = user)))
+            val repo = AppContextRepository(client)
+            repo.getCurrentAppContext()
+            assertEquals(3, requests.get()); assertEquals(2, refreshes.get()); assertTrue(Entitlements.canWrite)
+        } finally { client.close(); server.stop(0) }
+    }
+
 }

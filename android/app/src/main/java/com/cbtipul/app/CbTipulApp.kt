@@ -22,6 +22,8 @@ import com.cbtipul.app.data.PatientDiaryTwoService
 import com.cbtipul.app.data.PatientDiaryThreeService
 import com.cbtipul.app.data.PatientDiaryOneService
 import com.cbtipul.app.data.PatientIdentityStore
+import com.cbtipul.app.data.bindAuthentication
+import kotlinx.coroutines.flow.map
 import com.cbtipul.app.data.PatientInvitationFlow
 import com.cbtipul.app.data.PatientInvitationService
 import com.cbtipul.app.data.PatientRepository
@@ -159,8 +161,9 @@ class CbTipulApp : Application() {
             invitations = invitations,
             auth = authRepository,
             appContext = appContext,
-            patients = patientRepository,
             scope = applicationScope,
         )
+        appContext.bindAuthentication(applicationScope, authRepository.contextSessionChanges,
+            invitationFlow.phase.map { it !is com.cbtipul.app.data.InvitationPhase.Idle })
     }
 }

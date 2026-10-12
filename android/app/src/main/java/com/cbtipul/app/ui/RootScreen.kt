@@ -67,22 +67,27 @@ fun RootScreen() {
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModel.Factory(app.authRepository, app.preferences, app.patientRepository),
     )
-    val session by authViewModel.session.collectAsStateWithLifecycle()
+    val observedSession by authViewModel.session.collectAsStateWithLifecycle()
+    val invitationPhase by app.invitationFlow.phase.collectAsStateWithLifecycle()
+    val session = app.authRepository.sessionForRouting(observedSession)
     val signedIn = session as? AuthSession.SignedIn
     val entitlement by com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle()
     val entitlementExplanation by com.cbtipul.app.data.Entitlements.explanationVisible.collectAsStateWithLifecycle()
     // AuthRepository owns entitlement identity. Loading/refreshing is not a sign-out.
     val entitlementScope = rememberCoroutineScope()
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-        entitlementScope.launch { app.appContext.refreshOnForeground() }
+        entitlementScope.launch { if (!app.invitationFlow.isActive) app.appContext.refreshOnForeground() }
     }
     val isAnonymous = signedIn?.isAnonymous == true
     val isTherapist = signedIn != null && !isAnonymous
     val therapistIdentity = signedIn?.email?.takeUnless { it.isBlank() } ?: signedIn?.userId
-    val invitationPhase by app.invitationFlow.phase.collectAsStateWithLifecycle()
     val invitationActive = invitationPhase !is com.cbtipul.app.data.InvitationPhase.Idle
     val appContext by app.appContext.current.collectAsStateWithLifecycle()
     val contextLoading by app.appContext.isLoading.collectAsStateWithLifecycle()
+    val contextState by app.appContext.loadState.collectAsStateWithLifecycle()
+    val accessPresentation = signedIn?.userId?.let {
+        com.cbtipul.app.data.accessResolutionPresentation(it, entitlement, contextState)
+    }
     val rootDestination = AppRootRouting.destination(
         invitationActive = invitationActive,
         hasSession = signedIn != null,
@@ -104,14 +109,8 @@ fun RootScreen() {
             }
         }
     }
-    LaunchedEffect(signedIn?.userId, isAnonymous, invitationActive, session) {
-        if (session is AuthSession.Loading) return@LaunchedEffect
-        if (signedIn != null && !invitationActive) {
-            runCatching { app.appContext.getCurrentAppContext() }
-        } else if (signedIn == null && !invitationActive) {
-            app.appContext.clear()
-        }
-    }
+    // AppContextSessionCoordinator now refreshes on SDK auth revisions in the
+    // application scope, including same-account login and invitation completion.
     val listSession by authViewModel.listSession.collectAsStateWithLifecycle()
     val recovering by authViewModel.isRecoveringPassword.collectAsStateWithLifecycle()
     val callbackError by authViewModel.callbackError.collectAsStateWithLifecycle()
@@ -241,13 +240,21 @@ fun RootScreen() {
             confirmButton = { androidx.compose.material3.TextButton(onClick = com.cbtipul.app.data.Entitlements::dismissExplanation) { androidx.compose.material3.Text(stringResource(R.string.ok)) } },
         )
     }
-    val showReadOnlyNotice = isTherapist && entitlement.access == com.cbtipul.app.data.EntitlementAccess.ReadOnly && !invitationActive
+    val showAccessResolution = signedIn != null && !invitationActive && !recovering && !entitlement.localDemo &&
+        appContext?.isIncompletePatient != true && accessPresentation in setOf(
+            com.cbtipul.app.data.AccessResolutionPresentation.Loading, com.cbtipul.app.data.AccessResolutionPresentation.Retry)
+    val showReadOnlyNotice = isTherapist && accessPresentation == com.cbtipul.app.data.AccessResolutionPresentation.ReadOnly && !invitationActive
         && !shouldShowIntroduction && !reviewIntroduction && !showWelcome && !entitlement.localDemo
     // Consume these insets at the shared parent so child toolbars don't add them again.
-    val noticeInsets = if (showReadOnlyNotice) Modifier.windowInsetsPadding(
+    val noticeInsets = if (showReadOnlyNotice || showAccessResolution) Modifier.windowInsetsPadding(
         WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
     ) else Modifier
     androidx.compose.foundation.layout.Column(Modifier.fillMaxSize().then(noticeInsets)) {
+    if (showAccessResolution) {
+        AccessResolutionNotice(contextState) {
+            entitlementScope.launch { runCatching { app.appContext.getCurrentAppContext() } }
+        }
+    }
     if (showReadOnlyNotice) {
         androidx.compose.material3.TextButton(onClick = { com.cbtipul.app.data.Entitlements.allowMutation() }, modifier = Modifier.fillMaxWidth()) {
             androidx.compose.material3.Text(stringResource(R.string.entitlement_read_only_title))
@@ -255,6 +262,9 @@ fun RootScreen() {
     }
     Box(modifier = Modifier.weight(1f)) {
         when {
+            session is AuthSession.Unavailable && !invitationActive -> {
+                SessionRecoveryScreen { app.authRepository.retrySessionRestoration() }
+            }
             recovering && !invitationActive -> {
                 NewPasswordSheet(
                     state = ui,

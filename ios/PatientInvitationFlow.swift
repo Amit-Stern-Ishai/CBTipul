@@ -1,23 +1,35 @@
 import Foundation
-import OSLog
-import SwiftUI
+import Observation
 
-/// In-memory patient invitation preview/activation flow. Independent of
-/// therapist login. The raw token is never persisted.
+struct InvitationSession: Equatable {
+    let userID: String
+    let isAnonymous: Bool
+}
+
+/// All effects are injected so the activation state machine is tested offline.
+@MainActor
+struct InvitationActivationDependencies {
+    var awaitInitialization: () async throws -> Void
+    var session: () -> InvitationSession?
+    var signOutLocally: (String) async throws -> Void
+    var signInAnonymously: () async throws -> Void
+    var clearContext: () -> Void
+    var context: () async throws -> AppContext
+    var claim: (String) async throws -> UUID
+}
+
+/// Invitations own the root before any asynchronous work. Tokens live only here.
 @Observable
 @MainActor
 final class PatientInvitationFlow {
     enum Phase: Equatable {
-        case idle
-        case loading
+        case idle, loading
         case preview(therapistDisplayName: String)
         case unavailable(PatientInvitationPreviewStatus)
         case failed(String)
-        case consent
-        case activating
+        case consent, confirmTherapistSwitch, existingPatient, activating
         case activationFailed(ActivationFailure)
     }
-
     enum ActivationFailure: Equatable {
         case signIn
         case claim(PatientInvitationPreviewStatus?)
@@ -27,34 +39,46 @@ final class PatientInvitationFlow {
     private(set) var token: String?
     private(set) var therapistDisplayName: String?
     private(set) var phase: Phase = .idle
-    /// After a successful claim, retries must only re-check app context.
     private(set) var didSucceedClaim = false
-    private var isActivationInFlight = false
-
+    private var generation = 0
+    private var inFlight = false
+    private var switchUserID: String?
+    private var activationIdentity: InvitationSession?
+    private var claimedPatientID: UUID?
     var isActive: Bool { phase != .idle }
 
-    func start(token: String, service: PatientInvitationService) async {
+    /// Synchronous reservation for both cold and warm links. Duplicate delivery
+    /// and links arriving during an accepted activation cannot replace its token.
+    func receive(token: String) {
+        guard !inFlight else { return }
+        guard self.token != token || !isActive else { return }
+        generation += 1
         self.token = token
+        therapistDisplayName = nil
         didSucceedClaim = false
+        claimedPatientID = nil
+        activationIdentity = nil
+        switchUserID = nil
         phase = .loading
+    }
+
+    func loadPreview(using preview: (String) async throws -> PatientInvitationPreview) async {
+        guard phase == .loading, let token else { return }
+        let request = generation
         do {
-            let preview = try await service.getPatientInvitation(token: token)
-            guard self.token == token else { return }
-            switch preview.status {
-            case .valid:
-                let name = preview.therapistDisplayName?
-                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let result = try await preview(token)
+            guard request == generation, phase == .loading else { return }
+            if result.status == .valid {
+                let name = result.therapistDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 therapistDisplayName = name
                 phase = .preview(therapistDisplayName: name)
-            case .expired, .claimed, .cancelled, .invalid:
-                phase = .unavailable(preview.status)
+            } else {
+                phase = .unavailable(result.status)
             }
         } catch {
-            guard self.token == token else { return }
-            AppLog.store.error(
-                "Invitation preview failed: \(error.localizedDescription, privacy: .public)"
-            )
-            phase = .failed(error.localizedDescription)
+            guard request == generation, phase == .loading else { return }
+            // Response/error text may contain the invitation token.
+            phase = .failed(L10n.invitePreviewLoadFailedTitle)
         }
     }
 
@@ -62,87 +86,114 @@ final class PatientInvitationFlow {
         guard case .preview = phase else { return }
         phase = .consent
     }
-
-    /// Returns to the preview without clearing the in-memory token.
     func returnToPreview() {
-        guard token != nil else { return }
+        guard !inFlight, token != nil else { return }
         phase = .preview(therapistDisplayName: therapistDisplayName ?? "")
     }
 
-    func activate(
-        auth: AuthManager,
-        invitations: PatientInvitationService,
-        appContext: AppContextService
-    ) async {
-        guard !isActivationInFlight else { return }
+    func activate(using dependencies: InvitationActivationDependencies) async {
         guard phase == .consent || isActivationFailure else { return }
-        isActivationInFlight = true
+        await runActivation(using: dependencies, confirmedTherapist: nil)
+    }
+
+    func confirmTherapistSwitch(using dependencies: InvitationActivationDependencies) async {
+        guard phase == .confirmTherapistSwitch, let switchUserID else { return }
+        await runActivation(using: dependencies, confirmedTherapist: switchUserID)
+    }
+
+    private func runActivation(using d: InvitationActivationDependencies, confirmedTherapist: String?) async {
+        guard !inFlight else { return }
+        inFlight = true
         phase = .activating
-        defer { isActivationInFlight = false }
+        defer { inFlight = false }
+        var failure: ActivationFailure = .signIn
         do {
-            if !didSucceedClaim {
-                try await ensureAnonymousSession(auth: auth)
-                guard let token else {
-                    phase = .activationFailed(.claim(nil))
-                    return
-                }
-                _ = try await invitations.claimPatientInvitation(token: token)
-                didSucceedClaim = true
-                self.token = nil
-            }
-            let context = try await appContext.getCurrentAppContext()
-            guard context.isActivePatient else {
-                phase = .activationFailed(.context)
+            try await d.awaitInitialization()
+            var session = d.session()
+            if let expected = activationIdentity, session != expected {
+                phase = .activationFailed(.signIn)
                 return
             }
+            if let existing = session, !existing.isAnonymous {
+                guard !didSucceedClaim else { phase = .activationFailed(.context); return }
+                guard confirmedTherapist == existing.userID else {
+                    switchUserID = existing.userID
+                    phase = .confirmTherapistSwitch
+                    return
+                }
+                // Only this confirmation authorizes discarding this exact local session.
+                d.clearContext()
+                try await d.signOutLocally(existing.userID)
+                guard d.session() == nil else { phase = .activationFailed(.signIn); return }
+                session = nil
+            } else if confirmedTherapist != nil {
+                // The account changed while the confirmation was displayed.
+                phase = .activationFailed(.signIn)
+                return
+            }
+            if !didSucceedClaim {
+                if let existing = session {
+                    failure = .context
+                    let context = try await d.context()
+                    guard d.session() == existing else { phase = .activationFailed(.context); return }
+                    // Preview exposes no patient ID. Same versus different invitation
+                    // cannot safely be determined; never rebind any connected patient.
+                    // Incomplete does not prove a restored identity has never
+                    // been bound. Only reuse the anonymous identity created for
+                    // this pending activation when retrying its same token.
+                    if activationIdentity == nil || context.patientId != nil || context.isActivePatient {
+                        phase = .existingPatient
+                        return
+                    }
+                    guard context.isIncompletePatient else { phase = .activationFailed(.context); return }
+                } else {
+                    failure = .signIn
+                    try await d.signInAnonymously()
+                }
+                guard let anonymous = d.session(), anonymous.isAnonymous else {
+                    phase = .activationFailed(.signIn); return
+                }
+                activationIdentity = anonymous
+                guard let token else { phase = .activationFailed(.claim(nil)); return }
+                // No suspension between identity check and the authenticated claim.
+                failure = .claim(nil)
+                claimedPatientID = try await d.claim(token)
+                didSucceedClaim = true
+            }
+            failure = .context
+            guard d.session() == activationIdentity else { phase = .activationFailed(.context); return }
+            d.clearContext() // Invalidate even same-user pre-activation requests.
+            let context = try await d.context()
+            guard d.session() == activationIdentity, context.isActivePatient,
+                  context.patientId == claimedPatientID else {
+                phase = .activationFailed(.context); return
+            }
+            token = nil
             therapistDisplayName = nil
             phase = .idle
         } catch let error as PatientInvitationClaimError {
             switch error {
-            case .status(let status):
-                phase = .activationFailed(.claim(status))
-            case .failed:
-                phase = .activationFailed(.claim(nil))
+            case .status(let status): phase = .activationFailed(.claim(status))
+            case .failed: phase = .activationFailed(.claim(nil))
             }
         } catch {
-            if didSucceedClaim {
-                phase = .activationFailed(.context)
-            } else if auth.isAnonymousUser {
-                phase = .activationFailed(.claim(nil))
-            } else {
-                phase = .activationFailed(.signIn)
-            }
+            phase = .activationFailed(failure)
         }
-    }
-
-    func retryActivation(
-        auth: AuthManager,
-        invitations: PatientInvitationService,
-        appContext: AppContextService
-    ) async {
-        await activate(auth: auth, invitations: invitations, appContext: appContext)
     }
 
     func dismiss() {
+        guard !inFlight else { return }
+        generation += 1
         token = nil
         therapistDisplayName = nil
         didSucceedClaim = false
+        activationIdentity = nil
+        claimedPatientID = nil
+        switchUserID = nil
         phase = .idle
     }
-
     private var isActivationFailure: Bool {
         if case .activationFailed = phase { return true }
         return false
-    }
-
-    private func ensureAnonymousSession(auth: AuthManager) async throws {
-        if auth.hasSession, auth.isAnonymousUser { return }
-        if auth.hasSession, !auth.isAnonymousUser {
-            await auth.signOutAndWait()
-        }
-        try await auth.signInAnonymously()
-        guard auth.hasSession, auth.isAnonymousUser else {
-            throw AuthError.verificationFailed
-        }
     }
 }

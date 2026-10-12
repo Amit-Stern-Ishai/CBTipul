@@ -47,6 +47,7 @@ import com.cbtipul.app.ui.theme.themedScreen
 @Composable
 fun InvitationFlowScreen(flow: PatientInvitationFlow) {
     val phase by flow.phase.collectAsStateWithLifecycle()
+    BackHandler(enabled = phase is InvitationPhase.Activating) {}
     when (val current = phase) {
         InvitationPhase.Idle -> Box(Modifier.themedScreen(Theme.colors.gold))
         InvitationPhase.Loading -> InvitationLoading()
@@ -68,6 +69,25 @@ fun InvitationFlowScreen(flow: PatientInvitationFlow) {
         InvitationPhase.Consent -> InvitationConsent(
             onAccept = { flow.accept() },
             onBack = { flow.returnToPreview() },
+        )
+        InvitationPhase.ConfirmTherapistSwitch -> InvitationChrome(
+            onBack = { flow.dismiss() },
+            content = {
+                Text(stringResource(R.string.invite_switch_title), color = Theme.colors.textBright,
+                    fontWeight = FontWeight.Bold, fontSize = 28.sp)
+                Text(stringResource(R.string.invite_switch_body), color = Theme.colors.textBody)
+            },
+            footer = {
+                GoldButton(stringResource(R.string.invite_switch_confirm), onClick = { flow.confirmTherapistSwitch() })
+                TextButton(onClick = { flow.dismiss() }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.invite_switch_cancel), color = Theme.colors.textBody)
+                }
+            },
+        )
+        InvitationPhase.ExistingPatient -> InvitationMessage(
+            title = stringResource(R.string.invite_existing_patient_title),
+            body = stringResource(R.string.invite_existing_patient_body),
+            onClose = { flow.dismiss() },
         )
         InvitationPhase.Activating -> InvitationActivating()
         is InvitationPhase.ActivationFailed -> InvitationActivationFailed(

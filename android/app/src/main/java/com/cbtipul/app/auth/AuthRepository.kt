@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.collect
+import io.github.jan.supabase.auth.status.SessionSource
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -113,17 +116,46 @@ class AuthRepository(
 
     internal val supabaseClient: SupabaseClient get() = client
 
+    /** Credential-free revision: StateFlow UI identity equality must not hide reauthentication. */
+    val contextSessionChanges = flow {
+        var revision = 0L
+        client.auth.sessionStatus.collect { status ->
+            when (status) {
+                is SessionStatus.Authenticated -> {
+                    val identity = currentUserId()
+                    if (identity != null && identity == status.session.user?.id)
+                        emit(AuthContextSession(identity, ++revision, status.source is SessionSource.Refresh))
+                }
+                is SessionStatus.NotAuthenticated -> if (!hasSession()) emit(null)
+                // Refresh failure is not successful authentication. Invalidate
+                // access without clearing stored credentials or resetting a retry
+                // budget on each SDK background retry.
+                is SessionStatus.RefreshFailure -> {
+                    com.cbtipul.app.data.Entitlements.invalidate()
+                    emit(null)
+                }
+                SessionStatus.Initializing -> Unit
+            }
+        }
+    }
+
     val session = client.auth.sessionStatus.map { status ->
         when (status) {
-            SessionStatus.Initializing, is SessionStatus.RefreshFailure -> AuthSession.Loading
+            SessionStatus.Initializing -> AuthSession.Loading
+            is SessionStatus.RefreshFailure -> AuthSession.Unavailable
             is SessionStatus.Authenticated -> AuthSession.SignedIn(
                 email = status.session.user?.email,
                 userId = status.session.user?.id,
                 isAnonymous = isAnonymousSession(status.session),
             )
             is SessionStatus.NotAuthenticated -> AuthSession.SignedOut
-        }.also { state ->
-            if (state !is AuthSession.Loading) com.cbtipul.app.data.Entitlements.setIdentity((state as? AuthSession.SignedIn)?.userId)
+        }.let(::sessionForRouting).also { state ->
+            when (state) {
+                is AuthSession.SignedIn -> com.cbtipul.app.data.Entitlements.setIdentity(state.userId)
+                AuthSession.SignedOut -> com.cbtipul.app.data.Entitlements.setIdentity(null)
+                AuthSession.Unavailable -> com.cbtipul.app.data.Entitlements.invalidate()
+                AuthSession.Loading -> Unit
+            }
         }
     }
 
@@ -211,6 +243,35 @@ class AuthRepository(
         runCatching { clearCredentialState() }
     }
 
+    suspend fun awaitInvitationSessionInitialization() {
+        client.auth.awaitInitialization()
+        // SDK 3.2.2 exposes no currentSession while refresh failed, even though
+        // its stored anonymous identity still exists. Never replace it with a
+        // new anonymous identity merely because restoration is temporarily unavailable.
+        check(client.auth.sessionStatus.value !is SessionStatus.RefreshFailure)
+    }
+
+    suspend fun retrySessionRestoration() {
+        withTimeout(8_000) {
+            check(client.auth.loadFromStorage())
+            check(client.auth.sessionStatus.value is SessionStatus.Authenticated)
+        }
+    }
+
+    /** Invitation confirmation clears only this app's local authentication state. */
+    suspend fun signOutLocallyForInvitation(expectedUserId: String) {
+        client.auth.awaitInitialization()
+        check(currentUserId() == expectedUserId && !isAnonymousSession())
+        abandonBrowserSignIn()
+        cancelGoogleSignIn()
+        // Unlike signOut(), clearSession makes no logout request and cannot
+        // swallow a failure that leaves a therapist session attached to claim.
+        client.auth.clearSession()
+        check(!hasSession())
+        _isRecoveringPassword.value = false
+        runCatching { clearCredentialState() }
+    }
+
     suspend fun signInAnonymously() {
         abandonBrowserSignIn()
         client.auth.codeVerifierCache.deleteCodeVerifier()
@@ -218,6 +279,11 @@ class AuthRepository(
         ensureConfigured()
         client.auth.signInAnonymously()
     }
+
+    fun sessionForRouting(observed: AuthSession): AuthSession = reconcileSessionObservation(observed,
+        client.auth.currentSessionOrNull()?.let {
+            AuthSession.SignedIn(it.user?.email, it.user?.id, isAnonymousSession(it))
+        })
 
     fun currentUserId(): String? = client.auth.currentSessionOrNull()?.user?.id
 
@@ -332,6 +398,7 @@ class AuthRepository(
 
 sealed interface AuthSession {
     data object Loading : AuthSession
+    data object Unavailable : AuthSession
     data object SignedOut : AuthSession
     data class SignedIn(
         val email: String?,
@@ -390,3 +457,10 @@ data class AccountDeletionResponse(
     val success: Boolean,
     val appleManualRevocationRequired: Boolean = false,
 )
+
+/** Keep explicit logout/loading intact; reconcile signed-in snapshots with live SDK identity. */
+internal fun reconcileSessionObservation(observed: AuthSession, current: AuthSession.SignedIn?): AuthSession =
+    if (observed is AuthSession.SignedIn) current ?: AuthSession.Loading else observed
+
+/** No token, email verification assertion, or entitlement is carried by an auth revision. */
+data class AuthContextSession(val userId: String, val revision: Long, val isTokenRefresh: Boolean = false)

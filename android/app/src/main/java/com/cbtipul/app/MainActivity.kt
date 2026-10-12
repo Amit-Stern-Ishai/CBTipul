@@ -78,8 +78,8 @@ class MainActivity : ComponentActivity() {
     private fun handleInvitationIntent(intent: Intent?) {
         val token = InvitationLink.tokenFrom(intent?.data) ?: return
         val app = application as CbTipulApp
-        app.applicationScope.launch {
-            app.invitationFlow.start(token)
-        }
+        intent?.data = null // Consume the token URL; do not replay it on recreation.
+        app.authRepository.cancelGoogleSignIn()
+        app.invitationFlow.start(token)
     }
 }

@@ -90,7 +90,13 @@ final class PatientInvitationService {
     /// Does not claim the invitation or create an auth user.
     func getPatientInvitation(token: String) async throws -> PatientInvitationPreview {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        let preview: PatientInvitationPreview = try await client.functions.invoke(
+        // Preview is public. A restored/expired therapist credential must not
+        // be attached to this request or make preview depend on auth refresh.
+        let previewClient = FunctionsClient(
+            url: SupabaseConfig.url.appendingPathComponent("functions/v1"),
+            headers: ["apikey": SupabaseConfig.anonKey, "Authorization": "Bearer \(SupabaseConfig.anonKey)"]
+        )
+        let preview: PatientInvitationPreview = try await previewClient.invoke(
             "get-patient-invitation",
             options: FunctionInvokeOptions(
                 body: GetPatientInvitationRequest(token: token)
@@ -106,8 +112,17 @@ final class PatientInvitationService {
     /// Creates `patient_access` only on the server.
     func claimPatientInvitation(token: String) async throws -> ClaimedPatientInvitation {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+        guard let session = client.auth.currentSession, session.user.isAnonymous else {
+            throw PatientInvitationClaimError.failed
+        }
+        // Pin this claim to the checked anonymous identity. The shared client's
+        // fetchWithAuth could otherwise substitute a later therapist token.
+        let claimClient = FunctionsClient(
+            url: SupabaseConfig.url.appendingPathComponent("functions/v1"),
+            headers: ["apikey": SupabaseConfig.anonKey, "Authorization": "Bearer \(session.accessToken)"]
+        )
         do {
-            let claimed: ClaimedPatientInvitation = try await client.functions.invoke(
+            let claimed: ClaimedPatientInvitation = try await claimClient.invoke(
                 "claim-patient-invitation",
                 options: FunctionInvokeOptions(
                     body: GetPatientInvitationRequest(token: token)
@@ -126,7 +141,7 @@ final class PatientInvitationService {
             throw error
         } catch {
             AppLog.store.error(
-                "Patient invitation claim failed: \(error.localizedDescription, privacy: .public)"
+                "Patient invitation claim failed"
             )
             throw PatientInvitationClaimError.failed
         }

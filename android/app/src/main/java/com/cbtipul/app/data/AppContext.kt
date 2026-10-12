@@ -9,6 +9,10 @@ import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import java.io.IOException
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +47,40 @@ data class AppContext(
         get() = role == AppRole.Patient && activation == PatientActivation.Incomplete
 }
 
-class AppContextRepository(private val client: SupabaseClient) {
+internal data class AppContextDependencies(
+    val awaitInitialization: suspend () -> Unit,
+    val identity: () -> String?,
+    val request: suspend () -> AppContext,
+    val refreshSession: suspend () -> Unit,
+    val nowMillis: () -> Long = System::currentTimeMillis,
+    val timeoutMillis: Long = 8_000,
+    val retryDelaysMillis: List<Long> = listOf(500, 1_500),
+)
+
+sealed interface AppContextLoadState {
+    data object Unresolved : AppContextLoadState
+    data class Loading(val attempt: Int) : AppContextLoadState
+    data object Ready : AppContextLoadState
+    data class Failed(val reason: AppContextFailure) : AppContextLoadState
+}
+enum class AppContextFailure { SessionInitialization, Connection, ServerResponse, MissingEntitlement }
+private class ContextRequestTimeout : IOException()
+private class ContextInitializationTimeout : Exception()
+
+class AppContextRepository internal constructor(private val dependencies: AppContextDependencies) {
+    constructor(client: SupabaseClient) : this(AppContextDependencies(
+        awaitInitialization = { client.auth.awaitInitialization() },
+        identity = { client.auth.currentSessionOrNull()?.user?.id },
+        request = {
+            if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
+            val http = client.functions.invoke(
+                function = "get-app-context",
+                headers = Headers.build { append(HttpHeaders.ContentType, ContentType.Application.Json.toString()) },
+            )
+            EdgePayload.json.decodeFromString(AppContext.serializer(), http.bodyAsText())
+        },
+        refreshSession = { client.auth.refreshCurrentSession() },
+    ))
     private val refreshMutex = Mutex()
     private var generation = 0L
     private var lastRefresh = 0L
@@ -53,56 +90,104 @@ class AppContextRepository(private val client: SupabaseClient) {
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    private val _loadState = MutableStateFlow<AppContextLoadState>(AppContextLoadState.Unresolved)
+    val loadState: StateFlow<AppContextLoadState> = _loadState.asStateFlow()
+    internal val boundIdentity: String? get() = account
 
     suspend fun getCurrentAppContext(): AppContext = refreshMutex.withLock { fetchCurrentAppContext() }
 
-    private suspend fun fetchCurrentAppContext(): AppContext {
-        if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-        client.auth.awaitInitialization()
-        val identity = client.auth.currentSessionOrNull()?.user?.id ?: throw IllegalStateException("not_signed_in")
-        val requestGeneration = generation
-        if (account != identity) { _current.value = null; lastRefresh = 0; account = identity }
+    /** Called on real auth changes, including same-account reauthentication. */
+    internal fun authenticationChanged(identity: String?) {
+        clear()
+        account = identity
         Entitlements.setIdentity(identity)
+    }
+
+    private fun ensureCurrent(identity: String?, requestGeneration: Long) {
+        if (requestGeneration != generation || identity != dependencies.identity()) throw CancellationException()
+    }
+
+    private suspend fun fetchCurrentAppContext(): AppContext {
+        val requestGeneration = generation
+        var identity: String? = null
         _isLoading.value = true
+        _loadState.value = AppContextLoadState.Loading(1)
         return try {
-            suspend fun request(): AppContext {
-                val http = client.functions.invoke(
-                    function = "get-app-context",
-                    headers = Headers.build {
-                        append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    },
-                )
-                return EdgePayload.json.decodeFromString(AppContext.serializer(), http.bodyAsText())
-            }
-            val context = try {
-                request()
-            } catch (error: Exception) {
-                if (error is CancellationException || EdgePayload.httpStatus(error) != 401) throw error
-                // The restored session may no longer be accepted by the server. Refresh once.
-                if (identity != client.auth.currentSessionOrNull()?.user?.id || requestGeneration != generation) throw CancellationException()
-                client.auth.refreshCurrentSession()
-                if (identity != client.auth.currentSessionOrNull()?.user?.id || requestGeneration != generation) throw CancellationException()
-                request()
-            }
-            if (identity != client.auth.currentSessionOrNull()?.user?.id || identity != account || requestGeneration != generation) throw CancellationException()
+            val initialized = withTimeoutOrNull(dependencies.timeoutMillis) { dependencies.awaitInitialization(); true }
+            if (initialized != true) throw ContextInitializationTimeout()
+            if (requestGeneration != generation) throw CancellationException()
+            identity = dependencies.identity() ?: throw IllegalStateException("not_signed_in")
+            if (account != identity) { _current.value = null; lastRefresh = 0; account = identity }
+            Entitlements.setIdentity(identity)
+            val context = requestWithRecovery(identity, requestGeneration)
+            ensureCurrent(identity, requestGeneration)
+            if (identity != account) throw CancellationException()
             _current.value = context
-            lastRefresh = System.currentTimeMillis()
+            lastRefresh = dependencies.nowMillis()
             Entitlements.apply(context)
-            runCatching { InviteDebugLog.d("get-app-context resolved: role=${context.role}, access=${context.entitlement?.access ?: "unknown"}") }
+            _loadState.value = if (!context.isIncompletePatient && context.entitlement == null)
+                AppContextLoadState.Failed(AppContextFailure.MissingEntitlement) else AppContextLoadState.Ready
             context
         } catch (error: CancellationException) {
+            // Cancellation never turns a confirmed entitlement into read_only.
+            if (requestGeneration == generation) {
+                _loadState.value = if (_current.value?.entitlement != null) AppContextLoadState.Ready else AppContextLoadState.Unresolved
+            }
             throw error
         } catch (error: Exception) {
-            if (requestGeneration == generation && identity == account && identity == client.auth.currentSessionOrNull()?.user?.id) Entitlements.invalidate()
-            runCatching { InviteDebugLog.e("get-app-context", error) }
+            if (requestGeneration == generation && (identity == null || identity == dependencies.identity())) {
+                Entitlements.invalidate()
+                _loadState.value = AppContextLoadState.Failed(when {
+                    error is ContextInitializationTimeout -> AppContextFailure.SessionInitialization
+                    transientContextFailure(error) -> AppContextFailure.Connection
+                    else -> AppContextFailure.ServerResponse
+                })
+                runCatching { InviteDebugLog.d("App context resolution failed; status=${EdgePayload.httpStatus(error) ?: "unavailable"}") }
+            }
             throw error
         } finally {
             if (requestGeneration == generation) _isLoading.value = false
         }
     }
 
+    private suspend fun requestWithRecovery(identity: String, requestGeneration: Long): AppContext {
+        var refreshedAuth = false
+        val attempts = dependencies.retryDelaysMillis.size + 1
+        for (attempt in 1..attempts) {
+            ensureCurrent(identity, requestGeneration)
+            _loadState.value = AppContextLoadState.Loading(attempt)
+            try {
+                return withTimeoutOrNull(dependencies.timeoutMillis) { dependencies.request() } ?: throw ContextRequestTimeout()
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) {
+                ensureCurrent(identity, requestGeneration)
+                if (EdgePayload.httpStatus(error) == 401 && !refreshedAuth && attempt < attempts) {
+                    refreshedAuth = true
+                    try {
+                        withTimeoutOrNull(dependencies.timeoutMillis) { dependencies.refreshSession(); true } ?: throw ContextRequestTimeout()
+                    } catch (refreshError: CancellationException) { throw refreshError }
+                    catch (refreshError: Exception) {
+                        ensureCurrent(identity, requestGeneration)
+                        if (!transientContextFailure(refreshError)) throw refreshError
+                        refreshedAuth = false
+                        delay(dependencies.retryDelaysMillis[attempt - 1])
+                    }
+                    ensureCurrent(identity, requestGeneration)
+                    continue
+                }
+                if (!transientContextFailure(error) || attempt == attempts) throw error
+                delay(dependencies.retryDelaysMillis[attempt - 1])
+                ensureCurrent(identity, requestGeneration)
+            }
+        }
+        error("context_attempts_exhausted")
+    }
+
     suspend fun refreshOnForeground() {
-        if (client.auth.currentSessionOrNull() == null || _isLoading.value || System.currentTimeMillis() - lastRefresh < 60_000) return
+        if (dependencies.identity() == null || _isLoading.value) return
+        // The cooldown applies only to confirmed access, never failed/missing context.
+        if (_loadState.value is AppContextLoadState.Ready && Entitlements.state.value.access != null &&
+            dependencies.nowMillis() - lastRefresh < 60_000) return
         runCatching { getCurrentAppContext() }
     }
     fun clear() {
@@ -111,5 +196,12 @@ class AppContextRepository(private val client: SupabaseClient) {
         Entitlements.clear()
         _current.value = null
         _isLoading.value = false
+        _loadState.value = AppContextLoadState.Unresolved
     }
+}
+
+internal fun transientContextFailure(error: Throwable): Boolean {
+    val status = EdgePayload.httpStatus(error)
+    if (status != null) return status in setOf(408, 425, 429, 500, 502, 503, 504)
+    return generateSequence(error) { it.cause }.any { it is IOException || it is HttpRequestTimeoutException }
 }

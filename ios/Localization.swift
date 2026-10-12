@@ -1509,6 +1509,13 @@ amitishai@gmail.com
 
     static let invitePreviewCloseAction = "סגירה"
 
+    static let inviteSwitchTitle = "מעבר למצב מטופל/ת"
+    static let inviteSwitchBody = "במכשיר מחובר כעת חשבון מטפל/ת. כדי להמשיך בהזמנה יש להתנתק מחשבון זה ולעבור למצב מטופל/ת. המעבר יתבצע רק לאחר אישור. ביטול ישאיר את חשבון המטפל/ת מחובר."
+    static let inviteSwitchConfirm = "התנתקות ומעבר למצב מטופל/ת"
+    static let inviteSwitchCancel = "ביטול וחזרה לחשבון הנוכחי"
+    static let inviteExistingPatientTitle = "קיימת במכשיר זהות במצב מטופל/ת"
+    static let inviteExistingPatientBody = "זהות המטופל/ת הקיימת וכל חיבור קיים נשמרים ולא שונו. לא ניתן לקבוע מהתצוגה המקדימה אם ההזמנה מיועדת לאותו מטופל/ת, ולכן לא ניתן להפעיל אותה עם הזהות הקיימת. יש לפנות למטפל/ת להנחיות."
+
     static let inviteConsentTitle = "הסכמה לשימוש ב-CBTipul"
 
     static let inviteConsentIntro =
