@@ -90,34 +90,37 @@ final class PatientDiaryOneService {
         behaviour: String,
         physicalSymptoms: String?
     ) async throws {
-        try await EntitlementState.shared.requireWrite()
-        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        do {
-            let response: SubmitDiaryOneEntryResponse = try await client.functions.invoke(
-                "submit-diary-one-entry",
-                options: FunctionInvokeOptions(
-                    body: SubmitDiaryOneEntryRequest(
-                        event: event,
-                        automaticThoughts: automaticThoughts,
-                        feelings: feelings,
-                        behaviour: behaviour,
-                        physicalSymptoms: physicalSymptoms
+        try await TelemetryMeasure.run(.submission, form: .diaryOne) { [self] in
+            try await EntitlementState.shared.requireWrite()
+            guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+            do {
+                let response: SubmitDiaryOneEntryResponse = try await TelemetryRequests.run(.diaryOneSubmit) { [self] in try await client.functions.invoke(
+                    "submit-diary-one-entry",
+                    options: FunctionInvokeOptions(
+                        body: SubmitDiaryOneEntryRequest(
+                            event: event,
+                            automaticThoughts: automaticThoughts,
+                            feelings: feelings,
+                            behaviour: behaviour,
+                            physicalSymptoms: physicalSymptoms
+                        )
                     )
+                ) }
+                guard response.success != false else {
+                    throw PatientDiaryOneSubmitError.failed(L10n.patientDiaryOneSubmitError)
+                }
+                AppLog.store.info("Patient Diary 1 entry submitted")
+            } catch let error as PatientDiaryOneSubmitError {
+                throw error
+            } catch let FunctionsError.httpError(code, data) {
+                throw Self.submitError(from: data, statusCode: code)
+            } catch {
+                AppLog.store.error(
+                    "Patient Diary 1 submit failed: \(error.localizedDescription, privacy: .public)"
                 )
-            )
-            guard response.success != false else {
                 throw PatientDiaryOneSubmitError.failed(L10n.patientDiaryOneSubmitError)
             }
-            AppLog.store.info("Patient Diary 1 entry submitted")
-        } catch let error as PatientDiaryOneSubmitError {
-            throw error
-        } catch let FunctionsError.httpError(code, data) {
-            throw Self.submitError(from: data, statusCode: code)
-        } catch {
-            AppLog.store.error(
-                "Patient Diary 1 submit failed: \(error.localizedDescription, privacy: .public)"
-            )
-            throw PatientDiaryOneSubmitError.failed(L10n.patientDiaryOneSubmitError)
+
         }
     }
 

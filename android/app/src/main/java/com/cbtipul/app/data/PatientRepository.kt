@@ -99,6 +99,7 @@ class PatientRepository(
         if (_isDemoMode.value) return
         Entitlements.setLocalDemo(true)
         _isDemoMode.value = true
+        com.cbtipul.app.telemetry.Telemetry.client.setDemo(true)
         aiConsentStore.setDemoBypass(true)
         _showcaseDataLoaded.value = false
         _patients.value = emptyList()
@@ -153,6 +154,7 @@ class PatientRepository(
         demoClinicStore.clearAll()
         Entitlements.setLocalDemo(false)
         _isDemoMode.value = false
+        com.cbtipul.app.telemetry.Telemetry.client.setDemo(false)
         aiConsentStore.setDemoBypass(false)
         _showcaseDataLoaded.value = false
         _patients.value = emptyList()
@@ -718,71 +720,74 @@ class PatientRepository(
         session: Session,
         recordId: DatabaseId? = null,
     ) {
-        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
-        if (_questionnaires.value[patientId.queryValue].orEmpty().any { (if (recordId != null) it.databaseId == recordId else session.databaseId != null && it.sessionId == session.databaseId) && it.createdBy == "patient" }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
-        if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form=com.cbtipul.app.telemetry.Form.questionnaire) {
+            Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
+            if (_questionnaires.value[patientId.queryValue].orEmpty().any { (if (recordId != null) it.databaseId == recordId else session.databaseId != null && it.sessionId == session.databaseId) && it.createdBy == "patient" }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
+            if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
+                val sessionId = session.databaseId
+                val completed = CompletedQuestionnaire(
+                    databaseId = recordId ?: DatabaseId.Text("demo-q-${UUID.randomUUID()}"),
+                    sessionId = sessionId,
+                    answeredDate = session.date,
+                    questionnaire = questionnaire,
+                )
+                _questionnaires.update { cache ->
+                    val current = cache[patientId.queryValue].orEmpty()
+                        .filterNot { (recordId != null && it.databaseId == recordId) || (sessionId != null && it.sessionId?.queryValue == sessionId.queryValue) } + completed
+                    cache + (patientId.queryValue to current.sortedByDescending { it.answeredDate.time })
+                }
+                persistDemoClinic()
+                return@measure
+            }
+            ensureConfigured()
             val sessionId = session.databaseId
+            val gad7Notes = textGate.prepare(questionnaire.gad7Notes)
+            val phq9Notes = textGate.prepare(questionnaire.phq9Notes)
+            val interferenceNote = textGate.prepare(questionnaire.interferenceNote).orEmpty()
+            val anonymized = questionnaire.copy(
+                gad7Notes = gad7Notes,
+                phq9Notes = phq9Notes,
+                interferenceNote = interferenceNote,
+            )
+            val payload = NewQuestionnaireRecord(
+                        patientId = patientId,
+                        sessionId = sessionId,
+                        answeredDate = dateOnly.format(session.date),
+                        gad7Answers = anonymized.gad7Answers.mapNotNull { it },
+                        phq9Answers = anonymized.phq9Answers.mapNotNull { it },
+                        interferenceLevel = anonymized.interferenceLevel,
+                        combinedNotes = QuestionnaireNotes(
+                            gad7 = anonymized.gad7Notes,
+                            phq9 = anonymized.phq9Notes,
+                            interference = anonymized.interferenceNote,
+                        ),
+                    )
+            val table = client.from(CombinedMoodQuestionnaire.TABLE)
+            val saved = when {
+                recordId != null -> table.update(payload) {
+                    filter { eq("created_by", "therapist"); eq("id", recordId.queryValue); eq("patient_id", patientId.queryValue) }
+                    select(Columns.raw("id"))
+                }
+                sessionId != null -> table.upsert(payload) {
+                    onConflict = "session_id"
+                    select(Columns.raw("id"))
+                }
+                else -> table.insert(payload) { select(Columns.raw("id")) }
+            }.decodeSingle<InsertedRow>()
             val completed = CompletedQuestionnaire(
-                databaseId = recordId ?: DatabaseId.Text("demo-q-${UUID.randomUUID()}"),
+                databaseId = saved.id,
                 sessionId = sessionId,
                 answeredDate = session.date,
-                questionnaire = questionnaire,
+                questionnaire = anonymized,
             )
             _questionnaires.update { cache ->
                 val current = cache[patientId.queryValue].orEmpty()
                     .filterNot { (recordId != null && it.databaseId == recordId) || (sessionId != null && it.sessionId?.queryValue == sessionId.queryValue) } + completed
                 cache + (patientId.queryValue to current.sortedByDescending { it.answeredDate.time })
             }
-            persistDemoClinic()
-            return
+            persistCache()
+
         }
-        ensureConfigured()
-        val sessionId = session.databaseId
-        val gad7Notes = textGate.prepare(questionnaire.gad7Notes)
-        val phq9Notes = textGate.prepare(questionnaire.phq9Notes)
-        val interferenceNote = textGate.prepare(questionnaire.interferenceNote).orEmpty()
-        val anonymized = questionnaire.copy(
-            gad7Notes = gad7Notes,
-            phq9Notes = phq9Notes,
-            interferenceNote = interferenceNote,
-        )
-        val payload = NewQuestionnaireRecord(
-                    patientId = patientId,
-                    sessionId = sessionId,
-                    answeredDate = dateOnly.format(session.date),
-                    gad7Answers = anonymized.gad7Answers.mapNotNull { it },
-                    phq9Answers = anonymized.phq9Answers.mapNotNull { it },
-                    interferenceLevel = anonymized.interferenceLevel,
-                    combinedNotes = QuestionnaireNotes(
-                        gad7 = anonymized.gad7Notes,
-                        phq9 = anonymized.phq9Notes,
-                        interference = anonymized.interferenceNote,
-                    ),
-                )
-        val table = client.from(CombinedMoodQuestionnaire.TABLE)
-        val saved = when {
-            recordId != null -> table.update(payload) {
-                filter { eq("created_by", "therapist"); eq("id", recordId.queryValue); eq("patient_id", patientId.queryValue) }
-                select(Columns.raw("id"))
-            }
-            sessionId != null -> table.upsert(payload) {
-                onConflict = "session_id"
-                select(Columns.raw("id"))
-            }
-            else -> table.insert(payload) { select(Columns.raw("id")) }
-        }.decodeSingle<InsertedRow>()
-        val completed = CompletedQuestionnaire(
-            databaseId = saved.id,
-            sessionId = sessionId,
-            answeredDate = session.date,
-            questionnaire = anonymized,
-        )
-        _questionnaires.update { cache ->
-            val current = cache[patientId.queryValue].orEmpty()
-                .filterNot { (recordId != null && it.databaseId == recordId) || (sessionId != null && it.sessionId?.queryValue == sessionId.queryValue) } + completed
-            cache + (patientId.queryValue to current.sortedByDescending { it.answeredDate.time })
-        }
-        persistCache()
     }
 
     suspend fun deleteQuestionnaire(patientId: DatabaseId, session: Session, recordId: DatabaseId? = null) {

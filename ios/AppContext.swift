@@ -48,6 +48,7 @@ nonisolated struct AppContext: Codable, Equatable, Sendable {
 @Observable
 @MainActor
 final class AppContextService {
+    private let telemetryClient: TelemetryClient
     private let identity: () -> String?
     private let requestContext: () async throws -> AppContext
     private var lastRefresh: Date?
@@ -59,14 +60,16 @@ final class AppContextService {
     private(set) var isLoading = false
     private(set) var loadError: String?
 
-    init(identity: @escaping () -> String?, request: @escaping () async throws -> AppContext) {
+    init(identity: @escaping () -> String?, request: @escaping () async throws -> AppContext, telemetry: TelemetryClient = .shared) {
+        self.telemetryClient = telemetry
         self.identity = identity
         self.requestContext = request
     }
 
     func getCurrentAppContext() async throws -> AppContext {
+        let telemetry = telemetryClient.begin(.access)
         let identity = self.identity()
-        guard identity != nil else { throw AuthError.verificationFailed }
+        guard identity != nil else { telemetry.event(.failed,error:.unavailable); throw AuthError.verificationFailed }
         let requestGeneration = generation
         requestSequence += 1
         let request = requestSequence
@@ -76,14 +79,22 @@ final class AppContextService {
         loadError = nil
         defer { if requestGeneration == generation && request == requestSequence { isLoading = false } }
         do {
-            let context = try await requestContext()
+            let requestTelemetry = telemetry.requestOperation(.appContext)
+            requestTelemetry.event(.started)
+            let context: AppContext
+            do { context = try await requestContext(); requestTelemetry.event(.succeeded) }
+            catch { requestTelemetry.event(.failed, error: .generic); throw error }
             guard requestGeneration == generation, request == requestSequence, identity == self.identity(), identity == account else { throw CancellationError() }
             current = context
             lastRefresh = Date()
             EntitlementState.shared.apply(context)
             AppLog.auth.info("App context received, role: \(context.role.rawValue, privacy: .public)")
+            if let access = context.entitlement?.access {
+                telemetry.event(.succeeded, access: access == .full ? .full : .readOnly)
+            } else { telemetry.event(.failed, error: .unresolved) }
             return context
         } catch {
+            telemetry.event(error is CancellationError ? .cancelled : .failed, error: error is CancellationError ? .cancelled : .generic)
             if requestGeneration == generation && request == requestSequence && identity == account && identity == self.identity() {
                 EntitlementState.shared.invalidate()
                 loadError = error.localizedDescription

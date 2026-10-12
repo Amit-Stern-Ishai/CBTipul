@@ -145,6 +145,9 @@ final class AuthManager {
                     email: session?.user.email,
                     isAnonymous: session?.user.isAnonymous ?? false
                 )
+                if event == .initialSession {
+                    TelemetryClient.shared.operation(.restoration).event(session == nil ? .failed : .succeeded, error: session == nil ? .unavailable : .none)
+                }
             }
         }
     }
@@ -165,19 +168,22 @@ final class AuthManager {
     }
 
     func signIn(email: String, password: String) async throws {
-        guard !isProviderSignInInProgress else { throw AuthError.signInInProgress }
-        try ensureConfigured()
-        do {
-            try await client.auth.signIn(email: Self.normalized(email: email), password: password)
-            AppLog.auth.info("Sign-in succeeded")
-        } catch {
-            AppLog.auth.error("Sign-in failed: \(error.localizedDescription, privacy: .public)")
-            // Unverified accounts get a clear Hebrew explanation instead of
-            // the raw server error, mapped by error code.
-            if let authError = error as? Auth.AuthError, authError.errorCode == .emailNotConfirmed {
-                throw AuthError.emailNotConfirmed
+        try await TelemetryMeasure.run(.authentication, method: .email) { [self] in
+            guard !isProviderSignInInProgress else { throw AuthError.signInInProgress }
+            try ensureConfigured()
+            do {
+                try await client.auth.signIn(email: Self.normalized(email: email), password: password)
+                AppLog.auth.info("Sign-in succeeded")
+            } catch {
+                AppLog.auth.error("Sign-in failed: \(error.localizedDescription, privacy: .public)")
+                // Unverified accounts get a clear Hebrew explanation instead of
+                // the raw server error, mapped by error code.
+                if let authError = error as? Auth.AuthError, authError.errorCode == .emailNotConfirmed {
+                    throw AuthError.emailNotConfirmed
+                }
+                throw error
             }
-            throw error
+
         }
     }
 
@@ -188,6 +194,7 @@ final class AuthManager {
         guard !hasSession, !isSigningInWithGoogle, !isSigningInWithApple else { return }
         guard let presenter = NativeGoogleSignIn.presenter() else { throw GoogleLoginError.unavailable }
         let attempt = UUID()
+        let telemetry = TelemetryClient.shared.begin(.authentication, method: .google)
         googleSignInAttempt = attempt
         isSigningInWithGoogle = true
         defer {
@@ -202,6 +209,7 @@ final class AuthManager {
             // An invitation or auth callback may have taken over while Google was open.
             guard googleSignInAttempt == attempt, !hasSession else {
                 GIDSignIn.sharedInstance.signOut()
+                telemetry.event(.cancelled, error: .cancelled)
                 return
             }
             guard let idToken = result.user.idToken?.tokenString, !idToken.isEmpty else {
@@ -212,12 +220,14 @@ final class AuthManager {
                 accessToken: result.user.accessToken.tokenString, nonce: nonce))
             callbackError = nil
             // The existing authStateChanges observer applies the Supabase session.
+            telemetry.rebound().event(.succeeded)
             AppLog.auth.info("Google sign-in succeeded")
         } catch {
             GIDSignIn.sharedInstance.signOut()
             if NativeGoogleSignIn.isCancellation(error) || error is CancellationError
-                || googleSignInAttempt != attempt { return }
+                || googleSignInAttempt != attempt { telemetry.event(.cancelled, error: .cancelled); return }
             // Never log provider error descriptions: they may contain OAuth details.
+            telemetry.event(.failed, error: .generic)
             AppLog.auth.error("Google sign-in failed")
             throw GoogleLoginError.failed
         }
@@ -233,6 +243,7 @@ final class AuthManager {
         attempt.configure(request)
         appleSignInAttempt = attempt
         isSigningInWithApple = true
+        appleTelemetry = TelemetryClient.shared.begin(.authentication, method: .apple)
     }
 
     func prepareAppleTokenRetry(_ request: ASAuthorizationAppleIDRequest) throws {
@@ -248,6 +259,7 @@ final class AuthManager {
         isSigningInWithApple = true
     }
 
+    private var appleTelemetry: TelemetryOperation?
     func completeAppleSignIn(_ result: Result<ASAuthorization, Error>) async throws {
         guard let attempt = appleSignInAttempt, isSigningInWithApple else { return }
         // Consume once; duplicate callbacks must not exchange the token twice.
@@ -286,9 +298,13 @@ final class AuthManager {
             // therapist_profiles or merge accounts using these client values.
             // The existing profile/name gate remains responsible for name setup.
             callbackError = nil
+            appleTelemetry?.rebound().event(.succeeded)
+            appleTelemetry = nil
             AppLog.auth.info("Apple sign-in succeeded")
         } catch {
-            if AppleSignInAttempt.isCancellation(error) || error is CancellationError { return }
+            if AppleSignInAttempt.isCancellation(error) || error is CancellationError { appleTelemetry?.event(.cancelled, error: .cancelled); appleTelemetry=nil; return }
+            appleTelemetry?.event(.failed, error: .generic)
+            appleTelemetry=nil
             AppLog.auth.error("Apple sign-in failed")
             throw AppleLoginError.failed
         }
@@ -302,6 +318,8 @@ final class AuthManager {
     }
 
     func cancelPendingProviderSignIn() {
+        appleTelemetry?.event(.cancelled, error: .cancelled)
+        appleTelemetry = nil
         googleSignInAttempt = nil
         appleSignInAttempt = nil
         appleRetryUserID = nil
@@ -493,7 +511,7 @@ final class AuthManager {
         guard let session = invitationSession, session.userID == expectedUserID,
               !session.isAnonymous else { throw AuthError.verificationFailed }
         cancelPendingProviderSignIn()
-        client.auth.stopAutoRefresh()
+        await client.auth.stopAutoRefresh()
         // Swift SDK removes local auth first, even if the logout request fails.
         try? await client.auth.signOut(scope: .local)
         guard client.auth.currentSession == nil else { throw AuthError.verificationFailed }
@@ -503,23 +521,27 @@ final class AuthManager {
 
     /// Patient installation identity. No email, password, or registration.
     func signInAnonymously() async throws {
-        try ensureConfigured()
-        let session = try await client.auth.signInAnonymously()
-        apply(
-            userId: session.user.id,
-            email: session.user.email,
-            isAnonymous: session.user.isAnonymous
-        )
-        guard hasSession, isAnonymousUser else {
-            throw AuthError.verificationFailed
+        try await TelemetryMeasure.run(.authentication, method: .anonymous) { [self] in
+            try ensureConfigured()
+            let session = try await client.auth.signInAnonymously()
+            apply(
+                userId: session.user.id,
+                email: session.user.email,
+                isAnonymous: session.user.isAnonymous
+            )
+            guard hasSession, isAnonymousUser else {
+                throw AuthError.verificationFailed
+            }
+            await client.auth.startAutoRefresh()
+            AppLog.auth.info("Anonymous sign-in succeeded")
+
         }
-        client.auth.startAutoRefresh()
-        AppLog.auth.info("Anonymous sign-in succeeded")
     }
 
     /// Applies Auth session fields. Anonymous users are never therapists,
     /// regardless of a non-nil/empty `user.email`.
     private func apply(userId: UUID?, email: String?, isAnonymous: Bool) {
+        TelemetryClient.shared.setOwner(userId?.uuidString, role: userId == nil ? .unknown : isAnonymous ? .patient : .therapist)
         accountActions.setIdentity(userId?.uuidString)
         let previousUserId = currentUserId
         if previousUserId != userId?.uuidString { onIdentityChanged?() }

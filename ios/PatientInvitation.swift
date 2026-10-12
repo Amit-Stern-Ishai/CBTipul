@@ -74,6 +74,9 @@ final class PatientInvitationService {
         patientId: UUID,
         kind: InvitationKind = .initial
     ) async throws -> PatientInvitation {
+        let telemetry=TelemetryFlowObservation(.sharing,feature:.invitationCreation)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let invitation: PatientInvitation = try await client.functions.invoke(
@@ -83,7 +86,11 @@ final class PatientInvitationService {
             )
         )
         AppLog.store.info("Patient invitation created")
+        telemetry.succeeded()
         return invitation
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     /// Public preview of an invitation token. Callable without signing in.
@@ -155,7 +162,13 @@ struct ActivityShareSheet: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIActivityViewController {
         let invitation = items.compactMap { $0 as? InvitationShareActivityItem }.first
         let emailActions = invitation.map { [InvitationEmailActivity(invitation: $0)] }
-        return UIActivityViewController(activityItems: items, applicationActivities: emailActions)
+        let controller=UIActivityViewController(activityItems: items, applicationActivities: emailActions)
+        let telemetry=TelemetryClient.shared.operation(.sharing,feature:.invitationShare)
+        telemetry.event(.shareSheetOpened)
+        controller.completionWithItemsHandler={_,completed,_,_ in
+            telemetry.event(completed ? .sharingReported : .cancelled,error:completed ? .none : .cancelled)
+        }
+        return controller
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}

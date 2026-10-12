@@ -201,11 +201,12 @@ class PatientAssignmentRepository(
     }
 
     suspend fun sendQuestionnaireAssignment(patientId: String): PatientAssignment {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.assignment,feature=com.cbtipul.app.telemetry.Feature.questionnaireAssignment) {
         Entitlements.requireWrite()
         ensureConfigured()
         val account = currentAccount()
         val payload = encodeQuestionnaireRequest(patientId)
-        return try {
+        return@measure try {
             val http = client.functions.invoke("request-patient-questionnaire") {
                 header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                 setBody(TextContent(payload, ContentType.Application.Json))
@@ -226,6 +227,8 @@ class PatientAssignmentRepository(
         } catch (error: Exception) {
             InviteDebugLog.e("request-patient-questionnaire", error)
             throw mapRequestQuestionnaireError(error)
+        }
+
         }
     }
 
@@ -249,21 +252,24 @@ class PatientAssignmentRepository(
     }
 
     suspend fun activateOngoingAssignment(patientId: String, type: PatientAssignmentType): PatientAssignment {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.assignment,feature=com.cbtipul.app.telemetry.Feature.diaryAssignment) {
         Entitlements.requireWrite()
         ensureConfigured()
         val account = currentAccount()
         if (!isPatientConnected(patientId)) throw PatientAssignmentException.PatientNotConnected
-        if (type == PatientAssignmentType.Questionnaire) return sendQuestionnaireAssignment(patientId)
+        if (type == PatientAssignmentType.Questionnaire) return@measure sendQuestionnaireAssignment(patientId)
         if (type == PatientAssignmentType.DiaryOne) {
-            return requestPatientDiaryOne(patientId).also { cacheAssignment(it, account) }
+            return@measure requestPatientDiaryOne(patientId).also { cacheAssignment(it, account) }
         }
         if (type == PatientAssignmentType.DiaryTwo) {
-            return requestPatientDiaryTwo(patientId).also { cacheAssignment(it, account) }
+            return@measure requestPatientDiaryTwo(patientId).also { cacheAssignment(it, account) }
         }
         if (type == PatientAssignmentType.DiaryThree) {
-            return requestPatientDiaryThree(patientId).also { cacheAssignment(it, account) }
+            return@measure requestPatientDiaryThree(patientId).also { cacheAssignment(it, account) }
         }
         throw PatientAssignmentException.InvalidIdentifier
+
+        }
     }
 
     private suspend fun requestPatientDiaryTwo(patientId: String): PatientAssignment {
@@ -357,37 +363,40 @@ class PatientAssignmentRepository(
         phq9Answers: List<Int>,
         interferenceLevel: Int,
     ) {
-        Entitlements.requireWrite()
-        ensureConfigured()
-        val valid = (0..3).toSet()
-        if (gad7Answers.size != 7 || phq9Answers.size != 9 ||
-            gad7Answers.any { it !in valid } || phq9Answers.any { it !in valid } ||
-            interferenceLevel !in valid
-        ) {
-            throw PatientQuestionnaireSubmitError.InvalidAnswers
-        }
-        try {
-            val http = client.functions.invoke(
-                function = "submit-patient-questionnaire",
-                body = SubmitPatientQuestionnaireRequest(
-                    assignmentId = assignmentId,
-                    gad7Answers = gad7Answers,
-                    phq9Answers = phq9Answers,
-                    interferenceLevel = interferenceLevel,
-                ),
-                headers = Headers.build {
-                    append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                },
-            )
-            val response = EdgePayload.json.decodeFromString(
-                SubmitPatientQuestionnaireResponse.serializer(),
-                http.bodyAsText(),
-            )
-            if (response.success == false) throw PatientQuestionnaireSubmitError.Failed
-        } catch (error: PatientQuestionnaireSubmitError) {
-            throw error
-        } catch (error: Exception) {
-            throw mapQuestionnaireError(error)
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form = com.cbtipul.app.telemetry.Form.questionnaire) { operation ->
+            Entitlements.requireWrite()
+            ensureConfigured()
+            val valid = (0..3).toSet()
+            if (gad7Answers.size != 7 || phq9Answers.size != 9 ||
+                gad7Answers.any { it !in valid } || phq9Answers.any { it !in valid } ||
+                interferenceLevel !in valid
+            ) {
+                throw PatientQuestionnaireSubmitError.InvalidAnswers
+            }
+            try {
+                val http = com.cbtipul.app.telemetry.telemetryRequest(com.cbtipul.app.telemetry.Request.questionnaireSubmit, parent=operation) { client.functions.invoke(
+                    function = "submit-patient-questionnaire",
+                    body = SubmitPatientQuestionnaireRequest(
+                        assignmentId = assignmentId,
+                        gad7Answers = gad7Answers,
+                        phq9Answers = phq9Answers,
+                        interferenceLevel = interferenceLevel,
+                    ),
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                    },
+                ) }
+                val response = EdgePayload.json.decodeFromString(
+                    SubmitPatientQuestionnaireResponse.serializer(),
+                    http.bodyAsText(),
+                )
+                if (response.success == false) throw PatientQuestionnaireSubmitError.Failed
+            } catch (error: PatientQuestionnaireSubmitError) {
+                throw error
+            } catch (error: Exception) {
+                throw mapQuestionnaireError(error)
+            }
+
         }
     }
 

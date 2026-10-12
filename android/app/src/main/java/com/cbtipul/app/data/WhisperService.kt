@@ -19,6 +19,7 @@ class WhisperService(
     private val consent: AiConsentStore,
 ) {
     suspend fun transcribe(file: File, language: String = "he"): String {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.ai,feature=com.cbtipul.app.telemetry.Feature.transcription) {
         Entitlements.requireWrite()
         consent.ensureGranted()
         Entitlements.requireWrite()
@@ -27,7 +28,7 @@ class WhisperService(
         } catch (error: Exception) {
             throw WhisperException(error.message ?: error.toString(), readFailed = true)
         }
-        return try {
+        return@measure try {
             val http = client.functions.invoke("whisper-transcribe") {
                 contentType(ContentType.parse("audio/m4a"))
                 header("x-language", language)
@@ -40,6 +41,8 @@ class WhisperService(
             throw error
         } catch (error: Exception) {
             throw WhisperException(error.message ?: error.toString())
+        }
+
         }
     }
 

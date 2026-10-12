@@ -18,6 +18,7 @@
 		A7E10200 /* ios/PatientNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E10201 /* ios/PatientNameResolver.swift */; };
 		A7E10202 /* ios/PatientPushPersonalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E10203 /* ios/PatientPushPersonalizer.swift */; };
 		AAB100000000000000000001 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AAB100000000000000000002 /* GoogleSignIn */; };
+		ACB700000000000000000001 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = ACB700000000000000000002 /* PostHog */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -110,6 +111,7 @@
 				452035D4301BA785006FC5A3 /* PostgREST in Frameworks */,
 				452035D2301BA785006FC5A3 /* Functions in Frameworks */,
 				452035DA301BA785006FC5A3 /* Supabase in Frameworks */,
+				ACB700000000000000000001 /* PostHog in Frameworks */,
 				AAB100000000000000000001 /* GoogleSignIn in Frameworks */,
 				452035D0301BA785006FC5A3 /* Auth in Frameworks */,
 				452035D8301BA785006FC5A3 /* Storage in Frameworks */,
@@ -197,6 +199,7 @@
 				452035D7301BA785006FC5A3 /* Storage */,
 				452035D9301BA785006FC5A3 /* Supabase */,
 				AAB100000000000000000002 /* GoogleSignIn */,
+				ACB700000000000000000002 /* PostHog */,
 			);
 			productName = CBTipul;
 			productReference = 000000000000000000000120 /* CBTipul.app */;
@@ -303,6 +306,7 @@
 			mainGroup = 000000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				ACB700000000000000000003 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 				AAB100000000000000000003 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				452035CE301BA785006FC5A3 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
@@ -843,6 +847,14 @@
 				version = 10.0.0;
 			};
 		};
+		ACB700000000000000000003 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios";
+			requirement = {
+				kind = exactVersion;
+				version = 3.92.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -880,6 +892,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AAB100000000000000000003 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignIn;
+		};
+		ACB700000000000000000002 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ACB700000000000000000003 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -150,46 +150,49 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         behaviour: String,
         physicalSymptoms: String?,
     ): DiaryOneEntry {
-        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
-        val symptoms = physicalSymptoms?.trim()?.ifEmpty { null }
-        if (DemoData.isDemoId(patientId)) {
-            val entry = DiaryOneEntry(
-                id = UUID.randomUUID().toString(),
-                patientId = patientId,
-                therapistId = UUID.randomUUID().toString(),
-                createdBy = DiaryOneEntryCreator.Therapist,
-                event = event,
-                automaticThoughts = automaticThoughts,
-                feelings = feelings,
-                behaviour = behaviour,
-                physicalSymptoms = symptoms,
-                createdAt = Date(),
-                updatedAt = Date(),
-            )
-            upsert(entry)
-            return entry
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form=com.cbtipul.app.telemetry.Form.diaryOne) {
+            Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
+            val symptoms = physicalSymptoms?.trim()?.ifEmpty { null }
+            if (DemoData.isDemoId(patientId)) {
+                val entry = DiaryOneEntry(
+                    id = UUID.randomUUID().toString(),
+                    patientId = patientId,
+                    therapistId = UUID.randomUUID().toString(),
+                    createdBy = DiaryOneEntryCreator.Therapist,
+                    event = event,
+                    automaticThoughts = automaticThoughts,
+                    feelings = feelings,
+                    behaviour = behaviour,
+                    physicalSymptoms = symptoms,
+                    createdAt = Date(),
+                    updatedAt = Date(),
+                )
+                upsert(entry)
+                return@measure entry
+            }
+            if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
+            val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
+                ?: throw IllegalStateException("not_configured")
+            val therapistId = client.auth.currentSessionOrNull()?.user?.id
+                ?: throw IllegalStateException("not_signed_in")
+            val body = buildJsonObject {
+                put("patient_id", patientUuid)
+                put("therapist_id", therapistId)
+                put("created_by", DiaryOneEntryCreator.Therapist.raw)
+                put("event", event)
+                put("automatic_thoughts", thoughtsJson(automaticThoughts))
+                put("feelings", feelingsJson(feelings))
+                put("behaviour", behaviour)
+                if (symptoms == null) put("physical_symptoms", JsonNull) else put("physical_symptoms", symptoms)
+            }
+            val saved = client.from("diary_one_entries")
+                .insert(body) { select(columns) }
+                .decodeSingle<DiaryOneEntryRow>()
+                .toDomain(patientId)
+            upsert(saved)
+            return@measure saved
+
         }
-        if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-        val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
-            ?: throw IllegalStateException("not_configured")
-        val therapistId = client.auth.currentSessionOrNull()?.user?.id
-            ?: throw IllegalStateException("not_signed_in")
-        val body = buildJsonObject {
-            put("patient_id", patientUuid)
-            put("therapist_id", therapistId)
-            put("created_by", DiaryOneEntryCreator.Therapist.raw)
-            put("event", event)
-            put("automatic_thoughts", thoughtsJson(automaticThoughts))
-            put("feelings", feelingsJson(feelings))
-            put("behaviour", behaviour)
-            if (symptoms == null) put("physical_symptoms", JsonNull) else put("physical_symptoms", symptoms)
-        }
-        val saved = client.from("diary_one_entries")
-            .insert(body) { select(columns) }
-            .decodeSingle<DiaryOneEntryRow>()
-            .toDomain(patientId)
-        upsert(saved)
-        return saved
     }
 
     suspend fun updateEntry(
@@ -201,40 +204,43 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         behaviour: String,
         physicalSymptoms: String?,
     ): DiaryOneEntry {
-        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
-        if (_entries.value[patientId.queryValue].orEmpty().any { it.id == id && it.createdBy == DiaryOneEntryCreator.Patient }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
-        val symptoms = physicalSymptoms?.trim()?.ifEmpty { null }
-        if (DemoData.isDemoId(patientId)) {
-            val existing = demoEntries[patientId.queryValue].orEmpty().first { it.id == id }
-            val updated = existing.copy(
-                event = event,
-                automaticThoughts = automaticThoughts,
-                feelings = feelings,
-                behaviour = behaviour,
-                physicalSymptoms = symptoms,
-                updatedAt = Date(),
-            )
-            upsert(updated)
-            return updated
-        }
-        if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-        val body = buildJsonObject {
-            put("event", event)
-            put("automatic_thoughts", thoughtsJson(automaticThoughts))
-            put("feelings", feelingsJson(feelings))
-            put("behaviour", behaviour)
-            if (symptoms == null) put("physical_symptoms", JsonNull) else put("physical_symptoms", symptoms)
-            put("updated_at", timestampNow())
-        }
-        val saved = client.from("diary_one_entries")
-            .update(body) {
-                filter { eq("created_by", "therapist"); eq("id", id) }
-                select(columns)
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form=com.cbtipul.app.telemetry.Form.diaryOne) {
+            Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
+            if (_entries.value[patientId.queryValue].orEmpty().any { it.id == id && it.createdBy == DiaryOneEntryCreator.Patient }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
+            val symptoms = physicalSymptoms?.trim()?.ifEmpty { null }
+            if (DemoData.isDemoId(patientId)) {
+                val existing = demoEntries[patientId.queryValue].orEmpty().first { it.id == id }
+                val updated = existing.copy(
+                    event = event,
+                    automaticThoughts = automaticThoughts,
+                    feelings = feelings,
+                    behaviour = behaviour,
+                    physicalSymptoms = symptoms,
+                    updatedAt = Date(),
+                )
+                upsert(updated)
+                return@measure updated
             }
-            .decodeSingle<DiaryOneEntryRow>()
-            .toDomain(patientId)
-        upsert(saved)
-        return saved
+            if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
+            val body = buildJsonObject {
+                put("event", event)
+                put("automatic_thoughts", thoughtsJson(automaticThoughts))
+                put("feelings", feelingsJson(feelings))
+                put("behaviour", behaviour)
+                if (symptoms == null) put("physical_symptoms", JsonNull) else put("physical_symptoms", symptoms)
+                put("updated_at", timestampNow())
+            }
+            val saved = client.from("diary_one_entries")
+                .update(body) {
+                    filter { eq("created_by", "therapist"); eq("id", id) }
+                    select(columns)
+                }
+                .decodeSingle<DiaryOneEntryRow>()
+                .toDomain(patientId)
+            upsert(saved)
+            return@measure saved
+
+        }
     }
 
     suspend fun deleteEntry(id: String, patientId: DatabaseId) {

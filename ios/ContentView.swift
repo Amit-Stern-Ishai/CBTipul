@@ -15,6 +15,8 @@ struct MyApp: App {
     @State private var notificationStore: NotificationStore
 
     init() {
+        TelemetryPlatform.prime()
+        PostHogTelemetryBootstrap.configure(.shared)
         // The SwiftUI right-to-left override (see AppTextSizeModifier) doesn't
         // reach UIKit-backed controls like TextField's backing field, which
         // would re-resolve to left-to-right the moment they gain focus
@@ -79,6 +81,7 @@ struct MyApp: App {
 
     /// Auth custom-scheme callbacks stay on `cbtipul://`. Invitation
     /// Universal Links are `https://cbtipul.com/invite/<TOKEN>` only.
+    @State private var receivedInvitation = false
     private func handleIncomingURL(_ url: URL) {
         if NativeGoogleSignIn.handles(url) { return }
         if url.scheme == "cbtipul",
@@ -89,7 +92,8 @@ struct MyApp: App {
         }
         guard let token = InvitationLink.token(from: url) else { return }
         auth.cancelPendingSignInForInvitation()
-        invitationFlow.receive(token: token)
+        invitationFlow.receive(token: token, start: receivedInvitation ? .warm : TelemetryPlatform.invitationStart())
+        receivedInvitation = true
         Task {
             await invitationFlow.loadPreview(service: PatientInvitationService(client: auth.client))
         }

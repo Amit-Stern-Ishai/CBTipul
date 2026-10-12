@@ -70,6 +70,7 @@ sealed class PatientInvitationClaimError : Exception() {
 
 class PatientInvitationService(private val client: SupabaseClient) {
     suspend fun createPatientInvitation(patientId: String, kind: InvitationKind = InvitationKind.Initial): PatientInvitation {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.sharing,feature=com.cbtipul.app.telemetry.Feature.invitationCreation) {
         Entitlements.requireWrite()
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
         val payload = encodeCreateRequest(patientId, kind)
@@ -78,10 +79,12 @@ class PatientInvitationService(private val client: SupabaseClient) {
                 header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                 setBody(TextContent(payload, ContentType.Application.Json))
             }
-            return invitationFromEdgeJson(http.bodyAsText())
+            return@measure invitationFromEdgeJson(http.bodyAsText())
         } catch (error: Exception) {
             InviteDebugLog.e("create-patient-invitation", error)
             throw error
+        }
+
         }
     }
 

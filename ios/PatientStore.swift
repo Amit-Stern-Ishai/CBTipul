@@ -344,6 +344,7 @@ final class PatientStore {
         guard !isDemoMode else { return }
         EntitlementState.shared.setLocalDemo(true)
         isDemoMode = true
+        TelemetryClient.shared.setDemo(true)
         AIDataSharingConsentStore.shared.setDemoBypass(true)
         showcaseDataLoaded = false
         patients = []
@@ -399,6 +400,7 @@ final class PatientStore {
         clearDemoContent()
         EntitlementState.shared.setLocalDemo(false)
         isDemoMode = false
+        TelemetryClient.shared.setDemo(false)
         AIDataSharingConsentStore.shared.setDemoBypass(false)
         showcaseDataLoaded = false
         patients = []
@@ -1209,103 +1211,106 @@ final class PatientStore {
                            answeredDate: Date,
                            sessionID: DatabaseID?,
                            existingID: DatabaseID? = nil) async throws {
-        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id) || isDemoMode)
-        if let existingID, cachedQuestionnaires(for: patient)?.contains(where: { $0.databaseID == existingID && $0.isPatientSubmitted }) == true { throw PatientStoreError.updateRejected }
-        let clinicalDate = min(answeredDate, Date.now)
-        var anonymizedQuestionnaire = questionnaire
-        if !DemoData.isDemoID(patient.id) && !isDemoMode {
-            anonymizedQuestionnaire.gad7Notes = try await textGate.prepare(notes: questionnaire.gad7Notes)
-            anonymizedQuestionnaire.phq9Notes = try await textGate.prepare(notes: questionnaire.phq9Notes)
-            anonymizedQuestionnaire.interferenceNote =
-                try await textGate.prepare(questionnaire.interferenceNote) ?? ""
-        }
-
-        if DemoData.isDemoID(patient.id) || isDemoMode {
-            let previousSessionID = existingID.flatMap { id in
-                questionnairesByPatient[patient.id]?.first { $0.databaseID == id }?.sessionID
+        try await TelemetryMeasure.run(.submission, form: .questionnaire) { [self] in
+            try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id) || isDemoMode)
+            if let existingID, cachedQuestionnaires(for: patient)?.contains(where: { $0.databaseID == existingID && $0.isPatientSubmitted }) == true { throw PatientStoreError.updateRejected }
+            let clinicalDate = min(answeredDate, Date.now)
+            var anonymizedQuestionnaire = questionnaire
+            if !DemoData.isDemoID(patient.id) && !isDemoMode {
+                anonymizedQuestionnaire.gad7Notes = try await textGate.prepare(notes: questionnaire.gad7Notes)
+                anonymizedQuestionnaire.phq9Notes = try await textGate.prepare(notes: questionnaire.phq9Notes)
+                anonymizedQuestionnaire.interferenceNote =
+                    try await textGate.prepare(questionnaire.interferenceNote) ?? ""
             }
-            let record = CompletedQuestionnaire(
-                databaseID: existingID ?? .text("demo-q-\(UUID().uuidString)"),
+
+            if DemoData.isDemoID(patient.id) || isDemoMode {
+                let previousSessionID = existingID.flatMap { id in
+                    questionnairesByPatient[patient.id]?.first { $0.databaseID == id }?.sessionID
+                }
+                let record = CompletedQuestionnaire(
+                    databaseID: existingID ?? .text("demo-q-\(UUID().uuidString)"),
+                    sessionID: sessionID,
+                    answeredDate: clinicalDate,
+                    questionnaire: anonymizedQuestionnaire
+                )
+                upsertCachedQuestionnaire(record, for: patient, replacing: existingID)
+                syncSessionQuestionnaire(
+                    anonymizedQuestionnaire,
+                    for: patient,
+                    sessionID: sessionID,
+                    previousSessionID: previousSessionID
+                )
+                persistDemoClinic()
+                return
+            }
+            guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+            let patientID = patient.id
+            let previousSessionID = existingID.flatMap { id in
+                questionnairesByPatient[patientID]?.first { $0.databaseID == id }?.sessionID
+            }
+            let answeredDateString = Self.dateOnlyFormatter.string(from: clinicalDate)
+            let notes = QuestionnaireNotes(
+                gad7: anonymizedQuestionnaire.gad7Notes,
+                phq9: anonymizedQuestionnaire.phq9Notes,
+                interference: anonymizedQuestionnaire.interferenceNote
+            )
+            let savedID: DatabaseID
+            if let existingID {
+                let update = UpdatedQuestionnaireRecord(
+                    sessionID: sessionID,
+                    answeredDate: answeredDateString,
+                    gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
+                    phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
+                    interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
+                    combinedNotes: notes
+                )
+                let updated: [InsertedRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
+                    .update(update)
+                    .eq("id", value: existingID.queryValue)
+                    .eq("created_by", value: "therapist")
+                    .select("id")
+                    .execute()
+                    .value
+                guard let id = updated.first?.id else {
+                    AppLog.store.error("Questionnaire update rejected: \(existingID.queryValue, privacy: .public)")
+                    throw PatientStoreError.updateRejected
+                }
+                savedID = id
+            } else {
+                let record = NewQuestionnaireRecord(
+                    patientID: patientID,
+                    sessionID: sessionID,
+                    answeredDate: answeredDateString,
+                    gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
+                    phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
+                    interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
+                    combinedNotes: notes
+                )
+                let saved: InsertedRow = try await client.from(CombinedMoodQuestionnaire.tableName)
+                    .insert(record)
+                    .select("id")
+                    .single()
+                    .execute()
+                    .value
+                savedID = saved.id
+            }
+
+            let completed = CompletedQuestionnaire(
+                databaseID: savedID,
                 sessionID: sessionID,
                 answeredDate: clinicalDate,
                 questionnaire: anonymizedQuestionnaire
             )
-            upsertCachedQuestionnaire(record, for: patient, replacing: existingID)
+            upsertCachedQuestionnaire(completed, for: patient, replacing: existingID ?? savedID)
             syncSessionQuestionnaire(
                 anonymizedQuestionnaire,
                 for: patient,
                 sessionID: sessionID,
                 previousSessionID: previousSessionID
             )
-            persistDemoClinic()
-            return
-        }
-        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        let patientID = patient.id
-        let previousSessionID = existingID.flatMap { id in
-            questionnairesByPatient[patientID]?.first { $0.databaseID == id }?.sessionID
-        }
-        let answeredDateString = Self.dateOnlyFormatter.string(from: clinicalDate)
-        let notes = QuestionnaireNotes(
-            gad7: anonymizedQuestionnaire.gad7Notes,
-            phq9: anonymizedQuestionnaire.phq9Notes,
-            interference: anonymizedQuestionnaire.interferenceNote
-        )
-        let savedID: DatabaseID
-        if let existingID {
-            let update = UpdatedQuestionnaireRecord(
-                sessionID: sessionID,
-                answeredDate: answeredDateString,
-                gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
-                phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
-                interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
-                combinedNotes: notes
-            )
-            let updated: [InsertedRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
-                .update(update)
-                .eq("id", value: existingID.queryValue)
-                .eq("created_by", value: "therapist")
-                .select("id")
-                .execute()
-                .value
-            guard let id = updated.first?.id else {
-                AppLog.store.error("Questionnaire update rejected: \(existingID.queryValue, privacy: .public)")
-                throw PatientStoreError.updateRejected
-            }
-            savedID = id
-        } else {
-            let record = NewQuestionnaireRecord(
-                patientID: patientID,
-                sessionID: sessionID,
-                answeredDate: answeredDateString,
-                gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
-                phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
-                interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
-                combinedNotes: notes
-            )
-            let saved: InsertedRow = try await client.from(CombinedMoodQuestionnaire.tableName)
-                .insert(record)
-                .select("id")
-                .single()
-                .execute()
-                .value
-            savedID = saved.id
-        }
+            AppLog.store.info("Questionnaire saved: \(savedID.queryValue, privacy: .public)")
 
-        let completed = CompletedQuestionnaire(
-            databaseID: savedID,
-            sessionID: sessionID,
-            answeredDate: clinicalDate,
-            questionnaire: anonymizedQuestionnaire
-        )
-        upsertCachedQuestionnaire(completed, for: patient, replacing: existingID ?? savedID)
-        syncSessionQuestionnaire(
-            anonymizedQuestionnaire,
-            for: patient,
-            sessionID: sessionID,
-            previousSessionID: previousSessionID
-        )
-        AppLog.store.info("Questionnaire saved: \(savedID.queryValue, privacy: .public)")
+        }
     }
 
     private func upsertCachedQuestionnaire(

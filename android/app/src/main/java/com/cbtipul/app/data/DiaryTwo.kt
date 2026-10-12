@@ -110,36 +110,39 @@ class DiaryTwoRepository(private val client: SupabaseClient) {
         thinkingErrors: List<ThinkingError>,
         alternativeThoughts: List<String>,
     ): DiaryTwoEntry {
-        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
-        if (DemoData.isDemoId(patientId)) {
-            val entry = DiaryTwoEntry(
-                id = UUID.randomUUID().toString(),
-                patientId = patientId,
-                therapistId = UUID.randomUUID().toString(),
-                createdBy = DiaryOneEntryCreator.Therapist,
-                event = event,
-                automaticThoughts = automaticThoughts,
-                feelings = feelings,
-                thinkingErrors = thinkingErrors,
-                alternativeThoughts = alternativeThoughts,
-                createdAt = Date(),
-                updatedAt = Date(),
-            )
-            upsert(entry)
-            return entry
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form=com.cbtipul.app.telemetry.Form.diaryTwo) {
+            Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
+            if (DemoData.isDemoId(patientId)) {
+                val entry = DiaryTwoEntry(
+                    id = UUID.randomUUID().toString(),
+                    patientId = patientId,
+                    therapistId = UUID.randomUUID().toString(),
+                    createdBy = DiaryOneEntryCreator.Therapist,
+                    event = event,
+                    automaticThoughts = automaticThoughts,
+                    feelings = feelings,
+                    thinkingErrors = thinkingErrors,
+                    alternativeThoughts = alternativeThoughts,
+                    createdAt = Date(),
+                    updatedAt = Date(),
+                )
+                upsert(entry)
+                return@measure entry
+            }
+            if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
+            val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
+                ?: throw IllegalStateException("not_configured")
+            val therapistId = client.auth.currentSessionOrNull()?.user?.id
+                ?: throw IllegalStateException("not_signed_in")
+            val body = createPayload(patientUuid, therapistId, event, automaticThoughts, feelings, thinkingErrors, alternativeThoughts)
+            val saved = client.from("diary_two_entries")
+                .insert(body) { select(columns) }
+                .decodeSingle<DiaryTwoEntryRow>()
+                .toDomain(patientId)
+            upsert(saved)
+            return@measure saved
+
         }
-        if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-        val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
-            ?: throw IllegalStateException("not_configured")
-        val therapistId = client.auth.currentSessionOrNull()?.user?.id
-            ?: throw IllegalStateException("not_signed_in")
-        val body = createPayload(patientUuid, therapistId, event, automaticThoughts, feelings, thinkingErrors, alternativeThoughts)
-        val saved = client.from("diary_two_entries")
-            .insert(body) { select(columns) }
-            .decodeSingle<DiaryTwoEntryRow>()
-            .toDomain(patientId)
-        upsert(saved)
-        return saved
     }
 
     suspend fun updateEntry(
@@ -151,32 +154,35 @@ class DiaryTwoRepository(private val client: SupabaseClient) {
         thinkingErrors: List<ThinkingError>,
         alternativeThoughts: List<String>,
     ): DiaryTwoEntry {
-        Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
-        if (_entries.value[patientId.queryValue].orEmpty().any { it.id == id && it.createdBy == DiaryOneEntryCreator.Patient }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
-        if (DemoData.isDemoId(patientId)) {
-            val existing = demoEntries[patientId.queryValue].orEmpty().first { it.id == id }
-            val updated = existing.copy(
-                event = event,
-                automaticThoughts = automaticThoughts,
-                feelings = feelings,
-                thinkingErrors = thinkingErrors,
-                alternativeThoughts = alternativeThoughts,
-                updatedAt = Date(),
-            )
-            upsert(updated)
-            return updated
-        }
-        if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-        val body = updatePayload(event, automaticThoughts, feelings, thinkingErrors, alternativeThoughts, timestampNow())
-        val saved = client.from("diary_two_entries")
-            .update(body) {
-                filter { eq("created_by", "therapist"); eq("id", id); eq("patient_id", patientId.queryValue) }
-                select(columns)
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form=com.cbtipul.app.telemetry.Form.diaryTwo) {
+            Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
+            if (_entries.value[patientId.queryValue].orEmpty().any { it.id == id && it.createdBy == DiaryOneEntryCreator.Patient }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
+            if (DemoData.isDemoId(patientId)) {
+                val existing = demoEntries[patientId.queryValue].orEmpty().first { it.id == id }
+                val updated = existing.copy(
+                    event = event,
+                    automaticThoughts = automaticThoughts,
+                    feelings = feelings,
+                    thinkingErrors = thinkingErrors,
+                    alternativeThoughts = alternativeThoughts,
+                    updatedAt = Date(),
+                )
+                upsert(updated)
+                return@measure updated
             }
-            .decodeSingle<DiaryTwoEntryRow>()
-            .toDomain(patientId)
-        upsert(saved)
-        return saved
+            if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
+            val body = updatePayload(event, automaticThoughts, feelings, thinkingErrors, alternativeThoughts, timestampNow())
+            val saved = client.from("diary_two_entries")
+                .update(body) {
+                    filter { eq("created_by", "therapist"); eq("id", id); eq("patient_id", patientId.queryValue) }
+                    select(columns)
+                }
+                .decodeSingle<DiaryTwoEntryRow>()
+                .toDomain(patientId)
+            upsert(saved)
+            return@measure saved
+
+        }
     }
 
     suspend fun deleteEntry(id: String, patientId: DatabaseId) {

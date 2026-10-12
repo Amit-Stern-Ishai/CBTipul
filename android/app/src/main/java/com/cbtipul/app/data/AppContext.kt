@@ -108,6 +108,7 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
     }
 
     private suspend fun fetchCurrentAppContext(): AppContext {
+        val telemetry = com.cbtipul.app.telemetry.Telemetry.client.begin(com.cbtipul.app.telemetry.Flow.access)
         val requestGeneration = generation
         var identity: String? = null
         _isLoading.value = true
@@ -119,7 +120,7 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
             identity = dependencies.identity() ?: throw IllegalStateException("not_signed_in")
             if (account != identity) { _current.value = null; lastRefresh = 0; account = identity }
             Entitlements.setIdentity(identity)
-            val context = requestWithRecovery(identity, requestGeneration)
+            val context = requestWithRecovery(identity, requestGeneration, telemetry)
             ensureCurrent(identity, requestGeneration)
             if (identity != account) throw CancellationException()
             _current.value = context
@@ -127,14 +128,19 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
             Entitlements.apply(context)
             _loadState.value = if (!context.isIncompletePatient && context.entitlement == null)
                 AppContextLoadState.Failed(AppContextFailure.MissingEntitlement) else AppContextLoadState.Ready
+            val access = context.entitlement?.access
+            if(access == null) telemetry.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.unresolved)
+            else telemetry.event(com.cbtipul.app.telemetry.Stage.succeeded,access=if(access == EntitlementAccess.Full) com.cbtipul.app.telemetry.Access.full else com.cbtipul.app.telemetry.Access.read_only)
             context
         } catch (error: CancellationException) {
+            telemetry.event(com.cbtipul.app.telemetry.Stage.cancelled,error=com.cbtipul.app.telemetry.SafeError.cancelled)
             // Cancellation never turns a confirmed entitlement into read_only.
             if (requestGeneration == generation) {
                 _loadState.value = if (_current.value?.entitlement != null) AppContextLoadState.Ready else AppContextLoadState.Unresolved
             }
             throw error
         } catch (error: Exception) {
+            telemetry.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.generic)
             if (requestGeneration == generation && (identity == null || identity == dependencies.identity())) {
                 Entitlements.invalidate()
                 _loadState.value = AppContextLoadState.Failed(when {
@@ -150,16 +156,20 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
         }
     }
 
-    private suspend fun requestWithRecovery(identity: String, requestGeneration: Long): AppContext {
+    private suspend fun requestWithRecovery(identity: String, requestGeneration: Long, telemetry: com.cbtipul.app.telemetry.Operation): AppContext {
         var refreshedAuth = false
         val attempts = dependencies.retryDelaysMillis.size + 1
         for (attempt in 1..attempts) {
             ensureCurrent(identity, requestGeneration)
             _loadState.value = AppContextLoadState.Loading(attempt)
+            if(attempt>1) telemetry.event(com.cbtipul.app.telemetry.Stage.retry,attempt=attempt)
+            val requestTelemetry=telemetry.requestOperation(com.cbtipul.app.telemetry.Request.appContext)
+            requestTelemetry.event(com.cbtipul.app.telemetry.Stage.started,attempt=attempt)
             try {
-                return withTimeoutOrNull(dependencies.timeoutMillis) { dependencies.request() } ?: throw ContextRequestTimeout()
+                return withTimeoutOrNull(dependencies.timeoutMillis) { dependencies.request() }?.also { requestTelemetry.event(com.cbtipul.app.telemetry.Stage.succeeded,attempt=attempt) } ?: throw ContextRequestTimeout()
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) {
+                requestTelemetry.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.generic,attempt=attempt,status=EdgePayload.httpStatus(error))
                 ensureCurrent(identity, requestGeneration)
                 if (EdgePayload.httpStatus(error) == 401 && !refreshedAuth && attempt < attempts) {
                     refreshedAuth = true

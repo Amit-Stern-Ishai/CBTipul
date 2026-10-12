@@ -426,6 +426,9 @@ final class PatientAssignmentService {
 
     /// Enables ongoing Patient Mode access; results are standalone, independently of sessions.
     func sendQuestionnaireAssignment(patientId: UUID) async throws -> PatientAssignment {
+        let telemetry=TelemetryFlowObservation(.assignment,feature:.questionnaireAssignment)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
         try ensureConfigured()
         let account = client.auth.currentUser?.id
@@ -472,6 +475,7 @@ final class PatientAssignmentService {
                 throw PatientAssignmentError.invalidIdentifier
             }
             cacheAssignment(assignment, account: account)
+            telemetry.succeeded()
             return assignment
         } catch let error as PatientAssignmentError {
             throw error
@@ -484,6 +488,9 @@ final class PatientAssignmentService {
             )
             throw PatientAssignmentError.invalidIdentifier
         }
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     /// Active ongoing access depends only on `cancelled_at`, never `completed_at`.
@@ -526,6 +533,9 @@ final class PatientAssignmentService {
         patientId: UUID,
         type: PatientAssignmentType
     ) async throws -> PatientAssignment {
+        let telemetry=TelemetryFlowObservation(.assignment,feature:.diaryAssignment)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
         try ensureConfigured()
         try Self.requireOngoingType(type)
@@ -546,7 +556,11 @@ final class PatientAssignmentService {
             throw PatientAssignmentError.invalidIdentifier
         }
         cacheAssignment(assignment, account: account)
+        telemetry.succeeded()
         return assignment
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     /// Creates Diary 1 via Edge Function. Reuse, connection, notification,
@@ -678,38 +692,41 @@ final class PatientAssignmentService {
         phq9Answers: [Int],
         interferenceLevel: Int
     ) async throws {
-        try await EntitlementState.shared.requireWrite()
-        try ensureConfigured()
-        try Self.validatePatientAnswers(
-            gad7Answers: gad7Answers,
-            phq9Answers: phq9Answers,
-            interferenceLevel: interferenceLevel
-        )
-        do {
-            let response: SubmitPatientQuestionnaireResponse = try await client.functions.invoke(
-                "submit-patient-questionnaire",
-                options: FunctionInvokeOptions(
-                    body: SubmitPatientQuestionnaireRequest(
-                        assignmentId: assignmentId,
-                        gad7Answers: gad7Answers,
-                        phq9Answers: phq9Answers,
-                        interferenceLevel: interferenceLevel
-                    )
-                )
+        try await TelemetryMeasure.run(.submission, form: .questionnaire) { [self] in
+            try await EntitlementState.shared.requireWrite()
+            try ensureConfigured()
+            try Self.validatePatientAnswers(
+                gad7Answers: gad7Answers,
+                phq9Answers: phq9Answers,
+                interferenceLevel: interferenceLevel
             )
-            guard response.success != false else {
+            do {
+                let response: SubmitPatientQuestionnaireResponse = try await TelemetryRequests.run(.questionnaireSubmit) { [self] in try await client.functions.invoke(
+                    "submit-patient-questionnaire",
+                    options: FunctionInvokeOptions(
+                        body: SubmitPatientQuestionnaireRequest(
+                            assignmentId: assignmentId,
+                            gad7Answers: gad7Answers,
+                            phq9Answers: phq9Answers,
+                            interferenceLevel: interferenceLevel
+                        )
+                    )
+                ) }
+                guard response.success != false else {
+                    throw PatientQuestionnaireSubmitError.failed
+                }
+                AppLog.store.info("Patient questionnaire submitted")
+            } catch let error as PatientQuestionnaireSubmitError {
+                throw error
+            } catch let FunctionsError.httpError(code, data) {
+                throw Self.submitError(from: data, statusCode: code)
+            } catch {
+                AppLog.store.error(
+                    "Patient questionnaire submit failed: \(error.localizedDescription, privacy: .public)"
+                )
                 throw PatientQuestionnaireSubmitError.failed
             }
-            AppLog.store.info("Patient questionnaire submitted")
-        } catch let error as PatientQuestionnaireSubmitError {
-            throw error
-        } catch let FunctionsError.httpError(code, data) {
-            throw Self.submitError(from: data, statusCode: code)
-        } catch {
-            AppLog.store.error(
-                "Patient questionnaire submit failed: \(error.localizedDescription, privacy: .public)"
-            )
-            throw PatientQuestionnaireSubmitError.failed
+
         }
     }
 

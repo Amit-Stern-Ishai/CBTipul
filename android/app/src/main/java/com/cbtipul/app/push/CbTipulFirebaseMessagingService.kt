@@ -14,7 +14,7 @@ class CbTipulFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         Log.i("CBTipulFCMEntry", "onMessageReceived ENTERED")
         // Temporary boundary diagnostics: never log payload values or the token.
-        Log.i("CBTipulFCMEntry", "messageId=${message.messageId} dataKeys=${message.data.keys} from=${message.from}")
+        Log.i("CBTipulFCMEntry", "FCM callback observed")
         (application as CbTipulApp).pushManager.onMessageReceived(message)
     }
 }

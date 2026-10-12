@@ -146,6 +146,9 @@ final class PushNotificationManager {
         }
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
+        TelemetryClient.shared.begin(.push, push: .permission).event(.authorization,
+            authorization: settings.authorizationStatus == .denied ? .denied : settings.authorizationStatus == .notDetermined ? .notDetermined : .allowed,
+            preference: PushNotificationPreference.isEnabled())
         #if DEBUG
         AppLog.push.debug(
             "Notification permission status: \(Self.statusLabel(settings.authorizationStatus), privacy: .public)"
@@ -196,6 +199,7 @@ final class PushNotificationManager {
     }
 
     func handleDeviceToken(_ deviceToken: Data) {
+        TelemetryClient.shared.begin(.push, push: .apnsRegistration).event(.succeeded, environment: .unknown)
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
         persistedToken = token
         #if DEBUG
@@ -207,6 +211,7 @@ final class PushNotificationManager {
     }
 
     func handleRegistrationFailure(_ error: Error) {
+        TelemetryClient.shared.begin(.push, push: .apnsRegistration).event(.failed, error: .generic, environment: .unknown)
         #if DEBUG
         AppLog.push.error(
             "APNs registration failed: \(error.localizedDescription, privacy: .public)"
@@ -278,6 +283,8 @@ final class PushNotificationManager {
             #endif
             return
         }
+        let telemetry = TelemetryClient.shared.begin(.push, push: .deviceRegistration)
+        do {
         try await client.rpc(
             "register_push_device",
             params: RegisterPushDeviceParams(
@@ -287,6 +294,8 @@ final class PushNotificationManager {
             )
         )
         .execute()
+        telemetry.event(.succeeded, environment: .unknown)
+        } catch { telemetry.event(.failed, error: .generic, environment: .unknown); throw error }
         if let uid = try? await client.auth.session.user.id.uuidString {
             lastRegisteredUserId = uid
         }
@@ -354,6 +363,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        TelemetryPlatform.startLifecycleObservation()
         UNUserNotificationCenter.current().delegate = self
         return true
     }
@@ -381,6 +391,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         if notification.request.trigger is UNPushNotificationTrigger {
+            let fields = notification.request.content.userInfo
+            TelemetryPushObservation.record(.received, type: TelemetryPushObservation.type(fields["type"] as? String),
+                correlation: (fields["correlation_id"] as? String).flatMap(UUID.init(uuidString:)))
             await MainActor.run { NotificationCenter.default.post(name: .patientModePushReceived, object: nil) }
         }
         let original = notification.request.content
@@ -417,6 +430,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         await MainActor.run { NotificationCenter.default.post(name: .patientModePushReceived, object: nil) }
         let userInfo = response.notification.request.content.userInfo
         if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            TelemetryPushObservation.record(.opened, type: TelemetryPushObservation.type(userInfo["type"] as? String),
+                correlation: (userInfo["correlation_id"] as? String).flatMap(UUID.init(uuidString:)))
             await MainActor.run {
                 if AppNotificationPayload.from(userInfo: userInfo)?.type.routesInPatientMode == true {
                     PatientModeMessageCoordinator.shared.handlePushTap(userInfo: userInfo)

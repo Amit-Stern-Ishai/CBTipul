@@ -17,9 +17,9 @@ nonisolated enum WhisperError: LocalizedError {
 /// Sends recorded audio to the Supabase Edge Function,
 /// which forwards it to OpenAI Whisper.
 nonisolated struct WhisperService {
-    
+
     let client: SupabaseClient
-    
+
     private let functionName = "whisper-transcribe"
 
     /// Transcribes the audio file at `fileURL`.
@@ -28,6 +28,9 @@ nonisolated struct WhisperService {
         fileURL: URL,
         language: String = "he"
     ) async throws -> String {
+        let telemetry=TelemetryFlowObservation(.ai,feature:.transcription)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
 
         // The audio is about to be sent to OpenAI Whisper — the one-time AI
@@ -60,6 +63,7 @@ nonisolated struct WhisperService {
                 )
 
             AppLog.ai.info("Transcription succeeded, characters: \(response.text.count)")
+            telemetry.succeeded()
             return response.text
 
         } catch let error as WhisperError {
@@ -72,12 +76,15 @@ nonisolated struct WhisperService {
                 error.localizedDescription
             )
         }
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     private struct TranscriptionResponse: Codable, Equatable {
         let text: String
     }
-    
+
     struct SessionReviewResponse: Codable, Equatable {
 
             let analysis: CBTSessionAnalysis
@@ -214,6 +221,9 @@ nonisolated struct WhisperService {
         func analyzeSession(
             sessionNotes: String
         ) async throws -> CBTSessionAnalysis {
+        let telemetry=TelemetryFlowObservation(.ai,feature:.sessionAnalysis)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
 
             let notes =
@@ -343,9 +353,13 @@ nonisolated struct WhisperService {
                 )
 
             AppLog.ai.info("Session analysis succeeded, tokens: \(result.usage.totalTokens)")
+            telemetry.succeeded()
             return result.analysis
-        }
-    
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
+    }
+
     // MARK: - Prepare Next Session
 
     /// The Edge Function's preparation for the patient's next session,
@@ -516,6 +530,9 @@ nonisolated struct WhisperService {
         patientContext: PatientContext,
         lastSessionAssignments: [AssignmentForNextWeek]? = nil
     ) async throws -> PrepareSessionResponse {
+        let telemetry=TelemetryFlowObservation(.ai,feature:.sessionPreparation)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
         try await AIDataSharingConsentStore.ensureGranted()
         try await EntitlementState.shared.requireWrite()
@@ -532,6 +549,7 @@ nonisolated struct WhisperService {
                     )
                 )
             AppLog.ai.info("Next-session preparation succeeded, tokens: \(response.usage.totalTokens)")
+            telemetry.succeeded()
             return response
         } catch let error as APIError {
             AppLog.ai.error("Next-session preparation failed: \(error.localizedDescription, privacy: .public)")
@@ -545,6 +563,9 @@ nonisolated struct WhisperService {
         } catch {
             throw APIError.server(error.localizedDescription)
         }
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     // MARK: - Challenge My Formulation
@@ -557,6 +578,9 @@ nonisolated struct WhisperService {
         patientContext: PatientContext,
         formulation: PatientFormulation
     ) async throws -> FormulationSupervision {
+        let telemetry=TelemetryFlowObservation(.ai,feature:.supervision)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
         try await AIDataSharingConsentStore.ensureGranted()
         try await EntitlementState.shared.requireWrite()
@@ -573,6 +597,7 @@ nonisolated struct WhisperService {
                     )
                 )
             AppLog.ai.info("Formulation supervision succeeded")
+            telemetry.succeeded()
             return supervision
         } catch let error as APIError {
             AppLog.ai.error("Formulation supervision failed: \(error.localizedDescription, privacy: .public)")
@@ -586,6 +611,9 @@ nonisolated struct WhisperService {
         } catch {
             throw APIError.server(error.localizedDescription)
         }
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     // MARK: - What Am I Missing?
@@ -598,6 +626,9 @@ nonisolated struct WhisperService {
     func whatAmIMissing(
         patientContext: PatientContext
     ) async throws -> WhatAmIMissingResponse {
+        let telemetry=TelemetryFlowObservation(.ai,feature:.whatAmIMissing)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
         try await AIDataSharingConsentStore.ensureGranted()
         try await EntitlementState.shared.requireWrite()
@@ -611,6 +642,7 @@ nonisolated struct WhisperService {
                     )
                 )
             AppLog.ai.info("What-am-I-missing review succeeded, findings: \(response.findings.count)")
+            telemetry.succeeded()
             return response
         } catch let error as APIError {
             AppLog.ai.error("What-am-I-missing review failed: \(error.localizedDescription, privacy: .public)")
@@ -624,6 +656,9 @@ nonisolated struct WhisperService {
         } catch {
             throw APIError.server(error.localizedDescription)
         }
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     // MARK: - Longitudinal Case Review
@@ -635,6 +670,9 @@ nonisolated struct WhisperService {
     func longitudinalCaseReview(
         patientContext: PatientContext
     ) async throws -> LongitudinalCaseReviewResponse {
+        let telemetry=TelemetryFlowObservation(.ai,feature:.caseReview)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
         try await AIDataSharingConsentStore.ensureGranted()
         try await EntitlementState.shared.requireWrite()
@@ -648,6 +686,7 @@ nonisolated struct WhisperService {
                     )
                 )
             AppLog.ai.info("Longitudinal case review succeeded")
+            telemetry.succeeded()
             return response
         } catch let error as APIError {
             AppLog.ai.error("Longitudinal case review failed: \(error.localizedDescription, privacy: .public)")
@@ -661,6 +700,9 @@ nonisolated struct WhisperService {
         } catch {
             throw APIError.server(error.localizedDescription)
         }
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     enum APIError: LocalizedError {
@@ -683,8 +725,8 @@ nonisolated struct WhisperService {
             }
         }
     }
-    
-    
+
+
     struct APIErrorResponse: Codable, Equatable {
 
         let error: String

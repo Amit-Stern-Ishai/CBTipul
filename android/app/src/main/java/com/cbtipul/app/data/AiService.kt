@@ -30,6 +30,7 @@ class AiService(
     private val consent: AiConsentStore,
 ) {
     suspend fun analyzeSession(notes: String): CBTSessionAnalysis {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.ai,feature=com.cbtipul.app.telemetry.Feature.sessionAnalysis) {
         Entitlements.requireWrite()
         val trimmed = notes.trim()
         if (trimmed.isEmpty()) throw AiException("invalid_input")
@@ -38,7 +39,7 @@ class AiService(
         val token = client.auth.currentSessionOrNull()?.accessToken
             ?: throw AiException("invalid_response")
         val payload = json.encodeToString(AnalyzeRequest.serializer(), AnalyzeRequest(sessionNotes = trimmed))
-        return withContext(Dispatchers.IO) {
+        return@measure withContext(Dispatchers.IO) {
             try {
                 val url = URL("${SupabaseConfig.URL}/functions/v1/analyze-session")
                 val connection = (url.openConnection() as HttpURLConnection).apply {
@@ -67,16 +68,19 @@ class AiService(
                 throw AiException(error.message ?: "session_analysis_failed")
             }
         }
+
+        }
     }
 
     suspend fun prepareNextSession(
         context: PatientContext,
         lastSessionAssignments: List<com.cbtipul.app.model.AssignmentForNextWeek>?,
     ): NextSessionPreparation {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.ai,feature=com.cbtipul.app.telemetry.Feature.sessionPreparation) {
         Entitlements.requireWrite()
         consent.ensureGranted()
         Entitlements.requireWrite()
-        return try {
+        return@measure try {
             val http = client.functions.invoke(
                 function = "prepare-session",
                 body = PrepareSessionRequest(context, lastSessionAssignments),
@@ -90,13 +94,16 @@ class AiService(
         } catch (error: Exception) {
             throw AiException(error.message ?: error.toString())
         }
+
+        }
     }
 
     suspend fun chat(systemPrompt: String, turns: List<ChatTurn>): String {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.ai,feature=com.cbtipul.app.telemetry.Feature.chat) {
         Entitlements.requireWrite()
         consent.ensureGranted()
         Entitlements.requireWrite()
-        return try {
+        return@measure try {
             val http = client.functions.invoke(
                 function = "openai-gateway",
                 body = GatewayRequest(
@@ -120,16 +127,19 @@ class AiService(
         } catch (error: Exception) {
             throw AiException(error.message ?: error.toString())
         }
+
+        }
     }
 
     suspend fun challengeFormulation(
         context: PatientContext,
         formulation: PatientFormulation,
     ): FormulationSupervision {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.ai,feature=com.cbtipul.app.telemetry.Feature.supervision) {
         Entitlements.requireWrite()
         consent.ensureGranted()
         Entitlements.requireWrite()
-        return try {
+        return@measure try {
             val http = client.functions.invoke(
                 function = "challenge-formulation",
                 body = ChallengeFormulationRequest(context, formulation),
@@ -143,13 +153,16 @@ class AiService(
         } catch (error: Exception) {
             throw AiException(error.message ?: error.toString())
         }
+
+        }
     }
 
     suspend fun whatAmIMissing(context: PatientContext): WhatAmIMissingResponse {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.ai,feature=com.cbtipul.app.telemetry.Feature.whatAmIMissing) {
         Entitlements.requireWrite()
         consent.ensureGranted()
         Entitlements.requireWrite()
-        return try {
+        return@measure try {
             val http = client.functions.invoke(
                 function = "what-am-i-missing",
                 body = WhatAmIMissingRequest(context),
@@ -163,13 +176,16 @@ class AiService(
         } catch (error: Exception) {
             throw AiException(error.message ?: error.toString())
         }
+
+        }
     }
 
     suspend fun longitudinalCaseReview(context: PatientContext): LongitudinalCaseReviewResponse {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.ai,feature=com.cbtipul.app.telemetry.Feature.caseReview) {
         Entitlements.requireWrite()
         consent.ensureGranted()
         Entitlements.requireWrite()
-        return try {
+        return@measure try {
             val http = client.functions.invoke(
                 function = "longitudinal-case-review",
                 body = LongitudinalRequest(context),
@@ -182,6 +198,8 @@ class AiService(
             throw error
         } catch (error: Exception) {
             throw AiException(error.message ?: error.toString())
+        }
+
         }
     }
 

@@ -1162,6 +1162,7 @@ private suspend fun createAndShareInvitation(
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(chooser)
+        com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.sharing,feature=com.cbtipul.app.telemetry.Feature.invitationShare).event(com.cbtipul.app.telemetry.Stage.shareSheetOpened)
     } catch (error: Exception) {
         InviteDebugLog.e("create-and-share-invitation", error)
         setError(inviteFailed)

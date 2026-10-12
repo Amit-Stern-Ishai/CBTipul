@@ -301,6 +301,9 @@ struct PatientMessageService {
     }
 
     func send(patientId: UUID, rawBody: String) async throws {
+        let telemetry=TelemetryFlowObservation(.message,feature:.sendMessage)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
         guard let request = SendPatientMessageRequestFactory.make(
             patientId: patientId,
@@ -329,14 +332,23 @@ struct PatientMessageService {
             #endif
             throw PatientMessageSendError.failed
         }
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     func markRead(id: UUID) async throws {
+        let telemetry=TelemetryFlowObservation(.message,feature:.readMessage)
+        defer {telemetry.finish()}
+        do {
         try await client.rpc(
             "mark_patient_message_read",
             params: MarkPatientMessageReadParams(pMessageId: id)
         )
         .execute()
+
+        telemetry.succeeded()
+        } catch { if error is CancellationError {telemetry.cancelled()};throw error }
     }
 
     private static func sendError(from data: Data, statusCode: Int) -> PatientMessageSendError {

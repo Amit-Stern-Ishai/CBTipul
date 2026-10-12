@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        incomingStart = com.cbtipul.app.telemetry.TelemetryPlatform.activityStart(savedInstanceState != null)
         enableEdgeToEdge()
         handleIncomingIntent(intent)
         val preferences = (application as CbTipulApp).preferences
@@ -45,7 +46,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var incomingStart = com.cbtipul.app.telemetry.Start.cold
     override fun onNewIntent(intent: Intent) {
+        incomingStart = com.cbtipul.app.telemetry.Start.warm
         super.onNewIntent(intent)
         setIntent(intent)
         handleIncomingIntent(intent)
@@ -59,6 +62,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handleNotificationIntent(intent: Intent?) {
         val payload = NotificationIntent.payload(intent) ?: return
+        com.cbtipul.app.telemetry.PushObservation.record(com.cbtipul.app.telemetry.Stage.opened,com.cbtipul.app.telemetry.PushObservation.type(payload.type))
         NotificationIntent.clear(intent)
         (application as CbTipulApp).pendingDestinations.offer(payload)
     }
@@ -80,6 +84,6 @@ class MainActivity : ComponentActivity() {
         val app = application as CbTipulApp
         intent?.data = null // Consume the token URL; do not replay it on recreation.
         app.authRepository.cancelGoogleSignIn()
-        app.invitationFlow.start(token)
+        app.invitationFlow.start(token, start=incomingStart)
     }
 }

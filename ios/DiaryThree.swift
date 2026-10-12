@@ -192,53 +192,56 @@ final class DiaryThreeStore {
         thinkingErrors: [ThinkingError],
         alternativeThoughts: [DiaryThreeAlternativeThought]
     ) async throws -> DiaryThreeEntry {
-        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
-        if DemoData.isDemoID(patientId) {
-            let entry = DiaryThreeEntry(
-                id: UUID(),
-                patientId: patientId,
-                therapistId: UUID(),
-                createdBy: .therapist,
-                situation: situation,
-                automaticThoughts: automaticThoughts,
-                feelings: feelings,
-                thinkingErrors: thinkingErrors,
-                alternativeThoughts: alternativeThoughts,
-                createdAt: .now,
-                updatedAt: .now
-            )
-            upsertCache(entry)
-            return entry
-        }
-        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let patientUUID = patientId.uuidValue else { throw AuthError.notConfigured }
-        let therapistId = try await requireTherapistId()
-        do {
-            let saved: DiaryThreeEntry = try await client.from("diary_three_entries")
-                .insert(
-                    NewDiaryThreeEntry(
-                        patientId: patientUUID,
-                        therapistId: therapistId,
-                        createdBy: .therapist,
-                        situation: situation,
-                        automaticThoughts: automaticThoughts,
-                        feelings: feelings,
-                        thinkingErrors: thinkingErrors,
-                        alternativeThoughts: alternativeThoughts
-                    )
+        return try await TelemetryMeasure.run(.submission, form: .diaryThree) { [self] in
+            try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
+            if DemoData.isDemoID(patientId) {
+                let entry = DiaryThreeEntry(
+                    id: UUID(),
+                    patientId: patientId,
+                    therapistId: UUID(),
+                    createdBy: .therapist,
+                    situation: situation,
+                    automaticThoughts: automaticThoughts,
+                    feelings: feelings,
+                    thinkingErrors: thinkingErrors,
+                    alternativeThoughts: alternativeThoughts,
+                    createdAt: .now,
+                    updatedAt: .now
                 )
-                .select(diaryThreeSelectColumns)
-                .single()
-                .execute()
-                .value
-            upsertCache(saved)
-            AppLog.store.info("Diary 3 entry created")
-            return saved
-        } catch {
-            AppLog.store.error(
-                "Diary 3 create failed: \(error.localizedDescription, privacy: .public)"
-            )
-            throw error
+                upsertCache(entry)
+                return entry
+            }
+            guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+            guard let patientUUID = patientId.uuidValue else { throw AuthError.notConfigured }
+            let therapistId = try await requireTherapistId()
+            do {
+                let saved: DiaryThreeEntry = try await client.from("diary_three_entries")
+                    .insert(
+                        NewDiaryThreeEntry(
+                            patientId: patientUUID,
+                            therapistId: therapistId,
+                            createdBy: .therapist,
+                            situation: situation,
+                            automaticThoughts: automaticThoughts,
+                            feelings: feelings,
+                            thinkingErrors: thinkingErrors,
+                            alternativeThoughts: alternativeThoughts
+                        )
+                    )
+                    .select(diaryThreeSelectColumns)
+                    .single()
+                    .execute()
+                    .value
+                upsertCache(saved)
+                AppLog.store.info("Diary 3 entry created")
+                return saved
+            } catch {
+                AppLog.store.error(
+                    "Diary 3 create failed: \(error.localizedDescription, privacy: .public)"
+                )
+                throw error
+            }
+
         }
     }
 
@@ -251,49 +254,52 @@ final class DiaryThreeStore {
         thinkingErrors: [ThinkingError],
         alternativeThoughts: [DiaryThreeAlternativeThought]
     ) async throws -> DiaryThreeEntry {
-        try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
-        guard !entries(for: patientId).contains(where: { $0.id == id && $0.createdBy == .patient }) else { throw PatientStoreError.updateRejected }
-        if DemoData.isDemoID(patientId) {
-            guard var entry = cached(for: patientId).first(where: { $0.id == id }) else {
-                throw AuthError.notConfigured
+        return try await TelemetryMeasure.run(.submission, form: .diaryThree) { [self] in
+            try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
+            guard !entries(for: patientId).contains(where: { $0.id == id && $0.createdBy == .patient }) else { throw PatientStoreError.updateRejected }
+            if DemoData.isDemoID(patientId) {
+                guard var entry = cached(for: patientId).first(where: { $0.id == id }) else {
+                    throw AuthError.notConfigured
+                }
+                entry.situation = situation
+                entry.automaticThoughts = automaticThoughts
+                entry.feelings = feelings
+                entry.thinkingErrors = thinkingErrors
+                entry.alternativeThoughts = alternativeThoughts
+                entry.updatedAt = .now
+                upsertCache(entry)
+                return entry
             }
-            entry.situation = situation
-            entry.automaticThoughts = automaticThoughts
-            entry.feelings = feelings
-            entry.thinkingErrors = thinkingErrors
-            entry.alternativeThoughts = alternativeThoughts
-            entry.updatedAt = .now
-            upsertCache(entry)
-            return entry
-        }
-        guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        do {
-            let saved: DiaryThreeEntry = try await client.from("diary_three_entries")
-                .update(
-                    DiaryThreeEntryClinicalUpdate(
-                        situation: situation,
-                        automaticThoughts: automaticThoughts,
-                        feelings: feelings,
-                        thinkingErrors: thinkingErrors,
-                        alternativeThoughts: alternativeThoughts,
-                        updatedAt: Self.timestampString(from: Date())
+            guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
+            do {
+                let saved: DiaryThreeEntry = try await client.from("diary_three_entries")
+                    .update(
+                        DiaryThreeEntryClinicalUpdate(
+                            situation: situation,
+                            automaticThoughts: automaticThoughts,
+                            feelings: feelings,
+                            thinkingErrors: thinkingErrors,
+                            alternativeThoughts: alternativeThoughts,
+                            updatedAt: Self.timestampString(from: Date())
+                        )
                     )
+                    .eq("id", value: id)
+                    .eq("created_by", value: "therapist")
+                    .eq("patient_id", value: patientId.queryValue)
+                    .select(diaryThreeSelectColumns)
+                    .single()
+                    .execute()
+                    .value
+                upsertCache(saved)
+                AppLog.store.info("Diary 3 entry updated")
+                return saved
+            } catch {
+                AppLog.store.error(
+                    "Diary 3 update failed: \(error.localizedDescription, privacy: .public)"
                 )
-                .eq("id", value: id)
-                .eq("created_by", value: "therapist")
-                .eq("patient_id", value: patientId.queryValue)
-                .select(diaryThreeSelectColumns)
-                .single()
-                .execute()
-                .value
-            upsertCache(saved)
-            AppLog.store.info("Diary 3 entry updated")
-            return saved
-        } catch {
-            AppLog.store.error(
-                "Diary 3 update failed: \(error.localizedDescription, privacy: .public)"
-            )
-            throw error
+                throw error
+            }
+
         }
     }
 

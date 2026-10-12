@@ -70,16 +70,19 @@ class PatientDiaryThreeService(private val client: SupabaseClient) : PatientDiar
     }
 
     override suspend fun submitEntry(request: SubmitDiaryThreeEntryRequest): String {
-        Entitlements.requireWrite()
-        try {
-            val http = client.functions.invoke(function = FUNCTION_NAME, body = request,
-                headers = Headers.build { append(HttpHeaders.ContentType, ContentType.Application.Json.toString()) })
-            return decodeSuccess(http.bodyAsText())
-        } catch (error: CancellationException) { throw error }
-        catch (error: PatientDiaryThreeSubmitError) { throw error }
-        catch (error: Exception) {
-            val (code, _) = EdgePayload.codeAndMessage(EdgePayload.responseBody(error))
-            throw mapError(code, EdgePayload.httpStatus(error))
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form = com.cbtipul.app.telemetry.Form.diaryThree) { operation ->
+            Entitlements.requireWrite()
+            try {
+                val http = com.cbtipul.app.telemetry.telemetryRequest(com.cbtipul.app.telemetry.Request.diaryThreeSubmit, parent=operation) { client.functions.invoke(function = FUNCTION_NAME, body = request,
+                    headers = Headers.build { append(HttpHeaders.ContentType, ContentType.Application.Json.toString()) }) }
+                return@measure decodeSuccess(http.bodyAsText())
+            } catch (error: CancellationException) { throw error }
+            catch (error: PatientDiaryThreeSubmitError) { throw error }
+            catch (error: Exception) {
+                val (code, _) = EdgePayload.codeAndMessage(EdgePayload.responseBody(error))
+                throw mapError(code, EdgePayload.httpStatus(error))
+            }
+
         }
     }
 

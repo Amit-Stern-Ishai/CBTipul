@@ -33,6 +33,8 @@ final class OnboardingStore {
         introductionCompleted = true
         introductionFinishedThisLaunch.insert(id)
         defaults.set(true, forKey: Self.introductionKey(for: id))
+
+        TelemetryClient.shared.operation(.onboarding,feature:.introduction).event(.succeeded)
     }
     private(set) var checklistDismissed = false
     private(set) var hasSeenFirstPreparationTip = false
@@ -68,6 +70,8 @@ final class OnboardingStore {
     func dismissWelcome() {
         welcomeDismissed = true
         persist()
+
+        TelemetryClient.shared.operation(.onboarding,feature:.welcome).event(.succeeded)
     }
 
     /// Hides the Getting Started card until Settings restores it.
@@ -104,6 +108,8 @@ final class OnboardingStore {
     func markDemoTourCompleted() {
         hasCompletedDemoTour = true
         persist()
+
+        TelemetryClient.shared.operation(.onboarding,feature:.demoTour).event(.succeeded)
     }
 
     /// Marks the optional display-name prompt as handled for this account.

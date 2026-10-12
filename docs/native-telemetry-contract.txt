@@ -1,0 +1,47 @@
+CBTipul native telemetry — official PostHog SDK integration
+Updated 2026-10-13. iOS and Android only; no web implementation.
+
+Event API
+Manual, typed events use cbtipul_<flow>_<stage>. Flow-specific enum validation
+runs before capture. No clinical object or arbitrary property bag enters capture.
+The wrapper calls the SDK once per event, with its event-time timestamp.
+Operational correlation IDs group one logical flow and its requests; they are
+not patient/account IDs or SDK identity. attempt/retry_count describe business
+requests/activation retries, not analytics delivery retries.
+
+Flows retained
+Authentication (email/Google/Apple/anonymous), restored sessions, app-context
+access resolution, invitation preview/consent/confirmed role switch/activation,
+questionnaire and diary submissions, push permission/registration/receive/open,
+onboarding/demo, invitation creation/share, assignments, messages, and explicit
+AI operation outcomes. Error properties are fixed safe codes, never exception
+messages. Missing entitlement is unresolved, never server read_only.
+Share-sheet presentation/reporting is not proof of delivery or activation.
+Submission success is not inferred to mean an assignment is completed.
+Received/opened push events exist only if the OS runs the corresponding callback.
+Android cold/warm classification is process-local; restored activity is unknown.
+iOS initial link classification stays unknown when not established by lifecycle.
+
+Transport and identity
+Official PostHog Swift 3.92.0 and Android 3.72.2 (core 6.47.1).
+SDK defaults own persistence, batching, flush intervals, retry policy, sessions,
+and anonymous identity. No custom HTTP ingestion, Supabase telemetry, queue,
+delivery ack, expiry, retry budget, dedup registry, installation marker or
+analytics session ID exists. No identify/alias or distinctId override exists.
+Auth IDs are compared in memory only to detect account/logout/role transitions.
+Initial restored-session observation preserves SDK identity. Later transitions
+call standard SDK reset(). New stale async captures from a former auth owner
+are rejected; this does not modify events already handed to the SDK.
+Already queued events may upload later, including after logout/reset/restart.
+Their original timestamp, role, demo state, session context and anonymous
+identity belong to the original event. Reset is not a queue purge or a promise
+that old events cannot upload. The app adds no machinery to change this.
+
+Configuration
+Existing public project token and https://eu.i.posthog.com are unchanged.
+Each app has one enabled boolean, currently false for safe local checks.
+Disabled/missing/invalid settings leave telemetry inert and the app functional.
+Initialization is guarded to run once per process; capture and reset are the
+only analytics SDK calls used by business instrumentation. No manual flush.
+For exact controls, outgoing metadata, local checks and manual enable steps,
+see posthog-native-telemetry-review.txt.

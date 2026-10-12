@@ -40,6 +40,9 @@ final class PatientInvitationFlow {
     private(set) var therapistDisplayName: String?
     private(set) var phase: Phase = .idle
     private(set) var didSucceedClaim = false
+    private let telemetryClient: TelemetryClient
+    init(telemetry: TelemetryClient = .shared) { telemetryClient = telemetry }
+    private var telemetry: TelemetryOperation?
     private var generation = 0
     private var inFlight = false
     private var switchUserID: String?
@@ -49,9 +52,11 @@ final class PatientInvitationFlow {
 
     /// Synchronous reservation for both cold and warm links. Duplicate delivery
     /// and links arriving during an accepted activation cannot replace its token.
-    func receive(token: String) {
+    func receive(token: String, start: TelemetryStart = .unknown) {
         guard !inFlight else { return }
         guard self.token != token || !isActive else { return }
+        telemetry = telemetryClient.operation(.invitation)
+        telemetry?.event(.received, start: start)
         generation += 1
         self.token = token
         therapistDisplayName = nil
@@ -66,19 +71,26 @@ final class PatientInvitationFlow {
         guard phase == .loading, let token else { return }
         let request = generation
         do {
-            let result = try await preview(token)
+            let requestTelemetry = telemetry?.requestOperation(.invitationPreview)
+            requestTelemetry?.event(.started)
+            let result: PatientInvitationPreview
+            do { result = try await preview(token); requestTelemetry?.event(.succeeded) }
+            catch { requestTelemetry?.event(.failed,error:.generic); throw error }
             guard request == generation, phase == .loading else { return }
             if result.status == .valid {
                 let name = result.therapistDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 therapistDisplayName = name
                 phase = .preview(therapistDisplayName: name)
+                telemetry?.event(.previewShown)
             } else {
                 phase = .unavailable(result.status)
+                telemetry?.event(.failed, error: .unavailable)
             }
         } catch {
             guard request == generation, phase == .loading else { return }
             // Response/error text may contain the invitation token.
             phase = .failed(L10n.invitePreviewLoadFailedTitle)
+            telemetry?.event(.failed, error: .generic)
         }
     }
 
@@ -103,12 +115,16 @@ final class PatientInvitationFlow {
 
     private func runActivation(using d: InvitationActivationDependencies, confirmedTherapist: String?) async {
         guard !inFlight else { return }
+        telemetry?.event(.started)
+        var telemetrySuccess = false
+        defer { if !telemetrySuccess { telemetry?.event(.failed, error: .generic) } }
         inFlight = true
         phase = .activating
         defer { inFlight = false }
         var failure: ActivationFailure = .signIn
         do {
             try await d.awaitInitialization()
+            telemetry = telemetry?.rebound()
             var session = d.session()
             if let expected = activationIdentity, session != expected {
                 phase = .activationFailed(.signIn)
@@ -119,8 +135,10 @@ final class PatientInvitationFlow {
                 guard confirmedTherapist == existing.userID else {
                     switchUserID = existing.userID
                     phase = .confirmTherapistSwitch
+                    telemetrySuccess = true // Waiting for confirmation is not a failure.
                     return
                 }
+                telemetry?.event(.roleSwitchConfirmed, previous: .therapist)
                 // Only this confirmation authorizes discarding this exact local session.
                 d.clearContext()
                 try await d.signOutLocally(existing.userID)
@@ -153,11 +171,16 @@ final class PatientInvitationFlow {
                 guard let anonymous = d.session(), anonymous.isAnonymous else {
                     phase = .activationFailed(.signIn); return
                 }
+                telemetry = telemetry?.rebound()
+                if confirmedTherapist != nil { telemetry?.event(.roleSwitchConfirmed, previous: .therapist) }
                 activationIdentity = anonymous
                 guard let token else { phase = .activationFailed(.claim(nil)); return }
                 // No suspension between identity check and the authenticated claim.
                 failure = .claim(nil)
-                claimedPatientID = try await d.claim(token)
+                let requestTelemetry = telemetry?.requestOperation(.invitationClaim)
+                requestTelemetry?.event(.started)
+                do { claimedPatientID = try await d.claim(token); requestTelemetry?.event(.succeeded) }
+                catch { requestTelemetry?.event(.failed,error:.generic); throw error }
                 didSucceedClaim = true
             }
             failure = .context
@@ -168,6 +191,8 @@ final class PatientInvitationFlow {
                   context.patientId == claimedPatientID else {
                 phase = .activationFailed(.context); return
             }
+            telemetry?.event(.succeeded)
+            telemetrySuccess = true
             token = nil
             therapistDisplayName = nil
             phase = .idle
@@ -177,12 +202,15 @@ final class PatientInvitationFlow {
             case .failed: phase = .activationFailed(.claim(nil))
             }
         } catch {
+            if error is CancellationError { telemetry?.event(.cancelled,error:.cancelled); telemetrySuccess = true }
             phase = .activationFailed(failure)
         }
     }
 
     func dismiss() {
         guard !inFlight else { return }
+        if isActive { telemetry?.event(.cancelled, error: .cancelled) }
+        telemetry = nil
         generation += 1
         token = nil
         therapistDisplayName = nil

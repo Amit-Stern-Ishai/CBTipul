@@ -119,6 +119,10 @@ class PushNotificationManager(
     fun onNotificationPermissionResult(granted: Boolean) {
         debug { "Notification permission result: ${if (granted) "granted" else "denied"}" }
         scope.launch {
+        com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.push,push=com.cbtipul.app.telemetry.PushOperation.permission).event(com.cbtipul.app.telemetry.Stage.authorization,
+            authorization=if(granted) com.cbtipul.app.telemetry.Authorization.allowed else com.cbtipul.app.telemetry.Authorization.denied,
+            preference=preferences.isNotificationsEnabledByUser())
+
             if (!PushDeliveryPolicy.shouldRegisterWithBackend(preferences.isNotificationsEnabledByUser())) {
                 debug { "Push permission result ignored: user preference off" }
                 return@launch
@@ -142,7 +146,12 @@ class PushNotificationManager(
         return OsNotificationAuthorization.Denied
     }
 
-    fun osNotificationsAllowed(): Boolean = osAuthorization() == OsNotificationAuthorization.Allowed
+    fun osNotificationsAllowed(): Boolean {
+        val authorization=osAuthorization()
+        com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.push,push=com.cbtipul.app.telemetry.PushOperation.permission).event(com.cbtipul.app.telemetry.Stage.authorization,
+            authorization=when(authorization) { OsNotificationAuthorization.Allowed -> com.cbtipul.app.telemetry.Authorization.allowed; OsNotificationAuthorization.Denied -> com.cbtipul.app.telemetry.Authorization.denied; else -> com.cbtipul.app.telemetry.Authorization.notDetermined })
+        return authorization == OsNotificationAuthorization.Allowed
+    }
 
     fun markOsPermissionAsked() {
         prefs.edit { putBoolean(KEY_PERMISSION_ASKED, true) }
@@ -202,6 +211,7 @@ class PushNotificationManager(
     }
 
     fun onNewToken(token: String) {
+        com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.push,push=com.cbtipul.app.telemetry.PushOperation.fcmRegistration).event(com.cbtipul.app.telemetry.Stage.succeeded)
         debug { "[Push] FCM token refresh, length=${token.length}" }
         persistedToken = token
         scope.launch {
@@ -212,12 +222,12 @@ class PushNotificationManager(
     }
 
     fun onMessageReceived(message: RemoteMessage) {
+        com.cbtipul.app.telemetry.PushObservation.record(com.cbtipul.app.telemetry.Stage.received,com.cbtipul.app.telemetry.PushObservation.type(message.data["type"]),message.data["correlation_id"])
         val payload = com.cbtipul.app.data.NotificationPayload.from(message.data.mapValues { it.value })
         val fallbackTitle = message.notification?.title ?: message.data["title"]
         val fallbackBody = message.notification?.body ?: message.data["body"]
         debug {
-            "FCM message messageId=${message.messageId ?: "none"} " +
-                "hasNotification=${message.notification != null} dataKeys=${message.data.keys}"
+            "FCM callback observed; hasNotification=${message.notification != null}"
         }
         val personalized = PatientPushPersonalizer.personalize(
             type = payload?.type ?: message.data["type"],
@@ -267,10 +277,12 @@ class PushNotificationManager(
                 debug { "FCM token retrieval returned empty" }
                 return null
             }
+            com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.push,push=com.cbtipul.app.telemetry.PushOperation.fcmRegistration).event(com.cbtipul.app.telemetry.Stage.succeeded)
             persistedToken = token
             debug { "[Push] FCM token obtained length=${token.length}" }
             token
         } catch (error: Exception) {
+            com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.push,push=com.cbtipul.app.telemetry.PushOperation.fcmRegistration).event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.generic)
             debug { "[Push] FCM token retrieval failed: ${safeError(error)}" }
             persistedToken
         }
@@ -288,6 +300,7 @@ class PushNotificationManager(
             debug { "Push backend register skipped: no Auth session" }
             return
         }
+        val telemetry=com.cbtipul.app.telemetry.Telemetry.client.begin(com.cbtipul.app.telemetry.Flow.push,push=com.cbtipul.app.telemetry.PushOperation.deviceRegistration)
         try {
             debug {
                 "[Push] Registering Android push device for current identity " +
@@ -297,9 +310,11 @@ class PushNotificationManager(
                 "register_push_device",
                 PushDeviceRpc.register(token, PushRegistration.PLATFORM, PushRegistration.ENVIRONMENT),
             )
+            telemetry.event(com.cbtipul.app.telemetry.Stage.succeeded)
             lastRegisteredUserId = auth.currentUserId()
             debug { "[Push] register_push_device succeeded" }
         } catch (error: Exception) {
+            telemetry.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.generic)
             debug { "[Push] register_push_device failed: ${safeError(error)}" }
         }
     }

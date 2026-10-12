@@ -1,0 +1,147 @@
+CBTipul standard native PostHog integration review
+Updated 2026-10-13. No completed privacy/legal review is asserted.
+
+What changed
+Removed the custom memory queue, batches, transport, timeouts/backoff, TTL,
+delivery acknowledgement requirements, event UUID registry/dedup, capability
+blockers, and app-created installation/session analytics IDs. Removed the
+Supabase ingestion proposal from current documentation. There is no direct
+PostHog HTTP client in the apps. Existing typed events and useful instrumentation
+now call only official native SDK capture/reset through a small typed wrapper.
+Old app-created analytics identity files are no longer read or written; no
+cleanup deletes preferences, Keychain data, patient-name mappings or app data.
+
+SDK settings actually applied
+Swift 3.92.0: PostHogConfig(projectToken:,host:). Android 3.72.2:
+PostHogAndroidConfig(projectToken:,host:). Existing token retained; host is
+https://eu.i.posthog.com. PostHogSDK.shared.setup / PostHogAndroid.setup run once
+when enabled. Default queue size, batch size, flush interval/threshold, SDK
+retries, persistence, anonymous ID generation and sessions are unmodified.
+Debug logging off. PersonProfiles never; default person properties off.
+Replay off (therefore replay screenshots off); lifecycle/screen/interaction
+capture off; iOS swizzling/SwiftUI interaction/text capture off; Android deep
+links/rage/dead clicks off. Automatic error/native-crash capture off where
+supported. Push subscription and push-open autocapture off. Surveys off;
+feature flag preloading and feature-flag-called events off. No app flag/survey
+API calls, Sentry, Crashlytics, custom crash handler, SDK push token registration,
+or feature flag application logic. SDK logs beforeSend discards log events.
+iOS tracingHeaders empty. SDK configuration/data infrastructure is not replaced.
+
+Outgoing metadata audit
+Custom allowlist: schema_version; flow/stage/outcome/feature; phone model and
+(Android) manufacturer/API level; platform/OS/app version/build/build channel;
+distribution=unknown; event-time role/demo; network category/lifecycle;
+locale/timezone; ephemeral operational correlation_id; fixed safe_error_code;
+bounded duration_ms/attempt/retry_count; typed auth method/form/access/start/
+previous_role/push_operation/authorization/preference_enabled/apns_environment/
+notification_type/logical_operation; HTTP status only when genuinely known.
+Absent optional values stay absent. No arbitrary error text or payload.
+Supported beforeSend filters unexpected properties and automatic events;
+allowed enum/UUID/scalar fields are checked. No in-memory event registry.
+The SDK's top-level random anonymous distinct_id, SDK-generated event UUID,
+event name and original timestamp are left intact. SDK $lib/$lib_version,
+$session_id, $is_identified and (if present) SDK-random $device_id survive.
+$process_person_profile=false and $geoip_disable=true are enforced on events.
+Other SDK context properties are stripped, including device name, screen/
+view/URL/text, advertising/hardware identifiers, feature-flag dictionaries,
+$set/$set_once, exception lists, groups and unlisted context. Generic device
+model/version information is supplied explicitly by the typed platform mapper.
+No names/emails/phone numbers, notes/diaries/answers/scores/AI text/messages,
+notification bodies, clinical/patient record IDs, invitation token/URL, auth/
+push token/credentials, request/response body/header or raw errors are allowed.
+
+Network/storage behavior inherent to the SDK
+The SDK transports event batches with the public project token, upload sent_at
+and ordinary HTTP headers. Network peers can see the connection's source IP;
+geoip_disable does not hide it or configure stored-IP removal.
+SDK initialization may GET /array/<project token>/config from the EU assets
+host even with optional product features disabled. Standard SDK reset may
+internally reload /flags as a new anonymous identity despite preload=false;
+this is SDK behavior, not a custom feature-flag integration. These infrastructure
+requests are not event beforeSend callbacks; they contain SDK/project anonymous
+context, not auth/clinical IDs. SDK device ID can be retained across reset for
+internal bucketing; the app never supplies a device/hardware identity.
+Feature-flag reload transport may include SDK anonymous distinct/device IDs,
+empty groups, timezone (iOS), geoip opt-out (iOS), and empty person properties;
+no app identify/person/group registration is used. Projects should have no
+surveys/replay/autocapture enabled for this manual-event integration.
+SDK storage/queues/identity persist according to SDK defaults. iOS uses its
+SDK-owned application-support storage; Android uses SDK preferences and cache
+queue files. Existing Android allowBackup=false/auth exclusions are preserved.
+Device-transfer behavior varies by vendor; SDK-generated anonymous preferences
+may follow SDK/platform storage behavior. No custom restore identity is added.
+
+Required PostHog project settings — not changed in this task
+In the existing EU project, enable 'Discard client IP data' in Project Settings
+(IP data capture configuration). Disable GeoIP enrichment for that project/
+stream; verify the installed event transformation/settings, rather than assume
+a default. geoip_disable=true is additional protection, not IP anonymization.
+Keep replay, surveys and automatic capture disabled in the project as well.
+Review retention, access, store disclosures and applicable privacy requirements
+with the responsible owner. No legal wording or project settings changed here.
+Reference: https://posthog.com/docs/settings/projects#ip-data-capture-configuration
+and https://posthog.com/docs/privacy/data-collection.
+SDK configuration references: https://posthog.com/docs/libraries/ios/configuration
+and https://posthog.com/docs/libraries/android.
+
+Local validation
+Local checks performed 2026-10-13
+- Android offline testDebugUnitTest: 271 tests, 0 failures/errors/skips.
+- Android assembleDebug: successful local APK build; not installed/launched.
+- Offline mocked Swift flow/privacy/routing tests: 35 passed. Dependency-free
+  macOS harness copies the client/flow sources; platform/auth dependencies are
+  stubs. Newer type-isolation syntax is stripped only in that scratch harness
+  for the selected Swift 6.1.2 compiler. Production sources are unchanged by it.
+- Real PostHog Swift 3.92.0 library and app wrapper: successful local compile.
+- Real Swift SDK configuration tests: 2 passed on macOS, synthetic project
+  configuration only. SDK setup/capture not executed. iOS-specific properties
+  additionally compile in the full iOS test-target build.
+- Full iOS simulator app build: BUILD SUCCEEDED with Xcode 26.6 / Swift 6.3.3.
+- Complete native iOS build-for-testing: TEST BUILD SUCCEEDED. Native app-hosted
+  and UI tests compiled but were NOT RUN, avoiding app-start production calls.
+- iOS resolvePackageDependencies succeeds; all 16 existing locked package
+  versions AND revisions, including Supabase, Google and PostHog, preserved.
+  No new unrelated dependency version or OpenTelemetry trait is introduced.
+- git diff --check passes. No web/backend/account/deployment changes in this task.
+
+Build environment
+Use the installed compatible Xcode explicitly without changing global selection:
+  DEVELOPER_DIR=/Users/amitishai/Downloads/Xcode.app/Contents/Developer
+The globally selected Xcode 16.4 was incompatible with existing app syntax and
+its stricter package graph; the newer Xcode resolves the disabled optional
+Supabase OpenTelemetry trait correctly with the same locked versions.
+The original Documents checkout hit a macOS NSFileCoordinator read stall.
+Resolution/build used a native-source snapshot in /tmp/cbtipul-standard-sdk-source
+with identical app source/configuration; no source transformations for that app
+build. Generated output: /tmp/cbtipul-standard-sdk-ios. Builds fixed two missing
+awaits on existing AuthClient refresh calls and one Foundation import for the
+existing app-context UUID access. No auth/backend semantics otherwise changed.
+Android checks use Android Studio's bundled Java and isolated /tmp outputs.
+
+No live project initialization, uploads, endpoints, device changes, account
+changes/deletions, backend configuration, deployment, commit or push performed.
+The enabled switches remain false. Manual collection/receipt is NOT VERIFIED.
+
+
+Exact remaining enable/manual test steps — NOT PERFORMED
+1. The responsible project owner verifies the above IP/GeoIP/product settings
+   and privacy/store requirements for the existing EU project.
+2. Set ios/PostHogTelemetryConfiguration.swift enabled=true and
+   android/.../telemetry/PostHogTelemetryConfiguration.kt ENABLED=true.
+   Token/host are already configured. No other transport controls are needed.
+3. Build with Xcode 26.6 (or compatible toolchain) and Android's normal build.
+   Install native test builds through the normal process. Shipping to existing
+   App Store/Android users requires new native app versions; this task did not
+   install, publish or deploy them.
+4. Using synthetic/nonclinical test accounts/content, manually exercise fresh
+   login, restored session, logout/account switch, invitation cancellation/
+   confirmed Patient Mode activation, access retry, submission, onboarding,
+   share, message/AI outcomes, push receive/open when the OS permits callbacks.
+5. In PostHog, verify only named manual events and allowed metadata, no person
+   profiles, no clinical/identity/token fields, and SDK anonymous IDs. Check
+   that logout/switch creates the standard new anonymous identity/session.
+6. Test offline capture then reconnect/restart and normal later upload. Compare
+   original event timestamps/role/session metadata; do not expect reset to purge
+   old queues. Do not treat absence/delay as an app-level delivery receipt.
+7. Confirm disabled or missing configuration leaves all business flows usable.
+No live collection was tested, so receipt in the EU project remains unverified.

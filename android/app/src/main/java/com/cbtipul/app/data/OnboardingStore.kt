@@ -33,6 +33,8 @@ class OnboardingStore internal constructor(
         dataStore.edit { it[booleanPreferencesKey(introductionKey(email))] = true }
         introductionsFinishedThisLaunch.add(email)
         if (activeEmail == email) _shouldShowIntroduction.value = false
+
+        com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.onboarding,feature=com.cbtipul.app.telemetry.Feature.introduction).event(com.cbtipul.app.telemetry.Stage.succeeded)
     }
 
     private var activeEmail: String? = null
@@ -73,6 +75,8 @@ class OnboardingStore internal constructor(
     suspend fun dismissWelcome() {
         _welcomeDismissed.value = true
         persist()
+
+        com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.onboarding,feature=com.cbtipul.app.telemetry.Feature.welcome).event(com.cbtipul.app.telemetry.Stage.succeeded)
     }
 
     suspend fun dismissChecklist() {
@@ -106,6 +110,8 @@ class OnboardingStore internal constructor(
     suspend fun markDemoTourCompleted() {
         _hasCompletedDemoTour.value = true
         persist()
+
+        com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.onboarding,feature=com.cbtipul.app.telemetry.Feature.demoTour).event(com.cbtipul.app.telemetry.Stage.succeeded)
     }
 
     suspend fun clearPersistedState(forEmail: String) {

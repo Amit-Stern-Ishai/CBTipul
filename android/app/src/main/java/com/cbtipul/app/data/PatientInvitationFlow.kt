@@ -42,6 +42,7 @@ sealed interface ActivationFailure {
 class PatientInvitationFlow internal constructor(
     private val dependencies: InvitationDependencies,
     private val scope: CoroutineScope,
+    private val telemetryClient: com.cbtipul.app.telemetry.TelemetryClient = com.cbtipul.app.telemetry.Telemetry.client,
 ) {
     constructor(invitations: PatientInvitationService, auth: AuthRepository,
                 appContext: AppContextRepository, scope: CoroutineScope) : this(
@@ -65,6 +66,7 @@ class PatientInvitationFlow internal constructor(
         private set
     var didSucceedClaim = false
         private set
+    private var telemetry: com.cbtipul.app.telemetry.Operation? = null
     private var generation = 0L
     private var inFlight = false
     private var switchUserId: String? = null
@@ -73,9 +75,11 @@ class PatientInvitationFlow internal constructor(
     val isActive: Boolean get() = _phase.value !is InvitationPhase.Idle
 
     /** Reserve the root synchronously before restoration or Compose can route. */
-    fun start(token: String) {
+    fun start(token: String, start: com.cbtipul.app.telemetry.Start = com.cbtipul.app.telemetry.Start.unknown) {
         if (inFlight) return
         if (this.token == token && isActive) return
+        telemetry = telemetryClient.operation(com.cbtipul.app.telemetry.Flow.invitation)
+        telemetry?.event(com.cbtipul.app.telemetry.Stage.received, start=start)
         generation++
         val request = generation
         this.token = token
@@ -87,18 +91,20 @@ class PatientInvitationFlow internal constructor(
         _phase.value = InvitationPhase.Loading
         scope.launch {
             try {
-                val preview = dependencies.preview(token)
+                val preview = com.cbtipul.app.telemetry.telemetryRequest(com.cbtipul.app.telemetry.Request.invitationPreview,parent=telemetry) { dependencies.preview(token) }
                 if (request != generation || _phase.value !is InvitationPhase.Loading) return@launch
                 if (preview.status == PatientInvitationPreviewStatus.Valid) {
                     therapistDisplayName = preview.therapistDisplayName?.trim().orEmpty()
                     _phase.value = InvitationPhase.Preview(therapistDisplayName.orEmpty())
+                    telemetry?.event(com.cbtipul.app.telemetry.Stage.previewShown)
                 } else {
                     _phase.value = InvitationPhase.Unavailable(preview.status)
+                    telemetry?.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.unavailable)
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
-                if (request == generation && _phase.value is InvitationPhase.Loading) _phase.value = InvitationPhase.Failed
+                if (request == generation && _phase.value is InvitationPhase.Loading) { _phase.value = InvitationPhase.Failed; telemetry?.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.generic) }
             }
         }
     }
@@ -121,6 +127,8 @@ class PatientInvitationFlow internal constructor(
 
     private fun launchActivation(confirmedTherapist: String?) {
         if (inFlight) return
+        telemetry?.event(com.cbtipul.app.telemetry.Stage.started)
+        var telemetrySuccess = false
         inFlight = true
         _phase.value = InvitationPhase.Activating
         scope.launch {
@@ -128,6 +136,7 @@ class PatientInvitationFlow internal constructor(
             var failure: ActivationFailure = ActivationFailure.SignIn
             try {
                 d.awaitInitialization()
+                telemetry=telemetry?.rebound()
                 var session = d.session()
                 if (activationIdentity != null && session != activationIdentity) {
                     _phase.value = InvitationPhase.ActivationFailed(ActivationFailure.SignIn)
@@ -140,8 +149,10 @@ class PatientInvitationFlow internal constructor(
                     if (confirmedTherapist != session.userId) {
                         switchUserId = session.userId
                         _phase.value = InvitationPhase.ConfirmTherapistSwitch
+                        telemetrySuccess = true
                         return@launch
                     }
+                    telemetry?.event(com.cbtipul.app.telemetry.Stage.roleSwitchConfirmed,previous=com.cbtipul.app.telemetry.Role.therapist)
                     d.clearContext()
                     d.signOutLocally(session.userId)
                     check(d.session() == null)
@@ -169,10 +180,12 @@ class PatientInvitationFlow internal constructor(
                     }
                     val anonymous = d.session()
                     check(anonymous != null && anonymous.isAnonymous)
+                    telemetry = telemetry?.rebound()
+                    if(confirmedTherapist!=null) telemetry?.event(com.cbtipul.app.telemetry.Stage.roleSwitchConfirmed,previous=com.cbtipul.app.telemetry.Role.therapist)
                     activationIdentity = anonymous
                     failure = ActivationFailure.Claim(null)
                     val currentToken = checkNotNull(token)
-                    claimedPatientId = d.claim(currentToken)
+                    claimedPatientId = com.cbtipul.app.telemetry.telemetryRequest(com.cbtipul.app.telemetry.Request.invitationClaim,parent=telemetry) { d.claim(currentToken) }
                     didSucceedClaim = true
                 }
                 failure = ActivationFailure.Context
@@ -180,10 +193,14 @@ class PatientInvitationFlow internal constructor(
                 d.clearContext()
                 val context = d.context()
                 check(d.session() == activationIdentity && context.isActivePatient && context.patientId == claimedPatientId)
+                telemetry?.event(com.cbtipul.app.telemetry.Stage.succeeded)
+                telemetrySuccess = true
                 token = null
                 therapistDisplayName = null
                 _phase.value = InvitationPhase.Idle
             } catch (error: CancellationException) {
+                telemetry?.event(com.cbtipul.app.telemetry.Stage.cancelled,error=com.cbtipul.app.telemetry.SafeError.cancelled)
+                telemetrySuccess = true
                 _phase.value = InvitationPhase.ActivationFailed(failure)
                 throw error
             } catch (error: PatientInvitationClaimError.Status) {
@@ -193,6 +210,7 @@ class PatientInvitationFlow internal constructor(
             } catch (_: Exception) {
                 _phase.value = InvitationPhase.ActivationFailed(failure)
             } finally {
+                if (!telemetrySuccess) telemetry?.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.generic)
                 inFlight = false
             }
         }
@@ -200,6 +218,8 @@ class PatientInvitationFlow internal constructor(
 
     fun dismiss() {
         if (inFlight) return
+        if(isActive) telemetry?.event(com.cbtipul.app.telemetry.Stage.cancelled,error=com.cbtipul.app.telemetry.SafeError.cancelled)
+        telemetry=null
         generation++
         token = null
         therapistDisplayName = null

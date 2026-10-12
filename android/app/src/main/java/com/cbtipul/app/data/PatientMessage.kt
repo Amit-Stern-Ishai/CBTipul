@@ -101,6 +101,7 @@ class PatientMessageRepository(private val client: SupabaseClient) {
     }
 
     suspend fun send(patientId: String, rawBody: String) {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.message,feature=com.cbtipul.app.telemetry.Feature.sendMessage) {
         Entitlements.requireWrite()
         ensureConfigured()
         val body = PatientMessageDraft.normalized(rawBody)
@@ -124,14 +125,19 @@ class PatientMessageRepository(private val client: SupabaseClient) {
         } catch (error: Exception) {
             throw mapSendError(error)
         }
+
+        }
     }
 
     suspend fun markRead(id: String) {
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.message,feature=com.cbtipul.app.telemetry.Feature.readMessage) {
         ensureConfigured()
         client.postgrest.rpc(
             "mark_patient_message_read",
             buildJsonObject { put("p_message_id", id) },
         )
+
+        }
     }
 
     private suspend fun mapSendError(error: Exception): PatientMessageSendError {

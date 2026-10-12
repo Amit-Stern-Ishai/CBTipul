@@ -50,10 +50,12 @@ class AuthRepository(
     val callbackBusy = _callbackBusy.asStateFlow()
 
     private fun abandonBrowserSignIn() {
+        appleTelemetry?.event(com.cbtipul.app.telemetry.Stage.cancelled,error=com.cbtipul.app.telemetry.SafeError.cancelled); appleTelemetry=null
         callbackGate.invalidate()
         browserPreferences.edit().remove("apple_started").commit()
     }
 
+    private var appleTelemetry: com.cbtipul.app.telemetry.Operation? = null
     suspend fun startAppleSignIn(openBrowser: (String) -> Unit) {
         ensureConfigured()
         client.auth.awaitInitialization()
@@ -81,8 +83,10 @@ class AuthRepository(
         }
         if (attempt != callbackGate.revision || hasSession()) throw CancellationException()
         browserPreferences.edit().putLong("apple_started", System.currentTimeMillis()).commit()
+        appleTelemetry=com.cbtipul.app.telemetry.Telemetry.client.begin(com.cbtipul.app.telemetry.Flow.authentication,method=com.cbtipul.app.telemetry.Method.apple)
         try { openBrowser(url) }
         catch (error: Exception) {
+            appleTelemetry?.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.generic); appleTelemetry=null
             abandonBrowserSignIn()
             client.auth.codeVerifierCache.deleteCodeVerifier()
             throw error
@@ -93,25 +97,28 @@ class AuthRepository(
     fun cancelGoogleSignIn() = googleSignIn.invalidate()
 
     suspend fun signInWithGoogle(credential: suspend (String) -> String) {
-        abandonBrowserSignIn()
-        client.auth.codeVerifierCache.deleteCodeVerifier()
-        ensureConfigured()
-        googleSignIn.run(
-            hasSession = ::hasSession,
-            credential = credential,
-            exchange = { token, rawNonce ->
-                var result: UserSession? = null
-                // Use the existing SDK transport, but defer import until the attempt
-                // is still current. signInWith would import before that check.
-                IDToken.login(client, onSuccess = { result = it }, redirectUrl = null) {
-                    idToken = token
-                    provider = Google
-                    nonce = rawNonce
-                }
-                requireNotNull(result)
-            },
-            commit = { client.auth.importSession(it) },
-        )
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.authentication, method = com.cbtipul.app.telemetry.Method.google) {
+            abandonBrowserSignIn()
+            client.auth.codeVerifierCache.deleteCodeVerifier()
+            ensureConfigured()
+            googleSignIn.run(
+                hasSession = ::hasSession,
+                credential = credential,
+                exchange = { token, rawNonce ->
+                    var result: UserSession? = null
+                    // Use the existing SDK transport, but defer import until the attempt
+                    // is still current. signInWith would import before that check.
+                    IDToken.login(client, onSuccess = { result = it }, redirectUrl = null) {
+                        idToken = token
+                        provider = Google
+                        nonce = rawNonce
+                    }
+                    requireNotNull(result)
+                },
+                commit = { client.auth.importSession(it) },
+            )
+
+        }
     }
 
     internal val supabaseClient: SupabaseClient get() = client
@@ -119,18 +126,30 @@ class AuthRepository(
     /** Credential-free revision: StateFlow UI identity equality must not hide reauthentication. */
     val contextSessionChanges = flow {
         var revision = 0L
+        var restorationReported = false
         client.auth.sessionStatus.collect { status ->
             when (status) {
                 is SessionStatus.Authenticated -> {
                     val identity = currentUserId()
-                    if (identity != null && identity == status.session.user?.id)
+                    if (identity != null && identity == status.session.user?.id) {
+                        com.cbtipul.app.telemetry.Telemetry.client.setOwner(identity, if (isAnonymousSession()) com.cbtipul.app.telemetry.Role.patient else com.cbtipul.app.telemetry.Role.therapist)
+                        if (!restorationReported) {
+                            restorationReported = true
+                            com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.restoration).event(com.cbtipul.app.telemetry.Stage.succeeded)
+                        }
                         emit(AuthContextSession(identity, ++revision, status.source is SessionSource.Refresh))
+                    }
                 }
-                is SessionStatus.NotAuthenticated -> if (!hasSession()) emit(null)
+                is SessionStatus.NotAuthenticated -> if (!hasSession()) {
+                    com.cbtipul.app.telemetry.Telemetry.client.setOwner(null, com.cbtipul.app.telemetry.Role.unknown)
+                    if (!restorationReported) { restorationReported=true; com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.restoration).event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.unavailable) }
+                    emit(null)
+                }
                 // Refresh failure is not successful authentication. Invalidate
                 // access without clearing stored credentials or resetting a retry
                 // budget on each SDK background retry.
                 is SessionStatus.RefreshFailure -> {
+                    if (!restorationReported) { restorationReported=true; com.cbtipul.app.telemetry.Telemetry.client.operation(com.cbtipul.app.telemetry.Flow.restoration).event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.unavailable) }
                     com.cbtipul.app.data.Entitlements.invalidate()
                     emit(null)
                 }
@@ -172,20 +191,23 @@ class AuthRepository(
     }
 
     suspend fun signIn(email: String, password: String) {
-        abandonBrowserSignIn()
-        client.auth.codeVerifierCache.deleteCodeVerifier()
-        cancelGoogleSignIn()
-        ensureConfigured()
-        try {
-            client.auth.signInWith(Email) {
-                this.email = normalize(email)
-                this.password = password
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.authentication, method = com.cbtipul.app.telemetry.Method.email) {
+            abandonBrowserSignIn()
+            client.auth.codeVerifierCache.deleteCodeVerifier()
+            cancelGoogleSignIn()
+            ensureConfigured()
+            try {
+                client.auth.signInWith(Email) {
+                    this.email = normalize(email)
+                    this.password = password
+                }
+            } catch (error: AuthRestException) {
+                if (error.errorCode == AuthErrorCode.EmailNotConfirmed) {
+                    throw AuthException(AuthErrorKind.EmailNotConfirmed)
+                }
+                throw error
             }
-        } catch (error: AuthRestException) {
-            if (error.errorCode == AuthErrorCode.EmailNotConfirmed) {
-                throw AuthException(AuthErrorKind.EmailNotConfirmed)
-            }
-            throw error
+
         }
     }
 
@@ -273,11 +295,14 @@ class AuthRepository(
     }
 
     suspend fun signInAnonymously() {
-        abandonBrowserSignIn()
-        client.auth.codeVerifierCache.deleteCodeVerifier()
-        cancelGoogleSignIn()
-        ensureConfigured()
-        client.auth.signInAnonymously()
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.authentication, method = com.cbtipul.app.telemetry.Method.anonymous) {
+            abandonBrowserSignIn()
+            client.auth.codeVerifierCache.deleteCodeVerifier()
+            cancelGoogleSignIn()
+            ensureConfigured()
+            client.auth.signInAnonymously()
+
+        }
     }
 
     fun sessionForRouting(observed: AuthSession): AuthSession = reconcileSessionObservation(observed,
@@ -359,10 +384,13 @@ class AuthRepository(
                 client.auth.importSession(session)
                 _callbackError.value = null
                 _callbackCompleted.value++
+                appleTelemetry?.rebound()?.event(com.cbtipul.app.telemetry.Stage.succeeded); appleTelemetry=null
             })
         } catch (_: CancellationException) {
+            appleTelemetry?.event(com.cbtipul.app.telemetry.Stage.cancelled,error=com.cbtipul.app.telemetry.SafeError.cancelled); appleTelemetry=null
             // Includes an explicit provider cancellation or superseded attempt.
         } catch (_: Exception) {
+            appleTelemetry?.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.generic); appleTelemetry=null
             _isRecoveringPassword.value = wasRecovering
             _callbackError.value = verificationFailedMessage
         } finally {

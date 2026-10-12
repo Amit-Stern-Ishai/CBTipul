@@ -71,6 +71,9 @@ nonisolated struct SupabaseChatService {
     /// Multi-turn variant: sends the whole conversation so the model can
     /// answer follow-up questions in context.
     func complete(systemPrompt: String, turns: [ChatTurn]) async throws -> String {
+        let telemetry=TelemetryFlowObservation(.ai,feature:.chat)
+        defer {telemetry.finish()}
+        do {
         try await EntitlementState.shared.requireWrite()
         // The conversation is about to be forwarded to OpenAI — the one-time
         // AI data-sharing consent must be granted first.
@@ -97,6 +100,7 @@ nonisolated struct SupabaseChatService {
                 throw OpenAIChatError.emptyResponse
             }
             AppLog.ai.info("Chat completion succeeded, answer length: \(content.count)")
+            telemetry.succeeded()
             return content
         } catch let error as OpenAIChatError {
             throw error
@@ -104,5 +108,7 @@ nonisolated struct SupabaseChatService {
             AppLog.ai.error("Chat completion failed: \(error.localizedDescription, privacy: .public)")
             throw error
         }
+
+        } catch {if error is CancellationError {telemetry.cancelled()};throw error}
     }
 }

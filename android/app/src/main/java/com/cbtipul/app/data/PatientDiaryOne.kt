@@ -56,31 +56,34 @@ class PatientDiaryOneService(
         fallbackMessage: String,
         invalidThoughtsMessage: String,
     ) {
-        Entitlements.requireWrite()
-        if (!SupabaseConfig.isConfigured) throw PatientDiaryOneSubmitError.Failed(fallbackMessage)
-        try {
-            val http = client.functions.invoke(
-                function = "submit-diary-one-entry",
-                body = SubmitDiaryOneEntryRequest(
-                    event = event,
-                    automaticThoughts = automaticThoughts,
-                    feelings = feelings,
-                    behaviour = behaviour,
-                    physicalSymptoms = physicalSymptoms,
-                ),
-                headers = Headers.build {
-                    append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                },
-            )
-            val response = EdgePayload.json.decodeFromString(
-                SubmitDiaryOneEntryResponse.serializer(),
-                http.bodyAsText(),
-            )
-            if (response.success == false) throw PatientDiaryOneSubmitError.Failed(fallbackMessage)
-        } catch (error: PatientDiaryOneSubmitError) {
-            throw error
-        } catch (error: Exception) {
-            throw mapError(error, fallbackMessage, invalidThoughtsMessage)
+        return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form = com.cbtipul.app.telemetry.Form.diaryOne) { operation ->
+            Entitlements.requireWrite()
+            if (!SupabaseConfig.isConfigured) throw PatientDiaryOneSubmitError.Failed(fallbackMessage)
+            try {
+                val http = com.cbtipul.app.telemetry.telemetryRequest(com.cbtipul.app.telemetry.Request.diaryOneSubmit, parent=operation) { client.functions.invoke(
+                    function = "submit-diary-one-entry",
+                    body = SubmitDiaryOneEntryRequest(
+                        event = event,
+                        automaticThoughts = automaticThoughts,
+                        feelings = feelings,
+                        behaviour = behaviour,
+                        physicalSymptoms = physicalSymptoms,
+                    ),
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                    },
+                ) }
+                val response = EdgePayload.json.decodeFromString(
+                    SubmitDiaryOneEntryResponse.serializer(),
+                    http.bodyAsText(),
+                )
+                if (response.success == false) throw PatientDiaryOneSubmitError.Failed(fallbackMessage)
+            } catch (error: PatientDiaryOneSubmitError) {
+                throw error
+            } catch (error: Exception) {
+                throw mapError(error, fallbackMessage, invalidThoughtsMessage)
+            }
+
         }
     }
 

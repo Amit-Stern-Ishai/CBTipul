@@ -92,6 +92,7 @@ class CbTipulApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.cbtipul.app.telemetry.TelemetryPlatform.install(this)
         com.cbtipul.app.data.Entitlements.explanation = { patient ->
             getString(if (com.cbtipul.app.data.Entitlements.state.value.access == null) R.string.entitlement_access_unverified_body else if (patient) R.string.entitlement_patient_unavailable else R.string.entitlement_read_only_explanation)
         }
