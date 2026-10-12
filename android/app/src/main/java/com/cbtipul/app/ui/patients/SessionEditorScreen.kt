@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.collectLatest
 
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.automirrored.outlined.Send
-import androidx.compose.material.icons.outlined.FindInPage
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.EditNote
@@ -26,7 +25,6 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -176,7 +174,7 @@ fun SessionEditorScreen(
     var type by editorDraft::type
     var structuredNotes by editorDraft::structuredNotes
     var showingNotesEditor by remember { mutableStateOf(false) }
-    var showingSummaryMenu by remember { mutableStateOf(false) }
+    var summarySaveRevision by remember(editorDraft) { mutableStateOf<Int?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var typeExpanded by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
@@ -189,6 +187,13 @@ fun SessionEditorScreen(
     var baselineType by editorDraft::baselineType
     var baselineStructured by editorDraft::baselineStructured
     val hasText = notes.trim().isNotEmpty()
+    val showSummaryTools = !isNew || editorDraft.hasSummaryDraft
+    LaunchedEffect(editorDraft.saveRevision) {
+        if (summarySaveRevision?.let { editorDraft.saveRevision > it } == true) {
+            summarySaveRevision = null
+            showingNotesEditor = false
+        }
+    }
     val processing = isSaving || isTranscribing || isAnonymizingTranscription || isAnalyzing
     val context = LocalContext.current
     var recorderTick by remember { mutableIntStateOf(0) }
@@ -230,6 +235,13 @@ fun SessionEditorScreen(
     fun persist(leave: Boolean) {
         if (!canSave) return
         onSave(currentSession(), leave)
+    }
+
+    fun saveSummary() {
+        if (!canSave) return
+        // markSaved is called only after a successful save, including immediate demo saves.
+        summarySaveRevision = editorDraft.saveRevision
+        persist(leave = isNew)
     }
 
     fun requestBack() {
@@ -302,7 +314,10 @@ fun SessionEditorScreen(
         }
         fun leaveNotes() {
             if (busy) return
-            if (notes != notesAtOpen) confirmLeavingNotes = true else showingNotesEditor = false
+            if (notes != notesAtOpen) confirmLeavingNotes = true else {
+                summarySaveRevision = null
+                showingNotesEditor = false
+            }
         }
         BackHandler { leaveNotes() }
         run {
@@ -319,7 +334,7 @@ fun SessionEditorScreen(
                         },
                         actions = {
                             if ((hasUnsavedChanges || isNew) && canWrite) {
-                                TextButton(onClick = { persist(leave = isNew) }, enabled = canSave) {
+                                TextButton(onClick = { saveSummary() }, enabled = canSave) {
                                     Text(stringResource(R.string.save_summary_action), fontWeight = FontWeight.SemiBold)
                                 }
                             } else {
@@ -351,6 +366,9 @@ fun SessionEditorScreen(
                                 input()
                             }
                         }, readOnly = !canWrite || busy)
+                    if (!isSaving && notes != baselineNotes) Text(stringResource(R.string.session_summary_unsaved),
+                        color = colors.textBody, fontSize = 12.sp,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp))
                     if (isSaving) Text(stringResource(R.string.session_saving), color = colors.textBody,
                         fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
                     errorMessage?.let { Text(it, color = colors.error, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
@@ -361,8 +379,13 @@ fun SessionEditorScreen(
         DiscardChangesDialog(
             visible = confirmLeavingNotes,
             canSave = canSave,
-            onSave = { confirmLeavingNotes = false; persist(leave = isNew) },
-            onDiscard = { notes = notesAtOpen; confirmLeavingNotes = false; showingNotesEditor = false },
+            onSave = { confirmLeavingNotes = false; saveSummary() },
+            onDiscard = {
+                notes = notesAtOpen
+                confirmLeavingNotes = false
+                summarySaveRevision = null
+                showingNotesEditor = false
+            },
             onKeepEditing = { confirmLeavingNotes = false },
         )
         return
@@ -424,6 +447,7 @@ fun SessionEditorScreen(
                     recorder.recordingFile != null -> R.string.session_recording_needs_transcription
                     patient == null -> R.string.session_choose_patient_help
                     isNew -> R.string.session_not_created
+                    hasUnsavedChanges -> R.string.session_not_saved
                     else -> null
                 }
                 if (status != null) IconLabel(
@@ -437,6 +461,10 @@ fun SessionEditorScreen(
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
+                )
+                if (canWrite && !busy && structuredNotes != baselineStructured) Text(
+                    stringResource(R.string.session_ai_save_help), color = colors.textBody, fontSize = 12.sp,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 )
                 Button(onClick = { persist(leave = isNew) }, enabled = canSave, modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
@@ -468,11 +496,13 @@ fun SessionEditorScreen(
                 }
                 if (patient == null) Text(stringResource(R.string.session_choose_patient_help), color = colors.textBody)
             } else Text(displayName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.textBright, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            if (isNew) Text(stringResource(R.string.session_creation_help), color = colors.textBody, fontSize = 14.sp)
             Text(stringResource(R.string.session_date_title), color = colors.textBright)
             TextButton(onClick = { showDatePicker = true }, enabled = canWrite && !busy) { Text(hebrewDate(date), color = colors.gold) }
             ExposedDropdownMenuBox(typeExpanded, onExpandedChange = { if (canWrite && !busy) typeExpanded = it }) {
                 OutlinedTextField(value = type?.let { stringResource(it.labelRes()) } ?: stringResource(R.string.session_type_none),
-                    onValueChange = {}, readOnly = true, label = { Text(stringResource(R.string.session_type_label)) },
+                    onValueChange = {}, readOnly = true, singleLine = true,
+                    label = { Text(stringResource(R.string.session_type_label)) },
                     modifier = Modifier.fillMaxWidth().menuAnchor(), enabled = canWrite && !busy,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(typeExpanded) })
                 ExposedDropdownMenu(typeExpanded, onDismissRequest = { typeExpanded = false }) {
@@ -482,150 +512,103 @@ fun SessionEditorScreen(
                     }
                 }
             }
-            Text(stringResource(R.string.session_summary_section), color = colors.textBright, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start)
             val accent = atmosphere ?: colors.gold
-            GroupedListCard(accent = accent) {
-                val pending = recorder.recordingFile != null && !busy
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                ) {
-                    Column(Modifier.fillMaxWidth().clickable(enabled = !busy) { showingNotesEditor = true }) {
-                        Text(notes.ifEmpty { stringResource(R.string.session_summary_field_placeholder) },
-                            color = if (notes.isEmpty()) colors.textBody else colors.textBright,
-                            maxLines = 6, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.fillMaxWidth()
-                                .background(colors.base, RoundedCornerShape(12.dp))
-                                .border(1.dp, colors.borderFaint, RoundedCornerShape(12.dp))
-                                .padding(16.dp).heightIn(min = 88.dp))
-                        TextButton(onClick = { showingNotesEditor = true }, enabled = !busy) {
-                            IconLabel(stringResource(if (notes.isEmpty()) R.string.session_write_notes else R.string.session_read_notes), Icons.Outlined.EditNote)
-                        }
-                    }
-                    GroupedListDivider()
-                    if (recorder.isRecording) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
-                            TextButton(onClick = {
-                                recorder.stopRecording()
-                                transcribePending()
-                            }) {
-                                IconLabel(stringResource(R.string.stop_and_transcribe_action), Icons.Filled.StopCircle, color = colors.error)
-                            }
-                        }
-                    } else {
-                        TextButton(onClick = { startMic() }, enabled = canWrite && !busy && recorder.recordingFile == null) {
-                            IconLabel(stringResource(R.string.record_session_notes_action), Icons.Filled.Mic, color = colors.gold)
-                        }
-                    }
-                }
-                if (pending) {
-                    GroupedListDivider()
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(stringResource(R.string.session_pending_recording), color = colors.textBody, fontSize = 13.sp)
-                        TextButton(onClick = { transcribePending() }) {
-                            Text(stringResource(R.string.transcribe_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
-                        }
-                        TextButton(onClick = { recorder.togglePlayback() }) {
-                            Icon(
-                                if (recorder.isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                                contentDescription = null,
-                                tint = colors.gold,
-                            )
-                            Text(
-                                stringResource(if (recorder.isPlaying) R.string.stop_playback_action else R.string.play_recording_action),
-                                color = colors.gold,
-                            )
-                        }
-                        TextButton(onClick = { recorder.discard() }) {
-                            Icon(Icons.Filled.Delete, contentDescription = null, tint = colors.error)
-                            Text(stringResource(R.string.discard_recording_action), color = colors.error)
-                        }
-                    }
-                }
-                if (isTranscribing || isAnonymizingTranscription) {
-                    GroupedListDivider()
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
-                        Text(
-                            stringResource(
-                                if (isTranscribing) R.string.transcribing_label else R.string.anonymizing_status_label,
-                            ),
-                            color = colors.textBody,
-                        )
-                    }
-                }
-                if (editorDraft.canGenerateAnalysis) {
-                    GroupedListDivider()
-                    Row(Modifier.fillMaxWidth().clickable(enabled = canWrite && !busy && recorder.recordingFile == null) {
-                        onAnalyze(currentSession(), { notes = it }, { structuredNotes = it })
-                    }.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (isAnalyzing) {
-                            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                            Text(stringResource(R.string.analyzing_label), color = colors.textBody)
-                        } else {
-                            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = colors.gold)
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(stringResource(R.string.ai_summary_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
-                                Text(stringResource(R.string.session_ai_hint), color = colors.textBody, fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-                recorder.errorMessage?.let {
-                    GroupedListDivider()
-                    Text(it, color = colors.error, modifier = Modifier.padding(16.dp))
-                }
-            }
-            structuredNotes?.let { analysis ->
-                Text(stringResource(R.string.structured_summary_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+            if (showSummaryTools) {
+                Text(stringResource(R.string.session_your_summary_section), color = colors.textBright,
+                    fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start)
                 GroupedListCard(accent = accent) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                    Text(analysis.sessionSummary, color = colors.textBright, maxLines = 6,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f).clickable(enabled = !busy, onClick = onOpenAnalysis).padding(16.dp))
-                    Box {
-                        IconButton(onClick = { showingSummaryMenu = true }, enabled = canWrite && !busy) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.session_regenerate))
-                        }
-                        DropdownMenu(expanded = showingSummaryMenu, onDismissRequest = { showingSummaryMenu = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.session_regenerate)) },
-                                enabled = canWrite && !busy && hasText && recorder.recordingFile == null,
-                                onClick = { showingSummaryMenu = false; onAnalyze(currentSession(), { notes = it }, { structuredNotes = it }) })
-                        }
-                    }
-                    }
-                    GroupedListDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !busy, onClick = onOpenAnalysis)
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(colors.goldGhost, RoundedCornerShape(7.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(Icons.Outlined.FindInPage, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
-                        }
+                    val pending = recorder.recordingFile != null && !busy
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            stringResource(R.string.session_view_edit_summary),
-                            color = colors.gold,
-                            fontWeight = FontWeight.SemiBold,
+                            if (hasText) notes else stringResource(R.string.session_summary_empty),
+                            color = if (hasText) colors.textBright else colors.textBody,
+                            maxLines = 6, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth(),
                         )
+                        TextButton(onClick = { showingNotesEditor = true }, enabled = !busy && (hasText || canWrite)) {
+                            IconLabel(stringResource(when {
+                                !canWrite && hasText -> R.string.session_open_summary
+                                hasText -> R.string.session_read_notes
+                                else -> R.string.session_write_notes
+                            }), Icons.Outlined.EditNote)
+                        }
+                        GroupedListDivider()
+                        Text(stringResource(R.string.session_recording_help), color = colors.textBody, fontSize = 12.sp)
+                        if (recorder.isRecording) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
+                                TextButton(onClick = {
+                                    recorder.stopRecording()
+                                    transcribePending()
+                                }) {
+                                    IconLabel(stringResource(R.string.stop_and_transcribe_action), Icons.Filled.StopCircle, color = colors.error)
+                                }
+                            }
+                        } else {
+                            TextButton(onClick = { startMic() }, enabled = canWrite && !busy && recorder.recordingFile == null) {
+                                IconLabel(stringResource(R.string.record_session_notes_action), Icons.Filled.Mic, color = colors.gold)
+                            }
+                        }
+                    }
+                    if (pending) {
+                        GroupedListDivider()
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(R.string.session_pending_recording), color = colors.textBody, fontSize = 13.sp)
+                            TextButton(onClick = { transcribePending() }) {
+                                Text(stringResource(R.string.transcribe_action), color = colors.gold, fontWeight = FontWeight.SemiBold)
+                            }
+                            TextButton(onClick = { recorder.togglePlayback() }) {
+                                Icon(if (recorder.isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                                    contentDescription = null, tint = colors.gold)
+                                Text(stringResource(if (recorder.isPlaying) R.string.stop_playback_action else R.string.play_recording_action), color = colors.gold)
+                            }
+                            TextButton(onClick = { recorder.discard() }) {
+                                Icon(Icons.Filled.Delete, contentDescription = null, tint = colors.error)
+                                Text(stringResource(R.string.discard_recording_action), color = colors.error)
+                            }
+                        }
+                    }
+                    if (isTranscribing || isAnonymizingTranscription) {
+                        GroupedListDivider()
+                        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
+                            Text(stringResource(if (isTranscribing) R.string.transcribing_label else R.string.anonymizing_status_label), color = colors.textBody)
+                        }
+                    }
+                    recorder.errorMessage?.let {
+                        GroupedListDivider()
+                        Text(it, color = colors.error, modifier = Modifier.padding(16.dp))
+                    }
+                }
+
+                if (hasText || structuredNotes != null) {
+                    Text(stringResource(R.string.session_optional_ai), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                    GroupedListCard(accent = accent) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            structuredNotes?.let { analysis ->
+                                Text(analysis.sessionSummary, color = colors.textBright, maxLines = 6,
+                                    overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
+                                TextButton(onClick = onOpenAnalysis, enabled = !busy) {
+                                    IconLabel(stringResource(if (canWrite) R.string.session_view_edit_summary else R.string.session_open_summary), Icons.Outlined.EditNote)
+                                }
+                                GroupedListDivider()
+                            }
+                            Text(stringResource(R.string.session_ai_hint), color = colors.textBody, fontSize = 12.sp)
+                            if (hasText) {
+                                TextButton(
+                                    onClick = { onAnalyze(currentSession(), { notes = it }, { structuredNotes = it }) },
+                                    enabled = canWrite && !busy && recorder.recordingFile == null,
+                                ) {
+                                    if (isAnalyzing) {
+                                        CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
+                                        Text(stringResource(R.string.analyzing_label), color = colors.textBody, modifier = Modifier.padding(start = 8.dp))
+                                    } else {
+                                        IconLabel(stringResource(if (structuredNotes == null) R.string.ai_summary_action else R.string.session_regenerate), Icons.Outlined.AutoAwesome)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

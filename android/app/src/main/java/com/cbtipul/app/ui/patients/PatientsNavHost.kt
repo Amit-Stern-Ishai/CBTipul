@@ -636,7 +636,6 @@ fun PatientsNavHost(
                         emptyAi,
                         onNotes = onNotes,
                         onAnalysis = { analysis ->
-                            draft.generatedAnalysisSource = draft.notes
                             val key = edited.databaseId?.queryValue ?: edited.id.toString()
                             navController.navigate("patient/$id/session/$key/analysis")
                         },
@@ -690,6 +689,7 @@ fun PatientsNavHost(
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
             SessionAnalysisScreen(
                 analysis = ui.pendingAnalysis ?: session?.structuredNotes,
+                saveToEditorDraft = editorDraft != null,
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 persisted = ui.pendingAnalysis == null,
                 isSaving = ui.isSavingSession,
@@ -701,7 +701,7 @@ fun PatientsNavHost(
                 onSave = { analysis ->
                     val target = session
                     if (editorDraft != null) {
-                        editorDraft.acceptAnalysis(analysis, generated = ui.pendingAnalysis != null)
+                        editorDraft.acceptAnalysis(analysis)
                         viewModel.clearPendingAnalysis()
                         viewModel.clearSessionError()
                         navController.popScreen()

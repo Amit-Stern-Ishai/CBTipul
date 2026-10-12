@@ -82,17 +82,19 @@ enum L10n {
     static func patientLastQuestionnaire(_ date: Date) -> String { "מילוי אחרון: \(hebrewDate(date))" }
 
     static let sessionWriteNotes = "כתיבת סיכום"
-    static let sessionReadNotes = "קריאה ועריכה"
-    static let sessionAIHint = "יצירת סיכום בעזרת AI על בסיס הטקסט שכתבתם."
-    static let sessionDraftReviewHint = "בדקו את הניסוח וערכו לפי הצורך. הטקסט המקורי נשמר בנפרד."
-    static let sessionUseDraft = "שימוש בסיכום הזה"
+    static let sessionReadNotes = "פתיחה ועריכה"
+    static let sessionDraftReviewHint = "בדקו את הניסוח וערכו לפי הצורך. הסיכום שכתבתם נשמר בנפרד."
 
-    static let sessionOpenNotes = "פתיחה לקריאה ועריכה"
-    static let sessionAIDraftTitle = "סיכום בעזרת AI"
+    static let sessionAIDraftTitle = "טיוטת סיכום בעזרת AI"
     static let sessionAcceptDraft = "הוספת הסיכום לפגישה"
-    static let sessionReturnToNotes = "חזרה לטקסט"
+    static let sessionReturnToNotes = "חזרה לפגישה"
     static let sessionRegenerate = "יצירת סיכום מחדש"
-    static let sessionViewEditSummary = "צפייה ועריכה"
+    static let sessionViewEditSummary = "פתיחה ועריכה"
+    static let sessionViewSummary = "פתיחת הסיכום"
+    static let sessionUpdateAnalysis = "עדכון הסיכום"
+    static let sessionUpdateSummaryPrompt = "לעדכן את הסיכום בפגישה?"
+    static let sessionAIAddHelp = "הסיכום יתווסף לפגישה. לסיום לחצו על ״שמירת הפגישה״."
+    static let sessionAISaveHelp = "לשמירת השינויים בסיכום, לחצו על ״שמירת הפגישה״."
 
     static let questionTrendWorseHelp = "הציון האחרון גבוה מהראשון, אך היו גם ירידות בדרך."
     static let questionTrendWorse = "גרוע יותר מההתחלה"
@@ -381,13 +383,16 @@ enum L10n {
     }
     static let notesSection = "הערות"
     static let sessionSummarySection = "סיכום פגישה"
+    static let sessionOwnSummarySection = "הסיכום שלכם"
+    static let sessionEmptySummary = "עדיין אין סיכום לפגישה"
+    static let saveSummaryAction = "שמירת הסיכום"
     static let saveSessionAction = "שמירת הפגישה"
     static let recordSessionNotesAction = "הקלטת סיכום הפגישה"
-    static let sessionRecordingHelp = "אפשר להקליד או להקליט. בסיום ההקלטה, הדברים שאמרתם יהפכו לטקסט שאפשר לערוך."
-    static let sessionNotesSaveHelp = "בסיום העריכה לחצו על ״שמירת הפגישה״."
+    static let sessionRecordingHelp = "בסיום ההקלטה, התמלול יתווסף לסיכום ואפשר יהיה לערוך אותו."
     static let sessionOptionalDetails = "סוג פגישה (לא חובה)"
-    static let sessionOptionalAI = "סיכום מובנה בעזרת AI"
-    static let sessionAIHelp = "יצירת סיכום בעזרת AI על בסיס הטקסט שכתבתם."
+    static let newSessionDetailsHelp = "בחרו תאריך לפגישה. סוג הפגישה אינו חובה. אפשר להוסיף סיכום לאחר השמירה."
+    static let sessionOptionalAI = "סיכום בעזרת AI (לא חובה)"
+    static let sessionAIHelp = "אפשר ליצור מהטקסט סיכום מובנה. התוצאה תוצג לבדיקה לפני השמירה."
     static let sessionPendingRecording = "ההקלטה עדיין לא נוספה לטקסט. כדי לשמור את הפגישה, נסו לתמלל שוב או מחקו את ההקלטה."
     static let sessionNotCreated = "הפגישה עדיין לא נשמרה"
     static let sessionNotSaved = "יש שינויים שטרם נשמרו"
@@ -398,7 +403,7 @@ enum L10n {
     static let sessionProcessing = "מעבד את הפגישה… יש להמתין לסיום"
     
     static let optionalNotesPlaceholder = "הערות (לא חובה)"
-    static let sessionSummaryFieldPlaceholder = "כתבו או הקליטו את סיכום הפגישה"
+    static let sessionSummaryFieldPlaceholder = "כתבו כאן את סיכום הפגישה"
     static let patientNotesFieldPlaceholder = "כתבו או הקליטו הערות על המטופל/ת"
     
     static let myFormulationTitle = "הניסוח שלי"
@@ -508,7 +513,7 @@ enum L10n {
     static let tutorialCoachHintOpenSessions = "לחצו על ״פגישות״"
     static let tutorialCoachHintAddSession = "לחצו על ״הוספת פגישה ראשונה״"
     static let tutorialCoachHintSaveSession =
-        "בדקו את התאריך ולחצו על ״שמירת הפגישה״. אפשר להוסיף סיכום עכשיו או בהמשך."
+        "בדקו את התאריך ולחצו על ״שמירת הפגישה״. אפשר לבחור סוג פגישה. להוספת סיכום, פתחו את הפגישה לאחר השמירה."
     static let tutorialCoachHintOpenSession =
         "לחצו על הפגישה שיצרתם/ן"
     static let tutorialCoachHintFillQuestionnaire = "לחצו על ״מילוי שאלוני מצב רוח כאן״"

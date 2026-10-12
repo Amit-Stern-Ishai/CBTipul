@@ -79,7 +79,7 @@
     <string name="notes_section">הערות</string>
     <string name="session_summary_section">סיכום פגישה</string>
     <string name="optional_notes_placeholder">הערות (לא חובה)</string>
-    <string name="session_summary_field_placeholder">כתבו או הקליטו את סיכום הפגישה</string>
+    <string name="session_summary_field_placeholder">כתבו כאן את סיכום הפגישה</string>
     <string name="patient_notes_field_placeholder">כתבו או הקליטו הערות על המטופל/ת</string>
     <string name="my_formulation_title">הניסוח שלי</string>
     <string name="prepare_next_session_action">הכנה לפגישה הבאה</string>
@@ -93,7 +93,7 @@
     <string name="open_questions_title">שאלות פתוחות</string>
     <string name="mark_discussed_accessibility_label">סימון כנושא שנדון</string>
     <string name="analyzing_label">בניתוח…</string>
-    <string name="ai_summary_action">יצירת סיכום בעזרת AI</string>
+    <string name="ai_summary_action">יצירת סיכום מובנה</string>
     <string name="show_structured_summary_action">הצגת סיכום AI מובנה בשלמותו</string>
     <string name="structured_summary_section">סיכום AI מובנה</string>
     <string name="delete_session_action">מחיקת פגישה</string>
@@ -215,7 +215,7 @@
     <string name="phq9_short_name">PHQ-9</string>
     <string name="questionnaire_section_title">שאלוני מצב רוח</string>
     <string name="has_structured_summary_label">כולל סיכום מובנה</string>
-    <string name="session_type_label">סוג פגישה</string>
+    <string name="session_type_label">סוג פגישה (לא חובה)</string>
     <string name="session_type_none">ללא</string>
     <string name="no_questionnaire_for_session">אין שאלוני מצב רוח לפגישה זו</string>
     <string name="gad7_title">GAD-7 שאלון לאבחון חרדה מוכללת</string>
@@ -506,7 +506,7 @@
     <string name="tutorial_coach_hint_open_patient">לחצו על המטופל/ת שיצרתם/ן</string>
     <string name="tutorial_coach_hint_open_sessions">לחצו על ״פגישות״</string>
     <string name="tutorial_coach_hint_add_session">לחצו על ״הוספת פגישה ראשונה״</string>
-    <string name="tutorial_coach_hint_save_session">קבעו סוג פגישה ותאריך, ולחצו על ״הוספת פגישה״</string>
+    <string name="tutorial_coach_hint_save_session">בחרו תאריך, ואם תרצו גם סוג פגישה, ולחצו על ״שמירת הפגישה״. אפשר לפתוח אותה שוב ולהוסיף סיכום.</string>
     <string name="tutorial_coach_hint_open_session">לחצו על הפגישה שיצרתם/ן</string>
     <string name="tutorial_coach_hint_fill_questionnaire">לחצו על ״מילוי שאלוני מצב רוח״</string>
     <string name="tutorial_coach_hint_complete_questionnaire">סמנו בחירה לכל שאלה, ולחצו על ״שמירה״ למעלה מצד שמאל.</string>
@@ -754,10 +754,10 @@
     <string name="record_session_notes_action">הקלטת סיכום הפגישה</string>
     <string name="record_patient_notes_action">הקלטת הערות</string>
     <string name="stop_and_transcribe_action">עצירה ותמלול</string>
-    <string name="session_recording_help">אפשר להקליד או להקליט. בסיום ההקלטה הדברים שאמרתם יהפכו לטקסט שאפשר לערוך.</string>
+    <string name="session_recording_help">בסיום ההקלטה, התמלול יתווסף לסיכום ואפשר יהיה לערוך אותו.</string>
     <string name="session_pending_recording">ההקלטה עדיין לא נוספה לטקסט. נסו לתמלל שוב או מחקו את ההקלטה לפני השמירה.</string>
-    <string name="session_optional_ai">סיכום מובנה בעזרת AI</string>
-    <string name="session_ai_help">יצירת סיכום בעזרת AI על בסיס הטקסט שכתבתם.</string>
+    <string name="session_optional_ai">סיכום בעזרת AI (לא חובה)</string>
+    <string name="session_ai_help">אפשר ליצור מהטקסט סיכום מובנה. התוצאה תוצג לבדיקה לפני השמירה.</string>
     <string name="fill_questionnaire_here_action">מילוי שאלוני מצב רוח כאן</string>
     <string name="questionnaire_local_entry_help">התשובות נשמרות בתיק. פעולה זו אינה מפעילה גישה באפליקציית המטופל/ת.</string>
     <string name="questionnaire_pending_explanation">לאחר שהמטופל/ת ישלחו את התשובות, הן יופיעו כאן.</string>
@@ -1046,15 +1046,15 @@
     <string name="question_trend_worse">גרוע יותר מההתחלה</string>
     <string name="question_trend_worse_help">הציון האחרון גבוה מהראשון, אך היו גם ירידות בדרך.</string>
     <string name="session_open_notes">פתיחה לקריאה ועריכה</string>
-    <string name="session_ai_draft_title">סיכום בעזרת AI</string>
+    <string name="session_ai_draft_title">טיוטת סיכום בעזרת AI</string>
     <string name="session_accept_draft">הוספת הסיכום לפגישה</string>
-    <string name="session_return_to_notes">חזרה לטקסט</string>
+    <string name="session_return_to_notes">חזרה לפגישה</string>
     <string name="session_regenerate">יצירת סיכום מחדש</string>
-    <string name="session_view_edit_summary">צפייה ועריכה</string>
+    <string name="session_view_edit_summary">פתיחה ועריכה</string>
     <string name="session_write_notes">כתיבת סיכום</string>
-    <string name="session_read_notes">קריאה ועריכה</string>
-    <string name="session_ai_hint">יצירת סיכום בעזרת AI על בסיס הטקסט שכתבתם.</string>
-    <string name="session_draft_review_hint">בדקו את הניסוח וערכו לפי הצורך. הטקסט המקורי נשמר בנפרד.</string>
+    <string name="session_read_notes">פתיחה ועריכה</string>
+    <string name="session_ai_hint">אפשר ליצור מהטקסט סיכום מובנה. התוצאה תוצג לבדיקה לפני השמירה.</string>
+    <string name="session_draft_review_hint">בדקו את הניסוח וערכו לפי הצורך. הסיכום שכתבתם נשמר בנפרד.</string>
     <string name="session_use_draft">שימוש בסיכום הזה</string>
     <string name="session_notes_save_help">בסיום העריכה לחצו על ״שמירת הפגישה״.</string>
     <string name="patient_diary_one_purpose">מה קרה ואיך הרגשתי</string>
@@ -1152,4 +1152,13 @@
     <string name="access_resolution_missing_body">השרת לא החזיר הרשאות גישה תקינות. ניתן לנסות שוב; אם הבעיה נמשכת יש לפנות לתמיכה.</string>
     <string name="access_resolution_session_body">טעינת ההתחברות לא הושלמה. בדקו את החיבור ונסו שוב.</string>
     <string name="session_resolution_failed_title">לא ניתן להשלים את ההתחברות כרגע</string>
+    <string name="session_creation_help">בחרו תאריך לפגישה. סוג הפגישה אינו חובה. אפשר להוסיף סיכום לאחר השמירה.</string>
+    <string name="session_your_summary_section">הסיכום שלכם</string>
+    <string name="session_summary_empty">עדיין אין סיכום לפגישה</string>
+    <string name="session_summary_unsaved">יש שינויים בסיכום שטרם נשמרו</string>
+    <string name="session_ai_accept_help">הסיכום יתווסף לפגישה. לסיום לחצו על ״שמירת הפגישה״.</string>
+    <string name="session_update_summary">עדכון הסיכום</string>
+    <string name="session_update_summary_prompt">לעדכן את הסיכום בפגישה?</string>
+    <string name="session_open_summary">פתיחת הסיכום</string>
+    <string name="session_ai_save_help">לשמירת השינויים בסיכום, לחצו על ״שמירת הפגישה״.</string>
 </resources>

@@ -16,6 +16,7 @@ struct SessionEditorView: View {
     
     init(session: Session, patient: Patient?, isNew: Bool, sessionNumber: Int? = nil) {
         _session = State(initialValue: session.editingCopy())
+        _showsSummaryEditor = State(initialValue: !isNew || !session.notes.isEmpty || session.structuredNotes != nil)
         self.patient = patient
         self.isNew = isNew
         self.sessionNumber = sessionNumber
@@ -40,8 +41,6 @@ struct SessionEditorView: View {
     @State private var isShowingDeleteCodeChallenge = false
     @State private var initialDate: Date?
     @State private var initialNotes: String?
-    @State private var acceptedAnalysisSource: String?
-    @State private var generatedAnalysisSource: String?
     @State private var initialType: SessionType?
     @State private var initialStructuredNotes: WhisperService.CBTSessionAnalysis?
     @State private var isRequestingRecording = false
@@ -56,6 +55,8 @@ struct SessionEditorView: View {
     @State private var isAnalyzing = false
     @State private var analysisResult: SessionAnalysisResult?
     @State private var isShowingAllFollowUps = false
+    // Keep recovered summary controls available even if the user clears the draft.
+    @State private var showsSummaryEditor: Bool
     @State private var showingNotesEditor = false
     @State private var notesAtEditorOpen = ""
     @State private var confirmLeavingNotes = false
@@ -106,6 +107,7 @@ struct SessionEditorView: View {
         if voiceRecorder.recordingURL != nil { return L10n.sessionRecordingNeedsTranscription }
         if storePatient == nil { return L10n.sessionChoosePatientHelp }
         if isNew { return L10n.sessionNotCreated }
+        if hasUnsavedChanges { return L10n.sessionNotSaved }
         return nil
     }
 
@@ -216,6 +218,10 @@ struct SessionEditorView: View {
                         .disabled(isWorking || !EntitlementState.shared.canWrite)
                         .accessibilityIdentifier("session.type")
                         .listRowBackground(groupBorderedRow(.last))
+                } footer: {
+                    if isNew && !showsSummaryEditor {
+                        Text(L10n.newSessionDetailsHelp)
+                    }
                 }
 
 //                if let firstFollowUp = pendingFollowUps.first {
@@ -234,122 +240,89 @@ struct SessionEditorView: View {
 //                    }
 //                }
 
-                Section(L10n.sessionSummarySection) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Button { showingNotesEditor = true } label: {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text(session.notes.isEmpty ? L10n.sessionSummaryFieldPlaceholder : session.notes)
-                                    .foregroundStyle(session.notes.isEmpty ? Theme.textBody : Theme.textBright)
-                                    .lineLimit(6)
-                                    .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
-                                    .padding(16)
-                                    .background(Theme.base, in: RoundedRectangle(cornerRadius: 12))
-                                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.borderFaint, lineWidth: 1))
-                                Label(session.notes.isEmpty ? L10n.sessionWriteNotes : L10n.sessionReadNotes, systemImage: session.notes.isEmpty ? "square.and.pencil" : "arrow.up.left.and.arrow.down.right")
-                                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.gold)
-                            }.contentShape(Rectangle())
-                        }.buttonStyle(.plain).disabled(isWorking)
-                            .accessibilityIdentifier("session.notes")
-                        Divider()
-                        recordControl
-                        if session.notes.isEmpty {
-                            Text(L10n.sessionRecordingHelp).font(.footnote).foregroundStyle(.secondary)
-                        }
-                        if !session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (session.structuredNotes == nil || session.notes != acceptedAnalysisSource) {
-                            Divider()
-                            if isAnalyzing {
-                                HStack { ProgressView(); Text(L10n.analyzingLabel).font(.subheadline) }
+                if showsSummaryEditor {
+                    Section(L10n.sessionOwnSummarySection) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            if session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                Text(L10n.sessionEmptySummary)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             } else {
-                                Button { analyze() } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "sparkles").font(.title3)
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(L10n.aiSummaryAction).font(.subheadline.weight(.semibold))
-                                            Text(L10n.sessionAIHint).font(.caption).foregroundStyle(.secondary)
-                                        }
-                                        Spacer(minLength: 0)
-                                        Image(systemName: "chevron.forward").font(.caption)
-                                    }.padding(.vertical, 6).contentShape(Rectangle())
-                                }.buttonStyle(.plain).foregroundStyle(Theme.gold)
-                                    .disabled(isWorking || voiceRecorder.recordingURL != nil)
+                                Text(session.notes)
+                                    .font(.body)
+                                    .foregroundStyle(Theme.textBright)
+                                    .lineLimit(6)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                        }
-                    }
-                    .listRowBackground(groupBorderedRow(.first))
-                    // Transcription starts automatically when recording
-                    // stops, so this row only ever appears after a failed
-                    // transcription — the recording survives for a retry.
-                    if voiceRecorder.recordingURL != nil, !isWorking {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.sessionPendingRecording)
-                                .foregroundStyle(.secondary)
-                            Button {
-                                voiceRecorder.togglePlayback()
-                            } label: {
-                                Label(voiceRecorder.isPlaying
-                                      ? L10n.stopPlaybackAction
-                                      : L10n.playRecordingAction,
-                                      systemImage: voiceRecorder.isPlaying
-                                      ? "stop.circle"
-                                      : "play.circle")
+                            Button { showingNotesEditor = true } label: {
+                                Label(EntitlementState.shared.canWrite ? (session.notes.isEmpty ? L10n.sessionWriteNotes : L10n.sessionReadNotes) : L10n.sessionViewSummary,
+                                      systemImage: "square.and.pencil")
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                    .contentShape(Rectangle())
                             }
-                            Button(L10n.transcribeAction) { transcribe() }
-                                .fontWeight(.semibold)
-                            Button(role: .destructive) {
-                                voiceRecorder.discard()
-                            } label: {
-                                Label(L10n.discardRecordingAction, systemImage: "trash")
+                            .buttonStyle(.plain)
+                            .foregroundStyle(Theme.gold)
+                            .disabled(isWorking || (session.notes.isEmpty && !EntitlementState.shared.canWrite))
+                            .accessibilityIdentifier("session.notes")
+                            Divider()
+                            recordControl
+                            Text(L10n.sessionRecordingHelp)
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                        .listRowBackground(groupBorderedRow(.only))
+                        // Transcription starts automatically when recording
+                        // stops, so this row only ever appears after a failed
+                        // transcription — the recording survives for a retry.
+                        if voiceRecorder.recordingURL != nil, !isWorking {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(L10n.sessionPendingRecording)
+                                    .foregroundStyle(.secondary)
+                                Button {
+                                    voiceRecorder.togglePlayback()
+                                } label: {
+                                    Label(voiceRecorder.isPlaying
+                                          ? L10n.stopPlaybackAction
+                                          : L10n.playRecordingAction,
+                                          systemImage: voiceRecorder.isPlaying
+                                          ? "stop.circle"
+                                          : "play.circle")
+                                }
+                                Button(L10n.transcribeAction) { transcribe() }
+                                    .fontWeight(.semibold)
+                                Button(role: .destructive) {
+                                    voiceRecorder.discard()
+                                } label: {
+                                    Label(L10n.discardRecordingAction, systemImage: "trash")
+                                }
+                                .accessibilityLabel(L10n.discardRecordingAction)
                             }
-                            .accessibilityLabel(L10n.discardRecordingAction)
-                        }
-                        .font(.subheadline)
-                        .buttonStyle(.borderless)
-                        .listRowBackground(groupBorderedRow(.middle))
-                    }
-
-                    if isTranscribing || isAnonymizingTranscription {
-                        HStack {
-                            ProgressView()
-                            Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
-                                .foregroundStyle(.secondary)
-                        }
-                        .listRowBackground(groupBorderedRow(.middle))
-                    }
-
-                    if let recorderError = voiceRecorder.errorMessage {
-                        Text(recorderError)
-                            .font(.footnote)
-                            .foregroundStyle(Theme.error)
+                            .font(.subheadline)
+                            .buttonStyle(.borderless)
                             .listRowBackground(groupBorderedRow(.middle))
-                    }
+                        }
 
+                        if isTranscribing || isAnonymizingTranscription {
+                            HStack {
+                                ProgressView()
+                                Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .listRowBackground(groupBorderedRow(.middle))
+                        }
+
+                        if let recorderError = voiceRecorder.errorMessage {
+                            Text(recorderError)
+                                .font(.footnote)
+                                .foregroundStyle(Theme.error)
+                                .listRowBackground(groupBorderedRow(.middle))
+                        }
+
+                    }
                 }
 
-                if let structuredNotes = session.structuredNotes {
-                    Section(L10n.structuredSummarySection) {
-                        HStack(alignment: .top, spacing: 12) {
-                            Button {
-                                analysisResult = SessionAnalysisResult(analysis: structuredNotes, requiresSaveDecision: false)
-                            } label: {
-                                Text(structuredNotes.sessionSummary).lineLimit(6)
-                                    .foregroundStyle(Theme.textBright)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }.buttonStyle(.plain).disabled(isWorking)
-                            Menu {
-                                Button(L10n.sessionRegenerate) { analyze() }
-                                    .disabled(isWorking || session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || voiceRecorder.recordingURL != nil)
-                            } label: { Image(systemName: "ellipsis").padding(8) }
-                                .accessibilityLabel(L10n.sessionRegenerate)
-                        }.listRowBackground(groupBorderedRow(.first))
-                        Button {
-                            analysisResult = SessionAnalysisResult(analysis: structuredNotes,
-                                                                   requiresSaveDecision: false)
-                        } label: {
-                            Label(L10n.sessionViewEditSummary, systemImage: "doc.text.magnifyingglass")
-                        }
-                        .disabled(isWorking || !EntitlementState.shared.canWrite)
-                        .listRowBackground(groupBorderedRow(.last))
-                    }
+                if showsSummaryEditor && (!session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || session.structuredNotes != nil) {
+                    aiSummarySection
                 }
 
                 if !isNew {
@@ -523,7 +496,7 @@ struct SessionEditorView: View {
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             if (hasUnsavedChanges || isNew) && EntitlementState.shared.canWrite {
-                                Button(L10n.saveSessionAction) { save() }
+                                Button(L10n.saveSummaryAction) { save(closeNotesEditor: true) }
                                     .fontWeight(.semibold).disabled(!canSave)
                             } else {
                                 Button(L10n.closeAction) {
@@ -544,7 +517,7 @@ struct SessionEditorView: View {
                     }
                     .busyOverlay(isSaving, label: busyLabel)
                     .alert(L10n.saveSummaryPrompt, isPresented: $confirmLeavingNotes) {
-                        Button(L10n.saveSessionAction) { save() }.disabled(!canSave)
+                        Button(L10n.saveSummaryAction) { save(closeNotesEditor: true) }.disabled(!canSave)
                         Button(L10n.discardChangesAction, role: .destructive) {
                             session.notes = notesAtEditorOpen
                             showingNotesEditor = false
@@ -566,7 +539,6 @@ struct SessionEditorView: View {
                 if initialDate == nil {
                     initialDate = session.date
                     initialNotes = session.notes
-                    acceptedAnalysisSource = session.notes
                     initialType = session.type
                     initialStructuredNotes = session.structuredNotes
                     let target = isNew ? "new:\(patient?.id.queryValue ?? "global")" : "session:\(session.databaseID?.queryValue ?? session.id.uuidString)"
@@ -576,6 +548,9 @@ struct SessionEditorView: View {
                         session.type = saved.type
                         session.structuredNotes = saved.structuredNotes
                         selectedPatientID = saved.selectedPatientID
+                        if !saved.notes.isEmpty || saved.structuredNotes != nil {
+                            showsSummaryEditor = true
+                        }
                     }
                 }
                 gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: storePatient?.id)
@@ -614,11 +589,54 @@ struct SessionEditorView: View {
             .sheet(item: $analysisResult) { result in
                 SessionAnalysisView(analysis: result.analysis,
                                     requiresSaveDecision: result.requiresSaveDecision,
-                                    onSave: { saveStructuredNotes($0) },
+                                    onSave: EntitlementState.shared.canWrite ? { saveStructuredNotes($0) } : nil,
                                     accent: patientAccent)
             }
         }
         .appTextSize()
+    }
+
+    private var aiSummarySection: some View {
+        Section(L10n.sessionOptionalAI) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(L10n.sessionAIHelp)
+                    .font(.footnote).foregroundStyle(.secondary)
+                if let structuredNotes = session.structuredNotes {
+                    Text(structuredNotes.sessionSummary)
+                        .lineLimit(6)
+                        .foregroundStyle(Theme.textBright)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button {
+                        analysisResult = SessionAnalysisResult(analysis: structuredNotes, requiresSaveDecision: false)
+                    } label: {
+                        Label(EntitlementState.shared.canWrite ? L10n.sessionViewEditSummary : L10n.sessionViewSummary, systemImage: "doc.text.magnifyingglass")
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .disabled(isWorking)
+                    if session.structuredNotes != initialStructuredNotes {
+                        Text(L10n.sessionAISaveHelp)
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                    Divider()
+                }
+                if isAnalyzing {
+                    HStack { ProgressView(); Text(L10n.analyzingLabel).font(.subheadline) }
+                } else {
+                    Button { analyze() } label: {
+                        Label(session.structuredNotes == nil ? L10n.aiSummaryAction : L10n.sessionRegenerate,
+                              systemImage: "sparkles")
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .disabled(isWorking || !EntitlementState.shared.canWrite || session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || voiceRecorder.recordingURL != nil)
+                }
+            }
+            .font(.subheadline)
+            .buttonStyle(.plain)
+            .tint(Theme.gold)
+            .listRowBackground(groupBorderedRow(.only))
+        }
     }
 
     private var patientPicker: some View {
@@ -647,15 +665,39 @@ struct SessionEditorView: View {
         }
     }
 
-    /// Optional protocol stage directly below the date.
+    /// A stable label avoids the native menu Picker resizing its selected text.
     private var typePicker: some View {
-        Picker(L10n.sessionTypeLabel, selection: $session.type) {
-            Text(L10n.sessionTypeNone).tag(SessionType?.none)
-            ForEach(SessionType.allCases, id: \.self) { type in
-                Text(L10n.label(for: type)).tag(SessionType?.some(type))
+        let selectionLabel = session.type.map { L10n.label(for: $0) } ?? L10n.sessionTypeNone
+        return Menu {
+            Picker(L10n.sessionTypeLabel, selection: $session.type) {
+                Text(L10n.sessionTypeNone).tag(SessionType?.none)
+                ForEach(SessionType.allCases, id: \.self) { type in
+                    Text(L10n.label(for: type)).tag(SessionType?.some(type))
+                }
             }
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.sessionOptionalDetails)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Text(selectionLabel)
+                        .font(.body)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .foregroundStyle(Theme.textBright)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .pickerStyle(.menu)
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.sessionOptionalDetails)
+        .accessibilityValue(selectionLabel)
     }
 
     /// Recording is explicitly labelled; stopping starts transcription automatically.
@@ -763,7 +805,6 @@ struct SessionEditorView: View {
                 // unedited skips anonymization; only fields the therapist
                 // edits afterwards go through the Edge Function.
                 store.registerAIAnalysis(analysis)
-                generatedAnalysisSource = anonymizedNotes
                 analysisResult = SessionAnalysisResult(analysis: analysis, requiresSaveDecision: true)
                 gettingStartedRouter.refresh(using: store)
                 gettingStartedRouter.beginShowcaseCountdownIfNeeded(using: store)
@@ -872,9 +913,6 @@ struct SessionEditorView: View {
     /// Accepts the review into the editor draft; Save Session persists it.
     private func saveStructuredNotes(_ analysis: WhisperService.CBTSessionAnalysis) {
         guard EntitlementState.shared.allowMutation() else { return }
-        if analysisResult?.requiresSaveDecision == true {
-            acceptedAnalysisSource = generatedAnalysisSource
-        }
         session.structuredNotes = analysis
 
     }
@@ -995,8 +1033,9 @@ struct SessionEditorView: View {
     /// Saves the session. A creation sheet closes once the session exists;
     /// editing an existing one stays on screen — unless the save came from
     /// the leave-without-saving warning (`thenDismiss`), which continues
-    /// backing out after a successful save.
-    private func save(thenDismiss: Bool = false) {
+    /// backing out after a successful save. The notes editor returns to this
+    /// overview only after persistence succeeds (`closeNotesEditor`).
+    private func save(thenDismiss: Bool = false, closeNotesEditor: Bool = false) {
         guard EntitlementState.shared.allowMutation() else { return }
         guard canSave, let patient = storePatient else { return }
         errorMessage = nil
@@ -1025,6 +1064,7 @@ struct SessionEditorView: View {
                     initialType = session.type
                     initialStructuredNotes = session.structuredNotes
                     gettingStartedRouter.refresh(using: store)
+                    if closeNotesEditor { showingNotesEditor = false }
                     if thenDismiss { dismiss() }
                 }
             } catch {

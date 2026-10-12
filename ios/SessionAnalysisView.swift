@@ -4,8 +4,7 @@ import SwiftUI
 struct SessionAnalysisResult: Identifiable {
     let id = UUID()
     let analysis: WhisperService.CBTSessionAnalysis
-    /// True for a freshly generated summary that hasn't been saved yet, so
-    /// closing the screen asks whether to keep it.
+    /// True for a generated result awaiting acceptance into the session draft.
     let requiresSaveDecision: Bool
 }
 
@@ -16,8 +15,8 @@ struct SessionAnalysisResult: Identifiable {
 /// hypotheses, and the questions worth clarifying. Empty sections are
 /// hidden.
 ///
-/// Closing the screen asks whether to save when the analysis is freshly
-/// generated (`requiresSaveDecision`) or has been edited.
+/// Generated results have explicit accept/return actions; leaving an edited
+/// summary asks whether to update the session draft. The editor persists it.
 struct SessionAnalysisView: View {
     let analysis: WhisperService.CBTSessionAnalysis
     var requiresSaveDecision: Bool = false
@@ -72,6 +71,8 @@ struct SessionAnalysisView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     if requiresSaveDecision {
                         Text(L10n.sessionDraftReviewHint).font(.subheadline).foregroundStyle(.secondary)
+                    } else if onSave != nil {
+                        Text(L10n.sessionAISaveHelp).font(.subheadline).foregroundStyle(.secondary)
                     }
                     TextField(L10n.sessionSummaryPlaceholder, text: $edited.sessionSummary, axis: .vertical).entitlementWriteControl()
                         .font(.body)
@@ -169,8 +170,9 @@ struct SessionAnalysisView: View {
                 // appears for fresh results and the moment anything is edited.
                 if needsSaveDecision && !requiresSaveDecision {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(requiresSaveDecision ? L10n.sessionAcceptDraft : L10n.saveChangesAction) {
-                            if EntitlementState.shared.allowMutation() { onSave?(edited) }
+                        Button(L10n.sessionUpdateAnalysis) {
+                            guard EntitlementState.shared.allowMutation(), let onSave else { return }
+                            onSave(edited)
                             dismiss()
                         }
                     }
@@ -179,21 +181,30 @@ struct SessionAnalysisView: View {
             .safeAreaInset(edge: .bottom) {
                 if requiresSaveDecision {
                     VStack(spacing: 8) {
-                        Button { if EntitlementState.shared.allowMutation() { onSave?(edited) }; dismiss() } label: {
-                            Text(L10n.sessionUseDraft).frame(maxWidth: .infinity, minHeight: 30)
+                        Text(L10n.sessionAIAddHelp).font(.footnote).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button {
+                            guard EntitlementState.shared.allowMutation(), let onSave else { return }
+                            onSave(edited)
+                            dismiss()
+                        } label: {
+                            Text(L10n.sessionAcceptDraft).frame(maxWidth: .infinity, minHeight: 30)
                         }.buttonStyle(.borderedProminent)
                         Button(L10n.sessionReturnToNotes) { dismiss() }.font(.subheadline)
                     }.padding().background(.regularMaterial)
                 }
             }
-            .alert(L10n.saveSummaryPrompt,
+            .alert(L10n.sessionUpdateSummaryPrompt,
                    isPresented: $isShowingSaveAsk) {
-                Button(requiresSaveDecision ? L10n.sessionAcceptDraft : L10n.saveChangesAction) {
-                    if EntitlementState.shared.allowMutation() { onSave?(edited) }
+                Button(requiresSaveDecision ? L10n.sessionAcceptDraft : L10n.sessionUpdateAnalysis) {
+                    guard EntitlementState.shared.allowMutation(), let onSave else { return }
+                    onSave(edited)
                     dismiss()
                 }
                 Button(L10n.dontSaveAction, role: .destructive) { dismiss() }
                 Button(L10n.keepViewingAction, role: .cancel) {}
+            } message: {
+                Text(L10n.sessionAISaveHelp)
             }
         }
         .interactiveDismissDisabled(needsSaveDecision)

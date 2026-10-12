@@ -67,8 +67,10 @@ fun SessionAnalysisScreen(
     onBack: () -> Unit,
     onSave: (CBTSessionAnalysis) -> Unit,
     onDiscard: () -> Unit,
+    saveToEditorDraft: Boolean = false,
 ) {
     val colors = Theme.colors
+    val canWrite = com.cbtipul.app.ui.entitlementCanWrite()
     if (analysis == null) {
         Column(Modifier.fillMaxSize().padding(24.dp)) {
             Text(stringResource(R.string.session_not_saved_error), color = colors.textBright)
@@ -92,13 +94,19 @@ fun SessionAnalysisScreen(
         containerColor = Color.Transparent,
         bottomBar = {
             if (!persisted) {
-                Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                    androidx.compose.material3.Button(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) onSave(edited) }, enabled = !isSaving,
-                        modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.session_use_draft))
+                Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (saveToEditorDraft && canWrite) Text(stringResource(R.string.session_ai_accept_help),
+                        color = colors.textBody, fontSize = 13.sp)
+                    if (canWrite) {
+                        androidx.compose.material3.Button(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) onSave(edited) }, enabled = !isSaving,
+                            modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(if (saveToEditorDraft) R.string.session_accept_draft else R.string.save_summary_action))
+                        }
                     }
                     TextButton(onClick = onDiscard, enabled = !isSaving) {
-                        Text(stringResource(R.string.session_return_to_notes))
+                        Text(stringResource(if (saveToEditorDraft) R.string.session_return_to_notes else R.string.back))
                     }
                 }
             }
@@ -108,13 +116,13 @@ fun SessionAnalysisScreen(
                 title = { Text(stringResource(if (!persisted) R.string.session_ai_draft_title else R.string.session_summary_title), color = colors.textBright) },
                 navigationIcon = {
                     IconButton(onClick = { requestBack() }, enabled = !isSaving) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(if (saveToEditorDraft) R.string.session_return_to_notes else R.string.back), tint = colors.gold)
                     }
                 },
                 actions = {
-                    if (needsDecision && persisted) {
+                    if (needsDecision && persisted && canWrite) {
                         TextButton(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) onSave(edited) }, enabled = !isSaving) {
-                            Text(stringResource(if (!persisted) R.string.session_accept_draft else R.string.save_changes_action), color = colors.gold)
+                            Text(stringResource(if (saveToEditorDraft) R.string.session_update_summary else R.string.save_changes_action), color = colors.gold)
                         }
                     }
                 },
@@ -131,6 +139,7 @@ fun SessionAnalysisScreen(
             verticalArrangement = Arrangement.spacedBy(28.dp),
         ) {
             if (!persisted) Text(stringResource(R.string.session_draft_review_hint), color = colors.textBody, fontSize = 14.sp)
+            if (persisted && saveToEditorDraft && canWrite) Text(stringResource(R.string.session_ai_save_help), color = colors.textBody, fontSize = 14.sp)
             AnalysisField(
                 value = edited.sessionSummary,
                 onValueChange = { edited = edited.copy(sessionSummary = it) },
@@ -217,6 +226,8 @@ fun SessionAnalysisScreen(
 
     AnalysisLeaveDialog(
         visible = showLeave,
+        saveToEditorDraft = saveToEditorDraft,
+        canSave = canWrite,
         onSave = {
             showLeave = false
             if (com.cbtipul.app.data.Entitlements.allowMutation()) onSave(edited)

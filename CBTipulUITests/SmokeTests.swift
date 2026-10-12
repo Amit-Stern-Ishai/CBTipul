@@ -211,7 +211,8 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(date.exists)
         XCTAssertTrue(type.exists)
         XCTAssertLessThan(date.frame.midY, type.frame.midY)
-        XCTAssertLessThan(type.frame.midY, app.textViews.firstMatch.frame.minY)
+        XCTAssertFalse(app.buttons["session.notes"].exists, "A fresh session only needs a date and optional type")
+        XCTAssertFalse(app.buttons["הקלטת סיכום הפגישה"].exists)
         picker.tap()
         let choice = app.buttons[name]
         XCTAssertTrue(choice.waitForExistence(timeout: 5))
@@ -233,6 +234,8 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(save.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts[name].exists)
         XCTAssertFalse(picker.exists, "Saved sessions keep their original patient")
+        XCTAssertTrue(app.buttons["session.notes"].exists, "Summary editing is available after saving and reopening")
+        XCTAssertTrue(app.buttons["הקלטת סיכום הפגישה"].exists)
     }
 
     @MainActor
@@ -268,7 +271,10 @@ final class SmokeTests: XCTestCase {
         let save = app.buttons["session.save"]
         XCTAssertTrue(save.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["session.patient"].exists, "Patient detail already supplies the patient")
-        XCTAssertTrue(app.buttons["הקלטת סיכום הפגישה"].exists)
+        XCTAssertTrue(app.datePickers["session.date"].exists)
+        XCTAssertTrue(app.buttons["session.type"].exists)
+        XCTAssertFalse(app.buttons["session.notes"].exists)
+        XCTAssertFalse(app.buttons["הקלטת סיכום הפגישה"].exists)
         XCTAssertTrue(save.isEnabled, "A date-only session should not require optional details or AI")
         let initial = XCTAttachment(screenshot: app.screenshot())
         initial.name = "Clear session editor"
@@ -284,31 +290,47 @@ final class SmokeTests: XCTestCase {
         XCTAssertFalse(save.isEnabled)
         XCTAssertFalse(app.staticTexts["כל השינויים נשמרו"].exists)
 
+        let summary = app.buttons["session.notes"]
+        XCTAssertTrue(summary.exists, "Saved sessions retain summary editing")
+        XCTAssertTrue(app.buttons["הקלטת סיכום הפגישה"].exists)
+        reveal(summary, in: app)
+        summary.tap()
         let notes = app.textViews.firstMatch
+        XCTAssertTrue(notes.waitForExistence(timeout: 5))
         notes.tap()
         notes.typeText("Session notes for UX verification")
-        XCTAssertTrue(save.isEnabled)
-        save.tap()
-        let saved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == false"), object: save)
-        XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 10), .completed)
-        XCTAssertFalse(app.staticTexts["כל השינויים נשמרו"].exists)
+        let notesNavigation = app.navigationBars["סיכום פגישה"]
+        let saveNotes = notesNavigation.buttons["שמירת הסיכום"]
+        XCTAssertTrue(saveNotes.isEnabled)
+        saveNotes.tap()
+        let closeNotes = notesNavigation.buttons["סגירה"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 10), "A successful save returns to the session overview")
         XCTAssertFalse(save.isEnabled)
         app.navigationBars.buttons["חזרה"].firstMatch.tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        reveal(summary, in: app)
+        summary.tap()
         XCTAssertTrue(notes.waitForExistence(timeout: 5))
         XCTAssertEqual(notes.value as? String, "Session notes for UX verification")
         notes.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         notes.typeText(" discarded edit")
-        app.navigationBars.buttons["חזרה"].firstMatch.tap()
+        notesNavigation.buttons["חזרה"].tap()
         XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 3))
         app.alerts.buttons["מחיקת השינויים"].tap()
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertFalse(save.isEnabled, "Discarding summary edits preserves the saved session")
+        app.navigationBars.buttons["חזרה"].firstMatch.tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        reveal(summary, in: app)
+        summary.tap()
         XCTAssertTrue(notes.waitForExistence(timeout: 5))
         XCTAssertEqual(notes.value as? String, "Session notes for UX verification")
-        XCTAssertFalse(save.isEnabled)
+        XCTAssertTrue(closeNotes.exists)
     }
 
     /// Fixed tutorial docks can overlap cells that XCTest still calls hittable.

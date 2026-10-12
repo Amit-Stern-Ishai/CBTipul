@@ -81,28 +81,41 @@ class SessionEditorDraft(val initial: Session) {
 
     var selectedPatientId by mutableStateOf<String?>(null)
     var date by mutableStateOf(initial.date)
-    var notes by mutableStateOf(initial.notes)
+    // Keep recovered summary tools available for this draft even if its text is cleared.
+    var hasSummaryDraft by mutableStateOf(initial.notes.isNotBlank() || initial.structuredNotes != null)
+        private set
+    private var draftNotes by mutableStateOf(initial.notes)
+    var notes: String
+        get() = draftNotes
+        set(value) {
+            draftNotes = value
+            if (value.isNotBlank()) hasSummaryDraft = true
+        }
     var type by mutableStateOf(initial.type)
-    var structuredNotes by mutableStateOf(initial.structuredNotes)
-    var acceptedAnalysisSource by mutableStateOf(initial.notes)
-    var generatedAnalysisSource: String? = null
-    val canGenerateAnalysis: Boolean
-        get() = notes.isNotBlank() && (structuredNotes == null || notes != acceptedAnalysisSource)
-
-    fun acceptAnalysis(analysis: com.cbtipul.app.model.CBTSessionAnalysis, generated: Boolean) {
-        if (generated) generatedAnalysisSource?.let { acceptedAnalysisSource = it }
+    private var draftStructuredNotes by mutableStateOf(initial.structuredNotes)
+    var structuredNotes: com.cbtipul.app.model.CBTSessionAnalysis?
+        get() = draftStructuredNotes
+        set(value) {
+            draftStructuredNotes = value
+            if (value != null) hasSummaryDraft = true
+        }
+    fun acceptAnalysis(analysis: com.cbtipul.app.model.CBTSessionAnalysis) {
         structuredNotes = analysis
     }
     var baselineDate by mutableStateOf(initial.date)
     var baselineNotes by mutableStateOf(initial.notes)
     var baselineType by mutableStateOf(initial.type)
     var baselineStructured by mutableStateOf(initial.structuredNotes)
+    var saveRevision by mutableStateOf(0)
+        private set
+
     fun markSaved(saved: Session) {
         clearRecovery(close = initial.databaseId == null)
         baselineDate = saved.date
         baselineNotes = saved.notes
         baselineType = saved.type
         baselineStructured = saved.structuredNotes
+        saveRevision += 1
     }
 
     fun snapshot(): Session = initial.copy(date = date, notes = notes, type = type, structuredNotes = structuredNotes)

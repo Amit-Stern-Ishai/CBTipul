@@ -22,23 +22,23 @@ class SessionEditorDraftTest {
         assertEquals(kotlinx.serialization.json.JsonPrimitive("Summary"), populated["notes"])
     }
 
-    @Test fun editingNotesAllowsRegenerationUntilUpdatedDraftIsAccepted() {
+    @Test fun acceptingAiSummaryChangesOnlyTheDraftUntilTheSessionIsSaved() {
         val original = CBTSessionAnalysis(sessionSummary = "Original summary")
-        val draft = SessionEditorViewModel().getOrCreate(Session(notes = "Original notes", structuredNotes = original))
-        assertFalse(draft.canGenerateAnalysis)
-        draft.notes = "Updated notes"
-        assertTrue(draft.canGenerateAnalysis)
-        draft.generatedAnalysisSource = draft.notes
-        // Merely generating or leaving review does not replace the accepted summary.
-        assertEquals(original, draft.structuredNotes)
-        assertTrue(draft.canGenerateAnalysis)
-        draft.acceptAnalysis(CBTSessionAnalysis(sessionSummary = "Updated summary"), generated = true)
-        assertFalse(draft.canGenerateAnalysis)
-        draft.notes = "Another edit"
+        val draft = SessionEditorViewModel().getOrCreate(Session(notes = "Authored notes", structuredNotes = original))
+        val updated = CBTSessionAnalysis(sessionSummary = "Reviewed AI summary")
+        val beforeSave = draft.saveRevision
+
+        draft.acceptAnalysis(updated)
+        assertEquals(updated, draft.snapshot().structuredNotes)
+        assertEquals(original, draft.baselineStructured)
+        assertEquals("Authored notes", draft.notes)
+        assertEquals("Authored notes", draft.baselineNotes)
+        assertEquals(beforeSave, draft.saveRevision)
+
         draft.markSaved(draft.snapshot())
-        assertTrue(draft.canGenerateAnalysis)
-        draft.notes = ""
-        assertFalse(draft.canGenerateAnalysis)
+        assertEquals(updated, draft.baselineStructured)
+        assertEquals("Authored notes", draft.notes)
+        assertEquals(beforeSave + 1, draft.saveRevision)
     }
 
     @Test fun returningFromDiscardedAiSummaryKeepsTranscriptionAndSessionDetails() {
@@ -78,11 +78,32 @@ class SessionEditorDraftTest {
         val saved = draft.snapshot()
 
         // A local save can finish before Compose ever observes a loading state.
+        val beforeSave = draft.saveRevision
         draft.markSaved(saved)
+        assertEquals(beforeSave + 1, draft.saveRevision)
         assertEquals(draft.notes, draft.baselineNotes)
         assertEquals(draft.type, draft.baselineType)
         draft.notes = "Changed after saving"
         assertNotEquals(draft.notes, draft.baselineNotes)
         assertEquals("Local sample note", draft.baselineNotes)
+        assertEquals(beforeSave + 1, draft.saveRevision)
+    }
+
+    @Test fun newSessionDetailsDoNotRevealOrRequireSummaryTools() {
+        val draft = SessionEditorViewModel().getOrCreate(Session())
+        draft.date = Date(1_800_000_000_000L)
+        draft.type = SessionType.Intake
+        draft.notes = "  "
+        assertFalse(draft.hasSummaryDraft)
+        assertNull(draft.snapshot().structuredNotes)
+    }
+
+    @Test fun clearingSummaryKeepsItsEditorToolsAvailableForTheCurrentDraft() {
+        val owner = SessionEditorViewModel()
+        val draft = owner.getOrCreate(Session(notes = "Recovered notes"))
+        draft.notes = ""
+        assertTrue(draft.hasSummaryDraft)
+        assertTrue(owner.getOrCreate(Session()).hasSummaryDraft)
+        assertEquals("", draft.snapshot().notes)
     }
 }

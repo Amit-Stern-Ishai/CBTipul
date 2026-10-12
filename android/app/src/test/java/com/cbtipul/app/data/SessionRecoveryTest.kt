@@ -33,6 +33,7 @@ class SessionRecoveryTest {
         assertEquals(first.structuredNotes, restored.structuredNotes)
         assertEquals("patient-a", restored.selectedPatientId)
         assertTrue(restored.recoveryRestored)
+        assertTrue(restored.hasSummaryDraft)
         assertNull(restored.snapshot().databaseId)
         assertEquals("", restored.baselineNotes)
     }
@@ -73,4 +74,50 @@ class SessionRecoveryTest {
         assertTrue(other.recoveryFailed)
         assertFalse(other.recoverySaved)
     }
+    @Test fun restoredNewDetailsWithoutSummaryKeepCreationSimple() {
+        val storage = MemoryStorage()
+        val first = SessionEditorDraft(Session())
+        first.configureRecovery(storage, "new")
+        first.type = SessionType.Intake
+        first.date = Date(1234567)
+        assertTrue(first.persistRecovery())
+        val restored = SessionEditorDraft(Session())
+        restored.configureRecovery(storage, "new")
+        assertTrue(restored.recoveryRestored)
+        assertFalse(restored.hasSummaryDraft)
+        assertEquals(SessionType.Intake, restored.type)
+    }
+
+    @Test fun recoveredStructuredSummaryRemainsAccessibleAfterClearingIt() {
+        val storage = MemoryStorage()
+        val first = SessionEditorDraft(Session())
+        first.configureRecovery(storage, "new")
+        first.structuredNotes = CBTSessionAnalysis(sessionSummary = "Recovered AI draft")
+        assertTrue(first.persistRecovery())
+        val restored = SessionEditorDraft(Session())
+        restored.configureRecovery(storage, "new")
+        assertTrue(restored.hasSummaryDraft)
+        restored.structuredNotes = null
+        assertTrue(restored.hasSummaryDraft)
+    }
+
+    @Test fun recoveryWritesAndFailuresDoNotSignalASuccessfulSessionSave() {
+        val storage = MemoryStorage()
+        val draft = SessionEditorDraft(Session())
+        draft.configureRecovery(storage, "new")
+        draft.notes = "Unsaved text"
+        val beforeSave = draft.saveRevision
+        assertTrue(draft.persistRecovery())
+        assertEquals(beforeSave, draft.saveRevision)
+        storage.failWrites = true
+        draft.notes = "Text after failed save"
+        assertFalse(draft.persistRecovery())
+        assertEquals(beforeSave, draft.saveRevision)
+        assertEquals("", draft.baselineNotes)
+        assertEquals("Text after failed save", draft.notes)
+        draft.markSaved(draft.snapshot())
+        assertEquals(beforeSave + 1, draft.saveRevision)
+        assertEquals(draft.notes, draft.baselineNotes)
+    }
+
 }

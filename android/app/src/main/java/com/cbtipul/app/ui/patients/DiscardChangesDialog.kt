@@ -17,19 +17,24 @@ fun AnalysisLeaveDialog(
     onSave: () -> Unit,
     onDiscard: () -> Unit,
     onKeepViewing: () -> Unit,
+    saveToEditorDraft: Boolean = false,
+    canSave: Boolean = true,
 ) {
     if (!visible) return
     val colors = Theme.colors
     AppDialogOverlay(onDismiss = onKeepViewing) {
         Text(
-            stringResource(R.string.save_summary_prompt),
+            stringResource(if (saveToEditorDraft) R.string.session_update_summary_prompt else R.string.save_summary_prompt),
             color = colors.textBright,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Right,
         )
-        TextButton(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.save_changes_action), color = colors.gold)
+        if (canSave) {
+            if (saveToEditorDraft) Text(stringResource(R.string.session_ai_save_help), color = colors.textBody)
+            TextButton(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(if (saveToEditorDraft) R.string.session_update_summary else R.string.save_changes_action), color = colors.gold)
+            }
         }
         TextButton(onClick = onDiscard, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.dont_save_action), color = colors.error)
