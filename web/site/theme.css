@@ -52,3 +52,8 @@ ul,ol { padding-inline-start:26px; }
 .delete-account-page .card > p:nth-of-type(6) { color:var(--error); }
 @media(max-width:900px) { .header-inner { align-items:flex-start; flex-direction:column; gap:16px; } }
 @media(max-width:600px) { body { font-size:16px; } .header-inner { padding:18px 20px; } .site-nav { gap:8px 16px; } .site-nav .therapist-link { margin-block:4px; } main { padding:28px 16px 12px; } .card { padding:24px 20px; } h1 { font-size:29px; } h2 { font-size:21px; } .store-actions { flex-direction:column; } .site-footer { padding:28px 20px; align-items:flex-start; flex-direction:column; } }
+
+/* Store marks keep the download actions recognizable within CBTipul branding. */
+.home-page .store-button { min-height:64px; padding:14px 24px; gap:14px; }
+.store-mark { flex:0 0 28px; width:28px; height:32px; object-fit:contain; }
+.store-button span { white-space:nowrap; }

@@ -5,7 +5,7 @@ import path from "node:path";
 export const webRoot = fileURLToPath(new URL("../", import.meta.url));
 export const pages = ["", "invite", "privacy", "terms", "support", "privacy-choices", "delete-account"];
 const labels = [["/", "בית"], ["/privacy/", "מדיניות פרטיות"], ["/terms/", "תנאי שימוש"], ["/support/", "תמיכה"], ["/privacy-choices/", "אפשרויות פרטיות"], ["/delete-account/", "מחיקת חשבון"]];
-const stores = `<div class="store-actions" aria-label="הורדת האפליקציה"><a class="store-button" href="https://apps.apple.com/il/app/cbtipul/id6809343831?l=he" rel="noopener noreferrer">הורדה מ-App Store</a><a class="store-button secondary" href="https://play.google.com/store/apps/details?id=com.CBTipul.app" rel="noopener noreferrer">הורדה מ-Google Play</a></div>`;
+const stores = `<div class="store-actions" aria-label="הורדת האפליקציה"><a class="store-button" href="https://apps.apple.com/il/app/cbtipul/id6809343831?l=he" rel="noopener noreferrer"><img class="store-mark" src="/site-assets/store-apple.svg" alt="" width="28" height="32" /><span>הורדה מ-App Store</span></a><a class="store-button secondary" href="https://play.google.com/store/apps/details?id=com.CBTipul.app" rel="noopener noreferrer"><img class="store-mark" src="/site-assets/store-google-play.svg" alt="" width="28" height="32" /><span>הורדה מ-Google Play</span></a></div>`;
 export const redirects = `/app /app/ 302
 /app/login /app/ 200
 /app/auth/callback /app/ 200
@@ -48,6 +48,7 @@ export async function composeSite(output = path.join(webRoot, "dist")) {
   await cp(path.join(webRoot, "site/source/.well-known"), path.join(output, ".well-known"), { recursive: true });
   await cp(path.join(webRoot, "site/theme.css"), path.join(output, "style.css"));
   await mkdir(path.join(output, "site-assets"), { recursive: true });
+  for (const name of ["store-apple.svg", "store-google-play.svg"]) await cp(path.join(webRoot, "site", name), path.join(output, "site-assets", name));
   await cp(path.join(webRoot, "public/brand.png"), path.join(output, "site-assets/brand.png"));
   await writeFile(path.join(output, "404.html"), `<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>העמוד לא נמצא — CBTipul</title><link rel="stylesheet" href="${themeUrl}"><main><article class="card"><h1>העמוד לא נמצא</h1><p>אפשר לחזור לעמוד הבית או להיכנס למרחב למטפלים.</p><a href="/">בית</a> · <a href="/app/">כניסה למטפלים</a></article></main></html>`);
   await writeFile(path.join(output, "_redirects"), redirects);
