@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "843384T247.com.CBTipul.app"
+        ],
+        "components": [
+          {
+            "/": "/invite/*",
+            "comment": "CBTipul patient invitation links"
+          }
+        ]
+      }
+    ]
+  }
+}

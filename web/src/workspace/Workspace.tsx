@@ -1,3 +1,4 @@
+import { appAsset } from "../domain/urls";
 import { useEffect, useRef, useState } from "react";
 import { Check, CircleHelp, Clock3, FilePlus2, LogOut, Plus, RotateCw, Trash2 } from "lucide-react";
 import { he } from "../he";
@@ -87,10 +88,10 @@ export function Workspace({ account, canWrite, logout }: { account: string; canW
 
   return <div className="ww-app" dir="rtl">
     <header className="ww-header">
-      <div className="ww-brand"><img src="/brand.png" alt="" /><span>CBTipul <small>{ww.title}</small></span></div>
+      <div className="ww-brand"><img src={appAsset("brand.png")} alt="" /><span>CBTipul <small>{ww.title}</small></span></div>
       <div className="ww-header-actions">
         {view.phase === "editing" && <span className={`ww-save ww-save-${view.save}`} role="status" aria-live="polite">{view.save === "saved" ? <Check size={17} /> : <RotateCw size={17} />}{view.save === "saved" ? ww.statusSaved : view.save === "saving" ? ww.statusSaving : view.save === "offline" ? ww.statusOffline : ww.statusUnsaved}</span>}
-        <a href="https://cbtipul.com" target="_blank" rel="noreferrer">{ww.publicSite}</a>
+        <a href="/" target="_blank" rel="noreferrer">{ww.publicSite}</a>
         <button type="button" className="ww-text-button" onClick={() => void logout()}><LogOut size={16} />{ww.signOut}</button>
       </div>
     </header>

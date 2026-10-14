@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<title>הזמנה ל-CBTipul</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  body.invite-page{min-height:100vh;display:flex;align-items:center}
+  .invite-shell{width:100%;max-width:620px;margin:0 auto;padding:24px 16px}
+  .invite-brand{text-align:center;margin-bottom:18px}
+  .invite-brand-name{font-size:1.25rem;font-weight:750;letter-spacing:.01em;color:var(--accent)}
+  .invite-card{padding:32px;text-align:right}
+  .invite-card h1{text-align:center;font-size:clamp(1.75rem,7vw,2.25rem);margin-bottom:12px}
+  .invite-lead{text-align:center;color:var(--muted);font-size:1.05rem;margin:0 auto 28px;max-width:470px}
+  .invite-card h2{font-size:1.08rem;margin:0 0 12px}
+  .invite-steps{margin:0 0 26px;padding-right:24px}
+  .invite-steps li{padding:3px 4px}
+  .store-actions{display:grid;gap:12px;margin:24px 0 18px}
+  .store-button{display:flex;align-items:center;justify-content:center;min-height:52px;padding:12px 18px;border-radius:13px;background:var(--accent);color:#fff;font-weight:700;font-size:1rem;text-align:center;box-shadow:0 4px 12px rgba(18,58,112,.16)}
+  .store-button:hover,.store-button:focus-visible{color:#fff;filter:brightness(.96)}
+  .store-button.secondary{background:#fff;color:var(--accent);border:1px solid var(--accent);box-shadow:none}
+  .invite-private{margin:22px 0 0;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:.92rem;text-align:center}
+  .invite-help{text-align:center;margin-top:18px;font-size:.9rem;color:var(--muted)}
+  .invite-help a{font-weight:600}
+  .invite-footer{text-align:center;color:var(--muted);padding:20px 0 0;font-size:.9rem}
+  [hidden]{display:none!important}
+  @media(max-width:640px){body.invite-page{align-items:flex-start}.invite-shell{padding:18px 14px}.invite-card{padding:24px 20px}.invite-brand{margin-top:8px}}
+</style>
+</head>
+<body class="invite-page">
+<main class="invite-shell">
+  <div class="invite-brand" aria-label="CBTipul">
+    <div class="invite-brand-name">CBTipul</div>
+  </div>
+
+  <article class="card invite-card">
+    <h1>הוזמנת ל-CBTipul</h1>
+    <p class="invite-lead">כדי להתחבר למטפל/ת שלך, יש להתקין את אפליקציית CBTipul.</p>
+
+    <h2>איך מתחברים?</h2>
+    <ol class="invite-steps">
+      <li>מורידים את CBTipul.</li>
+      <li>לאחר ההתקנה חוזרים להודעת ההזמנה שקיבלת.</li>
+      <li>לוחצים שוב על קישור ההזמנה.</li>
+    </ol>
+
+    <div class="store-actions" aria-label="הורדת האפליקציה">
+      <a id="ios-store" class="store-button" href="https://apps.apple.com/il/app/cbtipul/id6809343831?l=he" rel="noopener noreferrer">הורדה מ-App Store</a>
+      <a id="android-store" class="store-button" href="https://play.google.com/store/apps/details?id=com.CBTipul.app" rel="noopener noreferrer">הורדה מ-Google Play</a>
+    </div>
+
+    <p class="invite-private">קישור ההזמנה אישי ומיועד עבורך בלבד.</p>
+    <p class="invite-help">צריכים עזרה? <a href="/support/">תמיכה</a></p>
+  </article>
+
+  <footer class="invite-footer">© 2026 CBTipul</footer>
+</main>
+
+<script>
+(function () {
+  var ua = navigator.userAgent || "";
+  var isAndroid = /Android/i.test(ua);
+  var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var ios = document.getElementById("ios-store");
+  var android = document.getElementById("android-store");
+
+  if (isIOS && !isAndroid) {
+    android.hidden = true;
+  } else if (isAndroid) {
+    ios.hidden = true;
+  }
+})();
+</script>
+</body>
+</html>

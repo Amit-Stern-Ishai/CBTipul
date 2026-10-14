@@ -51,7 +51,7 @@ const router = createBrowserRouter([
   { path: "/auth/reset", element: <Login /> },
   { path: "/legal/:document", element: <LegalPage /> },
   { element: <Gate />, children: [{ path: "/", element: <WorkspaceRoute /> }, { path: "*", element: <Navigate to="/" replace /> }] },
-]);
+], { basename: import.meta.env.BASE_URL.replace(/\/$/, "") });
 export function App() { return <QueryClientProvider client={queryClient}><AuthProvider><RouterProvider router={router} /></AuthProvider></QueryClientProvider>; }
 
 // Legacy components remain in source for now; these exports keep them type-safe,

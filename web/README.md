@@ -1,4 +1,9 @@
-# CBTipul therapist web
+# CBTipul public site and therapist web workspace
+
+One Pages artifact serves the public website at `/` and the therapist workspace at `/app/`. The existing Cloudflare GitHub build remains `npm ci && npm run build` from `web`, output `dist`.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the inspected Cloudflare configuration, exact auth URLs, approved-future cutover steps and rollback. No publication is performed by local build or preview commands.
+
 
 The web app is a focused therapist workspace: sign in, start or resume one draft, enter a combined GAD-7/PHQ-9 questionnaire, any number of the three diary types, and session notes, then finish and save. Completed work awaits association in the mobile app. Public legal pages, invitation and store links, and auth callbacks remain available. The web UI has no patient list, history, notification feed, or completed-workspace browser.
 
@@ -21,6 +26,7 @@ npm run typecheck
 npm run lint
 npm run test
 npm run test:browser
+npm run test:site
 npm run build
 ```
 
@@ -39,3 +45,5 @@ Diary 2 and 3 start with an unaddressed thinking-error field (`null`). The thera
 See [CONTRACTS.md](CONTRACTS.md) for older integration evidence and [DEPLOYMENT.md](DEPLOYMENT.md) for the Cloudflare release checklist. Neither document proves the new workspace RPCs are deployed; validate them against a configured Supabase environment before release.
 
 Brand tokens reuse the mobile light palette from `ios/Theme.swift` and `android/app/src/main/java/com/cbtipul/app/ui/theme/Color.kt`, with their gold accent and existing `public/brand.png` asset. Questionnaire thresholds and Hebrew severity labels follow `ios/Models.swift` and `ios/Localization.swift`. No backend score fields are added.
+
+The public ZIP is imported unchanged into `site/source/`; `site/theme.css` and `scripts/compose-site.mjs` add branding without changing its legal articles or invitation scripts. `npm run preview` uses the local Cloudflare Pages runtime on `http://127.0.0.1:4173`. `npm run dev` remains a workspace-only Vite development server at `/app/`.

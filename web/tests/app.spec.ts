@@ -18,7 +18,7 @@ async function fixture(page: Page, options: { existing?: boolean; locked?: boole
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.hostname === "127.0.0.1") return route.continue();
-    if (url.hostname !== "fixture.supabase.invalid") return route.abort();
+    if (url.hostname !== "fixture-cbtipul.supabase.co") return route.abort();
     const path = url.pathname;
     const method = route.request().method();
     const body = method === "POST" ? route.request().postDataJSON() as Record<string, unknown> : null;
@@ -63,7 +63,7 @@ async function fixture(page: Page, options: { existing?: boolean; locked?: boole
 
 test("desktop flow saves one workspace, clears content on finish, and never fetches patient records", async ({ page }) => {
   const requests = await fixture(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.getByRole("heading", { name: "מרחב המפגש" })).toBeVisible();
   await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
   await page.getByLabel("סיכום המפגש", { exact: true }).fill("סיכום סינתטי למפגש");
@@ -87,7 +87,7 @@ test("desktop flow saves one workspace, clears content on finish, and never fetc
 
 test("resume starts neutral; another editor requires explicit takeover", async ({ page }) => {
   const requests = await fixture(page, { existing: true, locked: true });
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.getByRole("heading", { name: "יש מפגש פתוח" })).toBeVisible();
   await expect(page.getByText("תוכן קליני סינתטי")).toHaveCount(0);
   await page.getByRole("button", { name: "המשך המפגש" }).click();
@@ -99,7 +99,7 @@ test("resume starts neutral; another editor requires explicit takeover", async (
 
 test("incomplete included diary blocks finishing until explicitly removed", async ({ page }) => {
   await fixture(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
   await page.getByRole("button", { name: "הוספת טופס" }).click();
   await page.getByRole("button", { name: "הוספת יומן מחשבות 3" }).click();
@@ -120,7 +120,7 @@ test("incomplete included diary blocks finishing until explicitly removed", asyn
 test("narrow workspace remains usable and public legal route stays available", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await fixture(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
   await page.getByRole("button", { name: "הוספת טופס" }).click();
   await page.getByRole("button", { name: "הוספת שאלון" }).click();
@@ -130,13 +130,13 @@ test("narrow workspace remains usable and public legal route stays available", a
   await page.getByRole("button", { name: "מחיקת טיוטה" }).click();
   await expect(page.getByRole("region", { name: "אישור מחיקת הטיוטה" })).toBeVisible();
   expect(await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))).toBe("אישור מחיקת הטיוטה");
-  await page.goto("/legal/privacy");
+  await page.goto("/app/legal/privacy");
   await expect(page.getByRole("heading", { name: "מדיניות פרטיות" })).toBeVisible();
 });
 
 test("clinical text needs consent, then the saved anonymized snapshot appears after reopening", async ({ page }) => {
   const requests = await fixture(page, { consent: false });
-  await page.goto("/");
+  await page.goto("/app/");
   await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
   await page.getByLabel("סיכום המפגש", { exact: true }).fill("נוסח מקורי סינתטי");
   await expect(page.getByRole("heading", { name: "אישור לעיבוד טקסט קליני" })).toBeVisible();
@@ -154,7 +154,7 @@ test("clinical text needs consent, then the saved anonymized snapshot appears af
 
 test("anonymization failure leaves original text in the open tab and never calls save", async ({ page }) => {
   const requests = await fixture(page, { anonymizeFail: true });
-  await page.goto("/");
+  await page.goto("/app/");
   await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
   await page.getByLabel("סיכום המפגש", { exact: true }).fill("נוסח מקורי סינתטי");
   await expect(page.getByText("השינויים טרם נשמרו. אפשר לנסות שוב.")).toBeVisible();
@@ -174,7 +174,7 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
     let release!: () => void; const gate = new Promise<void>((r) => { release = r; });
     const original = diaryPayload(type);
     const requests = await fixture(page, { existing: true, payload: original, consent: false, beforeSave: async () => { await gate; return undefined; } });
-    await page.goto("/"); await page.getByRole("button", { name: "המשך המפגש", exact: true }).click();
+    await page.goto("/app/"); await page.getByRole("button", { name: "המשך המפגש", exact: true }).click();
     await page.locator(".ww-item").first().click();
     await page.getByRole("button", { name: "שמירת הרשומה", exact: true }).click();
     const saving = page.getByRole("button", { name: "שומר…", exact: true }); await expect(saving).toBeDisabled(); await expect(saving).toHaveAttribute("aria-busy", "true");
@@ -198,7 +198,7 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
   for (const error of ["network", "lease_lost"]) test(`${type} button recovers after ${error}`, async ({ page }) => {
     let fail = true;
     await fixture(page, { existing: true, payload: diaryPayload(type), beforeSave: async () => fail ? error : undefined });
-    await page.goto("/"); await page.getByRole("button", { name: "המשך המפגש", exact: true }).click(); await page.locator(".ww-item").first().click();
+    await page.goto("/app/"); await page.getByRole("button", { name: "המשך המפגש", exact: true }).click(); await page.locator(".ww-item").first().click();
     await page.getByRole("button", { name: "שמירת הרשומה", exact: true }).click();
     await expect(page.getByText("הרשומה לא נשמרה", { exact: true })).toBeVisible();
     await expect(page.locator('.ww-form-end button')).toHaveAttribute("aria-busy", "false");
@@ -209,7 +209,7 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
 test("mobile scores and branding at desktop and narrow widths", async ({ page }) => {
   const item = createWorksheet("questionnaire");
   await fixture(page, { existing: true, payload: { version: 1, notes: "", items: [item] } });
-  await page.goto("/"); await page.screenshot({ path: "test-results/branded-resume.png", fullPage: true });
+  await page.goto("/app/"); await page.screenshot({ path: "test-results/branded-resume.png", fullPage: true });
   await page.getByRole("button", { name: "המשך המפגש", exact: true }).click(); await page.locator(".ww-item").first().click();
   await expect(page.getByText("0 מתוך 7 תשובות · השאלון טרם הושלם")).toBeVisible();
   for (let i = 0; i < 7; i++) await page.locator(`input[name="${item.id}-0-${i}"]`).nth(1).check();
@@ -226,7 +226,7 @@ test("mobile scores and branding at desktop and narrow widths", async ({ page })
 });
 test("branded login at desktop and narrow widths", async ({ page }) => {
   await page.route("**/*", (route) => new URL(route.request().url()).hostname === "127.0.0.1" ? route.continue() : route.abort());
-  await page.goto("/login");
+  await page.goto("/app/login");
   for (const width of [1440,390]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <script>
+    // Cloudflare fallback: if an uninstalled device opens an invitation URL
+    // and the host serves the root page for the unknown path, send it to the
+    // static invitation install page. The invitation token is deliberately
+    // not copied into the destination URL or storage.
+    (function () {
+      var path = window.location.pathname || "/";
+      if (path.indexOf("/invite/") === 0 && path !== "/invite/") {
+        window.location.replace("/invite/");
+      }
+    })();
+  </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CBTipul</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+<nav>
+<a href="/">בית</a>
+<a href="/privacy/">מדיניות פרטיות</a>
+<a href="/terms/">תנאי שימוש</a>
+<a href="/support/">תמיכה</a>
+<a href="/privacy-choices/">אפשרויות פרטיות</a>
+<a href="/delete-account/">מחיקת חשבון</a>
+</nav>
+<article class="card">
+
+<h1>CBTipul</h1>
+<p>כלי עזר מקצועי למטפלים/ות בגישה קוגניטיבית־התנהגותית, לניהול מפגשים, שאלונים, סיכומים ותובנות מסייעות.</p>
+<p>האפליקציה מיועדת לשמש כלי תמיכה מקצועי בלבד ואינה מהווה תחליף לשיקול דעת קליני, אבחון או טיפול.</p>
+<p><a href="/support/">תמיכה</a> · <a href="/privacy/">מדיניות פרטיות</a> · <a href="/terms/">תנאי שימוש</a></p>
+
+</article>
+<footer>© 2026 CBTipul</footer>
+</main>
+</body>
+</html>

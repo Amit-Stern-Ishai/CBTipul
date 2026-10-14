@@ -1,27 +1,17 @@
-# Verification — 11 October 2026
+# Combined-site verification — 14 October 2026
 
-## Completed locally
+- Strict typecheck and ESLint passed.
+- 70 Vitest unit tests passed, including workspace privacy/save lifecycle/scoring and /app/ asset/auth URL generation.
+- Node preservation check passed: original articles and invitation scripts are included unchanged; source hashes match the imported ZIP; both app-link verification files match byte-for-byte.
+- 32 Playwright Chrome tests passed against Cloudflare's local Pages runtime (Wrangler 4.151.0), including all seven public pages at 1440px and 390px, navigation/keyboard focus/no overflow, original text and support/deletion links, direct /app/ entry and refresh, direct 200 callbacks/reset/legal routes without redirects, correct prefixed assets, genuine missing-file 404s, direct 200 JSON verification files, and desktop/iOS/Android/iPad invitation detection.
+- Browser Supabase/provider traffic was intercepted with synthetic fixtures. Google/Apple redirect_to URLs were verified without real provider round trips.
+- Public pages were visually inspected in batched desktop/phone contact sheets. Account-deletion semantic styling and the reset screen were checked in the confirmation pass.
+- Main contrast ratios: navy body 14.12:1; secondary text 6.65:1; link/focus blue 7.16:1; white on navy button 10.92:1; navy on gold 7.80:1; destructive text 5.68:1.
+- Combined production build passed with source maps off. Existing Vite bundle-size advisory remains nonblocking (approximately 691 kB main JS / 201 kB gzip).
+- git diff --check passed; changes are confined to web/. The original mobile/backend code is unchanged.
 
-- TypeScript strict type check: passed.
-- ESLint: passed.
-- Vite production build: passed. The main JS bundle is approximately 686 kB / 199 kB gzip; Vite reports its advisory >500 kB chunk warning. This is not a compilation failure; route/vendor splitting is a future performance improvement.
-- Vitest: **26 passing tests**, including role/anonymous boundaries, read-only/missing entitlements, account replacement during a pending write, server-generated IDs, ongoing assignment postcondition verification, score ranges, measurement dates, trend categories, name isolation/redaction, full treatment goal and source provenance, preparation shape, and exclusion of local identity fields.
-- Chrome/Playwright: **10 passing browser tests** with all Supabase traffic mocked and non-fixture external requests blocked. Browser exceptions and console errors fail the suite.
-  - Desktop patient navigation, exact notification result, back navigation and logout cleanup.
-  - Unsaved navigation warning, empty session-note save.
-  - Name redaction in outgoing AI payload and included diary context.
-  - Read-only clinical editing disabled while local rename remains possible.
-  - Both anonymous and non-anonymous Patient Mode denied therapist screens.
-  - Phone-width RTL forms/graphs, no horizontal overflow, keyboard focus.
-  - Branded login screen and no pre-login backend calls.
-  - Completed questionnaire payload: own date, exact answers/interference, `session_id:null`.
-  - Desktop/tablet patient overview and view-only patient-authored diary entry.
-- Synthetic desktop login, patient overview and tablet diary screenshots visually inspected. Phone questionnaire layout tested programmatically; screenshot available in `test-results/`.
-- Existing public homepage inspected by GET/HEAD only; its hosting/routes were not changed.
-- Git diff whitespace check: passed. Pre-existing Android changes were left untouched.
+The repository's previously stalled installed dependencies were left intact. Compilation/lint/build used a current-source copy with fresh lockfile-pinned dependencies in a local isolated validation directory. The existing public production .env was copied for final compilation without displaying its values; browser tests instead compiled with synthetic configuration. No service-role/provider/OpenAI secrets were added.
 
-## Not performed
+Read-only Cloudflare/Supabase dashboard inspection identified the current hosting, DNS/custom-domain binding, build settings, lack of Worker routes and missing browser auth allowlist. No deploy, remote push, domain/DNS change, backend/provider change, live sign-in, clinical write, account deletion, email transmission or real-device test occurred.
 
-No production Supabase calls, real sign-ins, OAuth provider round trips, clinical writes, account creation/deletion, mobile device tests, Cloudflare uploads, public previews or DNS changes were performed. Build/browser checks cannot establish production RLS, function CORS, provider allowlists, quota enforcement or old-row compatibility.
-
-See `CONTRACTS.md` for missing file/deletion/shared-preparation contracts and the assignment-flow discrepancy. See `DEPLOYMENT.md` for the exact callback URLs and separately authorized integration/release checks.
+Before publication, complete the exact approved authentication and cutover steps in DEPLOYMENT.md, then verify production edge headers/TLS/404s, CORS, provider round trips and installed-device Universal/App Links on synthetic accounts. Local tests do not prove live provider configuration or device association caches.

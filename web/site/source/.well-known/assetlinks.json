@@ -1,0 +1,17 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.CBTipul.app",
+      "sha256_cert_fingerprints": [
+        "CF:76:E9:8E:45:EF:B7:0C:86:AD:0F:AB:90:E1:9F:2C:CC:FF:C3:79:4E:C7:91:26:F6:08:D3:56:83:85:24:00",
+        "51:83:B9:15:95:36:AD:0E:36:ED:27:0E:FA:DC:49:DF:C7:B2:DC:E1:2A:D2:C5:5C:56:82:7C:D1:3B:76:6E:98",
+        "9D:9C:50:D2:29:11:21:47:22:77:03:E0:A8:EC:32:B3:0D:B0:0D:27:0C:D1:C8:F2:57:F9:24:05:7A:D5:49:79",
+        "C5:9F:D5:34:45:CC:DE:D4:EC:29:86:9B:E5:9A:9B:0D:E9:0E:73:58:B3:8F:7B:A2:B5:59:81:3C:36:FE:50:DD"
+      ]
+    }
+  }
+]

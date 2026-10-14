@@ -1,3 +1,4 @@
+import { appAsset, appRedirect } from "../domain/urls";
 import { he } from "../he";
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -25,7 +26,7 @@ export function Login() {
         ? await supabase.auth.updateUser({ password })
         : recover
           ? await supabase.auth.resetPasswordForEmail(email, {
-              redirectTo: locationOrigin("/auth/reset"),
+              redirectTo: appRedirect("/auth/reset"),
             })
           : await supabase.auth.signInWithPassword({ email, password });
       if (r.error) throw r.error;
@@ -43,7 +44,7 @@ export function Login() {
     setError(null);
     const r = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: locationOrigin("/auth/callback") },
+      options: { redirectTo: appRedirect("/auth/callback") },
     });
     if (r.error) setError(r.error);
     setBusy(false);
@@ -51,7 +52,7 @@ export function Login() {
   return (
     <main className="auth-page">
       <section className="auth-story">
-        <img src="/brand.png" alt="CBTipul" />
+        <img src={appAsset("brand.png")} alt="CBTipul" />
         <h1>
           {he.Login002}
           <br />
@@ -60,7 +61,7 @@ export function Login() {
         <p>{he.Login004}</p>
       </section>
       <section className="auth-form">
-        <div className="auth-mobile-brand"><img src="/brand.png" alt="CBTipul" /><span>CBTipul</span></div>
+        <div className="auth-mobile-brand"><img src={appAsset("brand.png")} alt="CBTipul" /><span>CBTipul</span></div>
         <h2>{reset ? he.Login005 : recover ? he.Login006 : he.Login007}</h2>
         <p>{he.Login008}</p>
         {!configured ? (
@@ -74,7 +75,7 @@ export function Login() {
                   disabled={busy || !!session}
                   onClick={() => void oauth("google")}
                 >
-                  <img src="/google.png" alt="" />
+                  <img src={appAsset("google.png")} alt="" />
                   {he.Login010}
                 </button>
                 <button
@@ -82,7 +83,7 @@ export function Login() {
                   disabled={busy || !!session}
                   onClick={() => void oauth("apple")}
                 >
-                  <img src="/apple.svg" alt="" />
+                  <img src={appAsset("apple.svg")} alt="" />
                   {he.Login011}
                 </button>
                 <p className="small">{he.Login012}</p>
@@ -156,7 +157,4 @@ export function Login() {
       </section>
     </main>
   );
-}
-function locationOrigin(path: string) {
-  return window.location.origin + path;
 }

@@ -1,5 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // One static artifact: public root + /app/ workspace. No Worker or Functions.
   "name": "cbtipul-therapist-web",
   "pages_build_output_dir": "./dist",
   "compatibility_date": "2026-10-11"
