@@ -5,9 +5,11 @@ import mobile from "../mobile-he.json";
 import { unsaved } from "../domain/dirty";
 import { grantWorkspaceClinicalConsent } from "../data/api";
 import { WorkspaceEngine, type WorkspaceViewState } from "./engine";
-import { createWorksheet, finishProblems, isFormComplete, markComplete, questionnaireFlags, thinkingErrors, todayLocal, updateItem, type Worksheet, type WorksheetType, type WorkspacePayload } from "./model";
+import { createWorksheet, finishProblems, isFormComplete, questionnaireFlags, thinkingErrors, todayLocal, updateItem, type Worksheet, type WorksheetType, type WorkspacePayload } from "./model";
+import { questionnaireScore } from "./scores";
 import { ww } from "./he";
 
+type WorksheetFeedback = { status: "idle" | "busy" | "saved" | "failed"; submitted: string };
 const titles: Record<WorksheetType, string> = { questionnaire: ww.question, diary_one: ww.diaryOne, diary_two: ww.diaryTwo, diary_three: ww.diaryThree };
 const dateTime = (value: string) => new Intl.DateTimeFormat("he-IL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 const message = (code: string | null) => code ? (ww.errors as Record<string, string>)[code] ?? ww.errors.network : null;
@@ -20,6 +22,7 @@ export function Workspace({ account, canWrite, logout }: { account: string; canW
   const loaded = useRef(false);
   const mounted = useRef(false);
   const [selected, setSelected] = useState<string>("notes");
+  const [worksheetFeedback, setWorksheetFeedback] = useState<Record<string, WorksheetFeedback>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -123,7 +126,7 @@ export function Workspace({ account, canWrite, logout }: { account: string; canW
         {showProblems && item && problems.includes(item.id) && <p className="ww-alert" role="alert">{ww.finishProblems}</p>}
         {view.error && <p className="ww-alert" role="alert">{message(view.error)}</p>}
         {view.phase === "editing" && view.error === "consent" && <section className="ww-confirm" aria-label={ww.consentTitle}><h2>{ww.consentTitle}</h2><p>{ww.consentDescription}</p><button onClick={() => { grantWorkspaceClinicalConsent(account); void engine.flush().catch(() => {}); }}>{ww.consentAction}</button></section>}
-        {item ? <div className={view.phase !== "editing" ? "ww-readonly-editor" : ""}><WorksheetEditor key={item.id} item={item} onChange={editItem} disabled={view.phase !== "editing"} />{view.phase === "editing" && <div className="ww-form-end"><p>{item.completed_at ? ww.editCompleted : ww.finishProblems}</p><button disabled={!isFormComplete(item) || !!item.completed_at} onClick={() => editItem(markComplete(item))}><Check size={18} />{item.completed_at ? ww.completed : ww.complete}</button></div>}</div> : <section className="ww-sheet"><label htmlFor="session-notes">{ww.notes}</label><p className="ww-quiet">{ww.notesHint}</p><textarea id="session-notes" rows={16} value={payload.notes} disabled={view.phase !== "editing"} onChange={(event) => edit({ ...payload, notes: event.target.value })} maxLength={50000} /></section>}
+        {item ? <div className={view.phase !== "editing" ? "ww-readonly-editor" : ""}><WorksheetEditor key={item.id} item={item} onChange={editItem} disabled={view.phase !== "editing"} />{<WorksheetSave key={`save-${item.id}`} item={item} engine={engine} phase={view.phase} feedback={worksheetFeedback[item.id] ?? { status: "idle", submitted: "" }} setFeedback={(next) => { if (mounted.current) setWorksheetFeedback((previous) => ({ ...previous, [item.id]: next })); }} />}</div> : <section className="ww-sheet"><label htmlFor="session-notes">{ww.notes}</label><p className="ww-quiet">{ww.notesHint}</p><textarea id="session-notes" rows={16} value={payload.notes} disabled={view.phase !== "editing"} onChange={(event) => edit({ ...payload, notes: event.target.value })} maxLength={50000} /></section>}
         {view.phase === "editing" && view.save === "offline" && <button className="secondary" onClick={() => void engine.flush().catch(() => {})}>{ww.retrySave}</button>}
         {showProblems && problems.includes("empty") && <p className="ww-alert" role="alert">{ww.emptyProblem}</p>}
       </div>
@@ -137,8 +140,7 @@ function WorksheetEditor({ item, onChange, disabled }: { item: Worksheet; onChan
   if (item.type === "questionnaire") {
     const gad = Array.from({ length: 7 }, (_, i) => Array.isArray(d.gad7_answers) ? d.gad7_answers[i] ?? null : null) as (number | null)[];
     const phq = Array.from({ length: 9 }, (_, i) => Array.isArray(d.phq9_answers) ? d.phq9_answers[i] ?? null : null) as (number | null)[];
-    const flags = questionnaireFlags(item);
-    return <div className="ww-sheet-stack"><section className="ww-sheet"><label htmlFor="measurement-date">{ww.date}</label><input id="measurement-date" type="date" value={item.measurement_date ?? ""} max={todayLocal()} disabled={disabled} onChange={(e) => onChange(updateItem(item, { measurement_date: e.target.value }))} /><div className="ww-scores"><span>GAD-7 <strong>{flags?.gad ?? "—"}</strong><small>/21</small></span><span>PHQ-9 <strong>{flags?.phq ?? "—"}</strong><small>/27</small></span></div></section>
+    return <div className="ww-sheet-stack"><section className="ww-sheet"><label htmlFor="measurement-date">{ww.date}</label><input id="measurement-date" type="date" value={item.measurement_date ?? ""} max={todayLocal()} disabled={disabled} onChange={(e) => onChange(updateItem(item, { measurement_date: e.target.value }))} /><div className="ww-scores" role="status" aria-live="polite"><ScoreSummary values={gad} kind="gad" /><ScoreSummary values={phq} kind="phq" /></div></section>
       {([mobile.gad7_questions, mobile.phq9_questions] as string[][]).map((questions, group) => <section className="ww-sheet" key={group}><h2>{group === 0 ? mobile.gad7_title : mobile.phq9_title}</h2><p>{group === 0 ? mobile.gad7_main_question : mobile.phq9_main_question}</p>{questions.map((question, index) => { const values = group === 0 ? gad : phq; return <fieldset className="ww-question" key={index} disabled={disabled}><legend>{index + 1}. {question}</legend><div className="ww-options">{mobile.answer_descriptions.map((label, value) => <label key={value} className={values[index] === value ? "selected" : ""}><input type="radio" name={`${item.id}-${group}-${index}`} checked={values[index] === value} onChange={() => set(group === 0 ? "gad7_answers" : "phq9_answers", values.map((answer, i) => i === index ? value : answer))} /><b>{value}</b><span>{label}</span></label>)}</div>{group === 1 && index === 8 && values[index] !== null && Number(values[index]) > 0 && <p className="ww-safety" role="alert">{ww.safety}</p>}</fieldset>; })}</section>)}
       <section className="ww-sheet"><fieldset disabled={disabled}><legend>{mobile.phq9_interference_question.replaceAll("**", "")}</legend><div className="ww-options ww-options-compact">{mobile.phq9_interference_options.map((label, value) => <label key={value} className={d.interference_level === value ? "selected" : ""}><input type="radio" name={`${item.id}-interference`} checked={d.interference_level === value} onChange={() => set("interference_level", value)} />{label}</label>)}</div></fieldset><label htmlFor={`${item.id}-note`}>{ww.optionalNote}</label><textarea id={`${item.id}-note`} rows={3} maxLength={50000} disabled={disabled} value={String(d.notes ?? "")} onChange={(e) => set("notes", e.target.value)} /></section>
     </div>;
@@ -161,4 +163,35 @@ function StringList({ title, values, onChange, disabled }: { title: string; valu
 function ObjectList({ title, values, fields, labels, onChange, disabled }: { title: string; values: Record<string, unknown>[]; fields: string[]; labels: string[]; onChange: (next: Record<string, unknown>[]) => void; disabled: boolean }) {
   const fresh = () => Object.fromEntries(fields.map((field, index) => [field, index === 0 ? "" : 0]));
   return <section className="ww-sheet"><h2>{title}</h2><div className="ww-rows">{values.map((value, index) => <fieldset className="ww-object-row" key={index} disabled={disabled}><legend>{title} {index + 1}</legend><div className="ww-object-fields">{fields.map((field, n) => <label key={field}>{labels[n]}{n === 0 ? <textarea rows={2} maxLength={50000} value={String(value[field] ?? "")} onChange={(e) => onChange(values.map((v, i) => i === index ? { ...v, [field]: e.target.value } : v))} /> : <input type="number" min="0" max="100" value={Number(value[field] ?? 0)} onChange={(e) => onChange(values.map((v, i) => i === index ? { ...v, [field]: e.target.value === "" ? null : Number(e.target.value) } : v))} />}</label>)}</div><button type="button" className="ww-text-button ww-danger-text" disabled={values.length <= 1} onClick={() => onChange(values.filter((_, i) => i !== index))}><Trash2 size={16} />{ww.removeRow}</button></fieldset>)}</div><button type="button" className="secondary" disabled={disabled || values.length >= 100} onClick={() => onChange([...values, fresh()])}><Plus size={16} />{ww.addRow}</button></section>;
+}
+
+function ScoreSummary({ values, kind }: { values: (number | null)[]; kind: "gad" | "phq" }) {
+  const result = questionnaireScore(values, kind);
+  return <div className={`ww-score ww-tone-${result.tone}`}><b dir="ltr">{kind === "gad" ? "GAD-7" : "PHQ-9"}</b>{result.total === null ? <span>{result.answered} מתוך {result.count} תשובות · השאלון טרם הושלם</span> : <><span>ציון כולל: <strong>{result.total}</strong> / {kind === "gad" ? 21 : 27}</span><span>{result.label}</span></>}</div>;
+}
+
+function WorksheetSave({ item, engine, phase, feedback, setFeedback }: { item: Worksheet; engine: WorkspaceEngine; phase: WorkspaceViewState["phase"]; feedback: WorksheetFeedback; setFeedback: (next: WorksheetFeedback) => void }) {
+  const inFlight = useRef(false);
+  const wording = JSON.stringify([item.data, item.measurement_date]);
+  const diary = item.type !== "questionnaire";
+  const complete = isFormComplete(item);
+  const pending = feedback.status === "busy" && phase === "editing";
+  const failed = feedback.status === "failed" || feedback.status === "busy" && phase !== "editing";
+  const newer = feedback.submitted !== wording;
+  const save = async () => {
+    if (inFlight.current || feedback.status === "busy" || !complete || phase !== "editing") return;
+    inFlight.current = true;
+    setFeedback({ status: "busy", submitted: wording });
+    try {
+      await engine.saveWorksheet(item);
+      setFeedback({ status: "saved", submitted: wording });
+    } catch {
+      setFeedback({ status: "failed", submitted: wording });
+    } finally { inFlight.current = false; }
+  };
+  return <div className="ww-form-end"><div>
+    {!complete && <p>{ww.formIncomplete}</p>}
+    {failed && <p className="ww-tone-error" role="alert">{diary ? ww.diaryFailed : ww.formFailed}</p>}
+    {feedback.status === "saved" && <p className={newer ? "ww-tone-warning" : "ww-tone-good"} role="status">{newer ? engine.state.save === "saved" ? ww.newerSaved : ww.earlierSaved : diary ? ww.diarySaved : ww.formSaved}</p>}
+  </div><button aria-busy={pending} disabled={pending || !complete || phase !== "editing"} onClick={() => void save()}>{pending ? <RotateCw size={18} className="ww-spinner" /> : <Check size={18} />}{pending ? ww.savingEntry : failed ? ww.retrySave : ww.saveEntry}</button></div>;
 }

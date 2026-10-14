@@ -1,12 +1,12 @@
 import { supabase } from "../data/client";
 import { workspaceIdentityMatches } from "../data/api";
-import { anonymizeWorkspacePayload } from "./anonymize";
+import { createWorkspaceAnonymizer } from "./anonymize";
 import type { WorkspaceEnvelope, WorkspacePayload } from "./model";
-import { finishProblems } from "./model";
+import { finishProblems, markComplete, type Worksheet } from "./model";
 
 export type RpcName = "get_active_web_workspace" | "begin_web_workspace" | "renew_web_workspace_lease" | "save_web_workspace" | "finish_web_workspace" | "discard_web_workspace";
 export type Rpc = (name: RpcName, params?: Record<string, unknown>) => Promise<unknown>;
-export type Anonymize = (payload: WorkspacePayload, account: string) => Promise<WorkspacePayload>;
+export type Anonymize = ((payload: WorkspacePayload, account: string) => Promise<WorkspacePayload>) & { seed?: (payload: WorkspacePayload, account: string) => void };
 
 export class WorkspaceError extends Error {
   constructor(public code: string) { super(code); }
@@ -67,13 +67,32 @@ export class WorkspaceEngine {
   private stopped = false;
   private editVersion = 0;
   private ackVersion = 0;
+  private saveWaiters: { version: number; resolve: () => void; reject: (error: unknown) => void }[] = [];
+  private settleSaves(error?: unknown) {
+    const remaining: typeof this.saveWaiters = [];
+    for (const waiter of this.saveWaiters) {
+      if (error) waiter.reject(error);
+      else if (waiter.version <= this.ackVersion) waiter.resolve();
+      else remaining.push(waiter);
+    }
+    this.saveWaiters = remaining;
+  }
+  saveWorksheet(item: Worksheet): Promise<void> {
+    if (this.state.phase !== "editing" || !this.state.payload || this.finishing) return Promise.reject(new WorkspaceError("not_editing"));
+    const completed = markComplete(item);
+    this.update({ ...this.state.payload, items: this.state.payload.items.map((entry) => entry.id === item.id ? completed : entry) });
+    const version = this.editVersion;
+    const acknowledged = new Promise<void>((resolve, reject) => this.saveWaiters.push({ version, resolve, reject }));
+    void this.flush().catch(() => {});
+    return acknowledged;
+  }
 
   constructor(
     private account: string,
     private rpc: Rpc = workspaceRpc,
     private storage: Storage = sessionStorage,
     private changed: (state: WorkspaceViewState) => void = () => {},
-    private anonymize: Anonymize = anonymizeWorkspacePayload,
+    private anonymize: Anonymize = createWorkspaceAnonymizer(),
     private identityMatches: (account: string) => boolean = workspaceIdentityMatches,
   ) {
     purgeLegacy(storage);
@@ -98,6 +117,7 @@ export class WorkspaceEngine {
       !env || env.id !== id || env.lease_token !== token || env.revision !== revision) throw new WorkspaceError("access");
   }
   private markFailure(error: unknown) {
+    this.settleSaves(error);
     const code = classify(error).code;
     if (code === "lease_lost" || code === "workspace_closed" || code === "access" || code === "unauthorized" || code === "stale") this.emit({ phase: "lost", save: "unsaved", error: code });
     else if (code === "revision_conflict") this.emit({ phase: "conflict", save: "unsaved", error: code });
@@ -158,7 +178,7 @@ export class WorkspaceEngine {
           return;
         }
       }
-      if (!same) { this.editVersion = 0; this.ackVersion = 0; this.pendingSave = null; }
+      if (!same) { this.anonymize.seed?.(env.payload, this.account); this.editVersion = 0; this.ackVersion = 0; this.pendingSave = null; }
       const reminderAt = this.readReminder(env.id, env.started_at);
       this.storage.removeItem(markerKey(this.account));
       this.emit({ phase: "editing", envelope: env, payload, save: dirty ? "unsaved" : "saved", error: null,
@@ -217,6 +237,7 @@ export class WorkspaceEngine {
           if (ack.id !== env.id || ack.revision !== request.revision + 1) throw new WorkspaceError("invalid_ack");
           this.pendingSave = null;
           this.ackVersion = Math.max(this.ackVersion, request.version);
+          this.settleSaves();
           this.emit({ envelope: { ...this.state.envelope!, revision: ack.revision, payload: request.payload },
             save: this.editVersion > this.ackVersion ? "unsaved" : "saved", error: null });
         } catch (error) {
@@ -321,8 +342,9 @@ export class WorkspaceEngine {
       this.pendingSave = null;
       this.editVersion = 0;
       this.ackVersion = 0;
+      this.anonymize.seed?.(fresh.payload, this.account);
       this.emit({ phase: "editing", envelope: fresh, payload: fresh.payload, save: "saved", error: null });
     } catch (error) { this.emit({ error: classify(error).code }); }
   }
-  dispose() { this.stopped = true; if (this.saveTimer) clearTimeout(this.saveTimer); }
+  dispose() { this.settleSaves(new WorkspaceError("cancelled")); this.stopped = true; if (this.saveTimer) clearTimeout(this.saveTimer); }
 }

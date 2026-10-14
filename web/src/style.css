@@ -1,16 +1,30 @@
 :root {
-  font-family: Arial, "Noto Sans Hebrew", sans-serif;
-  color: #203a43;
-  background: #f6f7f4;
+  /* Mobile light theme: ios/Theme.swift and Android ui/theme/Color.kt.
+     Gold is the shared dark-theme brand accent, reserved for brand details. */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  color: #182c46;
+  background: #f1f4f8;
   font-synthesis: none;
   font-size: 16px;
   line-height: 1.6;
-  --ink: #173c46;
-  --muted: #5f7279;
-  --teal: #21656a;
-  --line: #dce5e3;
-  --warm: #f7eee2;
+  --ink: #182c46;
+  --muted: #4b5e75;
+  --teal: #285a8c;
+  --line: #cad5e2;
+  --warm: #ebf2fa;
   --surface: #fff;
+  --canvas: #f1f4f8;
+  --elevated: #e8eef5;
+  --hover: #dce6f1;
+  --brand: #203e61;
+  --brand-pressed: #172f4c;
+  --gold: #e2bb76;
+  --good: #18724d;
+  --warning: #946000;
+  --error: #bc3346;
+  --good-soft: #18724d1f;
+  --warning-soft: #9460001f;
+  --error-soft: #bc33461f;
 }
 * {
   box-sizing: border-box;
@@ -40,7 +54,7 @@ button,
   padding: 11px 20px;
   min-height: 44px;
   border-radius: 11px;
-  background: var(--ink);
+  background: var(--brand);
   color: white;
   border: 1px solid transparent;
   font-weight: 600;
@@ -53,7 +67,7 @@ button,
 }
 button:hover,
 .button:hover {
-  background: #28515c;
+  background: var(--brand-pressed);
   text-decoration: none;
 }
 button:disabled {
@@ -63,12 +77,12 @@ button:disabled {
 button.secondary,
 .button.secondary {
   background: white;
-  border: 1px solid #b9cccc;
+  border: 1px solid var(--line);
   color: var(--ink);
 }
 button.secondary:hover,
 .button.secondary:hover {
-  background: #edf4f1;
+  background: var(--elevated);
 }
 button.text-button {
   background: transparent;
@@ -82,7 +96,7 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 summary:focus-visible {
-  outline: 3px solid #3e909b;
+  outline: 3px solid var(--teal);
   outline-offset: 3px;
 }
 h1,
@@ -1326,4 +1340,23 @@ select {
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Native system typography and the existing navy/gold logo carry the brand. */
+::selection { background: var(--hover); color: var(--ink); }
+input, textarea { caret-color: var(--brand); }
+.auth-story { background: var(--warm); border-block-start: 5px solid var(--gold); }
+.auth-story > p:last-of-type { color: var(--muted); }
+.auth-story > img { width: 80px; height: 80px; margin-bottom: 40px; }
+.auth-form { background: var(--surface); }
+.auth-form .notice { background: var(--elevated); border-color: var(--line); color: var(--ink); }
+.auth-form .error { background: var(--error-soft); border-color: var(--error); color: var(--error); }
+.auth-form input { border-color: var(--line); color: var(--ink); }
+a { text-underline-offset: .2em; }
+
+.auth-mobile-brand { display: none; }
+@media (max-width: 900px) {
+  .auth-form::before { content: none; }
+  .auth-mobile-brand { display: flex; align-items: center; gap: 12px; direction: ltr; color: var(--brand); font-size: 23px; font-weight: 700; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid var(--gold); }
+  .auth-mobile-brand img { width: 48px; height: 48px; border-radius: 12px; }
 }

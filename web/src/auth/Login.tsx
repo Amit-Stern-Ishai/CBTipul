@@ -52,20 +52,15 @@ export function Login() {
     <main className="auth-page">
       <section className="auth-story">
         <img src="/brand.png" alt="CBTipul" />
-        <p className="eyebrow">{he.Login001}</p>
         <h1>
           {he.Login002}
           <br />
           {he.Login003}
         </h1>
         <p>{he.Login004}</p>
-        <div className="story-lines">
-          <span />
-          <span />
-          <span />
-        </div>
       </section>
       <section className="auth-form">
+        <div className="auth-mobile-brand"><img src="/brand.png" alt="CBTipul" /><span>CBTipul</span></div>
         <h2>{reset ? he.Login005 : recover ? he.Login006 : he.Login007}</h2>
         <p>{he.Login008}</p>
         {!configured ? (

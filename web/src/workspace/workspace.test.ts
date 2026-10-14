@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { WorkspaceEngine, WorkspaceError, type Rpc } from "./engine";
-import { anonymizeWorkspacePayload } from "./anonymize";
+import { anonymizeWorkspacePayload, createWorkspaceAnonymizer, type NotesCache } from "./anonymize";
 import { createWorksheet, finishProblems, isFormComplete, markComplete, questionnaireFlags, updateItem, type WorkspaceEnvelope, type WorkspacePayload } from "./model";
 
 class MemoryStorage implements Storage {
@@ -217,7 +217,7 @@ describe("workspace reliability", () => {
 });
 
 describe("workspace anonymization and final-save ordering", () => {
-  it("anonymizes every clinical text slot without changing identifiers, ratings, answers, dates, or coded errors", async () => {
+  it("anonymizes only notes while preserving every diary field exactly", async () => {
     const q = updateItem(createWorksheet("questionnaire"), { data: { gad7_answers: Array(7).fill(2), phq9_answers: Array(9).fill(1), interference_level: 3, notes: "question note" } });
     const one = updateItem(createWorksheet("diary_one"), { data: { event: "event one", automatic_thoughts: ["thought one"], feelings: [{ name: "sad", intensity: 73 }], behaviour: "behaviour", physical_symptoms: "symptoms" } });
     const two = updateItem(createWorksheet("diary_two"), { data: { event: "event two", automatic_thoughts: ["thought two"], feelings: [{ name: "fear", intensity: 32 }], thinking_errors: ["all_or_nothing"], alternative_thoughts: ["alternative two"] } });
@@ -228,15 +228,16 @@ describe("workspace anonymization and final-save ordering", () => {
       seen.push(value);
       return value ? `SAFE:${value}` : "";
     });
-    expect(seen).toEqual(["session note", "question note", "event one", "thought one", "sad", "behaviour", "symptoms", "event two", "thought two", "fear", "alternative two", "situation", "nested thought", "worry", "nested alternative"]);
+    expect(seen).toEqual(["session note", "question note"]);
+    expect(safe.items.slice(1)).toEqual(payload.items.slice(1));
     expect(safe.notes).toBe("SAFE:session note");
     expect(safe.items.map((item) => ({ id: item.id, type: item.type, completed_at: item.completed_at, measurement_date: item.measurement_date })))
       .toEqual(payload.items.map((item) => ({ id: item.id, type: item.type, completed_at: item.completed_at, measurement_date: item.measurement_date })));
     expect(safe.items[0].data.gad7_answers).toEqual(Array(7).fill(2));
     expect(safe.items[0].data.phq9_answers).toEqual(Array(9).fill(1));
     expect(safe.items[0].data.interference_level).toBe(3);
-    expect((safe.items[3].data.automatic_thoughts as Record<string, unknown>[])[0]).toEqual({ text: "SAFE:nested thought", beliefBefore: 91, beliefAfter: 26 });
-    expect((safe.items[3].data.feelings as Record<string, unknown>[])[0]).toEqual({ name: "SAFE:worry", intensityBefore: 80, intensityAfter: 15 });
+    expect((safe.items[3].data.automatic_thoughts as Record<string, unknown>[])[0]).toEqual({ text: "nested thought", beliefBefore: 91, beliefAfter: 26 });
+    expect((safe.items[3].data.feelings as Record<string, unknown>[])[0]).toEqual({ name: "worry", intensityBefore: 80, intensityAfter: 15 });
     expect(safe.items[2].data.thinking_errors).toEqual(["all_or_nothing"]);
     expect(safe.items[3].data.thinking_errors).toEqual([]);
     expect(payload.notes).toBe("session note");
@@ -351,4 +352,80 @@ describe("workspace anonymization and final-save ordering", () => {
     expect(engine.state.phase).toBe("success");
     engine.dispose();
   });
+});
+
+
+describe("diary save acknowledgement", () => {
+  const diary = () => updateItem(createWorksheet("diary_one"), { data: { event: '  אמא אמרה: "לא!"\nאבא, ואני…  ', automatic_thoughts: ["זו המחשבה שלי"], feelings: [{ name: "עצבות", intensity: 50 }], behaviour: "נשארתי" } });
+  it("waits for the submitted version, preserves text on RPC/reopen and skips unchanged notes", async () => {
+    const backend = mock(); const cache: NotesCache = new Map(); const seen: string[] = [];
+    const transform = (p: WorkspacePayload, account: string) => anonymizeWorkspacePayload(p, account, async () => async (text) => { seen.push(text); return `SAFE:${text}`; }, cache);
+    let release!: () => void; const gate = new Promise<void>((resolve) => { release = resolve; });
+    let saveCalls = 0;
+    const rpc: Rpc = async (name, params) => { if (name === "save_web_workspace" && ++saveCalls === 2) await gate; return backend.rpc(name, params); };
+    const engine = new WorkspaceEngine("a", rpc, new MemoryStorage(), () => {}, transform, () => true);
+    await engine.begin(); engine.update({ version: 1, notes: "private note", items: [updateItem(createWorksheet("questionnaire"), { data: { notes: "question note" } })] }); await engine.flush();
+    const original = diary(); engine.update({ ...engine.state.payload!, items: [original, ...engine.state.payload!.items] });
+    let confirmed = false; const saving = engine.saveWorksheet(original).then(() => { confirmed = true; });
+    await vi.waitFor(() => expect(saveCalls).toBe(2)); expect(confirmed).toBe(false);
+    release(); await saving; await engine.flush();
+    expect(seen).toEqual(["private note", "question note"]);
+    expect(backend.current().payload.items[1].data.notes).toBe("SAFE:question note");
+    expect(backend.current().payload.items[0].data).toEqual(original.data);
+    expect(backend.current().payload.notes).toBe("SAFE:private note");
+    const reopen = makeEngine("a", backend.rpc, new MemoryStorage()); await reopen.begin();
+    expect(reopen.state.payload?.items[0].data).toEqual(original.data);
+    engine.dispose(); reopen.dispose();
+  });
+  it("acknowledges an earlier diary version without claiming newer edits were saved", async () => {
+    const backend = mock(); let first!: () => void; let second!: () => void;
+    const gates = [new Promise<void>((r) => { first = r; }), new Promise<void>((r) => { second = r; })];
+    let count = 0; const rpc: Rpc = async (name, params) => { if (name === "save_web_workspace") await gates[count++]; return backend.rpc(name, params); };
+    const engine = makeEngine("a", rpc, new MemoryStorage()); await engine.begin();
+    const original = diary(); engine.update({ version: 1, notes: "", items: [original] });
+    const saved = engine.saveWorksheet(original); await vi.waitFor(() => expect(count).toBe(1));
+    const newer = updateItem(original, { data: { event: "newer" } }); engine.update({ ...engine.state.payload!, items: [newer] });
+    first(); await saved; expect(engine.state.payload?.items[0].data.event).toBe("newer"); expect(engine.state.save).not.toBe("saved");
+    second(); await engine.flush(); expect(backend.current().payload.items[0].data.event).toBe("newer"); engine.dispose();
+  });
+  it.each(["network", "lease_lost"])("rejects pending feedback on %s and retains content", async (code) => {
+    const backend = mock(); const rpc: Rpc = async (name, params) => { if (name === "save_web_workspace") throw new WorkspaceError(code); return backend.rpc(name, params); };
+    const engine = makeEngine("a", rpc, new MemoryStorage()); await engine.begin();
+    const original = diary(); engine.update({ version: 1, notes: "", items: [original] });
+    await expect(engine.saveWorksheet(original)).rejects.toThrow(code); expect(engine.state.payload?.items[0].data).toEqual(original.data); engine.dispose();
+  });
+  it("cancels feedback when disposed during a pending save", async () => {
+    const backend = mock(); let release!: () => void; const gate = new Promise<void>((r) => { release = r; });
+    const rpc: Rpc = async (name, params) => { if (name === "save_web_workspace") await gate; return backend.rpc(name, params); };
+    const engine = makeEngine("a", rpc, new MemoryStorage()); await engine.begin();
+    const original = diary(); engine.update({ version: 1, notes: "", items: [original] });
+    const saving = engine.saveWorksheet(original); const rejected = expect(saving).rejects.toThrow("cancelled"); engine.dispose(); await rejected; release();
+  });
+});
+
+
+it("reuses only unchanged notes, including on reopen, and fails closed on changed notes", async () => {
+  const seen: string[] = []; const transform = createWorkspaceAnonymizer(async () => async (text) => { seen.push(text); if (text === "fail") throw new Error("unavailable"); return `SAFE:${text}`; });
+  const server: WorkspacePayload = { version: 1, notes: "SAFE:previous note", items: [] };
+  transform.seed(server, "a");
+  await transform({ ...server, items: [createWorksheet("diary_three")] }, "a"); expect(seen).toEqual([]);
+  await transform({ ...server, notes: "changed" }, "a");
+  await transform({ ...server, notes: "" }, "a");
+  await transform({ ...server, notes: "changed" }, "a"); expect(seen).toEqual(["changed", "changed"]);
+  await expect(transform({ ...server, notes: "fail" }, "a")).rejects.toThrow("unavailable");
+});
+
+
+it("retries an identical original-diary snapshot before sending newer diary edits", async () => {
+  const backend = mock(); const seen: string[] = [];
+  const engine = new WorkspaceEngine("a", backend.rpc, new MemoryStorage(), () => {}, createWorkspaceAnonymizer(async () => async (text) => { seen.push(text); return `SAFE:${text}`; }), () => true);
+  await engine.begin();
+  const item = updateItem(createWorksheet("diary_one"), { data: { event: '  אמא, אבא—ואני.\n"כן"  ' } });
+  engine.update({ version: 1, notes: "note", items: [item] }); backend.loseSave(); await expect(engine.flush()).rejects.toThrow();
+  engine.update({ ...engine.state.payload!, items: [updateItem(item, { data: { event: "new wording" } })] }); await engine.flush();
+  const saves = backend.calls.filter((call) => call.name === "save_web_workspace");
+  expect(saves[0].params).toEqual(saves[1].params);
+  expect((saves[0].params.p_payload as WorkspacePayload).items[0].data.event).toBe(item.data.event);
+  expect((saves[2].params.p_payload as WorkspacePayload).items[0].data.event).toBe("new wording"); expect(seen).toEqual(["note"]);
+  engine.dispose();
 });
