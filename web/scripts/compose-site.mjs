@@ -22,13 +22,18 @@ export const redirects = `/app /app/ 302
 export async function composeSite(output = path.join(webRoot, "dist")) {
   await mkdir(output, { recursive: true });
   const hashes = new Set();
+  const theme = await readFile(path.join(webRoot, "site/theme.css"));
+  const themeUrl = `/site-assets/theme-${createHash("sha256").update(theme).digest("hex").slice(0, 12)}.css`;
+  await mkdir(path.join(output, "site-assets"), { recursive: true });
+  await writeFile(path.join(output, themeUrl), theme);
   for (const page of pages) {
     const url = page ? `/${page}/` : "/";
     let html = await readFile(path.join(webRoot, "site/source", page, "index.html"), "utf8");
+    html = html.replace(/href="\/style\.css"/g, `href="${themeUrl}"`);
     // Source content and behavior remain authoritative; only the shared shell is replaced.
     html = html.replace(/<style>[\s\S]*?<\/style>/g, "");
     html = html.replace(/<nav>[\s\S]*?<\/nav>/g, "");
-    const header = `<a class="skip-link" href="#content">דילוג לתוכן</a><header class="site-header"><div class="header-inner"><a class="site-brand" href="/" aria-label="CBTipul — בית"><img src="/site-assets/brand.png" alt="" /><span>CBTipul</span></a><nav class="site-nav" aria-label="ניווט ראשי">${labels.map(([href, label]) => `<a href="${href}"${href === url ? ' aria-current="page"' : ""}>${label}</a>`).join("")}<a class="therapist-link" href="/app/">כניסה למטפלים</a></nav></div></header>`;
+    const header = `<a class="skip-link" href="#content">דילוג לתוכן</a><header class="site-header"><div class="header-inner"><a class="site-brand" href="/" aria-label="CBTipul — בית"><img src="/site-assets/brand.png" alt="" width="48" height="48" /><span>CBTipul</span></a><nav class="site-nav" aria-label="ניווט ראשי">${labels.map(([href, label]) => `<a href="${href}"${href === url ? ' aria-current="page"' : ""}>${label}</a>`).join("")}<a class="therapist-link" href="/app/">כניסה למטפלים</a></nav></div></header>`;
     html = html.replace(/<body([^>]*)>/, `<body$1>${header}`);
     html = html.replace(/<main([^>]*)>/, `<main$1 id="content" tabindex="-1">`);
     html = html.replace(/<body([^>]*)>/, (_match, attrs) => `<body${attrs} data-page="${page || "home"}">`);
@@ -44,7 +49,7 @@ export async function composeSite(output = path.join(webRoot, "dist")) {
   await cp(path.join(webRoot, "site/theme.css"), path.join(output, "style.css"));
   await mkdir(path.join(output, "site-assets"), { recursive: true });
   await cp(path.join(webRoot, "public/brand.png"), path.join(output, "site-assets/brand.png"));
-  await writeFile(path.join(output, "404.html"), `<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>העמוד לא נמצא — CBTipul</title><link rel="stylesheet" href="/style.css"><main><article class="card"><h1>העמוד לא נמצא</h1><p>אפשר לחזור לעמוד הבית או להיכנס למרחב למטפלים.</p><a href="/">בית</a> · <a href="/app/">כניסה למטפלים</a></article></main></html>`);
+  await writeFile(path.join(output, "404.html"), `<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>העמוד לא נמצא — CBTipul</title><link rel="stylesheet" href="${themeUrl}"><main><article class="card"><h1>העמוד לא נמצא</h1><p>אפשר לחזור לעמוד הבית או להיכנס למרחב למטפלים.</p><a href="/">בית</a> · <a href="/app/">כניסה למטפלים</a></article></main></html>`);
   await writeFile(path.join(output, "_redirects"), redirects);
   const common = "  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n";
   const publicCsp = `default-src 'self'; script-src 'self' ${[...hashes].join(" ")}; style-src 'self'; img-src 'self'; connect-src 'none'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'`;

@@ -19,6 +19,10 @@ test("compiled public pages preserve original content, invitation behavior and v
       for (const match of original.matchAll(/<script>([\s\S]*?)<\/script>/g)) assert.ok(html.includes(match[0]));
       assert.ok(html.includes('href="/app/">כניסה למטפלים'));
       assert.ok(html.includes('lang="he" dir="rtl"'));
+      const themeUrl = html.match(/href="(\/site-assets\/theme-[a-f0-9]{12}\.css)"/)[1];
+      assert.deepEqual(await readFile(path.join(out, themeUrl)), await readFile(path.join(webRoot, "site/theme.css")));
+      assert.ok(!html.includes('href="/style.css"'));
+      assert.ok(html.includes('width="48" height="48"'));
     }
     for (const name of ["apple-app-site-association", "assetlinks.json"]) assert.deepEqual(await readFile(path.join(out, ".well-known", name)), await readFile(path.join(webRoot, "site/source/.well-known", name)));
     assert.ok((await readFile(path.join(out, "404.html"), "utf8")).includes("העמוד לא נמצא"));
