@@ -49,9 +49,9 @@ export function createWorksheet(type: WorksheetType, now = new Date()): Workshee
     measurement_date: todayLocal(now),
     data: { gad7_answers: Array(7).fill(null), phq9_answers: Array(9).fill(null), interference_level: null, notes: "" },
   };
-  if (type === "diary_one") return { ...common, data: { event: "", automatic_thoughts: [""], feelings: [{ name: "", intensity: 0 }], behaviour: "", physical_symptoms: "" } };
-  if (type === "diary_two") return { ...common, data: { event: "", automatic_thoughts: [""], feelings: [{ name: "", intensity: 0 }], thinking_errors: null, alternative_thoughts: [""] } };
-  return { ...common, data: { situation: "", automatic_thoughts: [{ text: "", beliefBefore: 0, beliefAfter: 0 }], feelings: [{ name: "", intensityBefore: 0, intensityAfter: 0 }], thinking_errors: null, alternative_thoughts: [{ text: "", belief: 0 }] } };
+  if (type === "diary_one") return { ...common, data: { event: "", automatic_thoughts: [""], feelings: [], behaviour: "", physical_symptoms: "" } };
+  if (type === "diary_two") return { ...common, data: { event: "", automatic_thoughts: [""], feelings: [], thinking_errors: null, alternative_thoughts: [""] } };
+  return { ...common, data: { situation: "", automatic_thoughts: [{ text: "", beliefBefore: null, beliefAfter: null }], feelings: [], thinking_errors: null, alternative_thoughts: [{ text: "", belief: null }] } };
 }
 
 const nonempty = (v: unknown) => typeof v === "string" && v.trim().length > 0 && v.length <= 50000;

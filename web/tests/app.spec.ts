@@ -172,6 +172,7 @@ function diaryPayload(type: WorksheetType): WorkspacePayload {
 for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
   test(`${type} save waits for ACK, preserves original text and stays editable`, async ({ page }) => {
     let release!: () => void; const gate = new Promise<void>((r) => { release = r; });
+    await page.setViewportSize({width:1366,height:768});
     const original = diaryPayload(type);
     const requests = await fixture(page, { existing: true, payload: original, consent: false, beforeSave: async () => { await gate; return undefined; } });
     await page.goto("/app/"); await page.getByRole("button", { name: "המשך המפגש", exact: true }).click();
@@ -179,11 +180,14 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
     await page.getByRole("button", { name: "שמירת הרשומה", exact: true }).click();
     const saving = page.getByRole("button", { name: "שומר…", exact: true }); await expect(saving).toBeDisabled(); await expect(saving).toHaveAttribute("aria-busy", "true");
     await expect(page.getByText("הרשומה נשמרה", { exact: true })).toHaveCount(0);
+    await page.screenshot({path:`test-results/${type}-saving.png`,fullPage:true});
     await expect.poll(() => requests.filter((r) => r.path.endsWith("/save_web_workspace")).length).toBe(1);
     await page.locator(".ww-item").last().click(); await page.locator(".ww-item").first().click();
     await expect(saving).toBeDisabled();
     release(); await expect(page.getByText("הרשומה נשמרה", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "שמירת הרשומה", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", {name:"שמירת הרשומה",exact:true})).toHaveCSS("background-color", "rgb(32, 62, 97)");
+    await page.screenshot({path:`test-results/${type}-saved.png`,fullPage:true});
     expect((requests.find((r) => r.path.endsWith("/save_web_workspace"))?.body?.p_payload as WorkspacePayload).items[0].data).toEqual(original.items[0].data);
     expect(requests.some((r) => r.path.endsWith("/anonymize-clinical-text"))).toBe(false);
     await expect(page.locator(".ww-sheet textarea").first()).toBeEnabled();
@@ -201,6 +205,7 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
     await page.goto("/app/"); await page.getByRole("button", { name: "המשך המפגש", exact: true }).click(); await page.locator(".ww-item").first().click();
     await page.getByRole("button", { name: "שמירת הרשומה", exact: true }).click();
     await expect(page.getByText("הרשומה לא נשמרה", { exact: true })).toBeVisible();
+    await page.screenshot({path:`test-results/${type}-${error}.png`,fullPage:true});
     await expect(page.locator('.ww-form-end button')).toHaveAttribute("aria-busy", "false");
     await expect(page.locator(".ww-sheet textarea").first()).toHaveValue('אמא אמרה: "לא!"');
     if (error === "network") { fail = false; await page.locator('.ww-form-end button').click(); await expect(page.getByText("הרשומה נשמרה", { exact: true })).toBeVisible(); }
@@ -234,3 +239,95 @@ test("branded login at desktop and narrow widths", async ({ page }) => {
     await page.screenshot({ path: `test-results/branded-login-${width}.png`, fullPage: true });
   }
 });
+
+for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
+  test(`${type} compact worksheet picker, ratings and responsive edit preservation`, async ({ page }) => {
+    const payload = diaryPayload(type);
+    payload.items[0].data.feelings = [];
+    const requests = await fixture(page, { existing: true, payload });
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto("/app/");
+    await page.getByRole("button", { name: "המשך המפגש", exact: true }).click();
+    await page.locator(".ww-item").first().click();
+    if (type !== "diary_one") {
+      await page.locator(".ww-thinking-picker summary").click();
+      await page.getByLabel("הכל או כלום", {exact:true}).check();
+      await expect(page.getByLabel("לא זוהתה טעות חשיבה", {exact:true})).not.toBeChecked();
+      await page.getByLabel("הכל או כלום", {exact:true}).uncheck();
+      await expect(page.getByLabel("לא זוהתה טעות חשיבה", {exact:true})).not.toBeChecked();
+      await page.getByLabel("לא זוהתה טעות חשיבה", {exact:true}).check();
+      await page.locator(".ww-thinking-picker summary").click();
+    }
+    const event = page.locator(".ww-diary-section textarea").first();
+    const long = 'אמא אמרה: "לא!"\n' + "טקסט עברי סינתטי ארוך, ללא מידע אמיתי. ".repeat(35);
+    await event.fill(long);
+    await page.getByRole("button", { name: "הוספת רגש", exact: true }).click();
+    const picker = page.locator(".ww-feeling-picker");
+    await expect(page.getByLabel("חיפוש רגש", { exact: true })).toBeFocused();
+    await page.screenshot({path:`test-results/worksheet-${type}-picker.png`,fullPage:true});
+    await expect(picker.getByRole("heading", { level: 3 })).toHaveText(["עצב", "חרדה", "אשמה ובושה", "חוסר ערך", "בדידות ודחייה", "מבוכה", "חוסר תקווה", "תסכול", "כעס"]);
+    await picker.getByRole("button", { name: "מודאג", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "הוספת רגש", exact: true })).toBeFocused();
+    const before = type === "diary_three" ? "עוצמה לפני — מודאג — אחוז" : "עוצמה — מודאג — אחוז";
+    await expect(page.getByLabel(before, { exact: true })).toHaveValue(type === "diary_three" ? "" : "80");
+    await page.getByLabel(before, { exact: true }).fill("0");
+    const slider = page.getByLabel(before.replace("— אחוז", "— מחוון"), {exact:true});
+    await slider.focus(); await page.keyboard.press("End");
+    await expect(page.getByLabel(before, {exact:true})).toHaveValue("100");
+    await page.keyboard.press("Home");
+    await expect(page.getByLabel(before, {exact:true})).toHaveValue("0");
+    await page.getByRole("button", { name: "הוספת רגש", exact: true }).click();
+    await expect(picker.getByRole("button", { name: "מודאג", exact: true })).toHaveCount(0);
+    await page.getByLabel("חיפוש רגש", { exact: true }).fill("חרד");
+    await picker.getByRole("button", { name: "חרד", exact: true }).click();
+    await page.getByRole("button", { name: "הוספת רגש", exact: true }).click();
+    await picker.getByRole("button", { name: "רגש אחר", exact: true }).click();
+    await picker.getByLabel("שם הרגש", { exact: true }).fill("מודאג");
+    await picker.getByRole("button", { name: "הוספה", exact: true }).click();
+    await expect(picker.getByRole("alert")).toHaveText("הרגש הזה כבר נבחר.");
+    const custom = "רגש אישי סינתטי ארוך מאוד";
+    await picker.getByLabel("שם הרגש", { exact: true }).fill(custom);
+    await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: "הסרת רגש חרד", exact: true }).click();
+    if (type === "diary_three") {
+      await page.getByLabel("עוצמה אחרי — מודאג — אחוז", { exact: true }).fill("25");
+      await page.getByLabel(`עוצמה לפני — ${custom} — אחוז`, { exact: true }).fill("80");
+      await page.getByLabel(`עוצמה אחרי — ${custom} — אחוז`, { exact: true }).fill("50");
+    }
+    for (const [width,height] of [[1366,768],[1440,900],[1024,768],[390,844],[683,384]]) {
+      await page.setViewportSize({ width,height });
+      await expect(event).toHaveValue(long);
+      await expect(page.getByLabel(before, { exact: true })).toHaveValue("0");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      const sections = await page.locator(".ww-diary-section").evaluateAll(els => els.map(el => { const r=el.getBoundingClientRect(); return { x:r.x,y:r.y,width:r.width }; }));
+      for (let i=1;i<sections.length;i++) expect(sections[i].y > sections[i-1].y || sections[i].x < sections[i-1].x).toBe(true);
+      await page.screenshot({ path: `test-results/worksheet-${type}-${width}.png`, fullPage: true });
+    }
+    await page.setViewportSize({width:1366,height:768});
+    await page.evaluate(() => { document.documentElement.style.zoom = "2"; });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await expect(event).toHaveValue(long);
+    await page.screenshot({path:`test-results/worksheet-${type}-zoom200.png`,fullPage:true});
+    await page.evaluate(() => { document.documentElement.style.zoom = ""; });
+    await page.getByRole("button", { name: "שמירת הרשומה", exact: true }).click();
+    await expect(page.getByText("הרשומה נשמרה", { exact: true })).toBeVisible();
+    const sent = requests.filter(r => r.path.endsWith("/save_web_workspace")).at(-1)?.body?.p_payload as WorkspacePayload;
+    expect(sent.items[0].data[type === "diary_three" ? "situation" : "event"]).toBe(long);
+    expect(sent.items[0].data.feelings).toEqual(type === "diary_three" ? [{name:"מודאג",intensityBefore:0,intensityAfter:25},{name:custom,intensityBefore:80,intensityAfter:50}] : [{name:"מודאג",intensity:0},{name:custom,intensity:80}]);
+    expect(requests.some(r => r.path.endsWith("/anonymize-clinical-text"))).toBe(false);
+    await page.getByRole("button", {name:"הוספת רגש",exact:true}).click();
+    await page.keyboard.press("Escape");
+    await expect(picker).not.toBeVisible();
+    await expect(page.getByRole("button", {name:"הוספת רגש",exact:true})).toBeFocused();
+  });
+  test(`${type} empty worksheet keeps incomplete validation separate from save failure`, async ({ page }) => {
+    const item = createWorksheet(type);
+    await fixture(page, {existing:true,payload:{version:1,notes:"",items:[item]}});
+    await page.goto("/app/"); await page.getByRole("button", {name:"המשך המפגש",exact:true}).click(); await page.locator(".ww-item").first().click();
+    await expect(page.getByRole("button", {name:"שמירת הרשומה",exact:true})).toBeDisabled();
+    await expect(page.getByText("יש להשלים את שדות החובה לפני שמירת הרשומה. הטיוטה נשמרת אוטומטית.")).toBeVisible();
+    await expect(page.getByText("הרשומה לא נשמרה",{exact:true})).toHaveCount(0);
+    await page.screenshot({path:`test-results/worksheet-${type}-empty.png`,fullPage:true});
+  });
+}
