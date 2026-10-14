@@ -139,8 +139,16 @@ fun PatientsNavHost(
                 unnamed = unnamed,
                 onOpenPatient = { navController.navigate("patient/$it") },
                 onOpenSettings = null,
+                onOpenWorkspaces = { navController.navigate("web-workspaces") },
                 onAddPatient = { if (com.cbtipul.app.data.Entitlements.allowMutation()) navController.navigate("add") },
             )
+        }
+        composable("web-workspaces") {
+            com.cbtipul.app.ui.workspaces.WebWorkspaceInboxScreen(
+                onBack = { navController.popScreen() }, onOpen = { navController.navigate("web-workspaces/$it") })
+        }
+        composable("web-workspaces/{workspaceId}", arguments = listOf(navArgument("workspaceId") { type = NavType.StringType })) { entry ->
+            com.cbtipul.app.ui.workspaces.WebWorkspacePreviewScreen(entry.arguments!!.getString("workspaceId")!!) { navController.popScreen() }
         }
         composable("add") {
             AddPatientScreen(
@@ -204,6 +212,7 @@ fun PatientsNavHost(
                 },
                 isSavingGoal = ui.isSavingFormulation,
                 onOpenSessions = { navController.navigate("patient/$id/sessions") },
+                onNewSession = { if (com.cbtipul.app.data.Entitlements.allowMutation()) navController.navigate("patient/$id/session/new") },
                 onOpenQuestionnaires = { navController.navigate("patient/$id/questionnaires") },
                 onOpenGraphs = { navController.navigate("patient/$id/questionnaires?graphs=true") },
                 onOpenRecent = { navController.navigate(it) },

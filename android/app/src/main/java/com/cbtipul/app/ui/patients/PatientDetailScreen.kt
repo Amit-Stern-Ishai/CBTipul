@@ -133,6 +133,7 @@ fun PatientDetailScreen(
     onSaveGoal: (String) -> Unit,
     isSavingGoal: Boolean,
     onOpenSessions: () -> Unit,
+    onNewSession: () -> Unit = {},
     onOpenQuestionnaires: () -> Unit,
     onOpenGraphs: () -> Unit = {},
     onOpenRecent: (String) -> Unit = {},
@@ -374,6 +375,9 @@ fun PatientDetailScreen(
             PatientRecentActivity(patient, isDemo, onOpenRecent)
             Text(stringResource(R.string.patient_records_title), color = colors.textBody)
             GroupedListCard(accent = accent) {
+                androidx.compose.material3.Button(onClick = onNewSession, enabled = com.cbtipul.app.ui.entitlementCanWrite(), modifier = Modifier.fillMaxWidth().then(Modifier)) {
+                    Text(stringResource(R.string.ww_new_session))
+                }
                 IconChipRow(Icons.Outlined.DateRange, stringResource(R.string.sessions_title), detail = stringResource(R.string.patient_sessions_description), onClick = onOpenSessions)
                 GroupedListDivider()
                 IconChipRow(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title),

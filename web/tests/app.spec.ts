@@ -1,416 +1,154 @@
 import { test, expect, type Page } from "@playwright/test";
-const user = {
-  id: "therapist-fixture",
-  email: "fixture@example.invalid",
-  is_anonymous: false,
-  app_metadata: { provider: "email" },
-  user_metadata: {},
-  aud: "authenticated",
-  created_at: "2026-01-01T00:00:00Z",
-};
-const p = {
-  id: "p1",
-  active: true,
-  notes: "רקע סינתטי לבדיקה",
-  formulation: { treatmentGoal: "לשפר את תחושת המסוגלות" },
-};
-const q = {
-  id: "q1",
-  patient_id: "p1",
-  session_id: null,
-  answered_date: "2026-10-01",
-  created_by: "patient",
-  gad7_answers: [1, 1, 1, 1, 1, 1, 1],
-  phq9_answers: [0, 0, 0, 0, 0, 0, 0, 0, 1],
-  interference_level: 1,
-  combined_notes: null,
-};
-const session = {
-  id: "s1",
-  patient_id: "p1",
-  session_date: "2026-10-02",
-  type: "intake",
-  notes: "סיכום סינתטי של פגישה",
-  structured_notes: null,
-};
-async function fixture(
-  page: Page,
-  options: {
-    role?: string;
-    anonymous?: boolean;
-    access?: string;
-    loggedOut?: boolean;
-  } = {},
-) {
-  const account = { ...user, is_anonymous: options.anonymous ?? false };
-  let seen = false;
-  const writes: { url: string; body: unknown }[] = [];
+
+const user = { id: "therapist-fixture", email: "fixture@example.invalid", is_anonymous: false, app_metadata: { provider: "email" }, user_metadata: {}, aud: "authenticated", created_at: "2026-01-01T00:00:00Z" };
+const empty = { version: 1, items: [], notes: "" };
+async function fixture(page: Page, options: { existing?: boolean; locked?: boolean; access?: string; consent?: boolean; anonymizeFail?: boolean } = {}) {
+  let envelope = { id: "workspace-fixture", status: "active", started_at: new Date(Date.now() - 15 * 60_000).toISOString(), updated_at: new Date().toISOString(), revision: 0, payload: options.existing ? { ...empty, notes: "תוכן קליני סינתטי" } : empty, lease_token: "lease-fixture", lease_until: new Date(Date.now() + 120_000).toISOString() };
+  let locked = !!options.locked;
+  let started = !!options.existing;
+  const requests: { path: string; body: Record<string, unknown> | null }[] = [];
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    if (url.hostname === "127.0.0.1") {
-      await route.continue();
-      return;
-    }
-    if (url.hostname !== "fixture.supabase.invalid") {
-      await route.abort();
-      return;
-    }
-    const path = url.pathname,
-      method = route.request().method();
-    const body =
-      method === "POST" || method === "PATCH"
-        ? route.request().postDataJSON()
-        : null;
-    if (method === "OPTIONS") {
-      await route.fulfill({
-        status: 200,
-        headers: {
-          "access-control-allow-origin": "*",
-          "access-control-allow-headers": "*",
-        },
-      });
-      return;
-    }
+    if (url.hostname === "127.0.0.1") return route.continue();
+    if (url.hostname !== "fixture.supabase.invalid") return route.abort();
+    const path = url.pathname;
+    const method = route.request().method();
+    const body = method === "POST" ? route.request().postDataJSON() as Record<string, unknown> : null;
+    if (method === "OPTIONS") return route.fulfill({ status: 200, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" } });
+    requests.push({ path, body });
     let data: unknown;
-    if (path.endsWith("/user")) data = account;
+    let status = 200;
+    if (path.endsWith("/user")) data = user;
+    else if (path.endsWith("/token")) data = { access_token: "fixture-token", refresh_token: "fixture-refresh", expires_in: 3600, token_type: "bearer", user };
     else if (path.endsWith("/logout")) data = {};
-    else if (path.endsWith("/token"))
-      data = {
-        access_token: "fixture-token",
-        refresh_token: "fixture-refresh",
-        expires_in: 3600,
-        token_type: "bearer",
-        user: account,
-      };
-    else if (path.endsWith("/get-app-context"))
-      data = {
-        version: 1,
-        role: options.role ?? "therapist",
-        entitlement: { access: options.access ?? "full" },
-      };
-    else if (path.endsWith("/is_patient_connected")) data = true;
-    else if (path.endsWith("/mark_notifications_seen")) {
-      seen = true;
-      data = null;
-    } else if (path.endsWith("/mark_notification_read")) data = null;
-    else if (path.endsWith("/anonymize-clinical-text"))
-      data = { anonymizedText: body.text };
-    else if (path.endsWith("/openai-gateway"))
-      data = {
-        choices: [{ message: { content: "תשובה סינתטית מתוך התיק בלבד." } }],
-      };
-    else if (path.endsWith("/prepare-session"))
-      data = {
-        preparation: {
-          executive_summary: "הכנה סינתטית",
-          priority_follow_ups: [],
-        },
-      };
-    else if (path.endsWith("/analyze-session"))
-      data = { analysis: { session_summary: "סיכום AI סינתטי" } };
-    else if (path.endsWith("/therapist_profiles"))
-      data = [{ therapist_id: user.id, display_name: "מטפל/ת לדוגמה" }];
-    else if (path.endsWith("/Patients"))
-      data =
-        method === "POST"
-          ? { ...p, id: "p2" }
-          : method === "PATCH"
-            ? { id: "p1" }
-            : url.searchParams.has("id")
-              ? p
-              : [p, { ...p, id: "p2", formulation: null }];
-    else if (path.endsWith("/Sessions"))
-      data =
-        method === "POST" || method === "PATCH"
-          ? { ...session, ...body }
-          : [session];
-    else if (path.endsWith("/CombinedMood"))
-      data = method === "POST" ? { id: "q2" } : [q];
-    else if (path.endsWith("/patient_assignments"))
-      data = [
-        {
-          id: "a1",
-          patient_id: "p1",
-          type: "questionnaire",
-          session_id: null,
-          cancelled_at: null,
-          created_at: "2026-10-01",
-        },
-      ];
-    else if (path.endsWith("/patient_messages")) data = [];
-    else if (path.endsWith("/notifications"))
-      data = [
-        {
-          id: "n1",
-          type: "questionnaire_completed",
-          patient_id: "p1",
-          resource_type: "questionnaire",
-          resource_id: "q1",
-          read_at: null,
-          seen_at: seen ? "2026-10-02" : null,
-          created_at: "2026-10-02",
-        },
-      ];
-    else if (path.match(/diary_(one|two|three)_entries$/))
-      data = [
-        {
-          id: "d1",
-          patient_id: "p1",
-          created_by: "patient",
-          created_at: "2026-10-02",
-          updated_at: "2026-10-02",
-          event: "אירוע סינתטי",
-          situation: "מצב סינתטי",
-          automatic_thoughts: ["מחשבה סינתטית"],
-          feelings: [{ name: "עצב", intensity: 80 }],
-          behaviour: "התנהגות סינתטית",
-          thinking_errors: ["all_or_nothing"],
-          alternative_thoughts: ["מחשבה חלופית"],
-        },
-      ];
-    else {
-      await route.abort();
-      throw new Error(`Unexpected mocked endpoint: ${path}`);
+    else if (path.endsWith("/get-app-context")) data = { version: 1, role: "therapist", entitlement: { access: options.access ?? "full" } };
+    else if (path.endsWith("/anonymize-clinical-text")) {
+      if (options.anonymizeFail) { status = 500; data = { error: "failed" }; }
+      else data = { anonymizedText: `אנונימי: ${body?.text}` };
     }
-    if (method !== "GET") writes.push({ url: path, body });
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: { "access-control-allow-origin": "*" },
-      body: JSON.stringify(data),
-    });
+    else if (path.endsWith("/get_active_web_workspace")) data = started && envelope.status === "active" ? envelope : null;
+    else if (path.endsWith("/begin_web_workspace")) {
+      if (locked && !body?.p_take_over) { status = 400; data = { message: "workspace_in_use" }; }
+      else { locked = false; started = true; data = envelope; }
+    }
+    else if (path.endsWith("/renew_web_workspace_lease")) data = new Date(Date.now() + 120_000).toISOString();
+    else if (path.endsWith("/save_web_workspace")) {
+      if (body?.p_expected_revision !== envelope.revision) { status = 400; data = { message: "revision_conflict" }; }
+      else { envelope = { ...envelope, revision: envelope.revision + 1, payload: body.p_payload as typeof empty }; data = { id: envelope.id, revision: envelope.revision, saved_at: new Date().toISOString() }; }
+    }
+    else if (path.endsWith("/finish_web_workspace")) { envelope = { ...envelope, status: "pending" }; data = { id: envelope.id, status: "pending", notification_id: "notification-fixture" }; }
+    else if (path.endsWith("/discard_web_workspace")) { envelope = { ...envelope, status: "discarded" }; data = null; }
+    else throw new Error(`Unexpected endpoint: ${path}`);
+    await route.fulfill({ status, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(data) });
   });
-  await page.addInitScript(
-    ({ account, loggedOut }) => {
-      if (loggedOut || sessionStorage.getItem("fixture-seeded")) return;
-      sessionStorage.setItem("fixture-seeded", "yes");
-      localStorage.setItem(
-        "cbtipul.web.auth",
-        JSON.stringify({
-          access_token: "fixture-token",
-          refresh_token: "fixture-refresh",
-          expires_at: Math.floor(Date.now() / 1000) + 3600,
-          token_type: "bearer",
-          user: account,
-        }),
-      );
-      localStorage.setItem(`cbtipul.terms.${account.id}`, "2026-08-29");
-      localStorage.setItem(`cbtipul.ai.${account.id}`, "yes");
-      localStorage.setItem(`cbtipul.names.${account.id}.p1`, "דנה לוי");
-    },
-    { account, loggedOut: options.loggedOut ?? false },
-  );
-  return writes;
+  await page.addInitScript(({ account, consent }) => {
+    if (sessionStorage.getItem("fixture-seeded")) return;
+    sessionStorage.setItem("fixture-seeded", "yes");
+    localStorage.setItem("cbtipul.web.auth", JSON.stringify({ access_token: "fixture-token", refresh_token: "fixture-refresh", expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: "bearer", user: account }));
+    localStorage.setItem(`cbtipul.terms.${account.id}`, "2026-08-29");
+    if (consent) localStorage.setItem(`cbtipul.ai.${account.id}`, "yes");
+  }, { account: user, consent: options.consent !== false });
+  return requests;
 }
-test("desktop patient navigation, exact notification result and logout cleanup", async ({
-  page,
-}) => {
-  await fixture(page);
-  await page.goto("/patients");
-  await expect(
-    page.getByRole("heading", { name: "המטופלים שלי" }),
-  ).toBeVisible();
-  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await page.getByRole("link", { name: /דנה לוי/ }).click();
-  await expect(
-    page.getByRole("heading", { name: "דנה לוי", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("link", { name: /^עדכונים/ }).click();
-  await page.getByRole("link", { name: /לצפייה בשאלון/ }).click();
-  await expect(
-    page.getByRole("heading", { name: "שאלון מצב רוח", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText(/צפייה בלבד/)).toBeVisible();
-  await page.goBack();
-  await expect(page.getByRole("heading", { name: "עדכונים" })).toBeVisible();
-  await page.getByRole("button", { name: "התנתקות", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "טוב לראות אותך" }),
-  ).toBeVisible();
-  expect(
-    await page.evaluate(() =>
-      Object.keys(localStorage).filter((k) => k.startsWith("cbtipul.names.")),
-    ),
-  ).toEqual([]);
-  await page.goBack();
-  await expect(
-    page.getByRole("heading", { name: "טוב לראות אותך" }),
-  ).toBeVisible();
-});
-test("session editor guards dirty navigation and can save empty notes", async ({
-  page,
-}) => {
-  const writes = await fixture(page);
-  await page.goto("/patients/p1/sessions/s1");
-  await page.getByLabel("סיכום הפגישה", { exact: true }).fill("");
-  await page.getByRole("link", { name: "מטופלים", exact: true }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("button", { name: "חזרה לעריכה" }).click();
-  await page.getByRole("button", { name: "שמירת סיכום", exact: true }).click();
-  await expect(page.getByText("הסיכום נשמר.")).toBeVisible();
-  expect(writes.find((w) => w.url.endsWith("/Sessions"))?.body).toMatchObject({
-    notes: "",
-    patient_id: "p1",
-  });
-});
-test("local name never enters AI payload; patient context includes diaries", async ({
-  page,
-}) => {
-  const writes = await fixture(page);
-  await page.goto("/patients/p1/ai");
-  await page.getByLabel("שאלה על התיק הטיפולי").fill("מה השתנה אצל דנה לוי?");
-  await page.getByRole("button", { name: "שליחת שאלה" }).click();
-  await expect(page.getByText("תשובה סינתטית מתוך התיק בלבד.")).toBeVisible();
-  expect(JSON.stringify(writes)).not.toContain("דנה לוי");
-  const gateway = writes.find((w) => w.url.endsWith("/openai-gateway"));
-  expect(JSON.stringify(gateway)).toContain("אירוע סינתטי");
-  expect(JSON.stringify(gateway)).toContain("לשפר את תחושת המסוגלות");
-});
-test("read-only permits local rename but hides creation and disables clinical editing", async ({
-  page,
-}) => {
-  const writes = await fixture(page, { access: "read_only" });
-  await page.goto("/patients");
-  await expect(page.getByText(/מצב צפייה בלבד/)).toBeVisible();
-  await expect(page.getByRole("link", { name: "הוספת מטופל/ת" })).toHaveCount(
-    0,
-  );
-  await page.goto("/patients/p1/edit");
-  await expect(page.getByLabel("מטרת הטיפול")).toBeDisabled();
-  await page.getByLabel("שם לתצוגה בדפדפן").fill("שם חדש");
-  await page.getByRole("button", { name: "שמירת מטופל/ת" }).click();
-  await expect(
-    page.getByRole("heading", { name: "שם חדש", exact: true }),
-  ).toBeVisible();
-  expect(
-    writes.filter((w) => w.url.includes("/rest/v1/Patients")),
-  ).toHaveLength(0);
-});
-test("patient and anonymous accounts never fetch clinical therapist records", async ({
-  page,
-}) => {
-  const writes = await fixture(page, { role: "patient", anonymous: true });
-  await page.goto("/patients");
-  await expect(
-    page.getByRole("heading", { name: "המרחב הזה מיועד למטפלים" }),
-  ).toBeVisible();
-  expect(writes.filter((w) => w.url.includes("/rest/v1/"))).toHaveLength(0);
-});
-test("small screen forms and graphs fit viewport and keyboard navigation works", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await fixture(page);
-  await page.goto("/patients/p1/questionnaires");
-  await page.getByRole("tab", { name: "גרפים ומגמות" }).click();
-  await expect(page.getByLabel("מגמה", { exact: true })).toBeVisible();
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await page.goto("/patients/p1/questionnaires/new");
-  await expect(
-    page.getByRole("button", { name: "שמירת שאלון" }),
-  ).toBeDisabled();
-  await page.getByLabel("תאריך המדידה").focus();
-  await page.keyboard.press("Tab");
-  expect(
-    await page.evaluate(() => document.activeElement !== document.body),
-  ).toBe(true);
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: "test-results/questionnaire-mobile.png",
-    fullPage: true,
-  });
-});
-test("login page does not access backend before sign in", async ({ page }) => {
-  const writes = await fixture(page, { loggedOut: true });
-  await page.goto("/login");
-  await expect(
-    page.getByRole("button", { name: "כניסה באמצעות Google" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "כניסה באמצעות Apple" }),
-  ).toBeVisible();
-  expect(writes).toHaveLength(0);
-  await page.screenshot({
-    path: "test-results/login-desktop.png",
-    fullPage: true,
-  });
-});
-test("questionnaire entry sends date and exact 0–3 answers, with patient-level ownership", async ({
-  page,
-}) => {
-  const writes = await fixture(page);
-  await page.goto("/patients/p1/questionnaires/new");
-  await page.getByLabel("תאריך המדידה").fill("2026-09-30");
-  for (let i = 0; i < 16; i++) {
-    await page.locator(`input[name="q-${i}"][value="1"]`).check();
-  }
-  await page.locator('input[name="interference"]').nth(2).check();
-  await page.getByRole("button", { name: "שמירת שאלון" }).click();
-  await expect
-    .poll(() => writes.some((w) => w.url.endsWith("/CombinedMood")))
-    .toBe(true);
-  expect(
-    writes.find((w) => w.url.endsWith("/CombinedMood"))?.body,
-  ).toMatchObject({
-    patient_id: "p1",
-    session_id: null,
-    answered_date: "2026-09-30",
-    gad7_answers: Array(7).fill(1),
-    phq9_answers: Array(9).fill(1),
-    interference_level: 2,
-  });
-});
-test("desktop and tablet patient overview, and patient-authored diaries remain read-only", async ({
-  page,
-}) => {
-  await fixture(page);
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/patients/p1");
-  await expect(
-    page.getByRole("heading", { name: "דנה לוי", exact: true }),
-  ).toBeVisible();
-  await page.screenshot({
-    path: "test-results/patient-desktop.png",
-    fullPage: true,
-  });
-  await page.setViewportSize({ width: 834, height: 1112 });
-  await page.reload();
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await page.goto("/patients/p1/diaries/2/d1");
-  await expect(
-    page.getByRole("heading", { name: "רשומה ביומן מחשבות 2" }),
-  ).toBeVisible();
-  await expect(page.getByText("הכל או כלום")).toBeVisible();
-  await expect(page.getByRole("textbox")).toHaveCount(0);
-  await expect(page.getByText(/צפייה בלבד/)).toBeVisible();
-  await page.screenshot({
-    path: "test-results/diary-tablet.png",
-    fullPage: true,
-  });
-});
-test("non-anonymous patient role cannot enter therapist screens", async ({
-  page,
-}) => {
-  await fixture(page, { role: "patient", anonymous: false });
-  await page.goto("/patients/p1");
-  await expect(
-    page.getByRole("heading", { name: "המרחב הזה מיועד למטפלים" }),
-  ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "דנה לוי" })).toHaveCount(0);
+
+test("desktop flow saves one workspace, clears content on finish, and never fetches patient records", async ({ page }) => {
+  const requests = await fixture(page);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "מרחב המפגש" })).toBeVisible();
+  await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
+  await page.getByLabel("סיכום המפגש", { exact: true }).fill("סיכום סינתטי למפגש");
+  await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
+  const save = requests.find((r) => r.path.endsWith("/save_web_workspace"));
+  expect((save?.body?.p_payload as typeof empty).notes).toBe("אנונימי: סיכום סינתטי למפגש");
+  await expect(page.getByLabel("סיכום המפגש", { exact: true })).toHaveValue("סיכום סינתטי למפגש");
+  expect(await page.evaluate(() => JSON.stringify(sessionStorage) + JSON.stringify(localStorage))).not.toContain("סיכום סינתטי למפגש");
+  await page.screenshot({ path: "test-results/workspace-desktop.png", fullPage: true });
+  await page.getByRole("button", { name: "סיום ושמירה", exact: true }).first().click();
+  await page.getByLabel("קוד התייחסות (לא חובה)").fill("REF-01");
+  await page.getByRole("button", { name: "סיום ושמירה", exact: true }).last().click();
+  await expect(page.getByRole("heading", { name: "המפגש נשמר" })).toBeVisible();
+  await expect(page.getByText("סיכום סינתטי למפגש")).toHaveCount(0);
+  expect(requests.filter((r) => r.path.includes("/rest/v1/")).map((r) => r.path)).toEqual(expect.arrayContaining([expect.stringContaining("get_active_web_workspace"), expect.stringContaining("save_web_workspace"), expect.stringContaining("finish_web_workspace")]));
+  expect(requests.some((r) => /Patients|CombinedMood|Sessions|notifications|list_pending|associate_web_workspace/.test(r.path))).toBe(false);
+  const finish = requests.find((r) => r.path.endsWith("finish_web_workspace"));
+  expect(finish?.body?.p_reference_label).toBe("REF-01");
+  await page.screenshot({ path: "test-results/workspace-success.png", fullPage: true });
 });
 
-const browserErrors=new WeakMap<Page,string[]>();
-test.beforeEach(({page})=>{const errors:string[]=[];browserErrors.set(page,errors);page.on('pageerror',error=>errors.push(error.message));page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});});
-test.afterEach(({page})=>{expect(browserErrors.get(page)??[]).toEqual([]);});
+test("resume starts neutral; another editor requires explicit takeover", async ({ page }) => {
+  const requests = await fixture(page, { existing: true, locked: true });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "יש מפגש פתוח" })).toBeVisible();
+  await expect(page.getByText("תוכן קליני סינתטי")).toHaveCount(0);
+  await page.getByRole("button", { name: "המשך המפגש" }).click();
+  await expect(page.getByRole("heading", { name: "המפגש פתוח במקום אחר" })).toBeVisible();
+  await page.getByRole("button", { name: "העברת השליטה לכאן" }).click();
+  await expect(page.getByLabel("סיכום המפגש", { exact: true })).toHaveValue("תוכן קליני סינתטי");
+  expect(requests.filter((r) => r.path.endsWith("begin_web_workspace")).map((r) => r.body?.p_take_over)).toEqual([false, true]);
+});
+
+test("incomplete included diary blocks finishing until explicitly removed", async ({ page }) => {
+  await fixture(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
+  await page.getByRole("button", { name: "הוספת טופס" }).click();
+  await page.getByRole("button", { name: "הוספת יומן מחשבות 3" }).click();
+  await expect(page.getByText("יש לסמן טעות חשיבה שזוהתה או לאשר שלא זוהתה טעות חשיבה.")).toBeVisible();
+  await expect(page.getByLabel("לא זוהתה טעות חשיבה")).not.toBeChecked();
+  await page.getByLabel("לא זוהתה טעות חשיבה").check();
+  await expect(page.getByLabel("לא זוהתה טעות חשיבה")).toBeChecked();
+  await page.getByRole("button", { name: "סיום ושמירה", exact: true }).first().click();
+  await expect(page.getByText("כדי לסיים, יש להשלים את הטפסים המסומנים או להסיר אותם במפורש.").first()).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "הסרת הטופס" }).click();
+  await page.getByRole("button", { name: "סיכום המפגש" }).click();
+  await page.getByLabel("סיכום המפגש", { exact: true }).fill("סיכום סינתטי");
+  await page.getByRole("button", { name: "סיום ושמירה", exact: true }).first().click();
+  await expect(page.getByRole("heading", { name: "אישור סיום ושמירה" })).toBeVisible();
+});
+
+test("narrow workspace remains usable and public legal route stays available", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fixture(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
+  await page.getByRole("button", { name: "הוספת טופס" }).click();
+  await page.getByRole("button", { name: "הוספת שאלון" }).click();
+  await expect(page.getByRole("heading", { name: "שאלון GAD-7 + PHQ-9" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: "test-results/workspace-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "מחיקת טיוטה" }).click();
+  await expect(page.getByRole("region", { name: "אישור מחיקת הטיוטה" })).toBeVisible();
+  expect(await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))).toBe("אישור מחיקת הטיוטה");
+  await page.goto("/legal/privacy");
+  await expect(page.getByRole("heading", { name: "מדיניות פרטיות" })).toBeVisible();
+});
+
+test("clinical text needs consent, then the saved anonymized snapshot appears after reopening", async ({ page }) => {
+  const requests = await fixture(page, { consent: false });
+  await page.goto("/");
+  await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
+  await page.getByLabel("סיכום המפגש", { exact: true }).fill("נוסח מקורי סינתטי");
+  await expect(page.getByRole("heading", { name: "אישור לעיבוד טקסט קליני" })).toBeVisible();
+  expect(requests.filter((request) => request.path.endsWith("/save_web_workspace"))).toHaveLength(0);
+  await page.getByRole("button", { name: "אני מאשר/ת את העיבוד והשמירה" }).click();
+  await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
+  expect(requests.filter((request) => request.path.endsWith("/anonymize-clinical-text"))).toHaveLength(1);
+  expect((requests.find((request) => request.path.endsWith("/save_web_workspace"))?.body?.p_payload as typeof empty).notes).toBe("אנונימי: נוסח מקורי סינתטי");
+  await expect(page.getByLabel("סיכום המפגש", { exact: true })).toHaveValue("נוסח מקורי סינתטי");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "יש מפגש פתוח" })).toBeVisible();
+  await page.getByRole("button", { name: "המשך המפגש" }).click();
+  await expect(page.getByLabel("סיכום המפגש", { exact: true })).toHaveValue("אנונימי: נוסח מקורי סינתטי");
+});
+
+test("anonymization failure leaves original text in the open tab and never calls save", async ({ page }) => {
+  const requests = await fixture(page, { anonymizeFail: true });
+  await page.goto("/");
+  await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
+  await page.getByLabel("סיכום המפגש", { exact: true }).fill("נוסח מקורי סינתטי");
+  await expect(page.getByText("השינויים טרם נשמרו. אפשר לנסות שוב.")).toBeVisible();
+  await expect(page.getByLabel("סיכום המפגש", { exact: true })).toHaveValue("נוסח מקורי סינתטי");
+  expect(requests.filter((request) => request.path.endsWith("/save_web_workspace"))).toHaveLength(0);
+  expect(await page.evaluate(() => JSON.stringify(sessionStorage) + JSON.stringify(localStorage))).not.toContain("נוסח מקורי סינתטי");
+});

@@ -3,6 +3,7 @@ import Foundation
 /// Therapist inbox event kinds. Unknown server values decode as `.unknown`
 /// so future types cannot crash the client.
 enum AppNotificationType: Hashable, Sendable {
+    case webWorkspaceReady
     case questionnaireAssigned
     case questionnaireCompleted
     case patientConnected
@@ -17,6 +18,7 @@ enum AppNotificationType: Hashable, Sendable {
 
     init(rawValue: String) {
         switch rawValue {
+        case "web_workspace_ready": self = .webWorkspaceReady
         case "questionnaire_assigned":
             self = .questionnaireAssigned
         case "questionnaire_completed":
@@ -40,6 +42,7 @@ enum AppNotificationType: Hashable, Sendable {
 
     var rawValue: String {
         switch self {
+        case .webWorkspaceReady: "web_workspace_ready"
         case .questionnaireAssigned: "questionnaire_assigned"
         case .questionnaireCompleted: "questionnaire_completed"
         case .patientConnected: "patient_connected"
@@ -59,7 +62,7 @@ enum AppNotificationType: Hashable, Sendable {
         switch self {
         case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .diaryTwoAssigned, .diaryThreeAssigned:
             true
-        case .questionnaireCompleted, .patientConnected,
+        case .webWorkspaceReady, .questionnaireCompleted, .patientConnected,
              .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded, .unknown:
             false
         }
@@ -197,6 +200,7 @@ enum NotificationInboxCopy {
     /// Inbox subtitle. Patient names never come from the notification row.
     static func message(for type: AppNotificationType) -> String {
         switch type {
+        case .webWorkspaceReady: L10n.wwInbox
         case .questionnaireCompleted:
             L10n.notificationQuestionnaireCompleted
         case .patientConnected:

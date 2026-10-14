@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase, configured } from "../data/client";
 import { names } from "../domain/privacy";
 import { setApiIdentity } from "../data/api";
+import { clearWorkspaceRecovery } from "../workspace/engine";
 interface AuthValue {
   session: Session | null;
   ready: boolean;
@@ -38,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!alive) return;
       const nextId = next?.user.id ?? null;
       if (account.current !== nextId) {
-        if (account.current) names.clear(localStorage, account.current);
+        if (account.current) { names.clear(localStorage, account.current); clearWorkspaceRecovery(account.current); }
         client.clear();
         account.current = nextId;
         setApiIdentity(nextId);
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const id = account.current;
     setApiIdentity(null);
     client.clear();
-    if (id) names.clear(localStorage, id);
+    if (id) { names.clear(localStorage, id); clearWorkspaceRecovery(id); }
     setSession(null);
     account.current = null;
     await supabase.auth.signOut({ scope: "local" });

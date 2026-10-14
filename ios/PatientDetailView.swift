@@ -12,6 +12,7 @@ struct PatientDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
+    @State private var newSession: Session?
     @State private var isSaving = false
     @State private var isShowingNotes = false
     @State private var areDiariesExpanded = false
@@ -215,6 +216,9 @@ struct PatientDetailView: View {
             PatientRecentActivityView(patient: patient)
 
             Section(L10n.patientSessionWorkspaceTitle) {
+                Button { if EntitlementState.shared.allowMutation() { newSession = Session() } } label: {
+                    Label(L10n.wwNewSession, systemImage: "plus").font(.headline).frame(maxWidth: .infinity, minHeight: 44)
+                }.buttonStyle(.borderedProminent).entitlementCreateControl().accessibilityIdentifier("patient.newSession")
                 NavigationLink {
                     PatientSessionsView(patient: patient)
                 } label: {
@@ -536,6 +540,9 @@ struct PatientDetailView: View {
         .subtleAnimation(value: errorMessage)
         .subtleAnimation(value: isTranscribing)
         .subtleAnimation(value: isAnonymizingTranscription)
+        .sheet(item: $newSession) { session in
+            SessionEditorView(session: session, patient: patient, isNew: true).appTextSize()
+        }
         .navigationDestination(isPresented: $isShowingSessions) {
             PatientSessionsView(patient: patient, initialAction: sessionsInitialAction)
         }

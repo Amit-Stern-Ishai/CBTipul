@@ -11,6 +11,7 @@ enum TherapistRootTab: Hashable, CaseIterable {
 
 struct TherapistRootView: View {
     @Environment(PatientStore.self) private var store
+    @Environment(WebWorkspaceStore.self) private var workspaces
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(NotificationStore.self) private var notificationStore
     @Environment(TherapistNotificationCoordinator.self) private var coordinator
@@ -68,11 +69,13 @@ struct TherapistRootView: View {
             coordinator.selectedTab = .patients
             guard isDemo else {
                 notificationStore.isDemoInbox = false
-                Task { await notificationStore.refresh() }
+                Task { await notificationStore.refresh()
+                await workspaces.refresh() }
                 return
             }
             notificationStore.isDemoInbox = true
             notificationStore.clear()
+            workspaces.clear()
             coordinator.selectedTab = .patients
             gettingStartedRouter.setPlacement(.patientList)
             gettingStartedRouter.refresh(using: store)
@@ -83,9 +86,11 @@ struct TherapistRootView: View {
             if store.isDemoMode {
                 notificationStore.isDemoInbox = true
                 notificationStore.clear()
+            workspaces.clear()
             } else {
                 notificationStore.isDemoInbox = false
                 await notificationStore.refresh()
+                await workspaces.refresh()
             }
             coordinator.processPending(patients: store.patients)
         }
@@ -95,6 +100,7 @@ struct TherapistRootView: View {
                 do { try await Task.sleep(for: .seconds(60)) } catch { return }
                 guard !Task.isCancelled else { return }
                 await notificationStore.refresh(silently: true)
+                await workspaces.refresh()
             }
         }
         .onDisappear {
@@ -124,6 +130,7 @@ struct TherapistRootView: View {
             guard phase == .active, !store.isDemoMode else { return }
             Task {
                 await notificationStore.refresh()
+                await workspaces.refresh()
                 coordinator.processPending(patients: store.patients)
             }
         }

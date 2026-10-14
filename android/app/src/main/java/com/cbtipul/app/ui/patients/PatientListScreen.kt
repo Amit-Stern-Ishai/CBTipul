@@ -84,7 +84,10 @@ fun PatientListScreen(
     onOpenPatient: (String) -> Unit,
     onOpenSettings: (() -> Unit)? = null,
     onAddPatient: () -> Unit,
+    onOpenWorkspaces: () -> Unit = {},
 ) {
+    val workspaceApp = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+    val workspaceState by workspaceApp.webWorkspaces.state.collectAsStateWithLifecycle()
     val patients by viewModel.patients.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
@@ -139,6 +142,11 @@ fun PatientListScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            if (!isDemoMode) {
+                OutlinedButton(onClick = onOpenWorkspaces, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Text(stringResource(R.string.ww_pending_count, workspaceState.items.size))
+                }
+            }
             if (patients.isNotEmpty()) {
                 OutlinedTextField(
                     value = patientSearch,

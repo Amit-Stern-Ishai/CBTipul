@@ -191,7 +191,7 @@ private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> 
         InboxCopyKind.QuestionnaireCompleted -> Icons.Outlined.Assignment
         InboxCopyKind.PatientConnected -> Icons.Outlined.HowToReg
         InboxCopyKind.DiaryOneEntryAdded, InboxCopyKind.DiaryTwoEntryAdded, InboxCopyKind.DiaryThreeEntryAdded -> Icons.Outlined.Book
-        InboxCopyKind.Generic -> Icons.Outlined.NotificationsNone
+        InboxCopyKind.WebWorkspaceReady, InboxCopyKind.Generic -> Icons.Outlined.NotificationsNone
     }
     val action = when (NotificationRouting.destination(NotificationPayload.from(item))) {
         is AppDestination.PatientDetail -> R.string.notification_open_patient
@@ -208,7 +208,7 @@ private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> 
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(patientName, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(if (item.type == com.cbtipul.app.data.AppNotificationTypes.WEB_WORKSPACE_READY) stringResource(R.string.ww_untitled) else patientName, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     if (item.isUnread) {
                         val unreadLabel = stringResource(R.string.notification_unread_accessibility)
                         Box(Modifier.size(7.dp).background(colors.gold, CircleShape).semantics { contentDescription = unreadLabel })
@@ -248,6 +248,7 @@ private fun inboxMessage(type: String): String = when (NotificationRouting.inbox
     InboxCopyKind.DiaryTwoEntryAdded -> stringResource(R.string.notification_diary_two_entry_added)
     InboxCopyKind.DiaryThreeEntryAdded -> stringResource(R.string.notification_diary_three_entry_added)
     InboxCopyKind.DiaryOneEntryAdded -> stringResource(R.string.notification_diary_one_entry_added)
+    InboxCopyKind.WebWorkspaceReady -> stringResource(R.string.ww_inbox)
     InboxCopyKind.Generic -> stringResource(R.string.notification_generic)
 }
 

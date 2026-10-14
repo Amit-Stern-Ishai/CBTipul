@@ -13,6 +13,7 @@ struct MyApp: App {
     @State private var diaryTwo: DiaryTwoStore
     @State private var diaryOne: DiaryOneStore
     @State private var notificationStore: NotificationStore
+    @State private var webWorkspaces: WebWorkspaceStore
 
     init() {
         TelemetryPlatform.prime()
@@ -45,7 +46,21 @@ struct MyApp: App {
         _store = State(initialValue: store)
         _therapistProfiles = State(initialValue: TherapistProfileService(client: auth.client))
         let appContext = AppContextService(client: auth.client)
-        auth.onIdentityChanged = { appContext.clear() }
+        let webWorkspaces = WebWorkspaceStore(client: auth.client)
+        _webWorkspaces = State(initialValue: webWorkspaces)
+        auth.onIdentityChanged = { appContext.clear(); webWorkspaces.clear() }
+        webWorkspaces.refreshRecords = { patientID in
+            var succeeded = true
+            do { try await store.loadPatients() } catch { succeeded = false }
+            if let patient = store.patients.first(where: { $0.id.matches(patientID) }) {
+                do { _ = try await store.loadQuestionnaires(for: patient) } catch { succeeded = false }
+                do { _ = try await diaryOne.loadEntries(for: patient.id) } catch { succeeded = false }
+                do { _ = try await diaryTwo.loadEntries(for: patient.id) } catch { succeeded = false }
+                do { _ = try await diaryThree.loadEntries(for: patient.id) } catch { succeeded = false }
+            }
+            await NotificationStore.shared?.refresh()
+            return succeeded
+        }
         _appContext = State(initialValue: appContext)
         _invitationFlow = State(initialValue: PatientInvitationFlow())
         _diaryOne = State(initialValue: diaryOne)
@@ -68,6 +83,7 @@ struct MyApp: App {
                 .environment(diaryTwo)
                 .environment(diaryThree)
                 .environment(notificationStore)
+                .environment(webWorkspaces)
                 .environment(TherapistNotificationCoordinator.shared)
                 .environment(PatientModeMessageCoordinator.shared)
                 .onOpenURL(perform: handleIncomingURL)

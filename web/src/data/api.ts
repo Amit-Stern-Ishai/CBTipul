@@ -103,8 +103,24 @@ async function clinical(text: string, checkpoint: () => void) {
     therapistIdentifiers: [],
   });
   checkpoint();
-  if (!r.anonymizedText?.trim()) throw new ApiError();
+  if (typeof r.anonymizedText !== "string" || !r.anonymizedText.trim()) throw new ApiError();
   return scrub(r.anonymizedText);
+}
+// The workspace uses the same guarded Edge Function and consent as session notes.
+export async function workspaceClinicalAnonymizer(account: string) {
+  const checkpoint = await guard(true);
+  if (identity !== account) throw new ApiError("access");
+  return async (text: string) => {
+    if (identity !== account) throw new ApiError("access");
+    return clinical(text, checkpoint);
+  };
+}
+export function workspaceIdentityMatches(account: string) {
+  return identity === account;
+}
+export function grantWorkspaceClinicalConsent(account: string) {
+  if (identity !== account) throw new ApiError("access");
+  localStorage.setItem(`cbtipul.ai.${account}`, "yes");
 }
 async function anonymizeValue(
   v: Clinical,

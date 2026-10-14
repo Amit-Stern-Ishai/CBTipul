@@ -8,6 +8,7 @@ struct NotificationsInboxView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var openedTarget: PendingPatientNavigation?
+    @State private var openedWorkspace: WebWorkspaceRoute?
 
     var body: some View {
         @Bindable var coordinator = coordinator
@@ -46,6 +47,12 @@ struct NotificationsInboxView: View {
             .navigationDestination(item: $openedTarget) { target in
                 NotificationItemDestination(target: target)
             }
+            .navigationDestination(item: $openedWorkspace) { WebWorkspacePreview(id: $0.id) }
+            .onChange(of: coordinator.pendingWorkspace) { _, route in
+                guard let route else { return }; openedWorkspace = route; coordinator.pendingWorkspace = nil
+            }
+            .onAppear { if let route = coordinator.pendingWorkspace { openedWorkspace = route; coordinator.pendingWorkspace = nil } }
+            .onChange(of: openedWorkspace) { _, route in coordinator.isInboxShowingDetail = route != nil }
             .onChange(of: openedTarget) { _, target in coordinator.isInboxShowingDetail = target != nil }
             .onChange(of: coordinator.pendingPatientNavigation?.token) { _, _ in consumeTarget() }
             .onAppear { consumeTarget() }
@@ -173,7 +180,7 @@ private struct NotificationInboxRow: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 7) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(patientName)
+                    Text(item.type == .webWorkspaceReady ? L10n.wwUntitled : patientName)
                         .font(.headline)
                         .foregroundStyle(Theme.textBright)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -227,6 +234,7 @@ private struct NotificationInboxRow: View {
 
     private var actionTitle: String? {
         switch NotificationRouter.destination(from: item) {
+        case .webWorkspace: L10n.wwPreview
         case .completedQuestionnaire: L10n.notificationOpenQuestionnaires
         case .diaryOneEntry, .diaryTwoEntry, .diaryThreeEntry: L10n.notificationOpenDiary
         case .patientDetail: L10n.notificationOpenPatient

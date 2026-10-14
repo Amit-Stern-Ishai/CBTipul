@@ -30,7 +30,7 @@ export function Login() {
           : await supabase.auth.signInWithPassword({ email, password });
       if (r.error) throw r.error;
       if (recover) setSent(true);
-      else navigate("/patients", { replace: true });
+      else navigate("/", { replace: true });
     } catch (e) {
       setError(e);
     } finally {

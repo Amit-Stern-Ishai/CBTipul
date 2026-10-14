@@ -113,9 +113,11 @@ fun TherapistRootScreen(
     LaunchedEffect(lifecycleOwner, isDemoMode) {
         if (isDemoMode) return@LaunchedEffect
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            app.webWorkspaces.refresh()
             while (isActive) {
                 delay(60_000)
                 app.notifications.refresh(silently = true)
+                app.webWorkspaces.refresh()
             }
         }
     }
@@ -123,6 +125,7 @@ fun TherapistRootScreen(
     LaunchedEffect(isDemoMode) {
         tab = TherapistRootTab.Patients
         app.notifications.isDemoInbox = isDemoMode
+        if (isDemoMode) app.webWorkspaces.clear()
         if (isDemoMode) app.notifications.clear() else app.notifications.refresh()
         if (isDemoMode && com.cbtipul.app.BuildConfig.DEBUG &&
             (context as? android.app.Activity)?.intent?.getBooleanExtra("cbtipul_test_notifications", false) == true
@@ -174,7 +177,8 @@ fun TherapistRootScreen(
     LaunchedEffect(pending, clinicState.hasLoaded, inboxEntry != null) {
         val destination = pending ?: return@LaunchedEffect
         if (destination is AppDestination.DiaryThreeEntry && (!clinicState.hasLoaded || currentEntry == null)) return@LaunchedEffect
-        if (destination !is AppDestination.PatientDetail &&
+        if (destination !is AppDestination.WebWorkspace &&
+            destination !is AppDestination.PatientDetail &&
             destination !is AppDestination.QuestionnaireResult &&
             destination !is AppDestination.DiaryOneEntry &&
             destination !is AppDestination.DiaryTwoEntry &&
@@ -183,7 +187,7 @@ fun TherapistRootScreen(
             return@LaunchedEffect
         }
         tab = TherapistRootTab.Notifications
-        if (inboxEntry == null || !clinicState.hasLoaded) return@LaunchedEffect
+        if (inboxEntry == null || (destination !is AppDestination.WebWorkspace && !clinicState.hasLoaded)) return@LaunchedEffect
         app.pendingDestinations.consume()
         navigateInboxDestination(inboxNav, destination)
     }

@@ -1,6 +1,6 @@
 # CBTipul therapist web
 
-Isolated React / TypeScript / Vite application. No mobile, website, database, provider settings, or Edge Functions are changed. Nothing has been deployed.
+The web app is a focused therapist workspace: sign in, start or resume one draft, enter a combined GAD-7/PHQ-9 questionnaire, any number of the three diary types, and session notes, then finish and save. Completed work awaits association in the mobile app. Public legal pages, invitation and store links, and auth callbacks remain available. The web UI has no patient list, history, notification feed, or completed-workspace browser.
 
 ## Local development
 
@@ -16,39 +16,24 @@ npm run dev
 
 Without configuration the login screen explains the missing configuration and makes no backend requests. Vite's `VITE_*` variables are public build-time values. Never enter a service-role key, provider secret, or OpenAI key.
 
-A configured build uses real Supabase records under the signed-in user's RLS permissions. Do not use real patients for testing without authorization. Tests below use synthetic fixtures exclusively.
-
 ```sh
 npm run typecheck
 npm run lint
 npm run test
 npm run test:browser
 npm run build
-npm run preview
 ```
 
-Browser tests use the locally installed Google Chrome (`channel: chrome`). Install Chrome locally or adjust the test channel to an installed Playwright browser. The tests intercept every Supabase request at `fixture.supabase.invalid`; all other external network requests are blocked. Production auth, clinical records, and account deletion are never invoked by these tests. Screenshots under `test-results/` contain synthetic data only and are ignored by Git.
+Browser tests use synthetic Supabase fixtures and block other external requests. They do not validate a live workspace RPC deployment.
 
-## Implementation map
+## Workspace contract and privacy
 
-- `src/auth/`: Supabase PKCE browser auth, email login/recovery, auth lifecycle, profile name setup.
-- `src/data/`: actual Supabase contracts and fresh server permission checks before writes; safe errors; no clinical offline cache.
-- `src/domain/`: clinical DTOs, score/date/trend rules, local identities, AI provenance/context.
-- `src/ui/`: therapist routes and shared accessible components.
-- `src/he.ts`: Hebrew interface copy; `mobile-he.json`: exact selected mobile questionnaire/session/diary strings; `legal-he.json`: current mobile legal/AI-consent text. Review the legal copy's mobile-specific statements before public web launch; the UI separately explains the web's unencrypted local names.
-- `public/`: existing brand, official provider assets, Cloudflare response headers and SPA fallback.
+The editor calls only `get_active_web_workspace`, `begin_web_workspace`, `renew_web_workspace_lease`, `save_web_workspace`, `finish_web_workspace`, and `discard_web_workspace` for clinical workspace data. The existing `get-app-context` auth gate remains in place. The app does not query `web_workspaces` directly or call the mobile inbox and association RPCs.
 
-TanStack Query stores fetched clinical data in memory only. Auth session/PKCE state, account-scoped legal/AI consent, and explicitly entered patient display names use browser storage. There is no analytics, service worker, record persistence plugin, client OpenAI key, or `dangerouslySetInnerHTML`. Ordinary logout removes this account's names and clears queries and visible clinical state. Browser-local names are not an encrypted vault and do not sync from mobile.
+Original clinical wording stays in memory while the tab is open. Before each workspace save, the client sends individual clinical free-text fields through the existing guarded `anonymize-clinical-text` Edge Function (`src/data/api.ts`), using its existing `{ text, therapistIdentifiers: [] }` request, therapist access check, consent key, and local-name redaction. Only a successfully mapped anonymized snapshot is sent to `save_web_workspace`. The original stays visible until the tab closes; reopening loads the last server snapshot. A failed anonymization prevents the save. This is an AI-based anonymization workflow, not a guarantee that every identifier is removed; review its live privacy behavior before release.
 
-## First-version behavior
+The workspace feature keeps no clinical content in browser storage. It retains only an editor ID, account/workspace-scoped reminder timing, and a nonclinical marker for an uncertain finish; legacy workspace recovery entries are removed. Unsaved original text is lost on tab close. The app warns before navigation where the browser allows it. A same-tab lost save response retries the exact anonymized payload; after tab close, recovery comes from the server snapshot. An uncertain finish can be checked after reopening without persisting a lease token or reference label.
 
-- Therapist-only login (email, Google, Apple); anonymous and server-confirmed Patient Mode accounts are denied. Role is established through `get-app-context`, not email/provider metadata. Missing entitlement fails closed for mutations. Existing server allowlist/trial/subscription decisions remain authoritative.
-- Patient list/search, generated patient IDs, browser-local names, active status, treatment goal, background notes, overview and patient-specific navigation.
-- Session list, typed notes, date/type, create/update/empty-note save, unsaved-navigation warning, anonymization and optional AI analysis saved to `structured_notes`.
-- Exact mobile GAD-7/PHQ-9 wording/options, complete 0–3 validation, interference, per-question notes, previous answers by measurement date, patient-level therapist entry, history/results and score/question-trend charts with accessible value tables. Patient-authored results and all diary entries are view-only.
-- Ongoing questionnaire/Diary 1/Diary 2 activation and cancellation. Diary 3 history/status is available; new activation remains hidden, matching the current product restriction.
-- AI chat uses all available paginated sessions, questionnaires and three diary histories, full treatment goal, sources and explicit unavailable-data markers. No local identity fields are serialized. Known locally entered names are removed before anonymization or AI transport. Existing anonymization and gateway functions enforce processing/quota; no local quota counter.
-- Next-session preparation follows the existing `prepare-session` context and section order. This endpoint's current mobile context includes sessions, questionnaires and formulation; diary context is supplied to chat, not invented as a new preparation field. Generated preparation is memory-only; native preparations are device-local and cannot sync with this client.
-- Notifications resolve exact questionnaire/diary IDs, show unavailable destinations safely, mark opened records read, and refresh in the foreground. Therapist messages use the existing message function/history. No browser push registration has been added.
+Diary 2 and 3 start with an unaddressed thinking-error field (`null`). The therapist may explicitly confirm “לא זוהתה טעות חשיבה”, which saves `thinking_errors: []`, or select existing supported codes. The currently deployed SQL still rejects an empty array at finish. The corresponding backend patch must be applied and verified before this path can complete live.
 
-See [CONTRACTS.md](CONTRACTS.md) for evidence and limitations and [DEPLOYMENT.md](DEPLOYMENT.md) for the review-only Cloudflare setup and release checklist.
+See [CONTRACTS.md](CONTRACTS.md) for older integration evidence and [DEPLOYMENT.md](DEPLOYMENT.md) for the Cloudflare release checklist. Neither document proves the new workspace RPCs are deployed; validate them against a configured Supabase environment before release.

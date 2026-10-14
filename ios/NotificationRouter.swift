@@ -37,6 +37,7 @@ struct PatientDiaryThreeRoute: Hashable {
 
 /// Shared destination for push and persistent inbox taps.
 enum NotificationDestination: Equatable {
+    case webWorkspace(id: String)
     /// Therapist Patients tab → patient → questionnaires → optional CombinedMood.
     case completedQuestionnaire(
         patientId: String,
@@ -60,6 +61,9 @@ enum NotificationDestination: Equatable {
 enum NotificationRouter {
     static func destination(from payload: AppNotificationPayload) -> NotificationDestination {
         switch payload.type {
+        case .webWorkspaceReady:
+            guard payload.resourceType == "web_workspace", let id = payload.resourceId, UUID(uuidString: id) != nil else { return .none }
+            return .webWorkspace(id: id)
         case .questionnaireCompleted:
             guard let patientId = payload.patientId, !patientId.isEmpty else {
                 return .none
@@ -107,6 +111,7 @@ final class TherapistNotificationCoordinator {
     static let shared = TherapistNotificationCoordinator()
 
     var selectedTab: TherapistRootTab = .patients
+    var pendingWorkspace: WebWorkspaceRoute?
     var unavailableTarget = false
     var isInboxShowingDetail = false
     private(set) var returnsToInbox = false
@@ -135,6 +140,7 @@ final class TherapistNotificationCoordinator {
     }
 
     func resetOnLogout() {
+        pendingWorkspace = nil
         isInboxShowingDetail = false
         unavailableTarget = false
         returnsToInbox = false
@@ -200,6 +206,11 @@ final class TherapistNotificationCoordinator {
     ) {
         if waitForPatients { returnsToInbox = false }
         switch destination {
+        case .webWorkspace(let id):
+            pendingPayload = nil
+            lastConsumedFingerprint = fingerprint
+            selectedTab = .notifications
+            pendingWorkspace = WebWorkspaceRoute(id: id)
         case .none:
             pendingPayload = nil
             lastConsumedFingerprint = fingerprint

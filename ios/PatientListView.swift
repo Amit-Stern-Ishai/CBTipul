@@ -4,6 +4,7 @@ import OSLog
 /// Lists the therapist's patients and allows adding new ones.
 struct PatientListView: View {
     @Environment(PatientStore.self) private var store
+    @Environment(WebWorkspaceStore.self) private var workspaces
     @Environment(AuthManager.self) private var auth
     @Environment(DiaryOneStore.self) private var diaryOne
     @Environment(DiaryTwoStore.self) private var diaryTwo
@@ -49,6 +50,14 @@ struct PatientListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("patients.root")
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !store.isDemoMode {
+                    NavigationLink { WebWorkspaceInboxView() } label: {
+                        Label(L10n.wwPendingCount(workspaces.items.count), systemImage: "tray.full")
+                            .font(.headline).frame(maxWidth: .infinity, minHeight: 44).padding(.horizontal)
+                    }.background(Theme.surface).accessibilityIdentifier("workspaces.inbox")
+                }
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if showsPatientAddCTA {
                     addPatientCTA

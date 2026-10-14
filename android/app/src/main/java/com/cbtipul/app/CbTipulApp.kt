@@ -1,5 +1,7 @@
 package com.cbtipul.app
 
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import android.app.Application
 import android.app.NotificationManager
 import com.cbtipul.app.auth.AuthRepository
@@ -88,6 +90,9 @@ class CbTipulApp : Application() {
     lateinit var pendingDestinations: PendingDestinationStore
         private set
 
+    lateinit var webWorkspaces: com.cbtipul.app.data.WebWorkspaceRepository
+        private set
+
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
@@ -109,6 +114,17 @@ class CbTipulApp : Application() {
         notifications = NotificationRepository(client, currentUserId = { authRepository.currentUserId() }, onInboxSeen = {
             getSystemService(NotificationManager::class.java)?.cancelAll()
         })
+        val workspacePreferences = getSharedPreferences("web-workspace-requests", MODE_PRIVATE)
+        webWorkspaces = com.cbtipul.app.data.WebWorkspaceRepository(
+            rpc = { name, params -> client.postgrest.rpc(name, params).data },
+            currentUser = { authRepository.currentUserId() },
+            readRequests = { workspacePreferences.getString(it, null) },
+            writeRequests = { key, value -> workspacePreferences.edit().putString(key, value).commit(); Unit },
+        )
+        webWorkspaces.refreshNotifications = { notifications.refresh() }
+        applicationScope.launch {
+            authRepository.contextSessionChanges.map { it?.userId }.distinctUntilChanged().collect { webWorkspaces.clear() }
+        }
         messages = PatientMessageRepository(client)
         pendingDestinations = PendingDestinationStore()
         pushManager = PushNotificationManager(
@@ -154,6 +170,16 @@ class CbTipulApp : Application() {
         diaryOne = DiaryOneRepository(client)
         diaryThree = DiaryThreeRepository(client)
         diaryTwo = DiaryTwoRepository(client)
+        webWorkspaces.refreshRecords = { patientId ->
+            var success = true
+            try { patientRepository.loadPatients() } catch (_: Exception) { success = false }
+            val id = com.cbtipul.app.model.DatabaseId.Text(patientId)
+            try { patientRepository.loadQuestionnaires(id) } catch (_: Exception) { success = false }
+            try { diaryOne.loadEntries(id) } catch (_: Exception) { success = false }
+            try { diaryTwo.loadEntries(id) } catch (_: Exception) { success = false }
+            try { diaryThree.loadEntries(id) } catch (_: Exception) { success = false }
+            success
+        }
         patientDiaryOne = PatientDiaryOneService(client, diaryOne)
         patientDiaryTwo = PatientDiaryTwoService(client)
         patientDiaryThree = PatientDiaryThreeService(client)
