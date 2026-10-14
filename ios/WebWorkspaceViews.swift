@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct WebWorkspaceRoute: Hashable { let id: String }
+struct WebWorkspaceAssociationRoute: Hashable { let id: String }
 
 struct WebWorkspaceInboxView: View {
     @Environment(WebWorkspaceStore.self) private var workspaces
@@ -93,14 +94,10 @@ struct WebWorkspacePreview: View {
                 }
                 if (!unavailable && !workspaces.closedIDs.contains(id)) || workspaces.requests[id] != nil {
                     if entitlement.access == .full {
-                        if let workspace {
-                            NavigationLink(L10n.wwAssociate) {
-                                WebWorkspaceAssociationView(id: id, payload: workspace.payload) { completed = true }
-                            }.disabled(busy)
+                        if workspace != nil {
+                            NavigationLink(L10n.wwAssociate, value: WebWorkspaceAssociationRoute(id: id)).disabled(busy)
                         } else if workspaces.requests[id] != nil {
-                            NavigationLink(L10n.wwRetryAssociation) {
-                                WebWorkspaceAssociationView(id: id, payload: nil) { completed = true }
-                            }.disabled(busy)
+                            NavigationLink(L10n.wwRetryAssociation, value: WebWorkspaceAssociationRoute(id: id)).disabled(busy)
                         }
                         if workspace != nil && workspaces.requests[id] == nil {
                             Button(L10n.wwDiscard, role: .destructive) { confirmDiscard = true }.disabled(busy)
@@ -111,6 +108,9 @@ struct WebWorkspacePreview: View {
             }
         }
         .navigationTitle(L10n.wwPreview).navigationBarTitleDisplayMode(.inline).themedScreen()
+        .navigationDestination(for: WebWorkspaceAssociationRoute.self) { route in
+            WebWorkspaceAssociationView(id: route.id, payload: workspace?.payload) { completed = true }
+        }
         .task { if !completed { await load() } }
         .refreshable { if !completed && !busy { await load() } }
         .confirmationDialog(L10n.wwDiscard, isPresented: $confirmDiscard, titleVisibility: .visible) {
@@ -187,7 +187,7 @@ struct WebWorkspaceAssociationView: View {
                     Picker(L10n.wwPatient, selection: $patientID) {
                         Text(L10n.wwChoosePatient).tag("")
                         ForEach(store.patients) { Text($0.displayName).tag($0.id.queryValue) }
-                    }
+                    }.pickerStyle(.menu).accessibilityIdentifier("workspace.associate.patient")
                     if loadingPatients { ProgressView() }
                     Button(L10n.wwRefresh) { Task { await refreshPatients() } }
                 }
@@ -201,14 +201,14 @@ struct WebWorkspaceAssociationView: View {
                             Text(L10n.wwChooseSession).tag(0)
                             Text(L10n.wwExistingSession).tag(1)
                             Text(L10n.wwNewSession).tag(2)
-                        }
+                        }.pickerStyle(.menu)
                         if target == 1 {
                             Picker(L10n.wwExistingSession, selection: $sessionID) {
                                 Text(L10n.wwChooseSession).tag("")
                                 ForEach(patient?.sessions.filter { $0.databaseID != nil }.sorted { $0.date > $1.date } ?? []) { session in
                                     Text(L10n.hebrewDate(session.date) + " · " + (session.type.map(L10n.label(for:)) ?? L10n.sessionTypeNone)).tag(session.databaseID!.queryValue)
                                 }
-                            }
+                            }.pickerStyle(.menu)
                             if payload?.hasNotes == true { Text(L10n.wwAppendWarning).font(.footnote) }
                         }
                         if target == 2 {
@@ -216,7 +216,7 @@ struct WebWorkspaceAssociationView: View {
                             Picker(L10n.sessionTypeLabel, selection: $sessionType) {
                                 Text(L10n.wwChooseType).tag(SessionType?.none)
                                 ForEach(SessionType.allCases, id: \.self) { Text(L10n.label(for: $0)).tag(Optional.some($0)) }
-                            }
+                            }.pickerStyle(.menu)
                         }
                     }
                 }

@@ -108,7 +108,7 @@ export function Workspace({ account, canWrite, logout }: { account: string; canW
     </main>}
 
     {(view.phase === "editing" || view.phase === "lost" || view.phase === "conflict") && payload && <main className="ww-layout">
-      <aside className="ww-rail" aria-label="טופסי המפגש">
+      <aside className="ww-rail" aria-label="פעילויות המפגש">
         <div className="ww-rail-heading"><h2>{ww.title}</h2><p>{view.envelope ? dateTime(view.envelope.started_at) : ww.started}</p></div>
         <nav className="ww-items" aria-label="תוכן המפגש">
           {payload.items.map((entry, index) => <button key={entry.id} className={`ww-item ${selected === entry.id ? "active" : ""} ${showProblems && problems.includes(entry.id) ? "needs-attention" : ""}`} onClick={() => setSelected(entry.id)} aria-current={selected === entry.id ? "page" : undefined}><span>{titles[entry.type]}{entry.type !== "questionnaire" && <small> · {payload.items.slice(0, index + 1).filter((x) => x.type === entry.type).length}</small>}</span><small>{questionnaireFlags(entry)?.question9 ? ww.safetyShort : entry.completed_at && isFormComplete(entry) ? ww.completed : ww.incomplete}</small></button>)}

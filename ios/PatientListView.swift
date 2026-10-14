@@ -51,9 +51,9 @@ struct PatientListView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("patients.root")
             .safeAreaInset(edge: .top, spacing: 0) {
-                if !store.isDemoMode {
+                if !store.isDemoMode && workspaces.associationCount > 0 {
                     NavigationLink { WebWorkspaceInboxView() } label: {
-                        Label(L10n.wwPendingCount(workspaces.items.count), systemImage: "tray.full")
+                        Label(L10n.wwPendingCount(workspaces.associationCount), systemImage: "tray.full")
                             .font(.headline).frame(maxWidth: .infinity, minHeight: 44).padding(.horizontal)
                     }.background(Theme.surface).accessibilityIdentifier("workspaces.inbox")
                 }
@@ -70,8 +70,8 @@ struct PatientListView: View {
             .subtleAnimation(value: loadError)
             .navigationTitle(L10n.therapistTabPatients)
             .navigationBarTitleDisplayMode(.large)
-            .task { await load() }
-            .refreshable { await load() }
+            .task { await load(); if !store.isDemoMode { await workspaces.refresh() } }
+            .refreshable { await load(); if !store.isDemoMode { await workspaces.refresh() } }
             .navigationDestination(for: Patient.self) { patient in
                 PatientDetailView(patient: patient)
             }

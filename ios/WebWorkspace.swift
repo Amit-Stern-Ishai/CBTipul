@@ -148,6 +148,8 @@ extension WebWorkspaceFailure {
     private var lastPatient: String?
     private let defaults: UserDefaults
     private(set) var items: [WebWorkspaceSummary] = []
+    /// Include uncertain retries without counting the same pending workspace twice.
+    var associationCount: Int { Set(items.map(\.id)).union(requests.keys).count }
     private(set) var isLoading = false
     private(set) var failed = false
     private(set) var busyIDs: Set<String> = []

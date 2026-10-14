@@ -294,6 +294,113 @@ function FeelingPicker({
   );
 }
 
+function ThinkingErrorPicker({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: unknown;
+  disabled: boolean;
+  onChange: (value: string[] | null) => void;
+}) {
+  const id = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const selected = Array.isArray(value) ? (value as string[]) : [];
+  const close = () => {
+    panel.current?.hidePopover();
+    trigger.current?.focus();
+  };
+  useEffect(() => {
+    if (disabled) panel.current?.hidePopover();
+  }, [disabled]);
+  return (
+    <>
+      <div className="ww-thinking-selected">
+        {thinkingErrors
+          .filter(([code]) => selected.includes(code))
+          .map(([code, key]) => (
+            <button
+              type="button"
+              className="secondary"
+              key={code}
+              disabled={disabled}
+              aria-label={`הסרת ${String((mobile as Record<string, unknown>)[key])}`}
+              onClick={() => {
+                const next = selected.filter((v) => v !== code);
+                onChange(next.length ? next : null);
+              }}
+            >
+              <span>{String((mobile as Record<string, unknown>)[key])}</span>
+              <X size={16} />
+            </button>
+          ))}
+      </div>
+      <button
+        ref={trigger}
+        type="button"
+        className="secondary"
+        popoverTarget={id}
+        disabled={disabled}
+      >
+        {selected.length ? "שינוי הבחירה" : "בחירת טעויות חשיבה"}
+      </button>
+      <div
+        id={id}
+        ref={panel}
+        popover="auto"
+        className="ww-feeling-picker ww-thinking-picker"
+        dir="rtl"
+      >
+        <div className="ww-picker-head">
+          <h2>בחירת טעויות חשיבה</h2>
+          <button
+            type="button"
+            className="ww-text-button"
+            aria-label="סגירת בחירת טעויות חשיבה"
+            onClick={close}
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="ww-thinking-catalogue">
+          {thinkingErrors.map(([code, key]) => (
+            <label key={code}>
+              <input
+                type="checkbox"
+                checked={selected.includes(code)}
+                disabled={disabled}
+                onChange={(e) => {
+                  const next = e.target.checked
+                    ? [...selected, code]
+                    : selected.filter((v) => v !== code);
+                  onChange(next.length ? next : null);
+                }}
+              />
+              <span>{String((mobile as Record<string, unknown>)[key])}</span>
+            </label>
+          ))}
+        </div>
+        <button type="button" onClick={close}>
+          סיום הבחירה
+        </button>
+      </div>
+      <div className="ww-errors">
+        <label className="ww-none">
+          <input
+            type="checkbox"
+            checked={Array.isArray(value) && value.length === 0}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.checked ? [] : null)}
+          />
+          {ww.thinkingNone}
+        </label>
+      </div>
+      {value === null && <p className="ww-quiet">{ww.thinkingUnaddressed}</p>}
+    </>
+  );
+}
+
 export function DiaryWorksheet({
   item,
   onChange,
@@ -486,83 +593,11 @@ export function DiaryWorksheet({
       ) : (
         <>
           <Section title={he.Diaries020}>
-            {thinkingErrors
-              .filter(
-                ([code]) =>
-                  Array.isArray(d.thinking_errors) &&
-                  d.thinking_errors.includes(code),
-              )
-              .map(([code, key]) => (
-                <div className="ww-thinking-selection" key={code}>
-                  <span>
-                    {String((mobile as Record<string, unknown>)[key])}
-                  </span>
-                  <button
-                    type="button"
-                    className="ww-text-button ww-danger-text"
-                    aria-label={`הסרת ${String((mobile as Record<string, unknown>)[key])}`}
-                    disabled={disabled}
-                    onClick={() => {
-                      const next = (d.thinking_errors as string[]).filter(
-                        (v) => v !== code,
-                      );
-                      set("thinking_errors", next.length ? next : null);
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            <details className="ww-thinking-picker">
-              <summary>
-                {Array.isArray(d.thinking_errors) && d.thinking_errors.length
-                  ? "שינוי הבחירה"
-                  : "בחירת טעויות חשיבה"}
-              </summary>
-              <div className="ww-errors">
-                {thinkingErrors.map(([code, key]) => (
-                  <label key={code}>
-                    <input
-                      type="checkbox"
-                      disabled={disabled}
-                      checked={
-                        Array.isArray(d.thinking_errors) &&
-                        d.thinking_errors.includes(code)
-                      }
-                      onChange={(e) => {
-                        const current = Array.isArray(d.thinking_errors)
-                          ? (d.thinking_errors as string[])
-                          : [];
-                        const next = e.target.checked
-                          ? [...current, code]
-                          : current.filter((x) => x !== code);
-                        set("thinking_errors", next.length ? next : null);
-                      }}
-                    />
-                    {String((mobile as Record<string, unknown>)[key])}
-                  </label>
-                ))}
-              </div>
-            </details>
-            <div className="ww-errors">
-              <label className="ww-none">
-                <input
-                  type="checkbox"
-                  disabled={disabled}
-                  checked={
-                    Array.isArray(d.thinking_errors) &&
-                    d.thinking_errors.length === 0
-                  }
-                  onChange={(e) =>
-                    set("thinking_errors", e.target.checked ? [] : null)
-                  }
-                />
-                {ww.thinkingNone}
-              </label>
-            </div>
-            {d.thinking_errors === null && (
-              <p className="ww-quiet">{ww.thinkingUnaddressed}</p>
-            )}
+            <ThinkingErrorPicker
+              value={d.thinking_errors}
+              disabled={disabled}
+              onChange={(v) => set("thinking_errors", v)}
+            />
           </Section>
           {textList(
             "alternative_thoughts",

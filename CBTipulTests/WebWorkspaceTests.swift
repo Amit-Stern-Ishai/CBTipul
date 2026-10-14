@@ -59,14 +59,17 @@ import Supabase
             return Data(receipt.utf8)
         }
         let first = WebWorkspaceStore(defaults: defaults, currentUser: { "therapist-a" }, canWrite: { true }, rpc: rpc)
+        #expect(first.associationCount == 0)
         do { try await first.associate(request(notes: true)); Issue.record("Must report lost response") } catch {}
         #expect(first.requests[id] == request(notes: true))
+        #expect(first.associationCount == 1)
         let second = WebWorkspaceStore(defaults: defaults, currentUser: { "therapist-a" }, canWrite: { true }, rpc: rpc)
         second.refreshRecords = { _ in refreshed += 1; return true }
         try await second.associate(request(linked: true, create: true))
         #expect(bodies.count == 2)
         #expect(try JSONDecoder().decode(WebAssociationRequest.self, from: bodies[0]) == JSONDecoder().decode(WebAssociationRequest.self, from: bodies[1]))
         #expect(second.requests.isEmpty && refreshed == 1)
+        #expect(second.associationCount == 0)
         let other = WebWorkspaceStore(defaults: defaults, currentUser: { "therapist-b" }, canWrite: { true }, rpc: rpc)
         await other.refresh(); #expect(other.requests.isEmpty)
     }
@@ -108,6 +111,10 @@ import Supabase
         coordinator.handlePushTap(userInfo: ["type": "web_workspace_ready", "resource_type": "web_workspace", "resource_id": id])
         coordinator.processPending(patients: [])
         #expect(coordinator.pendingWorkspace?.id == id && coordinator.selectedTab == .notifications)
+        coordinator.pendingWorkspace = nil
+        coordinator.handlePushTap(userInfo: ["type": "web_workspace_ready", "resource_type": "web_workspace", "resource_id": id])
+        coordinator.processPending(patients: [])
+        #expect(coordinator.pendingWorkspace == nil)
         coordinator.resetOnLogout()
     }
 }

@@ -7,12 +7,11 @@ struct NotificationsInboxView: View {
     @Environment(TherapistNotificationCoordinator.self) private var coordinator
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var openedTarget: PendingPatientNavigation?
-    @State private var openedWorkspace: WebWorkspaceRoute?
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
         @Bindable var coordinator = coordinator
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if notifications.isLoading && notifications.notifications.isEmpty {
                     ProgressView()
@@ -44,16 +43,15 @@ struct NotificationsInboxView: View {
             .navigationTitle(L10n.therapistTabNotifications)
             .navigationBarTitleDisplayMode(.large)
             .accessibilityIdentifier("notifications.root")
-            .navigationDestination(item: $openedTarget) { target in
+            .navigationDestination(for: PendingPatientNavigation.self) { target in
                 NotificationItemDestination(target: target)
             }
-            .navigationDestination(item: $openedWorkspace) { WebWorkspacePreview(id: $0.id) }
+            .navigationDestination(for: WebWorkspaceRoute.self) { WebWorkspacePreview(id: $0.id) }
             .onChange(of: coordinator.pendingWorkspace) { _, route in
-                guard let route else { return }; openedWorkspace = route; coordinator.pendingWorkspace = nil
+                guard let route else { return }; openWorkspace(route)
             }
-            .onAppear { if let route = coordinator.pendingWorkspace { openedWorkspace = route; coordinator.pendingWorkspace = nil } }
-            .onChange(of: openedWorkspace) { _, route in coordinator.isInboxShowingDetail = route != nil }
-            .onChange(of: openedTarget) { _, target in coordinator.isInboxShowingDetail = target != nil }
+            .onAppear { if let route = coordinator.pendingWorkspace { openWorkspace(route) } }
+            .onChange(of: navigationPath.count) { _, count in coordinator.isInboxShowingDetail = count > 0 }
             .onChange(of: coordinator.pendingPatientNavigation?.token) { _, _ in consumeTarget() }
             .onAppear { consumeTarget() }
             .alert(L10n.notificationTargetUnavailable, isPresented: $coordinator.unavailableTarget) {
@@ -86,11 +84,21 @@ struct NotificationsInboxView: View {
         }
     }
 
+    private func openWorkspace(_ route: WebWorkspaceRoute) {
+        // Consume once, then push an ID-based route. Keep nested association screens
+        // on the navigation stack rather than re-presenting an item-bound root.
+        coordinator.pendingWorkspace = nil
+        _ = coordinator.consumePatientNavigation()
+        navigationPath = NavigationPath([route])
+        coordinator.isInboxShowingDetail = true
+    }
+
     private func consumeTarget() {
         guard coordinator.selectedTab == .notifications,
               let target = coordinator.consumePatientNavigation() else { return }
+        coordinator.pendingWorkspace = nil
+        navigationPath = NavigationPath([target])
         coordinator.isInboxShowingDetail = true
-        openedTarget = target
     }
 
     private var inboxList: some View {
