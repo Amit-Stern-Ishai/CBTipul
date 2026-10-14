@@ -54,8 +54,29 @@ struct PatientDiaryThreeTests {
         d.entry.automaticThoughts.append(.init(text: "new", beliefBefore: 80))
         d.entry.feelings.append(.init(name: "כועס", intensityBefore: 50))
         #expect(d.validationMessage(for: 6) != nil)
-        #expect(d.validationMessage(for: 7) == nil)
-        #expect(d.entry.feelings.last?.intensityAfter == 80)
+        #expect(d.validationMessage(for: 7) != nil)
+        #expect(d.entry.feelings.last?.intensityAfter == nil)
+    }
+    @Test func newFeelingsRequireSeparateBeforeAndAfterChoices() throws {
+        var d = valid
+        d.entry.feelings = [.init(name: "עצוב")]
+        d.currentStep = 3
+        #expect(d.validationMessage() == L10n.patientDiaryThreeRateEveryItem)
+        let advancedUnrated = d.advance()
+        #expect(!advancedUnrated)
+        #expect(d.entry.feelings[0].intensityBefore == nil)
+        #expect(d.entry.feelings[0].intensityAfter == nil)
+        let restored = try JSONDecoder().decode(PatientDiaryThreeDraft.self, from: JSONEncoder().encode(d))
+        #expect(restored == d)
+        #expect(restored.firstInvalidStep == 3)
+        for rating in [0, 80] {
+            d.entry.feelings[0].intensityBefore = rating
+            d.entry.feelings[0].intensityAfter = nil
+            #expect(d.validationMessage(for: 3) == nil)
+            #expect(d.validationMessage(for: 7) == L10n.patientDiaryThreeRateEveryItem)
+            d.entry.feelings[0].intensityAfter = rating
+            #expect(d.firstInvalidStep == nil)
+        }
     }
     @Test func backForwardAndDraftSerializationPreserveAllWork() throws {
         var d = valid; d.currentStep = 5

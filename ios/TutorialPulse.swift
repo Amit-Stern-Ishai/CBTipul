@@ -24,11 +24,16 @@ enum TutorialPulseStyle {
 struct TutorialPulseModifier: ViewModifier {
     let isActive: Bool
     var style: TutorialPulseStyle = .card
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var flashOn = false
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if isActive {
+        if isActive && reduceMotion {
+            content
+                .foregroundStyle(Theme.gold)
+                .tint(Theme.gold)
+        } else if isActive {
             content
                 .foregroundStyle(flashOn ? Theme.warning : Color.primary)
                 .tint(flashOn ? Theme.warning : Color.accentColor)

@@ -296,12 +296,15 @@ struct PatientModeView: View {
     private var taskList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                messagesSection
+                if let assignment = nextAssignment {
+                    nextAction(assignment)
+                }
                 if loadState == .loading { ProgressView() }
+                messagesSection
                 VStack(alignment: .leading, spacing: 8) {
                     Divider().overlay(Theme.borderFaint)
                         .padding(.bottom, 4)
-                    Text(L10n.patientToolsSectionTitle)
+                    Text(L10n.patientToolsAndHistoryTitle)
                         .font(.headline).foregroundStyle(Theme.textBright)
                         .accessibilityAddTraits(.isHeader)
                     Text(L10n.patientAvailableHelp)
@@ -333,6 +336,68 @@ struct PatientModeView: View {
         .refreshable { await manualRefresh() }
     }
 
+    /// Only unfinished work gets a featured action. Enabled tools have equal prominence.
+    private var nextAssignment: PatientAssignment? {
+        guard EntitlementState.shared.canPatientWrite else { return nil }
+        let available = openAssignments.filter {
+            guard let type = $0.type else { return false }
+            return type != .diaryThree || PatientAssignmentType.diaryThreeSendingEnabled
+        }.sorted {
+            if $0.createdAt != $1.createdAt { return $0.createdAt > $1.createdAt }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+        return available.first { $0.type.map { resumableTypes.contains($0) } ?? false }
+    }
+
+    private func toolTitle(_ type: PatientAssignmentType) -> String {
+        switch type {
+        case .questionnaire: L10n.questionnairesTitle
+        case .diaryOne: L10n.diaryOneTitle
+        case .diaryTwo: L10n.diaryTwoTitle
+        case .diaryThree: L10n.diaryThreeTitle
+        }
+    }
+
+    private func toolPurposeTitle(_ type: PatientAssignmentType) -> String {
+        switch type {
+        case .questionnaire: L10n.questionnairesTitle
+        case .diaryOne: L10n.patientDiaryOnePurpose
+        case .diaryTwo: L10n.patientDiaryTwoPurpose
+        case .diaryThree: L10n.patientDiaryThreePurposeTitle
+        }
+    }
+
+    @ViewBuilder
+    private func nextAction(_ assignment: PatientAssignment) -> some View {
+        if let type = assignment.type, resumableTypes.contains(type) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(L10n.patientContinueDraftTitle)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(Theme.textBright)
+                    .accessibilityAddTraits(.isHeader)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(toolTitle(type))
+                        .font(.headline).foregroundStyle(Theme.textBright)
+                    if type != .questionnaire {
+                        Text(toolPurposeTitle(type))
+                            .font(.subheadline).foregroundStyle(Theme.textBody)
+                    }
+                }
+                Label(L10n.patientLocalOnly, systemImage: "iphone")
+                    .font(.footnote).foregroundStyle(Theme.textBody)
+                Button(L10n.patientResumeAction) {
+                    resume(assignment)
+                }
+                .buttonStyle(.pressableProminent)
+                .accessibilityIdentifier("patient.home.nextAction")
+                .entitlementCreateControl()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 12)
+            .padding(.bottom, 8)
+        }
+    }
+
     private func lastSubmission(_ type: PatientAssignmentType) -> Date? {
         switch type {
         case .questionnaire: homeSnapshot.questionnaires?.map(\.answeredDate).max()
@@ -351,10 +416,17 @@ struct PatientModeView: View {
                     Image(systemName: type == .questionnaire ? "list.clipboard" : "book.closed")
                         .font(.title3).foregroundStyle(active ? Theme.success : Theme.textBody).frame(width: 26)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(type == .questionnaire ? L10n.questionnairesTitle : type == .diaryOne ? L10n.diaryOneTitle : type == .diaryTwo ? L10n.diaryTwoTitle : L10n.diaryThreeTitle)
+                        Text(toolTitle(type))
                             .font(.headline).foregroundStyle(Theme.textBright)
-                        Text(type == .questionnaire ? L10n.toolQuestionnairePurpose : type == .diaryOne ? L10n.patientDiaryOnePurpose : type == .diaryTwo ? L10n.patientDiaryTwoPurpose : L10n.patientDiaryThreeDescription)
-                            .font(.caption).foregroundStyle(Theme.textBody).lineLimit(2)
+                        if type != .questionnaire {
+                            Text(toolPurposeTitle(type))
+                                .font(.subheadline).foregroundStyle(Theme.textBody)
+                        }
+                        if type == .questionnaire || type == .diaryThree {
+                            Text(type == .questionnaire ? L10n.toolQuestionnairePurpose : L10n.patientDiaryThreeDescription)
+                                .font(.subheadline).foregroundStyle(Theme.textBody)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         PatientToolStatusView(active: active)
                         if let last = lastSubmission(type) {
                             Text(L10n.toolLastSent(L10n.hebrewDate(last)))
@@ -365,9 +437,12 @@ struct PatientModeView: View {
                     Image(systemName: "chevron.forward").font(.footnote).foregroundStyle(Theme.textBody)
                 }.frame(minHeight: 48).contentShape(Rectangle())
             }.buttonStyle(.plain)
-            if active, resumableTypes.contains(type), let assignment = openAssignments.first(where: { $0.type == type }) {
+            if active, resumableTypes.contains(type), nextAssignment?.type != type,
+               let assignment = openAssignments.first(where: { $0.type == type }) {
                 Button(L10n.patientResumeAction) { resume(assignment) }
-                    .font(.subheadline.weight(.semibold)).buttonStyle(.bordered)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minHeight: 44)
+                    .buttonStyle(.bordered)
                     .entitlementCreateControl()
             }
         }.padding(14).themedCard()
@@ -384,7 +459,7 @@ struct PatientModeView: View {
                 Spacer()
                 Button(L10n.patientInboxAll) { isShowingMessages = true }.frame(minHeight: 44)
             }.padding(.horizontal, 12)
-            ForEach(inboxItems.filter(\.isUnread)) { item in
+            ForEach(Array(inboxItems.filter(\.isUnread).prefix(2))) { item in
                 Divider().overlay(Theme.borderFaint)
                 PatientInboxRow(item: item) { Task { await openInboxItem(item) } }
             }
@@ -576,6 +651,7 @@ struct PatientModeView: View {
         case .questionnaire: guard EntitlementState.shared.allowMutation() else { return }; questionnaireFormRequest = assignment.id; isShowingQuestionnaireHub = true
         case .diaryOne: if EntitlementState.shared.allowMutation() { isShowingDiaryOneEntry = true }
         case .diaryTwo: if EntitlementState.shared.allowMutation() { isShowingDiaryTwoEntry = true }
+        case .diaryThree: if PatientAssignmentType.diaryThreeSendingEnabled && EntitlementState.shared.allowMutation() { isShowingDiaryThreeEntry = true }
         default: break
         }
     }
@@ -592,6 +668,7 @@ struct PatientModeView: View {
             case .questionnaire: kind = "patient-questionnaire"; target = assignment.id.uuidString
             case .diaryOne: kind = "patient-diary"; target = patientID.uuidString
             case .diaryTwo: kind = "patient-diary-two"; target = patientID.uuidString
+            case .diaryThree: kind = "patient-diary-three"; target = patientID.uuidString
             default: return nil
             }
             guard let key = try? DeviceDraftStorage.key(userID: userID, kind: kind, target: target), storage.contains(key: key) else { return nil }

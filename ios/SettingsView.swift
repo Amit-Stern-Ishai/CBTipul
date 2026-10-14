@@ -9,16 +9,18 @@ enum AIResponseStyle: String, CaseIterable {
     case regular
 }
 
-/// App-wide text size, applied on top of Dynamic Type from ContentView.
+/// App-wide text size: follow iOS by default, or use an explicit override.
 enum AppTextSize: String, CaseIterable {
+    case system
     case small
     case standard
     case large
     case extraLarge
     case huge
 
-    var dynamicTypeSize: DynamicTypeSize {
+    var dynamicTypeSize: DynamicTypeSize? {
         switch self {
+        case .system: nil
         case .small: .small
         case .standard: .large
         case .large: .xLarge
@@ -29,6 +31,7 @@ enum AppTextSize: String, CaseIterable {
 
     var label: String {
         switch self {
+        case .system: L10n.settingsTextSizeSystem
         case .small: L10n.settingsTextSizeSmall
         case .standard: L10n.settingsTextSizeStandard
         case .large: L10n.settingsTextSizeLarge
@@ -37,10 +40,12 @@ enum AppTextSize: String, CaseIterable {
         }
     }
 
-    /// The body font at this size, resolved explicitly so previews show the
-    /// real size regardless of the surrounding environment.
+    /// Preview the device preference for System, or the explicit app override.
     var previewFont: Font {
-        Font(UIFont.preferredFont(
+        guard let dynamicTypeSize else {
+            return Font(UIFont.preferredFont(forTextStyle: .body))
+        }
+        return Font(UIFont.preferredFont(
             forTextStyle: .body,
             compatibleWith: UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
         ))
@@ -67,7 +72,8 @@ enum AppAppearance: String, CaseIterable {
 /// full-screen cover (besides the app root), because presented screens
 /// don't inherit the presenting view's environment overrides.
 private struct AppTextSizeModifier: ViewModifier {
-    @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
+    @Environment(\.dynamicTypeSize) private var systemTextSize
+    @AppStorage("appTextSize") private var textSize: AppTextSize = .system
     @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
 
     private var resolvedScheme: ColorScheme {
@@ -79,7 +85,7 @@ private struct AppTextSizeModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .dynamicTypeSize(textSize.dynamicTypeSize)
+            .environment(\.dynamicTypeSize, textSize.dynamicTypeSize ?? systemTextSize)
             .environment(\.layoutDirection, .rightToLeft)
             .environment(\.colorScheme, resolvedScheme)
             .preferredColorScheme(resolvedScheme)
@@ -184,7 +190,7 @@ struct NotificationsSettingsSection: View {
 struct SettingsView: View {
     @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
     @AppStorage("aiResponseStyle") private var responseStyle: AIResponseStyle = .typing
-    @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
+    @AppStorage("appTextSize") private var textSize: AppTextSize = .system
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
@@ -671,7 +677,7 @@ private struct LegacyWebView: UIViewRepresentable {
 
 /// Text size selection, each option shown at the size it represents.
 struct TextSizePickerView: View {
-    @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
+    @AppStorage("appTextSize") private var textSize: AppTextSize = .system
 
     var body: some View {
         Form {
@@ -692,6 +698,8 @@ struct TextSizePickerView: View {
                             }
                         }
                     }
+                    .accessibilityAddTraits(textSize == size ? .isSelected : [])
+                    .accessibilityIdentifier("settings.textSize." + size.rawValue)
                     .listRowBackground(groupBorderedRow(
                         .at(AppTextSize.allCases.firstIndex(of: size) ?? 0,
                             of: AppTextSize.allCases.count),

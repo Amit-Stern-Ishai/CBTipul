@@ -41,6 +41,7 @@ enum GoogleLoginError: LocalizedError {
 /// Google's unmodified SDK logo in a full-width native button. The light
 /// branding palette keeps the mark and Hebrew label clear in either app theme.
 struct NativeGoogleSignInButton: View {
+    @ScaledMetric(relativeTo: .body) private var labelSize = 16.0
     var isEnabled: Bool
     let action: () -> Void
 
@@ -51,13 +52,14 @@ struct NativeGoogleSignInButton: View {
                     .renderingMode(.original)
                     .accessibilityHidden(true)
                 Text(L10n.googleSignInAction)
-                    .font(.system(size: 16, weight: .medium))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .font(.system(size: labelSize, weight: .medium))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .environment(\.layoutDirection, .rightToLeft)
             }
             .environment(\.layoutDirection, .leftToRight)
             .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity, minHeight: 48)
             .contentShape(RoundedRectangle(cornerRadius: 12))
         }

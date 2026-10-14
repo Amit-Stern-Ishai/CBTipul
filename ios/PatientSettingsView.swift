@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Patient-safe Settings. Reuses app-level rows; no therapist account tools.
 struct PatientSettingsView: View {
-    @AppStorage("appTextSize") private var textSize: AppTextSize = .standard
+    @AppStorage("appTextSize") private var textSize: AppTextSize = .system
     @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var auth

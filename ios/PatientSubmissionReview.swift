@@ -9,6 +9,12 @@ struct PatientSubmissionReview: View {
     let sections: [SubmissionReviewSection]
     var onEdit: (Int) -> Void
     var onSend: () -> Void
+    private func editButton(_ index: Int) -> some View {
+        Button(L10n.reviewEdit) { onEdit(index) }
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel(L10n.reviewEditSection(sections[index].title))
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -16,10 +22,17 @@ struct PatientSubmissionReview: View {
                     Text(L10n.reviewSharingExplanation).foregroundStyle(Theme.textBody)
                     ForEach(sections.indices, id: \.self) { index in
                         VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Text(sections[index].title).font(.headline)
-                                Spacer()
-                                Button(L10n.reviewEdit) { onEdit(index) }
+                            ViewThatFits(in: .horizontal) {
+                                HStack {
+                                    Text(sections[index].title).font(.headline).fixedSize()
+                                    Spacer()
+                                    editButton(index).fixedSize()
+                                }
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(sections[index].title).font(.headline)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    editButton(index)
+                                }
                             }
                             ForEach(Array(sections[index].lines.enumerated()), id: \.offset) { _, text in
                                 Text(text.isEmpty ? L10n.reviewNotProvided : text).frame(maxWidth: .infinity, alignment: .leading)
@@ -37,6 +50,7 @@ struct PatientSubmissionReview: View {
                     .buttonStyle(.pressableProminent).padding(16).background(Theme.base)
             }
         }.environment(\.layoutDirection, .rightToLeft).appTextSize()
+            .accessibilityIdentifier("patient.submission.review")
     }
 }
 

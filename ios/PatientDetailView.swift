@@ -131,12 +131,12 @@ struct PatientDetailView: View {
     var body: some View {
         List {
             Section {
-                VStack(spacing: 12) {
-                    HStack(spacing: 8) {
-                        Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 8) {
                         Text(patient.displayName)
                             .font(.title.bold())
                             .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Button {
                             startEditingName()
                         } label: {
@@ -148,14 +148,18 @@ struct PatientDetailView: View {
                         .buttonStyle(.borderless)
                     }
                     .frame(maxWidth: .infinity)
-                    HStack(spacing: 8) {
-                        Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
-                        Text(treatmentGoal.wrappedValue.isEmpty
-                             ? L10n.noTreatmentGoalPlaceholder
-                             : treatmentGoal.wrappedValue)
-                            .font(.subheadline)
-                            .foregroundStyle(treatmentGoal.wrappedValue.isEmpty ? .secondary : .primary)
-                            .fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.treatmentGoalSection)
+                                .font(.caption).foregroundStyle(Theme.textBody)
+                            Text(treatmentGoal.wrappedValue.isEmpty
+                                 ? L10n.noTreatmentGoalPlaceholder
+                                 : treatmentGoal.wrappedValue)
+                                .font(.body)
+                                .foregroundStyle(treatmentGoal.wrappedValue.isEmpty ? Theme.textBody : Theme.textBright)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         Button {
                             guard EntitlementState.shared.allowMutation() else { return }
                             goalDraft = treatmentGoal.wrappedValue
@@ -195,8 +199,8 @@ struct PatientDetailView: View {
                     .accessibilityValue(L10n.patientStatus(patient.status))
                     .accessibilityIdentifier("patient.status")
                 }
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("patient.header")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -210,7 +214,7 @@ struct PatientDetailView: View {
 
             PatientRecentActivityView(patient: patient)
 
-            Section(L10n.patientRecordsTitle) {
+            Section(L10n.patientSessionWorkspaceTitle) {
                 NavigationLink {
                     PatientSessionsView(patient: patient)
                 } label: {
@@ -223,63 +227,6 @@ struct PatientDetailView: View {
                 .accessibilityIdentifier("patient.sessions")
                 .listRowBackground(groupBorderedRow(.first))
 
-                DisclosureGroup(isExpanded: $areDiariesExpanded) {
-                    NavigationLink {
-                        PatientDiaryOneView(patient: patient)
-                    } label: {
-                        iconChip("book.closed", title: L10n.diaryOneTitle)
-                            .foregroundStyle(Theme.textBright)
-                            .padding(.vertical, 4)
-                    }
-                    .accessibilityIdentifier("patient.diaryOne")
-                    NavigationLink {
-                        PatientDiaryTwoView(patient: patient)
-                    } label: {
-                        iconChip("book.closed", title: L10n.diaryTwoTitle)
-                            .foregroundStyle(Theme.textBright)
-                            .padding(.vertical, 4)
-                    }
-                    .accessibilityIdentifier("patient.diaryTwo")
-                    NavigationLink { PatientDiaryThreeView(patient: patient) } label: {
-                        iconChip("book.closed", title: L10n.diaryThreeTitle)
-                            .foregroundStyle(Theme.textBright)
-                            .padding(.vertical, 4)
-                    }
-                    .accessibilityIdentifier("patient.diaryThree")
-                } label: {
-                    iconChip("books.vertical", title: L10n.patientDiariesTitle)
-                        .foregroundStyle(Theme.textBright)
-                        .padding(.vertical, 4)
-                }
-                .accessibilityIdentifier("patient.diaries")
-                .listRowBackground(groupBorderedRow(.middle))
-
-                NavigationLink {
-                    PatientQuestionnairesView(patient: patient)
-                } label: {
-                    workspaceRow("list.clipboard", title: L10n.questionnaireHistoryTitle,
-                                 detail: L10n.patientQuestionnairesDescription)
-                }
-                .accessibilityIdentifier("patient.questionnaireHistory")
-                .listRowBackground(groupBorderedRow(.middle))
-
-                NavigationLink {
-                    PatientQuestionnairesView(patient: patient, startsOnGraphs: true)
-                } label: {
-                    workspaceRow("chart.xyaxis.line", title: L10n.graphsAndTrendsTitle,
-                                 detail: L10n.patientGraphsDescription)
-                }
-                .accessibilityIdentifier("patient.questionnaireGraphs")
-                .listRowBackground(groupBorderedRow(.middle))
-
-                NavigationLink {
-                    TherapistPatientMessagesView(patient: patient)
-                } label: {
-                    workspaceRow("envelope", title: L10n.messagesTitle,
-                                 detail: L10n.patientMessagesDescription)
-                }
-                .listRowBackground(groupBorderedRow(.middle))
-
                 Button {
                     errorMessage = nil
                     isShowingNotes = true
@@ -290,17 +237,7 @@ struct PatientDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("patient.notes")
-                .listRowBackground(groupBorderedRow(.last))
-            }
-
-            Section(L10n.additionalAssistanceTitle) {
-                NavigationLink {
-                    PatientAIView(patient: patient)
-                } label: {
-                    workspaceRow("sparkles", title: L10n.patientAIAssistanceTitle,
-                                 detail: L10n.patientAIAssistanceDescription)
-                }
-                .listRowBackground(groupBorderedRow(.first))
+                .listRowBackground(groupBorderedRow(.middle))
 
                 Button {
                     requestPrepareNextSession()
@@ -343,6 +280,71 @@ struct PatientDetailView: View {
                     }
                     .listRowBackground(groupBorderedRow(.last))
                 }
+            }
+
+            Section(L10n.patientRecordsTitle) {
+                DisclosureGroup(isExpanded: $areDiariesExpanded) {
+                    NavigationLink {
+                        PatientDiaryOneView(patient: patient)
+                    } label: {
+                        workspaceRow("book.closed", title: L10n.diaryOneTitle, detail: L10n.patientDiaryOnePurpose)
+                    }
+                    .accessibilityIdentifier("patient.diaryOne")
+                    NavigationLink {
+                        PatientDiaryTwoView(patient: patient)
+                    } label: {
+                        workspaceRow("book.closed", title: L10n.diaryTwoTitle, detail: L10n.patientDiaryTwoPurpose)
+                    }
+                    .accessibilityIdentifier("patient.diaryTwo")
+                    NavigationLink { PatientDiaryThreeView(patient: patient) } label: {
+                        workspaceRow("book.closed", title: L10n.diaryThreeTitle, detail: L10n.patientDiaryThreePurposeTitle)
+                    }
+                    .accessibilityIdentifier("patient.diaryThree")
+                } label: {
+                    iconChip("books.vertical", title: L10n.patientDiariesTitle)
+                        .foregroundStyle(Theme.textBright)
+                        .padding(.vertical, 4)
+                }
+                .accessibilityIdentifier("patient.diaries")
+                .listRowBackground(groupBorderedRow(.first))
+
+                NavigationLink {
+                    PatientQuestionnairesView(patient: patient)
+                } label: {
+                    workspaceRow("list.clipboard", title: L10n.questionnaireHistoryTitle,
+                                 detail: L10n.patientQuestionnairesDescription)
+                }
+                .accessibilityIdentifier("patient.questionnaireHistory")
+                .listRowBackground(groupBorderedRow(.middle))
+
+                NavigationLink {
+                    PatientQuestionnairesView(patient: patient, startsOnGraphs: true)
+                } label: {
+                    workspaceRow("chart.xyaxis.line", title: L10n.graphsAndTrendsTitle,
+                                 detail: L10n.patientGraphsDescription)
+                }
+                .accessibilityIdentifier("patient.questionnaireGraphs")
+                .listRowBackground(groupBorderedRow(.middle))
+
+                NavigationLink {
+                    TherapistPatientMessagesView(patient: patient)
+                } label: {
+                    workspaceRow("envelope", title: L10n.messagesTitle,
+                                 detail: L10n.patientMessagesDescription)
+                }
+                .listRowBackground(groupBorderedRow(.last))
+
+            }
+
+            Section(L10n.patientAssistanceSectionTitle) {
+                NavigationLink {
+                    PatientAIView(patient: patient)
+                } label: {
+                    workspaceRow("sparkles", title: L10n.patientAIAssistanceTitle,
+                                 detail: L10n.patientAIAssistanceDescription)
+                }
+                .listRowBackground(groupBorderedRow(.only))
+
             }
 
             if let errorMessage {
@@ -726,7 +728,11 @@ struct PatientDetailView: View {
 
     private var sessionSummary: String {
         let calendar = Calendar.current
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now)) ?? .now
+        let today = calendar.startOfDay(for: .now)
+        if let next = patient.sessions.filter({ $0.date >= today }).min(by: { $0.date < $1.date }) {
+            return L10n.patientListNextSession(next.date)
+        }
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? .now
         guard let latest = patient.sessions.filter({ $0.date < tomorrow }).max(by: { $0.date < $1.date }) else {
             return L10n.patientSessionsDescription
         }
@@ -1542,18 +1548,16 @@ struct PatientDetailView: View {
         }
     }
 
-    /// A Settings-style row label: a small gold-tinted icon square next to
-    /// the title. The color parameter is kept for call-site stability but the
-    /// design system allows gold as the only accent.
+    /// Neutral record icons leave the gold accent for primary actions.
     private func iconChip(_ systemImage: String, title: String) -> some View {
         Label {
             Text(title)
         } icon: {
             Image(systemName: systemImage)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(Theme.gold)
+                .foregroundStyle(Theme.textBody)
                 .frame(width: 28, height: 28)
-                .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
+                .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 7))
         }
     }
 }

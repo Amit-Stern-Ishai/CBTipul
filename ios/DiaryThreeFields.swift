@@ -56,7 +56,7 @@ struct DiaryThreeDraftFields: View {
                                 Spacer()
                                 remove(L10n.diaryThreeRemoveFeeling) { draft.feelings.removeAll { $0.id == row.wrappedValue.id } }
                             }
-                            DiaryThreePercentageControl(title: L10n.diaryThreeIntensityBefore, value: row.intensityBefore, requiresExplicitChoice: false)
+                            DiaryThreePercentageControl(title: L10n.diaryThreeIntensityBefore, value: row.intensityBefore)
                             Divider()
                         }
                         Button { showingFeelings = true } label: { Label(L10n.diaryAddFeelingAction, systemImage: "plus.circle") }
@@ -115,7 +115,7 @@ struct DiaryThreeDraftFields: View {
                             if let before = row.wrappedValue.intensityBefore {
                                 beforeRating(L10n.diaryThreeIntensityBefore, before)
                             }
-                            DiaryThreePercentageControl(title: step == nil ? L10n.diaryThreeIntensityAfter : L10n.patientDiaryThreeIntensityNow, value: row.intensityAfter, requiresExplicitChoice: false)
+                            DiaryThreePercentageControl(title: step == nil ? L10n.diaryThreeIntensityAfter : L10n.patientDiaryThreeIntensityNow, value: row.intensityAfter)
                             Divider()
                         }
                     }
@@ -127,12 +127,6 @@ struct DiaryThreeDraftFields: View {
                 if attempted, step == nil, let missing = PatientDiaryThreeDraft(entry: draft).firstInvalidStep { active = missing }
             }
             .onChange(of: active) { _, section in if section > 0 { proxy.scrollTo(section, anchor: .top) } }
-        }
-        .onAppear {
-            for index in draft.feelings.indices {
-                if draft.feelings[index].intensityBefore == nil { draft.feelings[index].intensityBefore = 80 }
-                if draft.feelings[index].intensityAfter == nil { draft.feelings[index].intensityAfter = 80 }
-            }
         }
         .sheet(isPresented: $showingFeelings) {
             DiaryFeelingPickerSheet(selectedNames: Set(draft.feelings.map(\.name))) { name in
@@ -171,9 +165,8 @@ struct DiaryThreeDraftFields: View {
 struct DiaryThreePercentageControl: View {
     let title: String
     @Binding var value: Int?
-    var requiresExplicitChoice = true
     var body: some View {
-        DiaryFeelingIntensityControl(intensity: $value, title: title, requiresExplicitChoice: requiresExplicitChoice)
+        DiaryFeelingIntensityControl(intensity: $value, title: title, requiresExplicitChoice: true)
     }
 }
 

@@ -77,7 +77,12 @@ struct PatientAIView: View {
         .dismissesKeyboardOnTap()
         .overlay {
             if chatEntries.isEmpty && prompt.isEmpty && !isLoading && errorMessage == nil {
-                emptyState
+                GeometryReader { geometry in
+                    ScrollView {
+                        emptyState
+                            .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                    }
+                }
             }
         }
         .subtleAnimation(value: chatEntries.count)
@@ -117,10 +122,13 @@ struct PatientAIView: View {
                     } label: {
                         Text(question)
                             .font(.subheadline)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 9)
-                            .background(Theme.surface, in: Capsule())
-                            .overlay(Capsule().strokeBorder(patientOutline, lineWidth: 1))
+                            .frame(minHeight: 44)
+                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(patientOutline, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
@@ -144,7 +152,11 @@ struct PatientAIView: View {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 32))
                     .foregroundStyle(canSend ? Theme.gold : Theme.textFaint)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel(L10n.aiSendAction)
+            .accessibilityIdentifier("patient.ai.send")
             .disabled(!canSend)
         }
         .padding(.horizontal)

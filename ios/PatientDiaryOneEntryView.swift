@@ -212,6 +212,8 @@ struct PatientDiaryOneEntryView: View {
     @State private var deviceDraft = DeviceFormDraft<DiaryOneEntryDraft>()
     @State private var editSection = 1
     @State private var editRevision = 0
+    @State private var isShowingReview = false
+    @State private var sendAfterReview = false
     @State private var didSubmit = false
     @State private var initialSnapshot = DiaryOneEntryDraft.empty.comparableSnapshot
     @State private var didAttemptSave = false
@@ -223,7 +225,7 @@ struct PatientDiaryOneEntryView: View {
     @State private var validationMessage: String?
     @State private var inactiveMessage: String = L10n.patientDiaryOneNotActive
 
-    private var isBusy: Bool { isSaving }
+    private var isBusy: Bool { isSaving || sendAfterReview }
 
     private var hasUnsavedChanges: Bool {
         draft.comparableSnapshot != initialSnapshot
@@ -259,10 +261,10 @@ struct PatientDiaryOneEntryView: View {
             Button {
                 Task {
                     if didSubmit { await finishSuccessfully() }
-                    else { await submit() }
+                    else { reviewBeforeSending() }
                 }
             } label: {
-                Text(didSubmit ? L10n.retryAction : L10n.patientDiaryOneSaveAction)
+                Text(didSubmit ? L10n.retryAction : L10n.reviewBeforeSending)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity, minHeight: 30)
             }
@@ -309,6 +311,26 @@ struct PatientDiaryOneEntryView: View {
         } message: {
             Text(inactiveMessage)
         }
+        .sheet(isPresented: $isShowingReview, onDismiss: {
+            guard sendAfterReview else { return }
+            Task {
+                sendAfterReview = false
+                await submit()
+            }
+        }) {
+            PatientSubmissionReview(sections: draft.reviewSections, onEdit: { index in
+                guard !isBusy else { return }
+                editSection = index + 1
+                editRevision += 1
+                isShowingReview = false
+            }, onSend: {
+                guard !isBusy, !didSubmit else { return }
+                sendAfterReview = true
+                isShowingReview = false
+            })
+            .disabled(isBusy)
+            .interactiveDismissDisabled(isBusy)
+        }
         .interactiveDismissDisabled(hasUnsavedChanges || isBusy || didSubmit)
         .onAppear {
             guard let patientID = appContext.current?.patientId else { return }
@@ -336,6 +358,20 @@ struct PatientDiaryOneEntryView: View {
         initialSnapshot = draft.comparableSnapshot
         await onSubmitted()
         dismiss()
+    }
+
+    private func reviewBeforeSending() {
+        guard !isBusy, !didSubmit, !isShowingReview else { return }
+        guard EntitlementState.shared.allowMutation() else { return }
+        didAttemptSave = true
+        if let message = draft.validationMessage() {
+            validationMessage = message
+            isShowingValidationAlert = true
+            return
+        }
+        errorMessage = nil
+        resignCurrentKeyboard()
+        isShowingReview = true
     }
 
     private func submit() async {

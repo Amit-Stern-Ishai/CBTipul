@@ -71,6 +71,13 @@ enum L10n {
     static let patientToolsSectionTitle = "הכלים שלך"
     static let patientAvailableHelp = "מילוי חדש וצפייה במילויים קודמים"
     static let patientResumeAction = "המשך מילוי"
+    static let settingsTextSizeSystem = "לפי הגדרות המכשיר"
+    static let patientNextStepTitle = "זמין למילוי"
+    static let patientContinueDraftTitle = "אפשר להמשיך מהמקום שעצרת"
+    static let patientStartExerciseAction = "התחלת מילוי"
+    static let patientToolsAndHistoryTitle = "כלים ומילויים קודמים"
+    static let patientDiaryThreePurposeTitle = "מחשבות ורגשות לפני ואחרי"
+    static func reviewEditSection(_ title: String) -> String { "עריכת \(title)" }
     static let patientLocalOnly = "נשמר במכשיר בלבד · עדיין לא נשלח"
     static let patientSharingHelp = "בלחיצה על שליחה, הרשומה תשותף עם המטפל/ת. עד אז היא נשמרת במכשיר בלבד."
     static let patientSharedHelp = "הרשומה זמינה למטפל/ת. אין בכך אישור שהיא כבר נקראה."
@@ -185,6 +192,10 @@ enum L10n {
     // MARK: - Patient workspace
 
     static let editPatientDetailsAction = "עריכת פרטים"
+    static let patientSessionWorkspaceTitle = "פגישות וסיכום הטיפול"
+    static let patientAssistanceSectionTitle = "עזרה ותובנות"
+    static let recentShowLess = "הצגת פחות מילויים"
+    static func recentShowAll(_ count: Int) -> String { "הצגת כל \(count) המילויים" }
     static let patientRecordsTitle = "התיק הטיפולי"
     static let patientSessionsDescription = "תיעוד ועיון בפגישות הטיפול"
     static func patientLatestSession(_ date: String) -> String { "פגישה אחרונה: \(date)" }

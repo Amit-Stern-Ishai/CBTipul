@@ -107,6 +107,8 @@ struct QuestionnaireTrendsView: View {
                             .padding(.vertical, 8)
                             .contentShape(Rectangle())
                         }
+                        .accessibilityAddTraits(trend == selectedTrend ? .isSelected : [])
+                        .accessibilityIdentifier("trends.option.\(QuestionnaireTrend.allCases.firstIndex(of: trend) ?? 0)")
                         .listRowBackground(Theme.surface)
                     }
                 }
@@ -116,7 +118,7 @@ struct QuestionnaireTrendsView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.closeAction) { showingTrends = false } } }
             }
-            .environment(\.layoutDirection, .rightToLeft)
+            .appTextSize()
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
@@ -136,6 +138,8 @@ struct QuestionnaireTrendsView: View {
                         .padding(.vertical, 10)
                         .contentShape(Rectangle())
                     }
+                    .accessibilityAddTraits(question.id == (selectedQuestionID ?? matches.first?.id) ? .isSelected : [])
+                    .accessibilityIdentifier("trends.question." + question.id)
                     .listRowBackground(Theme.surface)
                 }
                 .scrollContentBackground(.hidden)
@@ -144,7 +148,7 @@ struct QuestionnaireTrendsView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.closeAction) { showingQuestions = false } } }
             }
-            .environment(\.layoutDirection, .rightToLeft)
+            .appTextSize()
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }

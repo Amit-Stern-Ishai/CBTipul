@@ -74,6 +74,26 @@ struct DiaryThreeTests {
         d = valid; d.alternativeThoughts = []; #expect(d.validationMessage() != nil)
         d = valid; d.alternativeThoughts[0].text = " "; #expect(d.validationMessage() != nil)
     }
+    @Test func newFeelingsStayUnratedUntilBothRatingsAreChosen() throws {
+        var draft = DiaryThreeEntryDraft.from(try entry())
+        draft.feelings = [.init(name: "עצוב")]
+        #expect(draft.feelings[0].intensityBefore == nil)
+        #expect(draft.feelings[0].intensityAfter == nil)
+        #expect(draft.validationMessage() == L10n.diaryThreeValidationRatings)
+        #expect(draft.persistedFeelings() == nil)
+        let restored = try JSONDecoder().decode(DiaryThreeEntryDraft.self, from: JSONEncoder().encode(draft))
+        #expect(restored == draft)
+        for rating in [0, 80] {
+            draft.feelings[0].intensityBefore = rating
+            #expect(draft.persistedFeelings() == nil)
+            draft.feelings[0].intensityAfter = rating
+            #expect(draft.validationMessage() == nil)
+            #expect(draft.persistedFeelings() == [.init(name: "עצוב", intensityBefore: rating, intensityAfter: rating)])
+            let restoredRated = try JSONDecoder().decode(DiaryThreeEntryDraft.self, from: JSONEncoder().encode(draft))
+            #expect(restoredRated == draft)
+            draft.feelings[0].intensityAfter = nil
+        }
+    }
     @Test func stableDraftIdentityPreservesOtherRatingsOnRemoval() throws {
         var draft = DiaryThreeEntryDraft.from(try entry())
         let thought = draft.automaticThoughts[1]; let feeling = draft.feelings[1]
@@ -154,12 +174,32 @@ struct DiaryThreeTests {
         #expect(DiaryThreeHTTPStub.recorded().count == 1)
         #expect(cancellation.method == "PATCH" && cancellation.url.path == "/rest/v1/patient_assignments")
         #expect(Set((try JSONSerialization.jsonObject(with: cancellation.body) as! [String: Any]).keys) == ["cancelled_at"])
-        let e = loaded[0]
-        DiaryThreeHTTPStub.reset(body: Data(raw.utf8))
+        let patientEntry = loaded[0]
+        DiaryThreeHTTPStub.reset(body: Data())
+        do {
+            _ = try await store.updateEntry(id: id, patientId: owner, situation: patientEntry.situation,
+                automaticThoughts: patientEntry.automaticThoughts, feelings: patientEntry.feelings,
+                thinkingErrors: patientEntry.thinkingErrors, alternativeThoughts: patientEntry.alternativeThoughts)
+            Issue.record("Patient submissions must remain read-only")
+        } catch PatientStoreError.updateRejected {}
+        do {
+            try await store.deleteEntry(id: id, patientId: owner)
+            Issue.record("Patient submissions must not be deleted")
+        } catch PatientStoreError.updateRejected {}
+        #expect(DiaryThreeHTTPStub.recorded().isEmpty)
+        #expect(store.entries(for: owner) == loaded)
+
+        let therapistRaw = raw.replacingOccurrences(of: "\"created_by\":\"patient\"", with: "\"created_by\":\"therapist\"")
+        DiaryThreeHTTPStub.reset(body: Data("[\(therapistRaw)]".utf8))
+        let therapistEntries = try await store.loadEntries(for: owner)
+        let e = try #require(therapistEntries.first)
+        #expect(e.createdBy == .therapist)
+        DiaryThreeHTTPStub.reset(body: Data(therapistRaw.utf8))
         let edited = try await store.updateEntry(id: id, patientId: owner, situation: e.situation,
             automaticThoughts: e.automaticThoughts, feelings: e.feelings, thinkingErrors: e.thinkingErrors, alternativeThoughts: e.alternativeThoughts)
-        #expect(edited.createdBy == .patient && edited.createdAt == e.createdAt)
+        #expect(edited.createdBy == .therapist && edited.createdAt == e.createdAt)
         let update = try #require(DiaryThreeHTTPStub.recorded().first)
+        #expect(DiaryThreeHTTPStub.recorded().count == 1)
         #expect(update.method == "PATCH" && update.url.path == "/rest/v1/diary_three_entries")
         #expect(Set((try JSONSerialization.jsonObject(with: update.body) as! [String: Any]).keys) == ["situation", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts", "updated_at"])
         DiaryThreeHTTPStub.reset(body: Data("[{\"id\":\"\(id)\"}]".utf8))

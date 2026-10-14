@@ -4,6 +4,10 @@ import OSLog
 /// Lists the therapist's patients and allows adding new ones.
 struct PatientListView: View {
     @Environment(PatientStore.self) private var store
+    @Environment(AuthManager.self) private var auth
+    @Environment(DiaryOneStore.self) private var diaryOne
+    @Environment(DiaryTwoStore.self) private var diaryTwo
+    @Environment(DiaryThreeStore.self) private var diaryThree
     @Environment(OnboardingStore.self) private var onboarding
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(TherapistNotificationCoordinator.self) private var notificationCoordinator
@@ -14,6 +18,7 @@ struct PatientListView: View {
     @State private var loadError: String?
     @State private var path = NavigationPath()
     @State private var patientSearch = ""
+    @State private var activityDismissals = RecentActivityDismissals.shared
 
     /// Tutorial patient the walkthrough is following (furthest along).
     private var tutorialFocusPatientID: DatabaseID? {
@@ -186,9 +191,9 @@ struct PatientListView: View {
         }
     }
 
-    /// Gold add control stays on-screen after the first patient exists.
+    /// The first-patient action belongs to the empty state; the toolbar adds later patients.
     private var showsPatientAddCTA: Bool {
-        !store.patients.isEmpty || (!isLoading && loadError == nil)
+        store.patients.isEmpty && !isLoading && loadError == nil
     }
 
     private var addPatientCTA: some View {
@@ -259,7 +264,7 @@ struct PatientListView: View {
                 && gettingStartedRouter.shouldPulse(.tutorialPatient)
                 && patient.id == tutorialFocusPatientID
             NavigationLink(value: patient) {
-                PatientListRow(patient: patient)
+                PatientListRow(patient: patient, recentSubmissionCount: recentSubmissionCount(for: patient))
                     .tutorialPulse(isTutorialFocus)
             }
             .listRowBackground(groupBorderedRow(
@@ -267,6 +272,20 @@ struct PatientListView: View {
                 accent: Theme.gold))
             .listRowSeparatorTint(Theme.borderFaint)
         }
+    }
+
+    /// Read cached clinical submissions without making one network request per row.
+    private func recentSubmissionCount(for patient: Patient) -> Int {
+        let cutoff = patient.sessions.map(\.date).filter { $0 <= .now }.max()
+        let owner = store.isDemoMode ? "local-demo" : auth.currentUserId
+        func isRecent(_ date: Date, id: String) -> Bool {
+            (cutoff.map { date > $0 } ?? true)
+                && !activityDismissals.contains(id, owner: owner, patientID: patient.id)
+        }
+        return diaryOne.entries(for: patient.id).filter { $0.createdBy == .patient && isRecent($0.createdAt, id: "diary-one-\($0.id.uuidString)") }.count
+            + diaryTwo.entries(for: patient.id).filter { $0.createdBy == .patient && isRecent($0.createdAt, id: "diary-two-\($0.id.uuidString)") }.count
+            + diaryThree.entries(for: patient.id).filter { $0.createdBy == .patient && isRecent($0.createdAt, id: "diary-three-\($0.id.uuidString)") }.count
+            + (store.cachedQuestionnaires(for: patient) ?? []).filter { $0.isPatientSubmitted && isRecent($0.answeredDate, id: "questionnaire-\($0.id.queryValue)") }.count
     }
 
     /// Alphabetical within each status group.
@@ -378,6 +397,7 @@ struct PatientListView: View {
 struct PatientListRow: View {
     let patient: Patient
     var actionSubtitle: String? = nil
+    var recentSubmissionCount: Int = 0
 
     var body: some View {
         HStack(spacing: 12) {
@@ -396,6 +416,12 @@ struct PatientListRow: View {
                     Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(Theme.textBody)
+                    if recentSubmissionCount > 0 {
+                        Label(L10n.recentSubmissionCount(recentSubmissionCount), systemImage: "doc.text")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(Theme.gold)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
             Spacer(minLength: 0)
@@ -418,7 +444,8 @@ struct PatientListRow: View {
     }
 
     private var accessibilityLabel: String {
-        "\(patient.displayName), \(L10n.patientStatus(patient.status)), \(actionSubtitle ?? subtitle)"
+        let base = "\(patient.displayName), \(L10n.patientStatus(patient.status)), \(actionSubtitle ?? subtitle)"
+        return recentSubmissionCount > 0 ? "\(base), \(L10n.recentSubmissionCount(recentSubmissionCount))" : base
     }
 }
 
@@ -457,7 +484,7 @@ struct InitialsAvatar: View {
 struct StatusBadge: View {
     let status: PatientStatus
 
-    private var color: Color { status == .active ? Theme.success : Theme.error }
+    private var color: Color { status == .active ? Theme.success : Theme.textBody }
 
     var body: some View {
         Text(L10n.patientStatus(status))
@@ -480,6 +507,9 @@ struct StatusBadge: View {
     return PatientListView()
         .environment(auth)
         .environment(store)
+        .environment(DiaryOneStore(client: auth.client))
+        .environment(DiaryTwoStore(client: auth.client))
+        .environment(DiaryThreeStore(client: auth.client))
         .environment(OnboardingStore.shared)
         .environment(GettingStartedRouter())
         .appTextSize()
