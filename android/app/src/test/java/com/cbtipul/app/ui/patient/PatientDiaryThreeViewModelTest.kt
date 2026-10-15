@@ -31,6 +31,28 @@ class PatientDiaryThreeViewModelTest {
         }
     }
     private fun draft() = PatientDiaryThreeDraft(DiaryThreeEntryDraft(situation = "e", automaticThoughts = listOf(DiaryThreeAutomaticThoughtDraft(text = "a", beliefBefore = 100, beliefAfter = 0)), feelings = listOf(DiaryThreeFeelingDraft(name = "עצוב", intensityBefore = 100, intensityAfter = 0)), thinkingErrors = listOf(ThinkingError.MindReading), alternativeThoughts = listOf(DiaryThreeAlternativeThoughtDraft(text = "b", belief = 100))), 7)
+    @Test fun reviewDoesNotSubmitAndEditingKeepsDraftUntilExplicitSend() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val service = Service()
+            val vm = PatientDiaryThreeViewModel("p1", service, SavedStateHandle())
+            assertFalse(vm.prepareReview())
+            assertEquals(1, vm.state.value.draft.currentStep)
+            vm.update(draft())
+            assertTrue(vm.prepareReview())
+            advanceUntilIdle()
+            assertEquals(0, service.calls)
+            val edited = draft().copy(entry = draft().entry.copy(situation = "תוכן שעודכן בבדיקה"))
+            vm.update(edited.copy(currentStep = 1))
+            assertFalse(vm.prepareReview())
+            vm.update(edited)
+            assertTrue(vm.prepareReview())
+            assertEquals(edited, vm.state.value.draft)
+            vm.submit(); vm.submit(); advanceUntilIdle()
+            assertEquals(1, service.calls)
+            assertFalse(vm.prepareReview())
+        } finally { Dispatchers.resetMain() }
+    }
     @Test fun stateRestorationRetainsSameObjectsAndStepAcrossBackForwardAndNewViewModel() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

@@ -313,21 +313,22 @@ fun PatientDetailScreen(
             if (!showNotes) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.size(48.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                     Text(name, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 26.sp,
-                        textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false))
+                        textAlign = TextAlign.Start, modifier = Modifier.weight(1f))
                     IconButton(onClick = { showRename = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_patient_name_action), tint = colors.gold)
                     }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.size(48.dp))
-                    Text(treatmentGoal.ifEmpty { stringResource(R.string.no_treatment_goal_placeholder) },
-                        color = colors.textBody, textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.treatment_goal_section), style = MaterialTheme.typography.labelMedium, color = colors.textBody)
+                        Text(treatmentGoal.ifEmpty { stringResource(R.string.no_treatment_goal_placeholder) },
+                            color = if (treatmentGoal.isEmpty()) colors.textBody else colors.textBright)
+                    }
                     IconButton(onClick = { goalDraft = treatmentGoal; showGoal = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_treatment_goal_action), tint = colors.gold)
                     }
@@ -336,8 +337,8 @@ fun PatientDetailScreen(
 
             val statusLabel = stringResource(if (patient.status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive)
             val statusTitle = stringResource(R.string.status_label)
-            val statusColor = if (patient.status == PatientStatus.Active) colors.success else colors.error
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val statusColor = if (patient.status == PatientStatus.Active) colors.success else colors.textBody
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
                 // Anchor the menu to the badge itself, not the full screen width.
                 Box {
                     TextButton(onClick = {
@@ -373,42 +374,16 @@ fun PatientDetailScreen(
             }
             PatientConnectionActions(patient, name, assignmentRepository, isDemo, busy || isCreatingInvitation, onInvitePatient, onSendMessage)
             PatientRecentActivity(patient, isDemo, onOpenRecent)
-            Text(stringResource(R.string.patient_records_title), color = colors.textBody)
+            Text(stringResource(R.string.patient_session_workspace_title), color = colors.textBody)
             GroupedListCard(accent = accent) {
-                androidx.compose.material3.Button(onClick = onNewSession, enabled = com.cbtipul.app.ui.entitlementCanWrite(), modifier = Modifier.fillMaxWidth().then(Modifier)) {
+                androidx.compose.material3.Button(onClick = onNewSession, enabled = com.cbtipul.app.ui.entitlementCanWrite(), modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.ww_new_session))
                 }
-                IconChipRow(Icons.Outlined.DateRange, stringResource(R.string.sessions_title), detail = stringResource(R.string.patient_sessions_description), onClick = onOpenSessions)
+                IconChipRow(Icons.Outlined.DateRange, stringResource(R.string.sessions_title),
+                    detail = if (patient.sessions.isEmpty()) stringResource(R.string.patient_sessions_description) else patientSubtitle(patient), onClick = onOpenSessions)
                 GroupedListDivider()
-                IconChipRow(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title),
-                    trailing = { Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = colors.gold, modifier = Modifier.rotate(diariesArrowRotation)) },
-                    onClick = { diariesExpanded = !diariesExpanded })
-                AnimatedVisibility(
-                    visible = diariesExpanded,
-                    enter = expandVertically(tween(180), expandFrom = Alignment.Top) + fadeIn(tween(180)),
-                    exit = shrinkVertically(tween(180), shrinkTowards = Alignment.Top) + fadeOut(tween(120)),
-                ) {
-                    Column {
-                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_one_title),
-                            onClick = onOpenDiaryOne)
-                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_two_title),
-                            onClick = onOpenDiaryTwo)
-                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_three_title),
-                            onClick = onOpenDiaryThree)
-                    }
-                }
-                GroupedListDivider()
-                IconChipRow(Icons.Outlined.Assignment, stringResource(R.string.questionnaire_history_title), detail = stringResource(R.string.patient_questionnaires_description), onClick = onOpenQuestionnaires)
-                GroupedListDivider()
-                IconChipRow(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), detail = stringResource(R.string.patient_graphs_description), onClick = onOpenGraphs)
-                GroupedListDivider()
-                IconChipRow(Icons.Outlined.MailOutline, stringResource(R.string.messages_title), onClick = onOpenMessages)
-                GroupedListDivider()
-                IconChipRow(Icons.AutoMirrored.Outlined.Notes, stringResource(R.string.patient_notes_title), detail = stringResource(R.string.patient_notes_description), onClick = { showNotes = true })
-            }
-            Text(stringResource(R.string.additional_assistance_title), color = colors.textBody)
-            GroupedListCard(accent = accent) {
-                IconChipRow(Icons.Outlined.AutoAwesome, stringResource(R.string.patient_ai_assistance_title), onClick = onOpenChat)
+                IconChipRow(Icons.AutoMirrored.Outlined.Notes, stringResource(R.string.patient_notes_title),
+                    detail = patient.notes.takeIf { it.isNotBlank() } ?: stringResource(R.string.patient_notes_description), onClick = { showNotes = true })
                 GroupedListDivider()
                 IconChipRow(Icons.Outlined.AutoFixHigh, stringResource(R.string.prepare_next_session_action), enabled = !isPreparing,
                     trailing = { if (isPreparing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) }, onClick = onPrepare)
@@ -421,6 +396,37 @@ fun PatientDetailScreen(
                         }
                     }, onClick = onOpenLastPreparation)
                 }
+            }
+            Text(stringResource(R.string.patient_records_title), color = colors.textBody)
+            GroupedListCard(accent = accent) {
+                IconChipRow(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title),
+                    trailing = { Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = colors.gold, modifier = Modifier.rotate(diariesArrowRotation)) },
+                    onClick = { diariesExpanded = !diariesExpanded })
+                AnimatedVisibility(
+                    visible = diariesExpanded,
+                    enter = expandVertically(tween(180), expandFrom = Alignment.Top) + fadeIn(tween(180)),
+                    exit = shrinkVertically(tween(180), shrinkTowards = Alignment.Top) + fadeOut(tween(120)),
+                ) {
+                    Column {
+                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_one_title), detail = stringResource(R.string.patient_diary_one_purpose),
+                            onClick = onOpenDiaryOne)
+                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_two_title), detail = stringResource(R.string.patient_diary_two_purpose),
+                            onClick = onOpenDiaryTwo)
+                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_three_title), detail = stringResource(R.string.patient_diary_three_purpose_title),
+                            onClick = onOpenDiaryThree)
+                    }
+                }
+                GroupedListDivider()
+                IconChipRow(Icons.Outlined.Assignment, stringResource(R.string.questionnaire_history_title), detail = stringResource(R.string.patient_questionnaires_description), onClick = onOpenQuestionnaires)
+                GroupedListDivider()
+                IconChipRow(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), detail = stringResource(R.string.patient_graphs_description), onClick = onOpenGraphs)
+                GroupedListDivider()
+                IconChipRow(Icons.Outlined.MailOutline, stringResource(R.string.messages_title), onClick = onOpenMessages)
+            }
+            Text(stringResource(R.string.patient_assistance_section_title), color = colors.textBody)
+            GroupedListCard(accent = accent) {
+                IconChipRow(Icons.Outlined.AutoAwesome, stringResource(R.string.patient_ai_assistance_title),
+                    detail = stringResource(R.string.patient_ai_assistance_description), onClick = onOpenChat)
             }
             prepareError?.let { Text(it, color = colors.error) }
             }
@@ -615,10 +621,10 @@ private fun IconChipRow(
         Box(
             modifier = Modifier
                 .size(36.dp)
-                .background(colors.goldGhost, RoundedCornerShape(11.dp)),
+                .background(colors.elevated, RoundedCornerShape(11.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = colors.gold, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = colors.textBody, modifier = Modifier.size(18.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = colors.textBright, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 20.sp)

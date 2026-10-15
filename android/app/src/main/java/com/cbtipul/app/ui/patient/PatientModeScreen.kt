@@ -340,6 +340,7 @@ fun PatientModeScreen(
                         PatientAssignmentType.Questionnaire -> { nav.navigate("questionnaires"); if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("questionnaire/${assignment.id}") }
                         PatientAssignmentType.DiaryOne -> if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-one/new")
                         PatientAssignmentType.DiaryTwo -> if (com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-two/new")
+                        PatientAssignmentType.DiaryThree -> if (PatientAssignmentType.diaryThreeSendingEnabled && com.cbtipul.app.data.Entitlements.allowMutation()) nav.navigate("diary-three/new")
                         else -> Unit
                     }
                 },
@@ -680,6 +681,7 @@ private fun PatientHomeContent(
                     PatientAssignmentType.Questionnaire -> "questionnaire"
                     PatientAssignmentType.DiaryOne -> "diary-one"
                     PatientAssignmentType.DiaryTwo -> "diary-two"
+                    PatientAssignmentType.DiaryThree -> "patient-diary-three"
                     else -> return@filter false
                 }
                 val target = if (assignment.type == PatientAssignmentType.Questionnaire) assignment.id else patientId
@@ -687,6 +689,7 @@ private fun PatientHomeContent(
             }
         }
     }
+    val nextDraft = if (com.cbtipul.app.ui.entitlementCanWrite()) featuredPatientDraft(resumable) else null
     val refreshLabel = stringResource(R.string.patient_tasks_refresh)
     val unread = PatientHomeMessages.unread(messages)
     val previews = PatientHomeMessages.previews(messages)
@@ -722,6 +725,18 @@ private fun PatientHomeContent(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    nextDraft?.let { draft ->
+                        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(stringResource(R.string.patient_continue_draft_title), style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                                color = colors.textBright, modifier = Modifier.semantics { heading() })
+                            Text(stringResource(patientToolTitle(requireNotNull(draft.type))), fontWeight = FontWeight.SemiBold, color = colors.textBright)
+                            if (draft.type != PatientAssignmentType.Questionnaire) Text(stringResource(patientToolPurpose(requireNotNull(draft.type))), color = colors.textBody)
+                            Text(stringResource(R.string.patient_local_only), color = colors.textBody, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                            androidx.compose.material3.Button(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) onResume(draft) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                Text(stringResource(R.string.patient_resume_action))
+                            }
+                        }
+                    }
                     PatientInboxSection(inboxItems, inboxFailed, onAll = onOpenAllMessages, onOpen = onOpenInboxItem)
                     if (loadState == TasksLoadState.Loading) CircularProgressIndicator(color = colors.gold)
                     if (loadState == TasksLoadState.Failed) Text(stringResource(R.string.patient_tasks_load_error), color = colors.error)
@@ -733,7 +748,7 @@ private fun PatientHomeContent(
                             color = colors.textFaint.copy(alpha = 0.25f),
                             modifier = Modifier.padding(bottom = 4.dp),
                         )
-                        Text(stringResource(R.string.patient_tools_section_title), color = colors.textBright,
+                        Text(stringResource(R.string.patient_tools_and_history_title), color = colors.textBright,
                             fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.semantics { heading() })
                         Text(stringResource(R.string.patient_available_help), color = colors.textBody, fontSize = 13.sp)
                     }
@@ -763,7 +778,8 @@ private fun PatientHomeContent(
                                         Icon(if (type == PatientAssignmentType.Questionnaire) Icons.Outlined.Assignment else Icons.Outlined.MenuBook, contentDescription = null, tint = if (active) colors.success else colors.textBody)
                                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(stringResource(title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                                            Text(stringResource(when (type) { PatientAssignmentType.Questionnaire -> R.string.tool_questionnaire_purpose; PatientAssignmentType.DiaryOne -> R.string.patient_diary_one_purpose; PatientAssignmentType.DiaryTwo -> R.string.patient_diary_two_purpose; PatientAssignmentType.DiaryThree -> R.string.patient_diary_three_description }), color = colors.textBody, fontSize = 12.sp, maxLines = 2)
+                                            Text(stringResource(patientToolPurpose(type)), color = colors.textBody, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+                                            if (type == PatientAssignmentType.DiaryThree) Text(stringResource(R.string.patient_diary_three_description), color = colors.textBody, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
                                             PatientToolStatus(active)
                                             lastSubmissions[type]?.let {
                                                 Text(stringResource(R.string.tool_last_sent, com.cbtipul.app.ui.theme.hebrewDate(it)), color = colors.textBody, fontSize = 12.sp)
@@ -771,7 +787,7 @@ private fun PatientHomeContent(
                                         }
                                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
                                     }
-                                    if (active && draft != null) {
+                                    if (active && draft != null && nextDraft?.type != type) {
                                         TextButton(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) onResume(draft) }) {
                                             Text(stringResource(R.string.patient_resume_action), color = colors.gold)
                                         }
@@ -821,4 +837,22 @@ private fun GoldActionButton(text: String, onClick: () -> Unit, modifier: Modifi
         colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
         shape = RoundedCornerShape(14.dp),
     ) { Text(text, fontWeight = FontWeight.SemiBold) }
+}
+
+internal fun featuredPatientDraft(drafts: List<PatientAssignment>): PatientAssignment? = drafts
+    .filter { it.type != null && (it.type != PatientAssignmentType.DiaryThree || PatientAssignmentType.diaryThreeSendingEnabled) }
+    .sortedWith(compareByDescending<PatientAssignment> { it.createdAt }.thenBy { it.id })
+    .firstOrNull()
+
+private fun patientToolTitle(type: PatientAssignmentType): Int = when (type) {
+    PatientAssignmentType.Questionnaire -> R.string.questionnaires_title
+    PatientAssignmentType.DiaryOne -> R.string.diary_one_title
+    PatientAssignmentType.DiaryTwo -> R.string.diary_two_title
+    PatientAssignmentType.DiaryThree -> R.string.diary_three_title
+}
+private fun patientToolPurpose(type: PatientAssignmentType): Int = when (type) {
+    PatientAssignmentType.Questionnaire -> R.string.tool_questionnaire_purpose
+    PatientAssignmentType.DiaryOne -> R.string.patient_diary_one_purpose
+    PatientAssignmentType.DiaryTwo -> R.string.patient_diary_two_purpose
+    PatientAssignmentType.DiaryThree -> R.string.patient_diary_three_purpose_title
 }

@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -270,7 +272,8 @@ fun PatientAIScreen(
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .padding(32.dp),
+                            .verticalScroll(rememberScrollState())
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
@@ -304,9 +307,10 @@ fun PatientAIScreen(
                                     color = colors.textBright,
                                     fontSize = 14.sp,
                                     modifier = Modifier
-                                        .background(colors.surface, RoundedCornerShape(50))
-                                        .border(1.dp, patientOutline, RoundedCornerShape(50))
-                                        .clickable { prompt = question }
+                                        .background(colors.surface, RoundedCornerShape(14.dp))
+                                        .border(1.dp, patientOutline, RoundedCornerShape(14.dp))
+                                        .clickable(role = androidx.compose.ui.semantics.Role.Button) { prompt = question }
+                                        .heightIn(min = 48.dp)
                                         .padding(horizontal = 14.dp, vertical = 9.dp),
                                 )
                             }

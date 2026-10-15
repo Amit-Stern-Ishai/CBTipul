@@ -8,6 +8,10 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithContent
@@ -26,6 +30,10 @@ fun Modifier.tutorialPulse(
 ): Modifier = composed {
     if (!isActive) return@composed this
     val colors = Theme.colors
+    if (!animationsEnabled()) return@composed this.drawWithContent {
+        drawContent()
+        drawRect(colors.gold, style = Stroke(width = 3f))
+    }
     val transition = rememberInfiniteTransition(label = "tutorialPulse")
     val flash by transition.animateFloat(
         initialValue = 0f,
@@ -59,6 +67,7 @@ fun Modifier.tutorialPulse(
 fun tutorialPulseColor(isActive: Boolean): Color {
     if (!isActive) return Color.Unspecified
     val colors = Theme.colors
+    if (!animationsEnabled()) return colors.gold
     val transition = rememberInfiniteTransition(label = "tutorialPulseColor")
     val flash by transition.animateFloat(
         initialValue = 0f,
@@ -70,4 +79,14 @@ fun tutorialPulseColor(isActive: Boolean): Color {
         label = "colorFlash",
     )
     return if (flash > 0.5f) colors.warning else colors.gold
+}
+
+@Composable
+private fun animationsEnabled(): Boolean {
+    var enabled by remember { mutableStateOf(android.animation.ValueAnimator.areAnimatorsEnabled()) }
+    LifecycleResumeEffect(Unit) {
+        enabled = android.animation.ValueAnimator.areAnimatorsEnabled()
+        onPauseOrDispose { }
+    }
+    return enabled
 }

@@ -281,7 +281,7 @@ private fun <T> OptionPicker(
             )
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(24.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp)) {
             GroupedListCard(accent = colors.gold) {
                 options.forEachIndexed { index, option ->
                     SettingsRow(
@@ -350,6 +350,7 @@ private fun OfficialWebView(url: String, onFinished: () -> Unit) {
 }
 
 private fun AppTextSize.labelRes(): Int = when (this) {
+    AppTextSize.System -> R.string.settings_text_size_system
     AppTextSize.Small -> R.string.settings_text_size_small
     AppTextSize.Standard -> R.string.settings_text_size_standard
     AppTextSize.Large -> R.string.settings_text_size_large

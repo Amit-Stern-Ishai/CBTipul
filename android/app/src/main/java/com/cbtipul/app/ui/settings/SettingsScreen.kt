@@ -19,6 +19,8 @@ import androidx.compose.material3.AlertDialog
 import com.cbtipul.app.ui.therapist.TabReselectionEffect
 import androidx.compose.foundation.border
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -403,6 +405,7 @@ internal fun SettingsRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (selected) Modifier.semantics { this.selected = true } else Modifier)
             .then(if (clickable) Modifier.clickable(onClick = onClick!!) else Modifier)
             .heightIn(min = 48.dp)
             .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -540,7 +543,7 @@ private fun TextSizePicker(
             )
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp)) {
             GroupedListCard(accent = colors.gold) {
                 AppTextSize.entries.forEachIndexed { index, size ->
                     SettingsRow(
@@ -771,6 +774,7 @@ private fun OfficialWebView(url: String, onFinished: () -> Unit) {
 }
 
 private fun AppTextSize.labelRes(): Int = when (this) {
+    AppTextSize.System -> R.string.settings_text_size_system
     AppTextSize.Small -> R.string.settings_text_size_small
     AppTextSize.Standard -> R.string.settings_text_size_standard
     AppTextSize.Large -> R.string.settings_text_size_large

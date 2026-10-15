@@ -7,11 +7,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.cbtipul.app.R
 import com.cbtipul.app.data.*
 import com.cbtipul.app.model.CombinedMoodQuestionnaire
@@ -20,28 +20,29 @@ import com.cbtipul.app.ui.theme.themedScreen
 
 data class SubmissionReviewSection(val title: String, val lines: List<String>)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PatientSubmissionReview(sections: List<SubmissionReviewSection>, onEdit: (Int) -> Unit, onSend: () -> Unit) {
-    Dialog(onDismissRequest = { onEdit(0) }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        BackHandler { onEdit(0) }
-        Scaffold(modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold).safeDrawingPadding(), containerColor = Theme.colors.base,
-            topBar = { TopAppBar(title = { Text(stringResource(R.string.review_before_sending)) }, navigationIcon = {
-                TextButton(onClick = { onEdit(0) }) { Text(stringResource(R.string.back)) }
-            }) },
-            bottomBar = { Button(onClick = onSend, modifier = Modifier.fillMaxWidth().padding(16.dp)) { Text(stringResource(R.string.patient_diary_one_save_action)) } },
-        ) { padding ->
-            Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(stringResource(R.string.review_sharing_explanation), color = Theme.colors.textBody)
-                sections.forEachIndexed { index, section ->
-                    Card(colors = CardDefaults.cardColors(containerColor = Theme.colors.surface)) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row {
-                                Text(section.title, modifier = Modifier.weight(1f), color = Theme.colors.textBright, style = MaterialTheme.typography.titleMedium)
-                                TextButton(onClick = { onEdit(index) }) { Text(stringResource(R.string.review_edit)) }
+    BackHandler { onEdit(0) }
+    Scaffold(modifier = Modifier.fillMaxSize().themedScreen(Theme.colors.gold).safeDrawingPadding(), containerColor = Theme.colors.base,
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.review_before_sending)) }, navigationIcon = {
+            TextButton(onClick = { onEdit(0) }) { Text(stringResource(R.string.back)) }
+        }) },
+        bottomBar = { Button(onClick = onSend, modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp).heightIn(min = 48.dp)) { Text(stringResource(R.string.patient_diary_one_save_action)) } },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(stringResource(R.string.review_sharing_explanation), color = Theme.colors.textBody)
+            sections.forEachIndexed { index, section ->
+                Card(colors = CardDefaults.cardColors(containerColor = Theme.colors.surface)) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val editLabel = stringResource(R.string.review_edit_section, section.title)
+                        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(section.title, color = Theme.colors.textBright, style = MaterialTheme.typography.titleMedium)
+                            TextButton(onClick = { onEdit(index) }, modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = editLabel }) {
+                                Text(stringResource(R.string.review_edit))
                             }
-                            section.lines.forEach { Text(it.ifBlank { stringResource(R.string.review_not_provided) }, color = Theme.colors.textBody) }
                         }
+                        section.lines.forEach { Text(it.ifBlank { stringResource(R.string.review_not_provided) }, color = Theme.colors.textBody) }
                     }
                 }
             }

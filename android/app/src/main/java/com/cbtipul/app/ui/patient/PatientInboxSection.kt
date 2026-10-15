@@ -32,7 +32,7 @@ internal fun PatientInboxSection(items: List<PatientInboxItem>, failed: Boolean,
                 }
                 TextButton(onClick = onAll) { Text(stringResource(R.string.patient_inbox_all), color = colors.gold) }
             }
-            val visible = if (history) items else items.filter { it.isUnread }
+            val visible = if (history) items else items.filter { it.isUnread }.take(2)
             visible.forEach { item ->
                 if (!history) HorizontalDivider(color = colors.textFaint.copy(alpha = .15f))
                 Row(Modifier.fillMaxWidth().clickable { onOpen(item) }.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

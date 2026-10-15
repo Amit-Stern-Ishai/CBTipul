@@ -92,6 +92,20 @@ fun PatientListScreen(
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
     val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
+    val one by workspaceApp.diaryOne.entries.collectAsStateWithLifecycle()
+    val two by workspaceApp.diaryTwo.entries.collectAsStateWithLifecycle()
+    val three by workspaceApp.diaryThree.entries.collectAsStateWithLifecycle()
+    val questionnaires by workspaceApp.patientRepository.questionnaires.collectAsStateWithLifecycle()
+    val activityIdentity by com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle()
+    val dismissalRevision by workspaceApp.recentActivityDismissals.revision.collectAsStateWithLifecycle()
+    val activityOwner = if (isDemoMode) "local-demo" else activityIdentity.identity
+    val recentCounts = remember(patients, one, two, three, questionnaires, activityOwner, dismissalRevision) {
+        patients.associate { patient ->
+            val id = patient.id.queryValue
+            id to recentSubmissions(patient, one[id].orEmpty(), two[id].orEmpty(), three[id].orEmpty(),
+                questionnaires[id].orEmpty(), workspaceApp.recentActivityDismissals, activityOwner).size
+        }
+    }
     val colors = Theme.colors
     val listState = rememberLazyListState()
     TabReselectionEffect { listState.animateScrollToItem(0) }
@@ -135,16 +149,16 @@ fun PatientListScreen(
         val showLoadingEmpty =
             patients.isEmpty() && ui.loadError == null && (ui.isLoading || !ui.hasLoaded) && !isDemoMode
         val showLoadError = ui.loadError != null && patients.isEmpty() && !isDemoMode
-        val showPatientAddCta = !showLoadingEmpty && !showLoadError
+        val showPatientAddCta = patients.isEmpty() && !showLoadingEmpty && !showLoadError
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            if (!isDemoMode) {
+            if (!isDemoMode && (workspaceState.items.isNotEmpty() || workspaceState.requests.isNotEmpty())) {
                 OutlinedButton(onClick = onOpenWorkspaces, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    Text(stringResource(R.string.ww_pending_count, workspaceState.items.size))
+                    Text(stringResource(R.string.ww_pending_count, (workspaceState.items.map { it.id } + workspaceState.requests.keys).toSet().size))
                 }
             }
             if (patients.isNotEmpty()) {
@@ -235,6 +249,7 @@ fun PatientListScreen(
                                             unnamed = unnamed,
                                             onClick = { onOpenPatient(patient.id.queryValue) },
                                             pulse = pulse,
+                                            recentSubmissionCount = recentCounts[patient.id.queryValue] ?: 0,
                                         )
                                     }
                                 }
@@ -277,6 +292,7 @@ internal fun PatientRow(
     onClick: () -> Unit,
     pulse: Boolean = false,
     actionSubtitle: String? = null,
+    recentSubmissionCount: Int = 0,
 ) {
     val colors = Theme.colors
     val status = stringResource(
@@ -308,6 +324,8 @@ internal fun PatientRow(
                 }
             } else {
                 Text(patientSubtitle(patient), color = colors.textBody, fontSize = 13.sp)
+                if (recentSubmissionCount > 0) Text(stringResource(R.string.recent_submission_count, recentSubmissionCount),
+                    color = colors.gold, style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
             }
         }
         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
@@ -315,7 +333,7 @@ internal fun PatientRow(
 }
 
 @Composable
-private fun patientSubtitle(patient: Patient): String {
+internal fun patientSubtitle(patient: Patient): String {
     // Match the date-only split used by the sessions list: today is upcoming.
     val today = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, 0)

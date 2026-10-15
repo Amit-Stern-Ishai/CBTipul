@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
         val preferences = (application as CbTipulApp).preferences
         setContent {
             val textSize by preferences.textSize.collectAsStateWithLifecycle(
-                initialValue = AppTextSize.Standard,
+                initialValue = AppTextSize.System,
             )
             val appearance by preferences.appearance.collectAsStateWithLifecycle(
                 initialValue = AppAppearance.Dark,

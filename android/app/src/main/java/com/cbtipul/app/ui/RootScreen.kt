@@ -140,7 +140,7 @@ fun RootScreen() {
         app.preferences.hasAcceptedTerms(identity).collect { termsAccepted.value = it }
     }
     val consentPrompt by app.aiConsentStore.promptVisible.collectAsStateWithLifecycle()
-    val textSize by app.preferences.textSize.collectAsStateWithLifecycle(AppTextSize.Standard)
+    val textSize by app.preferences.textSize.collectAsStateWithLifecycle(AppTextSize.System)
     val appearance by app.preferences.appearance.collectAsStateWithLifecycle(AppAppearance.Dark)
     val consentAcceptedFlow = remember(therapistIdentity) {
         therapistIdentity?.let { app.preferences.hasAcceptedAiConsent(it) } ?: flowOf(false)

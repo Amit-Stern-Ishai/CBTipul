@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -247,7 +248,7 @@ private fun AuthCard(
             OutlinedButton(
                 onClick = onGoogleSignIn,
                 enabled = !state.isWorking,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color(0xFF747775)),
                 colors = ButtonDefaults.outlinedButtonColors(

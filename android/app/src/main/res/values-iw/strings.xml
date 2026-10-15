@@ -1158,4 +1158,14 @@
     <string name="ww_no_notes">ללא הערות</string>
     <string name="ww_pending_count">ממתינים לשיוך (%1$d)</string>
     <string name="ww_scores">GAD-7: %1$d · PHQ-9: %2$d</string>
+    <string name="settings_text_size_system">לפי הגדרות המכשיר</string>
+    <string name="patient_continue_draft_title">אפשר להמשיך מהמקום שעצרת</string>
+    <string name="patient_tools_and_history_title">כלים ומילויים קודמים</string>
+    <string name="patient_diary_three_purpose_title">מחשבות ורגשות לפני ואחרי</string>
+    <string name="review_edit_section">עריכת %1$s</string>
+    <string name="patient_session_workspace_title">פגישות וסיכום הטיפול</string>
+    <string name="patient_assistance_section_title">עזרה ותובנות</string>
+    <string name="recent_show_less">הצגת פחות מילויים</string>
+    <string name="recent_show_all">הצגת כל %1$d המילויים</string>
+    <string name="patient_ai_assistance_description">שיחה עם עוזר בינה מלאכותית</string>
 </resources>

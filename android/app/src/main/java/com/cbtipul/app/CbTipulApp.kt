@@ -44,6 +44,13 @@ class CbTipulApp : Application() {
     val patientPushRevision: kotlinx.coroutines.flow.StateFlow<Long> = pushRevision
 
     val appVersion by lazy { com.cbtipul.app.data.AppVersionManager.create(this) }
+    val recentActivityDismissals by lazy {
+        val storage = getSharedPreferences("recent-activity-dismissals-v1", MODE_PRIVATE)
+        com.cbtipul.app.data.RecentActivityDismissals(
+            read = { storage.getStringSet(it, emptySet()).orEmpty().toSet() },
+            write = { key, ids -> storage.edit().putStringSet(key, ids).apply() },
+        )
+    }
     val formDrafts by lazy { com.cbtipul.app.data.DeviceFormDraftStore(this) }
     lateinit var preferences: AppPreferences
         private set

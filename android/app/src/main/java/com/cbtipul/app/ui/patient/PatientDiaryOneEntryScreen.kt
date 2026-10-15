@@ -66,6 +66,8 @@ fun PatientDiaryOneEntryScreen(
 ) {
     var editSection by remember { mutableStateOf(1) }
     var editRevision by remember { mutableStateOf(0) }
+    var showReview by remember { mutableStateOf(false) }
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
     val colors = Theme.colors
     val scope = rememberCoroutineScope()
     val initial = remember { DiaryOneEntryDraft() }
@@ -157,6 +159,13 @@ fun PatientDiaryOneEntryScreen(
         }
     }
 
+    if (showReview) {
+        PatientSubmissionReview(reviewSections(draft),
+            onEdit = { index -> editSection = index + 1; editRevision++; showReview = false },
+            onSend = { if (showReview && !isSaving && !didSubmit) { showReview = false; submit() } })
+        return
+    }
+
     BackHandler { requestBack() }
 
 
@@ -184,7 +193,14 @@ fun PatientDiaryOneEntryScreen(
             },
             bottomBar = {
                 Button(
-                    onClick = { submit() },
+                    onClick = {
+                        if (didSubmit) finish() else if (!isSaving && !showReview && com.cbtipul.app.data.Entitlements.allowMutation()) {
+                            didAttemptSave = true
+                            val message = currentValidation()
+                            if (message != null) { validationMessage = message; showValidation = true }
+                            else { errorMessage = null; focus.clearFocus(); showReview = true }
+                        }
+                    },
                     enabled = !isSaving,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -198,7 +214,7 @@ fun PatientDiaryOneEntryScreen(
                     ),
                     shape = RoundedCornerShape(14.dp),
                 ) {
-                    Text(stringResource(if (didSubmit) R.string.retry_action else R.string.patient_diary_one_save_action), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(if (didSubmit) R.string.retry_action else R.string.review_before_sending), fontWeight = FontWeight.SemiBold)
                 }
             },
         ) { padding ->

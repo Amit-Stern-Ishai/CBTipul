@@ -24,11 +24,6 @@ import kotlin.math.roundToInt
 
 @Composable
 fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error: Int? = null, step: Int? = null, onChange: (DiaryThreeEntryDraft) -> Unit) {
-    LaunchedEffect(draft.feelings) {
-        if (draft.feelings.any { it.intensityBefore == null || it.intensityAfter == null }) {
-            onChange(draft.copy(feelings = draft.feelings.map { it.copy(intensityBefore = it.intensityBefore ?: 80, intensityAfter = it.intensityAfter ?: 80) }))
-        }
-    }
     var active by rememberSaveable { mutableIntStateOf(1) }
     val staged = PatientDiaryThreeDraft(entry = draft)
     LaunchedEffect(attempted) { if (attempted && step == null) staged.firstInvalidStep?.let { active = it } }
@@ -78,7 +73,7 @@ fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error
                         Text(row.name, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                         RemoveDiaryThreeRow(R.string.diary_three_remove_feeling) { onChange(draft.copy(feelings = draft.feelings.filterNot { it.id == row.id })) }
                     }
-                    DiaryThreePercentage(stringResource(R.string.diary_three_intensity_before), row.intensityBefore, requiresExplicitChoice = false) { value ->
+                    DiaryThreePercentage(stringResource(R.string.diary_three_intensity_before), row.intensityBefore) { value ->
                         onChange(draft.copy(feelings = draft.feelings.map { if (it.id == row.id) it.copy(intensityBefore = value) else it }))
                     }
                     HorizontalDivider()
@@ -142,7 +137,7 @@ fun DiaryThreeDraftFields(draft: DiaryThreeEntryDraft, attempted: Boolean, error
                 draft.feelings.forEach { row -> key(row.id) {
                     Text(row.name, fontWeight = FontWeight.SemiBold)
                     row.intensityBefore?.let { DiaryBeforeRating(R.string.diary_three_intensity_before, it) }
-                    DiaryThreePercentage(stringResource(if (step == null) R.string.diary_three_intensity_after else R.string.patient_diary_three_intensity_now), row.intensityAfter, requiresExplicitChoice = false) { value ->
+                    DiaryThreePercentage(stringResource(if (step == null) R.string.diary_three_intensity_after else R.string.patient_diary_three_intensity_now), row.intensityAfter) { value ->
                         onChange(draft.copy(feelings = draft.feelings.map { if (it.id == row.id) it.copy(intensityAfter = value) else it }))
                     }
                     HorizontalDivider()

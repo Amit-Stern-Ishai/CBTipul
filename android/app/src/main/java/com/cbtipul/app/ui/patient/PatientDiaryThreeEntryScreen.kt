@@ -39,7 +39,7 @@ fun PatientDiaryThreeEntryScreen(
     onBack: () -> Unit,
 ) {
     val app = LocalContext.current.applicationContext as CbTipulApp
-    var editSection by remember { mutableStateOf(1) }
+    var showReview by remember { mutableStateOf(false) }
     val colors = Theme.colors
     val vm: PatientDiaryThreeViewModel = viewModel(key = "patient-diary-three-form-$patientId", factory = viewModelFactory {
         initializer {
@@ -81,6 +81,13 @@ fun PatientDiaryThreeEntryScreen(
         R.string.patient_diary_three_step_3, R.string.patient_diary_three_step_4,
         R.string.patient_diary_three_step_5, R.string.patient_diary_three_step_6, R.string.patient_diary_three_step_7)
 
+    if (showReview) {
+        PatientSubmissionReview(reviewSections(draft),
+            onEdit = { index -> vm.update(draft.copy(currentStep = index + 1)); showReview = false },
+            onSend = { if (showReview && !state.submitting && !didSubmit) { showReview = false; vm.submit() } })
+        return
+    }
+
     Box(Modifier.fillMaxSize()) {
         Scaffold(modifier = Modifier.themedScreen(colors.gold).dismissKeyboardOnTap().imePadding(), containerColor = Color.Transparent,
             topBar = { Column {
@@ -100,11 +107,11 @@ fun PatientDiaryThreeEntryScreen(
                     if (draft.currentStep > 1 && !didSubmit) TextButton(onClick = ::back, enabled = !state.submitting && !unavailable) {
                         Text(stringResource(R.string.diary_previous_step))
                     }
-                    Button(onClick = { if (didSubmit) finish() else if (draft.currentStep == 7) vm.submit() else vm.next() },
+                    Button(onClick = { if (didSubmit) finish() else if (draft.currentStep == 7) { if (vm.prepareReview()) { focus.clearFocus(); showReview = true } } else vm.next() },
                         enabled = !state.submitting && !unavailable,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
-                        Text(stringResource(if (didSubmit) R.string.retry_action else if (draft.currentStep == 7) R.string.patient_diary_one_save_action else R.string.introduction_next))
+                        Text(stringResource(if (didSubmit) R.string.retry_action else if (draft.currentStep == 7) R.string.review_before_sending else R.string.introduction_next))
                     }
                 }
             },

@@ -13,6 +13,18 @@ class DiaryThreeTest {
     private val errors = listOf(ThinkingError.MindReading, ThinkingError.FortuneTelling)
     private val entry = DiaryThreeEntry("e", DatabaseId.Text("p"), "t", DiaryOneEntryCreator.Patient, "situation", thoughts, feelings, errors, alternatives, Date(1), Date(2))
 
+    @Test fun newRatingsRemainUnansweredAndSavedRatingsSurviveRestoration() {
+        val feeling = DiaryThreeFeelingDraft(name = "עצוב")
+        assertNull(feeling.intensityBefore)
+        assertNull(feeling.intensityAfter)
+        assertEquals(feeling, Json.decodeFromString<DiaryThreeFeelingDraft>(Json.encodeToString(DiaryThreeFeelingDraft.serializer(), feeling)))
+        val existing = DiaryThreeEntryDraft.from(entry)
+        assertEquals(listOf(100, 85), existing.feelings.map { it.intensityBefore })
+        assertEquals(listOf(0, 40), existing.feelings.map { it.intensityAfter })
+        val incomplete = existing.copy(feelings = listOf(feeling))
+        assertNotNull(incomplete.validationError())
+        assertTrue(runCatching { incomplete.persistedFeelings() }.isFailure)
+    }
     @Test fun exactNestedKeysDecodingOrderingAndProvenance() {
         val body = DiaryThreeRepository.createPayload("p", "t", "situation", thoughts, feelings, errors, alternatives)
         assertEquals(setOf("patient_id", "therapist_id", "created_by", "situation", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts"), body.keys)

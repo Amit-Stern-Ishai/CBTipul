@@ -38,7 +38,7 @@ object Theme {
 @Composable
 fun CbTipulTheme(
     appearance: AppAppearance = AppAppearance.Dark,
-    textSize: AppTextSize = AppTextSize.Standard,
+    textSize: AppTextSize = AppTextSize.System,
     content: @Composable () -> Unit,
 ) {
     val dark = appearance == AppAppearance.Dark
@@ -103,7 +103,7 @@ fun CbTipulTheme(
         LocalLayoutDirection provides LayoutDirection.Rtl,
         LocalDensity provides Density(
             density = density.density,
-            fontScale = density.fontScale * textSize.fontScale,
+            fontScale = textSize.resolvedScale(density.fontScale),
         ),
     ) {
         val defaults = Typography()

@@ -85,6 +85,19 @@ internal class PatientDiaryThreeViewModel(
             finally { loading = false }
         }
     }
+    fun prepareReview(): Boolean {
+        if (!com.cbtipul.app.data.Entitlements.allowMutation()) return false
+        val state = mutable.value
+        if (state.submitting || state.submittedId != null || accessUnavailable) return false
+        val invalidStep = state.draft.firstInvalidStep
+        if (invalidStep != null) {
+            update(state.draft.copy(currentStep = invalidStep))
+            invalid(requireNotNull(state.draft.validationError(invalidStep)))
+            return false
+        }
+        clearError()
+        return state.draft.currentStep == 7
+    }
     fun submit() {
         if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         val state = mutable.value

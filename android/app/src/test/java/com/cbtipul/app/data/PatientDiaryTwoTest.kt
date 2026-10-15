@@ -35,8 +35,8 @@ class PatientDiaryTwoTest {
         assertNull(draft.validationError())
         assertEquals(80, draft.persistedFeelings().single().intensity)
         assertEquals(0, DiaryFeelingDraft(DiaryFeeling("עצוב", 0)).intensity)
-        assertEquals(80, DiaryThreeFeelingDraft(name = "עצוב").intensityBefore)
-        assertEquals(80, DiaryThreeFeelingDraft(name = "עצוב").intensityAfter)
+        assertNull(DiaryThreeFeelingDraft(name = "עצוב").intensityBefore)
+        assertNull(DiaryThreeFeelingDraft(name = "עצוב").intensityAfter)
     }
     @Test fun requestContainsExactlyFiveClinicalKeysAndStableCodes() {
         val request = SubmitDiaryTwoEntryRequest.from(valid())
