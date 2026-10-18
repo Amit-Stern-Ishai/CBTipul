@@ -428,12 +428,12 @@ test("client navigation and logout both protect a pending workspace",async({page
 });
 
 
-test("signed-in name follows the shared header and disappears on logout", async ({ page }) => {
+test("signed-in email follows the shared header and disappears on logout", async ({ page }) => {
   await fixture(page);
   await page.goto("/app/");
-  await expect(page.locator(".cb-account-name")).toHaveText("ד״ר מטפל לדוגמה");
+  await expect(page.locator(".cb-account-name")).toHaveText("fixture@example.invalid");
   await page.getByRole("link", { name: "לעמוד הבית", exact: true }).click();
-  await expect(page.locator(".cb-account-name")).toHaveText("ד״ר מטפל לדוגמה");
+  await expect(page.locator(".cb-account-name")).toHaveText("fixture@example.invalid");
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.getByRole("button", { name: "התנתקות", exact: true }).click();

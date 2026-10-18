@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "../data/api";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/Auth";
 import nav from "../site-navigation.json";
@@ -21,16 +19,7 @@ export function SiteHeader({
   workspace?: boolean;
 }) {
   const { session, ready, logout } = useAuth();
-  const profile = useQuery({
-    queryKey: [session?.user.id, "profile"],
-    queryFn: api.profile,
-    enabled: ready && !!session && !session.user.is_anonymous,
-    staleTime: 30_000,
-    retry: 1,
-  });
-  const metadata = session?.user.user_metadata;
-  const displayName = [profile.data?.display_name, metadata?.full_name, metadata?.name, session?.user.email]
-    .find((value): value is string => typeof value === "string" && !!value.trim())?.trim();
+  const email = session?.user.email?.trim();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(false);
   const signOut = async () => {
@@ -73,8 +62,8 @@ export function SiteHeader({
               </a>
             ))}
             <div className="cb-auth">
-              {ready && session && displayName && (
-                <bdi className="cb-account-name" dir="auto">{displayName}</bdi>
+              {ready && session && email && (
+                <bdi className="cb-account-name" dir="ltr">{email}</bdi>
               )}
               {workspace ? (
                 <Link
