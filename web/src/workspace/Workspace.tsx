@@ -3,7 +3,7 @@ import { Check, CircleHelp, Clock3, FilePlus2, Plus, RotateCw, Trash2 } from "lu
 import { DiaryWorksheet } from "./DiaryWorksheet";
 import mobile from "../mobile-he.json";
 import { unsaved } from "../domain/dirty";
-import { ConsentBoundary } from "../ui/ConsentBoundary";
+import { ConsentBoundary, useConsentState } from "../ui/ConsentBoundary";
 import { consents } from "../data/consent";
 import { he } from "../he";
 import { WorkspaceEngine, type WorkspaceViewState } from "./engine";
@@ -17,6 +17,7 @@ const dateTime = (value: string) => new Intl.DateTimeFormat("he-IL", { dateStyle
 const message = (code: string | null) => code ? (ww.errors as Record<string, string>)[code] ?? ww.errors.network : null;
 
 export function Workspace({ account, canWrite }: { account: string; canWrite: boolean; logout?: () => Promise<void> }) {
+  const terms = useConsentState(account, "terms_privacy");
   const [view, setView] = useState<WorkspaceViewState>({ phase: "loading", save: "saved", envelope: null, payload: null, error: null, reminderAt: null, reminderOpen: false });
   const engineRef = useRef<WorkspaceEngine | null>(null);
   if (!engineRef.current) engineRef.current = new WorkspaceEngine(account, undefined, sessionStorage, setView);
@@ -122,7 +123,7 @@ export function Workspace({ account, canWrite }: { account: string; canWrite: bo
         {discardOpen && view.phase === "editing" && <section ref={discardRef} tabIndex={-1} className="ww-confirm ww-confirm-danger" aria-label={ww.discardConfirm}><h2>{ww.discardConfirm}</h2><p>{ww.discardDescription}</p><div className="ww-actions"><button onClick={() => void doDiscard()}>{ww.discard}</button><button className="secondary" onClick={() => setDiscardOpen(false)}>{ww.cancel}</button></div></section>}
         {showProblems && item && problems.includes(item.id) && <p className="ww-alert" role="alert">{ww.finishProblems}</p>}
         {view.error && <p className="ww-alert" role="alert">{message(view.error)}</p>}
-        {view.phase === "editing" && ["consent","consent_lookup","consent_persist","consent_unavailable"].includes(view.error ?? "") && <ConsentBoundary account={account} type="clinical_text_processing" title={ww.consentTitle} description={ww.consentDescription} accept={ww.consentAction} decline={async () => {}}><RetryConsentedSave engine={engine} /></ConsentBoundary>}
+        {terms.record?.status === "accepted" && view.phase === "editing" && ["consent","consent_lookup","consent_persist"].includes(view.error ?? "") && <ConsentBoundary account={account} type="clinical_text_processing" title={ww.consentTitle} description={ww.consentDescription} accept={ww.consentAction} decline={async () => {}}><RetryConsentedSave engine={engine} /></ConsentBoundary>}
         {item ? <div className={view.phase !== "editing" ? "ww-readonly-editor" : ""}><WorksheetEditor key={item.id} item={item} onChange={editItem} disabled={view.phase !== "editing"} />{<WorksheetSave key={`save-${item.id}`} item={item} engine={engine} phase={view.phase} feedback={worksheetFeedback[item.id] ?? { status: "idle", submitted: "" }} setFeedback={(next) => { if (mounted.current) setWorksheetFeedback((previous) => ({ ...previous, [item.id]: next })); }} />}</div> : <section className="ww-sheet"><label htmlFor="session-notes">{ww.notes}</label><p className="ww-quiet">{ww.notesHint}</p><textarea id="session-notes" rows={16} value={payload.notes} disabled={view.phase !== "editing"} onChange={(event) => edit({ ...payload, notes: event.target.value })} maxLength={50000} /></section>}
         {view.phase === "editing" && view.save === "offline" && <button className="secondary" onClick={() => void engine.flush().catch(() => {})}>{ww.retrySave}</button>}
         {showProblems && problems.includes("empty") && <p className="ww-alert" role="alert">{ww.emptyProblem}</p>}
@@ -188,6 +189,17 @@ function WorkspaceExplanation({ subtitle = true }: { subtitle?:boolean }) {
   return <section className="ww-explanation" aria-label={ww.howItWorks}>{subtitle && <p>{ww.introSubtitle}</p>}<ol>{ww.introSteps.map(step=><li key={step}>{step}</li>)}</ol><p>{ww.introAssociations}</p><p className="ww-quiet">{ww.introLimits}</p></section>;
 }
 function ConsentPreferences({ account }: { account:string }) {
-  const [busy,setBusy]=useState(false),[status,setStatus]=useState("");
-  return <div className="ww-consent-preferences"><button className="ww-text-button" disabled={busy} onClick={async()=>{setBusy(true);try{await consents.decide(account,"clinical_text_processing","revoked");setStatus(he.consentRevoked);}catch{setStatus(he.consentRevokeFailed);}finally{setBusy(false);}}}>{he.consentRevoke}</button>{status && <p role="status">{status}</p>}</div>;
+  const state = useConsentState(account, "clinical_text_processing");
+  const [failed,setFailed] = useState(false);
+  const uncertain = !!state.pending;
+  return <div className="ww-consent-preferences"><button className="ww-text-button" disabled={state.busy} onClick={async()=>{
+    setFailed(false);
+    try {
+      if (uncertain) await consents.retry(account,"clinical_text_processing");
+      else await consents.decide(account,"clinical_text_processing","revoked");
+    } catch { setFailed(true); }
+  }}>{uncertain ? he.consentRetry : he.consentRevoke}</button>
+    {state.record?.status === "revoked" && !state.error && <p role="status">{he.consentRevoked}</p>}
+    {(failed || state.error) && <p role="alert">{state.error === "consent_changed" ? he.consentChanged : state.error === "consent_programming" ? he.consentProgrammingError : he.consentRevokeFailed}</p>}
+  </div>;
 }

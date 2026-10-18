@@ -1,5 +1,5 @@
 import { supabase } from "../data/client";
-import { workspaceIdentityMatches } from "../data/api";
+import { workspaceIdentityMatches, workspaceAccount, refreshWorkspaceTerms } from "../data/api";
 import { createWorkspaceAnonymizer } from "./anonymize";
 import type { WorkspaceEnvelope, WorkspacePayload } from "./model";
 import { finishProblems, markComplete, type Worksheet } from "./model";
@@ -21,8 +21,16 @@ export function classify(error: unknown): WorkspaceError {
   return new WorkspaceError(matched === "anonymization_shape" ? "anonymization" : matched ?? "network");
 }
 export const workspaceRpc: Rpc = async (name, params) => {
+  const account = workspaceAccount();
   const { data, error } = await supabase.rpc(name, params ?? {});
-  if (error) throw classify(error);
+  if (error) {
+    if (account && workspaceIdentityMatches(account) && error.message === "consent_required") {
+      await refreshWorkspaceTerms(account);
+      throw new WorkspaceError("consent_lookup");
+    }
+    if (["consent_service_unavailable", "consent_registry_not_ready", "consent_version_mismatch", "unsupported_consent_type"].includes(error.message)) throw new WorkspaceError("consent_unavailable");
+    throw classify(error);
+  }
   return data;
 };
 

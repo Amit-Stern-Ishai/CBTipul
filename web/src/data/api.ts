@@ -33,12 +33,21 @@ function unwrap<T>(r: { data: T | null; error: unknown }): NonNullable<T> {
   if (r.error || r.data === null) throw new ApiError();
   return r.data as NonNullable<T>;
 }
-async function fn<T>(name: string, body?: object): Promise<T> {
+async function fn<T>(name: string, body?: object, consentType?: ConsentType): Promise<T> {
+  const caller = identity, callerGeneration = generation;
   const r = await db.functions.invoke(name, body ? { body } : undefined);
   if (r.error) {
     let code = r.error.context?.status === 429 ? "quota" : "failed";
     try {
       const detail = await r.error.context?.json();
+      const refusal = detail?.error ?? detail?.code;
+      if (consentType && caller && callerGeneration === generation && refusal === "consent_required") {
+        const types: ConsentType[] = [consentType];
+        for (const type of types) consents.refuse(caller, type);
+        await Promise.allSettled(types.map(type => consents.lookup(caller, type)));
+        code = types.every(type => consents.snapshot(caller, type).record?.status === "accepted") ? "consent_unavailable" : "consent_lookup";
+      }
+      if (["consent_service_unavailable", "consent_version_mismatch", "consent_registry_not_ready", "unsupported_consent_type"].includes(refusal)) code = "consent_unavailable";
       if (
         [
           "AI_LIMIT_REACHED",
@@ -104,12 +113,12 @@ async function clinical(text: string, checkpoint: () => void, consentType: Conse
   const r = await fn<{ anonymizedText: string }>("anonymize-clinical-text", {
     text: scrub(text),
     therapistIdentifiers: [],
-  });
+  }, consentType);
   checkpoint();
   if (typeof r.anonymizedText !== "string" || !r.anonymizedText.trim()) throw new ApiError();
   return scrub(r.anonymizedText);
 }
-// The workspace uses the same guarded Edge Function and consent as session notes.
+// Workspace notes use the existing anonymizer and their separate consent type.
 export async function workspaceClinicalAnonymizer(account: string) {
   const checkpoint = await guard(true);
   if (identity !== account) throw new ApiError("access");
@@ -117,6 +126,11 @@ export async function workspaceClinicalAnonymizer(account: string) {
     if (identity !== account) throw new ApiError("access");
     return clinical(text, checkpoint, "clinical_text_processing");
   };
+}
+export function workspaceAccount() { return identity; }
+export async function refreshWorkspaceTerms(account: string) {
+  consents.refuse(account, "terms_privacy");
+  await consents.lookup(account, "terms_privacy").catch(() => {});
 }
 export function workspaceIdentityMatches(account: string) {
   return identity === account;
@@ -505,6 +519,7 @@ export const api = {
             : scrub(t.content),
       })),
     );
+    await consents.require(identity!, "ai_data_sharing");
     const system = chatContext(safeBundle(b, scrub));
     done();
     const response = await fn<{ choices: { message: { content: string } }[] }>(
@@ -514,6 +529,7 @@ export const api = {
         messages: [{ role: "system", content: system }, ...safeTurns],
         temperature: 0.4,
       },
+      "ai_data_sharing",
     );
     done();
     const content = response.choices?.[0]?.message?.content;
@@ -523,10 +539,12 @@ export const api = {
   async analyze(notes: string) {
     const done = await guard(true);
     const sessionNotes = await clinical(notes, done);
+    await consents.require(identity!, "ai_data_sharing");
     done();
     const r = await fn<{ analysis: Record<string, Clinical> }>(
       "analyze-session",
       { sessionNotes },
+      "ai_data_sharing",
     );
     done();
     if (
@@ -558,6 +576,7 @@ export const api = {
           scrub,
         ),
       },
+      "ai_data_sharing",
     );
     done();
     return {

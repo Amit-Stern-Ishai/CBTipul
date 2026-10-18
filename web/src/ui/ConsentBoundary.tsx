@@ -1,10 +1,17 @@
-import { useEffect, useState, type ReactNode } from "react";
 import {
-  consents,
-  type ConsentRecord,
-  type ConsentType,
-} from "../data/consent";
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { consents, type ConsentType } from "../data/consent";
 import { he } from "../he";
+export function useConsentState(account: string, type: ConsentType) {
+  return useSyncExternalStore(consents.subscribe, () =>
+    consents.snapshot(account, type),
+  );
+}
 export function ConsentBoundary({
   account,
   type,
@@ -26,97 +33,96 @@ export function ConsentBoundary({
   wording?: ReactNode;
   declineLabel?: string;
 }) {
-  const [record, setRecord] = useState<ConsentRecord | null>(null),
-    [loading, setLoading] = useState(true),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState<string | null>(null),
-    [attempt, setAttempt] = useState(0);
+  const state = useConsentState(account, type);
+  const [loading, setLoading] = useState(true),
+    [failed, setFailed] = useState(false);
+  const generation = useRef(0);
   useEffect(() => {
-    let live = true;
-    setRecord(null);
+    const current = ++generation.current;
     setLoading(true);
-    setError(null);
-    const load = () => {
-      setLoading(true);
-      consents
-        .lookup(account, type)
-        .then(
-          (r) => {
-            if (live) {
-              setRecord(r);
-              setError(null);
-            }
-          },
-          () => {
-            if (live) {
-              setRecord(null);
-              setError(he.consentLookupFailed);
-            }
-          },
-        )
-        .finally(() => {
-          if (live) setLoading(false);
-        });
-    };
-    load();
+    setFailed(false);
+    consents
+      .ensure(account, type)
+      .catch(() => {
+        if (generation.current === current) setFailed(true);
+      })
+      .finally(() => {
+        if (generation.current === current) setLoading(false);
+      });
     return () => {
-      live = false;
+      generation.current++;
     };
-  }, [account, type, attempt]);
-  const decide = async (decision: "accepted" | "declined") => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
+  }, [account, type]);
+  const act = async (decision?: "accepted" | "declined") => {
+    if (state.busy || loading) return;
+    const current = generation.current;
+    const submitted = decision ?? state.pending?.p_decision;
+    setFailed(false);
+    setLoading(true);
     try {
-      const result = await consents.decide(account, type, decision);
-      setRecord(result);
-      if (decision === "declined") await decline();
+      if (decision) await consents.decide(account, type, decision);
+      else if (state.pending) await consents.retry(account, type);
+      else await consents.lookup(account, type);
+      if (generation.current === current && submitted === "declined")
+        await decline();
     } catch {
-      setError(he.consentSaveFailed);
+      if (generation.current === current) setFailed(true);
     } finally {
-      setBusy(false);
+      if (generation.current === current) setLoading(false);
     }
   };
-  if (loading)
-    return (
-      <section className="cb-consent" role="status">
-        {he.consentChecking}
-      </section>
-    );
-  if (record?.status === "accepted") return children;
-  if (!record)
-    return (
-      <section className="cb-consent" aria-label={title}>
-        <h2>{title}</h2>
-        <p role="alert">{error ?? he.consentLookupFailed}</p>
-        <button onClick={() => setAttempt((v) => v + 1)}>
+  // A pending uncertain decision never unlocks the boundary, even if another read
+  // has populated an accepted receipt. Processing also performs a fresh lookup.
+  const allowed = state.record?.status === "accepted" && !state.pending && !state.busy && !loading;
+  const [admitted, setAdmitted] = useState(false);
+  useEffect(() => { if (allowed) setAdmitted(true); }, [allowed]);
+  const error =
+    state.error === "consent_programming"
+      ? he.consentProgrammingError
+      : state.error === "consent_changed"
+        ? he.consentChanged
+        : state.pending || state.error === "consent_persist"
+          ? he.consentSaveFailed
+          : he.consentLookupFailed;
+  return (
+    <>
+    <div hidden={!allowed}>{(admitted || allowed) && children}</div>
+    {!allowed && <section className="cb-consent" aria-label={title}>
+      <h2>{title}</h2>
+      {loading && (
+        <p role="status">
+          {state.busy ? he.consentSaving : he.consentChecking}
+        </p>
+      )}
+      {(failed || state.error) && <p role="alert">{error}</p>}
+      {state.pending || !state.record ? (
+        <button disabled={loading || state.busy} onClick={() => void act()}>
           {he.consentRetry}
         </button>
-      </section>
-    );
-  return (
-    <section className="cb-consent" aria-label={title}>
-      <h2>{title}</h2>
-      <p>{description}</p>
-      {wording}
-      {record.status === "declined" && <p>{he.consentDeclined}</p>}
-      {error && <p role="alert">{error}</p>}
-      <div className="ww-actions">
-        <button
-          disabled={busy}
-          aria-busy={busy}
-          onClick={() => void decide("accepted")}
-        >
-          {busy ? he.consentSaving : accept}
-        </button>
-        <button
-          className="secondary"
-          disabled={busy}
-          onClick={() => void decide("declined")}
-        >
-          {declineLabel}
-        </button>
-      </div>
-    </section>
+      ) : (
+        <>
+          <p>{description}</p>
+          {wording}
+          {state.record.status === "declined" && <p>{he.consentDeclined}</p>}
+          <div className="ww-actions">
+            <button
+              disabled={loading || state.busy}
+              aria-busy={state.busy}
+              onClick={() => void act("accepted")}
+            >
+              {state.busy ? he.consentSaving : accept}
+            </button>
+            <button
+              className="secondary"
+              disabled={loading || state.busy}
+              onClick={() => void act("declined")}
+            >
+              {declineLabel}
+            </button>
+          </div>
+        </>
+      )}
+    </section>}
+    </>
   );
 }

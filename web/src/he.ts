@@ -1,5 +1,7 @@
 // Hebrew UI copy. Clinical questionnaire wording lives in mobile-he.json.
 export const he = {
+  consentChanged: "מצב האישור השתנה בחשבון. יש לבדוק את המצב העדכני ולבחור שוב במידת הצורך.",
+  consentProgrammingError: "לא ניתן לשמור את הבחירה עקב שגיאה בבקשה. יש לפנות לתמיכה.",
   consentChecking: "בודקים את האישור השמור בחשבון…",
   consentLookupFailed: "לא ניתן לבדוק את האישור בשרת. יש לנסות שוב. לא יוצג אישור חדש ולא יתחיל עיבוד לפני שהבדיקה תצליח.",
   consentSaveFailed: "הבחירה לא אושרה בשרת. יש לנסות שוב. לא בוצע עיבוד על סמך הבחירה הזו.",

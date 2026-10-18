@@ -6,6 +6,8 @@ export const webRoot = fileURLToPath(new URL("../", import.meta.url));
 export const pages = ["", "invite", "privacy", "terms", "support", "privacy-choices", "delete-account"];
 const navigation = JSON.parse(await readFile(path.join(webRoot,"src/site-navigation.json"),"utf8"));
 const labels = navigation.links;
+const legal = JSON.parse(await readFile(path.join(webRoot, "src/legal-he.json"), "utf8"));
+export const escapeHtml = text => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 const stores = `<div class="store-actions" aria-label="הורדת האפליקציה"><a class="store-button" href="https://apps.apple.com/il/app/cbtipul/id6809343831?l=he" rel="noopener noreferrer"><img class="store-mark" src="/site-assets/store-apple.svg" alt="" width="28" height="32" /><span>הורדה מ-App Store</span></a><a class="store-button secondary" href="https://play.google.com/store/apps/details?id=com.CBTipul.app" rel="noopener noreferrer"><img class="store-mark" src="/site-assets/store-google-play.svg" alt="" width="28" height="32" /><span>הורדה מ-Google Play</span></a></div>`;
 export const redirects = `/app /app/ 302
 /app/login /app/ 200
@@ -39,7 +41,11 @@ export async function composeSite(output = path.join(webRoot, "dist"), publicAss
     const url = page ? `/${page}/` : "/";
     let html = await readFile(path.join(webRoot, "site/source", page, "index.html"), "utf8");
     html = html.replace(/href="\/style\.css"/g, `href="${themeUrl}"`);
-    // Source content and behavior remain authoritative; only the shared shell is replaced.
+    if (page === "terms" || page === "privacy") {
+      const body = legal[page === "terms" ? "termsBody" : "privacyBody"];
+      html = html.replace(/<article[^>]*>[\s\S]*?<\/article>/, `<article class="card"><h1>${page === "terms" ? "תנאי שימוש" : "מדיניות פרטיות"}</h1><div class="canonical-legal">${escapeHtml(body)}</div></article>`);
+    }
+    // Preserve imported behavior/content except the explicitly selected canonical legal bodies.
     html = html.replace(/<style>[\s\S]*?<\/style>/g, "");
     html = html.replace(/<nav>[\s\S]*?<\/nav>/g, "");
     const header = `<div id="site-header-root"><a class="cb-skip skip-link" href="#content">${navigation.skip}</a><header class="cb-header site-header"><div class="cb-header-inner"><a class="cb-brand site-brand" href="/" aria-label="CBTipul — בית"><img src="/site-assets/brand.png" alt="" width="40" height="40" /><span>CBTipul</span></a><nav class="cb-nav site-nav" aria-label="${navigation.navigation}">${labels.filter(([href])=>["/","/support/"].includes(href)).map(([href,label])=>`<a href="${href}"${href===url?' aria-current="page"':""}>${label}</a>`).join("")}<div class="cb-auth"><a class="therapist-link" href="/app/">${navigation.login}</a></div></nav></div></header></div>`;

@@ -10,8 +10,10 @@ test.beforeEach(({ page }) => {
 });
 test.afterEach(({ page }) => { expect(runtimeErrors.get(page)).toEqual([]); });
 const empty = { version: 1, items: [], notes: "" };
-async function fixture(page: Page, options: { existing?: boolean; locked?: boolean; access?: string; consent?: boolean; terms?: boolean; lookupFail?: boolean; persistFail?: boolean; account?: typeof user; anonymizeFail?: boolean; payload?: WorkspacePayload; beforeSave?: () => Promise<string | undefined> } = {}) {
+async function fixture(page: Page, options: { existing?: boolean; locked?: boolean; access?: string; consent?: boolean; terms?: boolean; oldTermsVersion?: boolean; lookupFail?: boolean; persistFail?: boolean; loseConsentResponse?: boolean; consentInterveningRevocation?: boolean; account?: typeof user; anonymizeFail?: boolean; payload?: WorkspacePayload; beforeSave?: () => Promise<string | undefined> } = {}) {
   let envelope = { id: "workspace-fixture", status: "active", started_at: new Date(Date.now() - 15 * 60_000).toISOString(), updated_at: new Date().toISOString(), revision: 0, payload: options.payload ?? (options.existing ? { ...empty, notes: "תוכן קליני סינתטי" } : empty), lease_token: "lease-fixture", lease_until: new Date(Date.now() + 120_000).toISOString() };
+  const decisions = new Map<string, { status: string; revision: number }>();
+  const consentRequests = new Map<string, { args: string; receipt: unknown; revision: number }>();
   let locked = !!options.locked;
   let started = !!options.existing;
   const requests: { path: string; body: Record<string, unknown> | null }[] = [];
@@ -32,12 +34,36 @@ async function fixture(page: Page, options: { existing?: boolean; locked?: boole
     else if (path.endsWith("/therapist_profiles")) data = [{ therapist_id: (options.account ?? user).id, display_name: "ד״ר מטפל לדוגמה" }];
     else if (path.endsWith("/get-app-context")) data = { version: 1, role: "therapist", entitlement: { access: options.access ?? "full" } };
     else if (path.endsWith("/get_my_consent") || path.endsWith("/record_my_consent")) {
-      const type=body?.p_consent_type;
-      const accepted=path.endsWith("/record_my_consent") ? body?.p_decision === "accepted" : type === "terms_privacy" ? options.terms !== false : options.consent !== false;
-      if(path.endsWith("/record_my_consent") && type === "terms_privacy" && !options.persistFail) options.terms=accepted;
-      if(path.endsWith("/record_my_consent") && type === "clinical_text_processing" && !options.persistFail) options.consent=accepted;
-      data={therapist_id:(options.account??user).id,consent_type:type,required_version:body?.p_required_version,accepted_version:accepted?body?.p_required_version:null,accepted_at:accepted?"2026-10-15T10:00:00Z":null,revoked_at:body?.p_decision==="revoked"?"2026-10-15T11:00:00Z":null,status:path.endsWith("/record_my_consent")?body?.p_decision:accepted?"accepted":"required"};
-      if(options.lookupFail && path.endsWith("/get_my_consent") || options.persistFail && path.endsWith("/record_my_consent")) {status=503;data={message:"unavailable"};}
+      const type=String(body?.p_consent_type), account=(options.account??user).id, key=`${account}:${type}`;
+      const accepted=type === "terms_privacy" ? options.terms !== false : options.consent !== false;
+      let current=decisions.get(key)??{status:accepted?"accepted":"required",revision:accepted?1:0};
+      const write=path.endsWith("/record_my_consent"), requestKey=`${account}:${body?.p_request_id}`, prior=consentRequests.get(requestKey);
+      let error="";
+      if(write) {
+        expect(Object.keys(body!).sort()).toEqual(["p_consent_type","p_required_version","p_decision","p_request_id","p_expected_revision"].sort());
+        if(prior && prior.args!==JSON.stringify(body)) error="consent_request_id_reused";
+        else if(prior && prior.revision!==current.revision) error="consent_request_superseded";
+        else if(!prior && body?.p_expected_revision!==current.revision) error="consent_revision_conflict";
+        else if(!prior && !options.persistFail) {
+          current={status:String(body?.p_decision),revision:current.revision+(current.status===body?.p_decision?0:1)};
+          decisions.set(key,current);
+        }
+      }
+      data={therapist_id:account,consent_type:type,required_version:body?.p_required_version,accepted_version:current.status==="accepted"?body?.p_required_version:null,accepted_at:current.status==="accepted"?"2026-10-15T10:00:00Z":null,revoked_at:current.status==="revoked"?"2026-10-15T11:00:00Z":null,status:current.status,revision:current.revision};
+      if(options.oldTermsVersion && type === "terms_privacy" && current.status === "required") {
+        data={...(data as Record<string,unknown>),accepted_version:"previous-wording-version",accepted_at:"2026-08-01T10:00:00Z"};
+      }
+      if(error) {status=400;data={code:"P0001",message:error};}
+      else if(options.lookupFail && !write || options.persistFail && write) {status=503;data={message:"unavailable"};}
+      else if(prior && write) data=prior.receipt;
+      else if(write) {
+        consentRequests.set(requestKey,{args:JSON.stringify(body),receipt:data,revision:current.revision});
+        if(options.loseConsentResponse) {
+          options.loseConsentResponse=false;
+          if(options.consentInterveningRevocation) decisions.set(key,{status:"revoked",revision:current.revision+1});
+          return route.abort("failed");
+        }
+      }
     }
     else if (path.endsWith("/anonymize-clinical-text")) {
       if (options.anonymizeFail) { status = 500; data = { error: "failed" }; }
@@ -373,7 +399,7 @@ test("failed consent lookup does not redisplay acceptance and ignores legacy bro
 });
 
 test("consent acceptance waits for server persistence, survives reload and does not grant clinical consent",async({page})=>{
- const options={terms:false,consent:false,persistFail:true};const requests=await fixture(page,options);await page.goto("/app/");await page.getByRole("button",{name:"קראתי ואני מסכים/ה"}).click();await expect(page.getByText(/הבחירה לא אושרה בשרת/)).toBeVisible();await expect(page.getByRole("button",{name:"התחלת מפגש"})).toHaveCount(0);options.persistFail=false;await page.getByRole("button",{name:"קראתי ואני מסכים/ה"}).click();await expect(page.getByRole("button",{name:"התחלת מפגש"})).toBeVisible();await page.reload();await page.getByRole("button",{name:"התחלת מפגש"}).click();await page.getByLabel("סיכום המפגש",{exact:true}).fill("סיכום סינתטי לאישור");await expect(page.getByRole("button",{name:"אני מאשר/ת את העיבוד והשמירה"})).toBeVisible();expect(requests.filter(r=>r.path.endsWith("/anonymize-clinical-text"))).toHaveLength(0);await page.getByRole("button",{name:"לא עכשיו",exact:true}).click();await expect(page.getByLabel("סיכום המפגש",{exact:true})).toHaveValue("סיכום סינתטי לאישור");await page.getByRole("button",{name:"אני מאשר/ת את העיבוד והשמירה"}).click();await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
+ const options={terms:false,consent:false,persistFail:true};const requests=await fixture(page,options);await page.goto("/app/");await page.getByRole("button",{name:"קראתי ואני מסכים/ה"}).click();await expect(page.getByText(/הבחירה לא אושרה בשרת/)).toBeVisible();await expect(page.getByRole("button",{name:"התחלת מפגש"})).toHaveCount(0);options.persistFail=false;await page.getByRole("button",{name:"ניסיון נוסף",exact:true}).click();await expect(page.getByRole("button",{name:"התחלת מפגש"})).toBeVisible();await page.reload();await page.getByRole("button",{name:"התחלת מפגש"}).click();await page.getByLabel("סיכום המפגש",{exact:true}).fill("סיכום סינתטי לאישור");await expect(page.getByRole("button",{name:"אני מאשר/ת את העיבוד והשמירה"})).toBeVisible();expect(requests.filter(r=>r.path.endsWith("/anonymize-clinical-text"))).toHaveLength(0);await page.getByRole("button",{name:"לא עכשיו",exact:true}).click();await expect(page.getByLabel("סיכום המפגש",{exact:true})).toHaveValue("סיכום סינתטי לאישור");await page.getByRole("button",{name:"אני מאשר/ת את העיבוד והשמירה"}).click();await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
 });
 
 test("leaving during a pending save warns and cancellation retains entered content",async({page})=>{
@@ -412,4 +438,38 @@ test("signed-in name follows the shared header and disappears on logout", async 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.getByRole("button", { name: "התנתקות", exact: true }).click();
   await expect(page.locator(".cb-account-name")).toHaveCount(0);
+});
+
+
+test("uncertain consent retry uses identical arguments and cannot undo a newer revocation", async ({ page }) => {
+  const requests=await fixture(page,{terms:false,loseConsentResponse:true,consentInterveningRevocation:true});
+  await page.goto("/app/");
+  await page.getByRole("button",{name:"קראתי ואני מסכים/ה",exact:true}).click();
+  await expect(page.getByText(/הבחירה לא אושרה בשרת/)).toBeVisible();
+  await page.getByRole("button",{name:"ניסיון נוסף",exact:true}).click();
+  await expect(page.getByText(/מצב האישור השתנה בחשבון/)).toBeVisible();
+  await expect(page.getByRole("button",{name:"התחלת מפגש",exact:true})).toHaveCount(0);
+  const writes=requests.filter(r=>r.path.endsWith("/record_my_consent"));
+  expect(writes).toHaveLength(2);expect(writes[0].body).toEqual(writes[1].body);
+  await page.screenshot({path:"test-results/consent-conflict-desktop.png"});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+  await page.screenshot({path:"test-results/consent-conflict-phone.png"});
+  await page.getByRole("button",{name:"קראתי ואני מסכים/ה",exact:true}).click();
+  await expect(page.getByRole("button",{name:"התחלת מפגש",exact:true})).toBeVisible();
+  const final=requests.filter(r=>r.path.endsWith("/record_my_consent")).at(-1)!;
+  expect(final.body?.p_expected_revision).toBe(2);
+  expect(final.body?.p_request_id).not.toBe(writes[0].body?.p_request_id);
+});
+
+test("older wording acceptance prompts again and the new receipt survives reload",async({page})=>{
+ const requests=await fixture(page,{terms:false,oldTermsVersion:true});
+ await page.goto("/app/");
+ await expect(page.getByRole("button",{name:"קראתי ואני מסכים/ה"})).toBeVisible();
+ expect(requests.some(r=>r.path.endsWith("/get_active_web_workspace"))).toBe(false);
+ await page.getByRole("button",{name:"קראתי ואני מסכים/ה"}).click();
+ await expect(page.getByRole("button",{name:"התחלת מפגש",exact:true})).toBeVisible();
+ await page.reload();
+ await expect(page.getByRole("button",{name:"התחלת מפגש",exact:true})).toBeVisible();
+ await expect(page.getByRole("button",{name:"קראתי ואני מסכים/ה"})).toHaveCount(0);
 });

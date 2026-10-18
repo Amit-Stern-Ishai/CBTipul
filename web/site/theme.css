@@ -62,3 +62,5 @@ ul,ol { padding-inline-start:26px; }
 body { min-height:100dvh; display:flex; flex-direction:column; }
 body > main { flex:1; margin:0 auto; }
 #site-footer-root { margin-top:auto; }
+
+.canonical-legal { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.8; }
