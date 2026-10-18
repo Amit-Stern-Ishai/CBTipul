@@ -39,10 +39,11 @@ function GrowingText(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   }, [props.value]);
   return <textarea {...props} ref={ref} rows={props.rows ?? 3} maxLength={50000} />;
 }
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <section className="ww-sheet ww-diary-section" aria-label={title}>
       <h2>{title}</h2>
+      {hint && <p className="ww-diary-hint">{hint}</p>}
       {children}
     </section>
   );
@@ -423,7 +424,7 @@ export function DiaryWorksheet({
   ) => {
     const values = Array.isArray(d[key]) ? (d[key] as unknown[]) : [];
     return (
-      <Section title={title}>
+      <Section title={title} hint={third ? (key === "automatic_thoughts" ? ww.thoughtBeforeHelp : ww.alternativeBeliefHelp) : undefined}>
         <div className="ww-rows">
           {values.map((value, index) => (
             <div className="ww-diary-row ww-thought-row" key={index}>
@@ -448,6 +449,7 @@ export function DiaryWorksheet({
               </div>
               <GrowingText
                 rows={1}
+                placeholder={key === "automatic_thoughts" ? ww.automaticThoughtPlaceholder : ww.alternativeThoughtPlaceholder}
                 id={`${item.id}-${key}-${index}`}
                 disabled={disabled}
                 value={
@@ -493,13 +495,14 @@ export function DiaryWorksheet({
           }
         >
           <Plus size={16} />
-          {ww.addRow}
+          {key === "automatic_thoughts" ? ww.addAutomaticThought : ww.addAlternativeThought}
         </button>
       </Section>
     );
   };
   return (
     <div className={`ww-diary-grid ww-diary-${item.type}`}>
+      {third && <div className="ww-diary-stage"><h2>{ww.diaryThreeBefore}</h2><p>{ww.diaryThreeBeforeHelp}</p></div>}
       <Section title={third ? ww.situation : ww.event}>
         <label className="ww-sr" htmlFor={`${item.id}-event`}>
           {third ? ww.situation : ww.event}
@@ -517,7 +520,7 @@ export function DiaryWorksheet({
         third,
         third ? "beliefBefore" : undefined,
       )}
-      <Section title={third ? "רגשות ועוצמה לפני" : he.Diaries017}>
+      <Section title={third ? "רגשות ועוצמה לפני" : he.Diaries017} hint={third ? ww.feelingBeforeHelp : undefined}>
         <div className="ww-rows">
           {feelings.map((row, index) =>
             String(row.name ?? "").trim() ? (
@@ -585,6 +588,7 @@ export function DiaryWorksheet({
         </Section>
       ) : (
         <>
+          {third && <div className="ww-diary-stage"><h2>{ww.diaryThreeExamine}</h2><p>{ww.diaryThreeExamineHelp}</p></div>}
           <Section title={he.Diaries020}>
             <ThinkingErrorPicker
               value={d.thinking_errors}
@@ -602,10 +606,11 @@ export function DiaryWorksheet({
       )}
       {third && (
         <>
-          <Section title="הערכה מחדש של המחשבות האוטומטיות">
+          <div className="ww-diary-stage"><h2>{ww.diaryThreeAfter}</h2><p>{ww.diaryThreeAfterHelp}</p></div>
+          <Section title="הערכה מחדש של המחשבות האוטומטיות" hint={ww.thoughtAfterHelp}>
             {thoughts.map((row, index) => (
               <div className="ww-diary-row" key={index}>
-                <p className="ww-original-text">{String(row.text ?? "")}</p>
+                <p className="ww-original-text">{String(row.text ?? "").trim() ? String(row.text) : ww.thoughtMissing}</p>
                 <p className="ww-quiet">
                   אמונה לפני:{" "}
                   <b dir="ltr">
@@ -624,7 +629,8 @@ export function DiaryWorksheet({
               </div>
             ))}
           </Section>
-          <Section title="רגשות ועוצמה אחרי">
+          <Section title="רגשות ועוצמה אחרי" hint={ww.feelingAfterHelp}>
+            {!feelings.some(row => String(row.name ?? "").trim()) && <p className="ww-quiet">{ww.feelingsMissing}</p>}
             {feelings
               .filter((row) => String(row.name ?? "").trim())
               .map((row) => {

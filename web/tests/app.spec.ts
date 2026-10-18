@@ -284,6 +284,20 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
     await page.goto("/app/");
     await page.getByRole("button", { name: "המשך המפגש", exact: true }).click();
     await page.locator(".ww-item").first().click();
+    if (type === "diary_three") {
+      for (const title of ["1. המצב, המחשבות והרגשות", "2. בחינת המחשבות", "3. הערכה מחדש"]) {
+        await expect(page.getByRole("heading", {name:title,exact:true})).toBeVisible();
+      }
+      await expect(page.getByText("הרגשות שתבחרו בשלב הראשון יופיעו כאן לדירוג נוסף.")).toBeVisible();
+      for (const width of [1366,390]) {
+        await page.setViewportSize({width,height:900});
+        for (let stage = 0; stage < 3; stage++) {
+          await page.locator(".ww-diary-stage").nth(stage).scrollIntoViewIfNeeded();
+          await page.screenshot({path:`test-results/diary-three-stage-${stage + 1}-${width}.png`});
+        }
+      }
+      await page.setViewportSize({width:1366,height:768});
+    }
     if (type !== "diary_one") {
       await page.getByRole("button",{name:"בחירת טעויות חשיבה",exact:true}).click();
       const worksheetHeight = await page.locator(".ww-diary-grid").evaluate(el=>el.getBoundingClientRect().height);
@@ -309,7 +323,7 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
     const thoughtSection = page.locator(".ww-diary-section").filter({has: page.locator(".ww-thought-row")}).first();
     const thought = thoughtSection.locator("textarea").first();
     expect(await thought.evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(70);
-    await thoughtSection.getByRole("button", {name:"הוספת שורה",exact:true}).click();
+    await thoughtSection.getByRole("button", {name:"הוספת מחשבה אוטומטית",exact:true}).click();
     const secondThought = thoughtSection.locator("textarea").nth(1);
     const thoughtText = "מחשבה סינתטית ארוכה עם מילים נוספות. ".repeat(8);
     await secondThought.fill(thoughtText);
