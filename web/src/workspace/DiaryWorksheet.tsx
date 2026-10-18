@@ -37,7 +37,7 @@ function GrowingText(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
     observer.observe(area);
     return () => observer.disconnect();
   }, [props.value]);
-  return <textarea {...props} ref={ref} rows={3} maxLength={50000} />;
+  return <textarea {...props} ref={ref} rows={props.rows ?? 3} maxLength={50000} />;
 }
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -343,7 +343,7 @@ function ThinkingErrorPicker({
         popoverTarget={id}
         disabled={disabled}
       >
-        {selected.length ? "שינוי הבחירה" : "בחירת טעויות חשיבה"}
+        {selected.length ? ww.addThinkingError : "בחירת טעויות חשיבה"}
       </button>
       <div
         id={id}
@@ -364,22 +364,14 @@ function ThinkingErrorPicker({
           </button>
         </div>
         <div className="ww-thinking-catalogue">
-          {thinkingErrors.map(([code, key]) => (
-            <label key={code}>
-              <input
-                type="checkbox"
-                checked={selected.includes(code)}
-                disabled={disabled}
-                onChange={(e) => {
-                  const next = e.target.checked
-                    ? [...selected, code]
-                    : selected.filter((v) => v !== code);
-                  onChange(next.length ? next : null);
-                }}
-              />
+          {thinkingErrors.filter(([code]) => !selected.includes(code)).map(([code, key]) => (
+            <button key={code} type="button" className="secondary" disabled={disabled}
+              onClick={() => { onChange([...selected, code]); close(); }}>
+              <Plus size={16} aria-hidden="true" />
               <span>{String((mobile as Record<string, unknown>)[key])}</span>
-            </label>
+            </button>
           ))}
+          {selected.length === thinkingErrors.length && <p>{ww.allThinkingErrorsSelected}</p>}
         </div>
         <button type="button" onClick={close}>
           סיום הבחירה
@@ -434,9 +426,9 @@ export function DiaryWorksheet({
       <Section title={title}>
         <div className="ww-rows">
           {values.map((value, index) => (
-            <div className="ww-diary-row" key={index}>
+            <div className="ww-diary-row ww-thought-row" key={index}>
               <div className="ww-diary-row-head">
-                <label htmlFor={`${item.id}-${key}-${index}`}>
+                <label className="ww-visually-hidden" htmlFor={`${item.id}-${key}-${index}`}>
                   {title} {index + 1}
                 </label>
                 <button
@@ -455,6 +447,7 @@ export function DiaryWorksheet({
                 </button>
               </div>
               <GrowingText
+                rows={1}
                 id={`${item.id}-${key}-${index}`}
                 disabled={disabled}
                 value={

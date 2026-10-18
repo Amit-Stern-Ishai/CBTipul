@@ -29,6 +29,23 @@ export function Workspace({ account, canWrite }: { account: string; canWrite: bo
   const [showAdd, setShowAdd] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  const restarting = useRef(false);
+  const [restartBusy, setRestartBusy] = useState(false);
+  const restart = async () => {
+    if (restarting.current || !window.confirm(ww.discardDescription)) return;
+    restarting.current = true;
+    setRestartBusy(true);
+    try {
+      await engine.begin();
+      if (engine.state.phase !== "editing") return;
+      await engine.discard();
+      setSelected("notes");
+      setReference("");
+      setWorksheetFeedback({});
+      await engine.begin();
+    } catch { /* Preserve the engine error and existing draft on failure. */ }
+    finally { restarting.current = false; setRestartBusy(false); }
+  };
   const [reference, setReference] = useState("");
   const [showProblems, setShowProblems] = useState(false);
   const finishRef = useRef<HTMLElement>(null);
@@ -88,13 +105,13 @@ export function Workspace({ account, canWrite }: { account: string; canWrite: bo
   const doFinish = async () => { try { await engine.finish(reference); setFinishOpen(false); } catch { /* Safe error state comes from engine. */ } };
   const doDiscard = async () => { try { await engine.discard(); setDiscardOpen(false); setSelected("notes"); } catch { /* Inline error. */ } };
 
-  return <div className="ww-app" dir="rtl">
+  return <div className="ww-app" dir="rtl" inert={restartBusy} aria-busy={restartBusy}>
 
 
     {view.phase !== "editing" && view.phase !== "lost" && view.phase !== "conflict" && <main className="ww-gate">
       {view.phase === "loading" && <div className="ww-neutral"><Clock3 size={28} /><h1>{ww.loading}</h1></div>}
       {view.phase === "start" && <div className="ww-neutral"><span className="ww-emblem"><FilePlus2 size={32} /></span><h1>{ww.introTitle}</h1><p>{ww.introSubtitle}</p>{canWrite ? <button onClick={() => void engine.begin()}>{ww.start}</button> : <p className="ww-alert">{ww.readOnly}</p>}<WorkspaceExplanation subtitle={false} /></div>}
-      {view.phase === "resume" && <div className="ww-neutral"><span className="ww-emblem"><Clock3 size={32} /></span><h1>{ww.introTitle}</h1><h2 className="ww-resume-heading">{ww.resumeTitle}</h2><p>{ww.resumeDescription}</p>{canWrite ? <button onClick={() => void engine.begin()}>{ww.resume}</button> : <p className="ww-alert">{ww.readOnly}</p>}<WorkspaceExplanation /></div>}
+      {view.phase === "resume" && <div className="ww-neutral"><span className="ww-emblem"><Clock3 size={32} /></span><h1>{ww.introTitle}</h1><h2 className="ww-resume-heading">{ww.resumeTitle}</h2><p>{ww.resumeDescription}</p>{canWrite ? <div className="ww-actions"><button onClick={() => void engine.begin()}>{ww.resume}</button><button className="secondary" onClick={() => void restart()}>{ww.discardAndStart}</button></div> : <p className="ww-alert">{ww.readOnly}</p>}<WorkspaceExplanation /></div>}
       {view.phase === "locked" && <div className="ww-neutral"><span className="ww-emblem"><CircleHelp size={32} /></span><h1>{ww.lockedTitle}</h1><p>{ww.lockedDescription}</p>{canWrite && <button onClick={() => void engine.begin(true)}>{ww.takeOver}</button>}{view.payload && <RecoveryCopy payload={view.payload} />}</div>}
       {view.phase === "error" && <div className="ww-neutral"><h1>{ww.title}</h1><p className="ww-alert" role="alert">{message(view.error)}</p><button onClick={() => void engine.inspect()}>{ww.retry}</button></div>}
       {view.phase === "finish_error" && <div className="ww-neutral"><h1>{ww.finishErrorTitle}</h1><p>{ww.finishErrorDescription}</p>{view.error && <p className="ww-alert" role="alert">{message(view.error)}</p>}<div className="ww-actions"><button onClick={() => void engine.retryFinish().catch(() => {})}>{ww.retry}</button>{["lease_lost", "revision_conflict"].includes(view.error ?? "") && <button className="secondary" onClick={() => void engine.recoverFailedFinish()}>{ww.returnToDraft}</button>}</div>{view.payload && <RecoveryCopy payload={view.payload} />}</div>}

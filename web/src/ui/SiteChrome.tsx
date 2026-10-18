@@ -65,7 +65,7 @@ export function SiteHeader({
               {ready && session && email && (
                 <bdi className="cb-account-name" dir="ltr">{email}</bdi>
               )}
-              {workspace ? (
+              {workspace && ready && session && ["/app", "/app/"].includes(path) ? null : workspace ? (
                 <Link
                   className="therapist-link"
                   to="/"

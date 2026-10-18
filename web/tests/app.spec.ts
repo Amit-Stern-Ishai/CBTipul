@@ -287,8 +287,10 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
     if (type !== "diary_one") {
       await page.getByRole("button",{name:"בחירת טעויות חשיבה",exact:true}).click();
       const worksheetHeight = await page.locator(".ww-diary-grid").evaluate(el=>el.getBoundingClientRect().height);
-      await page.getByLabel("הכל או כלום", {exact:true}).check();
-      expect(await page.locator(".ww-diary-grid").evaluate(el=>el.getBoundingClientRect().height)).toBe(worksheetHeight);
+      await page.getByRole("button", {name:"הכל או כלום",exact:true}).click();
+      await page.getByRole("button", {name:"הוספת טעות חשיבה",exact:true}).click();
+      await expect(page.locator(".ww-thinking-catalogue").getByRole("button", {name:"הכל או כלום",exact:true})).toHaveCount(0);
+      expect(await page.locator(".ww-diary-grid").evaluate(el=>el.getBoundingClientRect().height)).toBeLessThan(worksheetHeight + 100);
       await page.screenshot({path:`test-results/${type}-error-picker.png`});
       await page.setViewportSize({width:390,height:844});
       const bounds = await page.locator(".ww-thinking-picker").evaluate(el => ({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height}));
@@ -296,10 +298,27 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
       await page.screenshot({path:`test-results/${type}-error-picker-phone.png`});
       await page.setViewportSize({width:1366,height:768});
       await expect(page.getByLabel("לא זוהתה טעות חשיבה", {exact:true})).not.toBeChecked();
-      await page.getByLabel("הכל או כלום", {exact:true}).uncheck();
+      await page.getByRole("button",{name:"סיום הבחירה",exact:true}).click();
+      await page.getByRole("button",{name:"הסרת הכל או כלום",exact:true}).click();
+      await page.getByRole("button",{name:"בחירת טעויות חשיבה",exact:true}).click();
+      await expect(page.locator(".ww-thinking-catalogue").getByRole("button", {name:"הכל או כלום",exact:true})).toBeVisible();
       await expect(page.getByLabel("לא זוהתה טעות חשיבה", {exact:true})).not.toBeChecked();
       await page.getByRole("button",{name:"סיום הבחירה",exact:true}).click();
       await page.getByLabel("לא זוהתה טעות חשיבה", {exact:true}).check();
+    }
+    const thoughtSection = page.locator(".ww-diary-section").filter({has: page.locator(".ww-thought-row")}).first();
+    const thought = thoughtSection.locator("textarea").first();
+    expect(await thought.evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(70);
+    await thoughtSection.getByRole("button", {name:"הוספת שורה",exact:true}).click();
+    const secondThought = thoughtSection.locator("textarea").nth(1);
+    const thoughtText = "מחשבה סינתטית ארוכה עם מילים נוספות. ".repeat(8);
+    await secondThought.fill(thoughtText);
+    expect(await secondThought.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(70);
+    await secondThought.fill("עוד מחשבה");
+    expect(await secondThought.evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(70);
+    if (type === "diary_three") {
+      await thoughtSection.getByLabel("אמונה לפני — אחוז", {exact:true}).nth(1).fill("50");
+      await page.getByLabel("אמונה אחרי — 2 — אחוז", {exact:true}).fill("25");
     }
     const event = page.locator(".ww-diary-section textarea").first();
     const long = 'אמא אמרה: "לא!"\n' + "טקסט עברי סינתטי ארוך, ללא מידע אמיתי. ".repeat(35);
@@ -472,4 +491,18 @@ test("older wording acceptance prompts again and the new receipt survives reload
  await page.reload();
  await expect(page.getByRole("button",{name:"התחלת מפגש",exact:true})).toBeVisible();
  await expect(page.getByRole("button",{name:"קראתי ואני מסכים/ה"})).toHaveCount(0);
+});
+
+
+test("discard and start new confirms deletion and hides redundant workspace navigation", async ({page}) => {
+  const requests = await fixture(page, {existing:true});
+  await page.goto("/app/");
+  await expect(page.getByRole("link", {name:"למרחב העבודה",exact:true})).toHaveCount(0);
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.getByRole("button", {name:"מחיקת המפגש והתחלת מפגש חדש",exact:true}).click();
+  expect(requests.filter(r => r.path.endsWith("/discard_web_workspace"))).toHaveLength(0);
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", {name:"מחיקת המפגש והתחלת מפגש חדש",exact:true}).click();
+  await expect(page.getByLabel("סיכום המפגש", {exact:true})).toHaveValue("");
+  expect(requests.filter(r => r.path.endsWith("/discard_web_workspace"))).toHaveLength(1);
 });
