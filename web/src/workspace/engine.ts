@@ -11,7 +11,7 @@ export type Anonymize = ((payload: WorkspacePayload, account: string) => Promise
 export class WorkspaceError extends Error {
   constructor(public code: string) { super(code); }
 }
-const known = ["workspace_in_use", "lease_lost", "revision_conflict", "read_only", "unauthorized", "therapist_access_required", "workspace_closed", "workspace_not_found", "invalid_workspace", "invalid_item", "invalid_answers", "invalid_diary", "invalid_diary_three", "invalid_thinking_errors", "empty_workspace", "too_many_items", "label_too_long", "consent", "quota", "access", "stale", "anonymization_shape"];
+const known = ["workspace_in_use", "lease_lost", "revision_conflict", "read_only", "unauthorized", "therapist_access_required", "workspace_closed", "workspace_not_found", "invalid_workspace", "invalid_item", "invalid_answers", "invalid_diary", "invalid_diary_three", "invalid_thinking_errors", "empty_workspace", "too_many_items", "label_too_long", "consent", "consent_lookup", "consent_persist", "consent_unavailable", "quota", "access", "stale", "anonymization_shape"];
 export function classify(error: unknown): WorkspaceError {
   if (error instanceof WorkspaceError) return error;
   const code = error && typeof error === "object" && "code" in error && typeof error.code === "string" ? error.code : "";

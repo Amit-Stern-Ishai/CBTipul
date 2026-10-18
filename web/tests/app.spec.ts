@@ -10,7 +10,7 @@ test.beforeEach(({ page }) => {
 });
 test.afterEach(({ page }) => { expect(runtimeErrors.get(page)).toEqual([]); });
 const empty = { version: 1, items: [], notes: "" };
-async function fixture(page: Page, options: { existing?: boolean; locked?: boolean; access?: string; consent?: boolean; anonymizeFail?: boolean; payload?: WorkspacePayload; beforeSave?: () => Promise<string | undefined> } = {}) {
+async function fixture(page: Page, options: { existing?: boolean; locked?: boolean; access?: string; consent?: boolean; terms?: boolean; lookupFail?: boolean; persistFail?: boolean; account?: typeof user; anonymizeFail?: boolean; payload?: WorkspacePayload; beforeSave?: () => Promise<string | undefined> } = {}) {
   let envelope = { id: "workspace-fixture", status: "active", started_at: new Date(Date.now() - 15 * 60_000).toISOString(), updated_at: new Date().toISOString(), revision: 0, payload: options.payload ?? (options.existing ? { ...empty, notes: "תוכן קליני סינתטי" } : empty), lease_token: "lease-fixture", lease_until: new Date(Date.now() + 120_000).toISOString() };
   let locked = !!options.locked;
   let started = !!options.existing;
@@ -26,10 +26,19 @@ async function fixture(page: Page, options: { existing?: boolean; locked?: boole
     requests.push({ path, body });
     let data: unknown;
     let status = 200;
-    if (path.endsWith("/user")) data = user;
+    if (path.endsWith("/user")) data = options.account ?? user;
     else if (path.endsWith("/token")) data = { access_token: "fixture-token", refresh_token: "fixture-refresh", expires_in: 3600, token_type: "bearer", user };
     else if (path.endsWith("/logout")) data = {};
+    else if (path.endsWith("/therapist_profiles")) data = [{ therapist_id: (options.account ?? user).id, display_name: "ד״ר מטפל לדוגמה" }];
     else if (path.endsWith("/get-app-context")) data = { version: 1, role: "therapist", entitlement: { access: options.access ?? "full" } };
+    else if (path.endsWith("/get_my_consent") || path.endsWith("/record_my_consent")) {
+      const type=body?.p_consent_type;
+      const accepted=path.endsWith("/record_my_consent") ? body?.p_decision === "accepted" : type === "terms_privacy" ? options.terms !== false : options.consent !== false;
+      if(path.endsWith("/record_my_consent") && type === "terms_privacy" && !options.persistFail) options.terms=accepted;
+      if(path.endsWith("/record_my_consent") && type === "clinical_text_processing" && !options.persistFail) options.consent=accepted;
+      data={therapist_id:(options.account??user).id,consent_type:type,required_version:body?.p_required_version,accepted_version:accepted?body?.p_required_version:null,accepted_at:accepted?"2026-10-15T10:00:00Z":null,revoked_at:body?.p_decision==="revoked"?"2026-10-15T11:00:00Z":null,status:path.endsWith("/record_my_consent")?body?.p_decision:accepted?"accepted":"required"};
+      if(options.lookupFail && path.endsWith("/get_my_consent") || options.persistFail && path.endsWith("/record_my_consent")) {status=503;data={message:"unavailable"};}
+    }
     else if (path.endsWith("/anonymize-clinical-text")) {
       if (options.anonymizeFail) { status = 500; data = { error: "failed" }; }
       else data = { anonymizedText: `אנונימי: ${body?.text}` };
@@ -37,7 +46,7 @@ async function fixture(page: Page, options: { existing?: boolean; locked?: boole
     else if (path.endsWith("/get_active_web_workspace")) data = started && envelope.status === "active" ? envelope : null;
     else if (path.endsWith("/begin_web_workspace")) {
       if (locked && !body?.p_take_over) { status = 400; data = { message: "workspace_in_use" }; }
-      else { locked = false; started = true; data = envelope; }
+      else { locked = false; started = true; if(envelope.status !== "active") envelope={...envelope,id:"workspace-fixture-next",status:"active",revision:0,payload:empty}; data = envelope; }
     }
     else if (path.endsWith("/renew_web_workspace_lease")) data = new Date(Date.now() + 120_000).toISOString();
     else if (path.endsWith("/save_web_workspace")) {
@@ -64,7 +73,7 @@ async function fixture(page: Page, options: { existing?: boolean; locked?: boole
 test("desktop flow saves one workspace, clears content on finish, and never fetches patient records", async ({ page }) => {
   const requests = await fixture(page);
   await page.goto("/app/");
-  await expect(page.getByRole("heading", { name: "מרחב המפגש" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "מרחב העבודה למטפלים" })).toBeVisible();
   await page.getByRole("button", { name: "התחלת מפגש", exact: true }).click();
   await page.getByLabel("סיכום המפגש", { exact: true }).fill("סיכום סינתטי למפגש");
   await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
@@ -339,3 +348,68 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
     await page.screenshot({path:`test-results/worksheet-${type}-empty.png`,fullPage:true});
   });
 }
+
+
+test("shared authenticated navigation preserves the session, resumes work and exposes identical legal links", async({page})=>{
+ const requests=await fixture(page);
+ await page.goto("/app/");
+ await expect(page.getByText("ממלאים יחד במפגש, משייכים למטופל/ת באפליקציה.")).toBeVisible();
+ const footer=await page.locator(".cb-footer a").evaluateAll(links=>links.map(a=>[a.getAttribute("href"),a.textContent]));
+ await page.getByRole("button",{name:"התחלת מפגש",exact:true}).click();
+ await page.getByLabel("סיכום המפגש",{exact:true}).fill("תוכן סינתטי לניווט");await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
+ await page.getByRole("link",{name:"לעמוד הבית",exact:true}).click();
+ await expect(page).toHaveURL("/");await expect(page.locator(".site-nav .therapist-link")).toHaveText("למרחב העבודה");
+ for(const width of [1366,390]){await page.setViewportSize({width,height:900});await expect(page.locator(".cb-header")).toHaveCount(1);await expect(page.locator(".cb-footer-links a")).toHaveCount(5);await page.screenshot({path:`test-results/shared-public-signed-in-${width}.png`,fullPage:true});}
+ expect(await page.locator(".cb-footer a").evaluateAll(links=>links.map(a=>[a.getAttribute("href"),a.textContent]))).toEqual(footer);
+ await page.locator(".cb-footer").getByRole("link",{name:"מדיניות פרטיות",exact:true}).click();await expect(page.locator(".site-nav .therapist-link")).toHaveText("למרחב העבודה");
+ await page.locator(".site-nav .therapist-link").click();await expect(page.getByRole("button",{name:"המשך המפגש"})).toBeVisible();await page.getByRole("button",{name:"המשך המפגש"}).click();
+ await expect(page.getByLabel("סיכום המפגש",{exact:true})).toHaveValue("אנונימי: תוכן סינתטי לניווט");
+ expect(requests.filter(r=>r.path.endsWith("/record_my_consent"))).toHaveLength(0);
+ await page.getByRole("link",{name:"לעמוד הבית",exact:true}).click();await page.getByRole("button",{name:"התנתקות",exact:true}).click();await expect(page.locator(".site-nav .therapist-link")).toHaveText("כניסה למטפלים");await page.locator(".site-nav .therapist-link").click();await expect(page).toHaveURL(/app\/login$/);
+});
+
+test("failed consent lookup does not redisplay acceptance and ignores legacy browser flags",async({page})=>{
+ const options={lookupFail:true};const requests=await fixture(page,options);await page.goto("/app/");await expect(page.getByText(/לא ניתן לבדוק את האישור בשרת/)).toBeVisible();await expect(page.getByRole("button",{name:"קראתי ואני מסכים/ה"})).toHaveCount(0);expect(requests.some(r=>r.path.endsWith("/begin_web_workspace"))).toBe(false);options.lookupFail=false;await page.getByRole("button",{name:"ניסיון נוסף",exact:true}).click();await expect(page.getByRole("button",{name:"התחלת מפגש"})).toBeVisible();
+});
+
+test("consent acceptance waits for server persistence, survives reload and does not grant clinical consent",async({page})=>{
+ const options={terms:false,consent:false,persistFail:true};const requests=await fixture(page,options);await page.goto("/app/");await page.getByRole("button",{name:"קראתי ואני מסכים/ה"}).click();await expect(page.getByText(/הבחירה לא אושרה בשרת/)).toBeVisible();await expect(page.getByRole("button",{name:"התחלת מפגש"})).toHaveCount(0);options.persistFail=false;await page.getByRole("button",{name:"קראתי ואני מסכים/ה"}).click();await expect(page.getByRole("button",{name:"התחלת מפגש"})).toBeVisible();await page.reload();await page.getByRole("button",{name:"התחלת מפגש"}).click();await page.getByLabel("סיכום המפגש",{exact:true}).fill("סיכום סינתטי לאישור");await expect(page.getByRole("button",{name:"אני מאשר/ת את העיבוד והשמירה"})).toBeVisible();expect(requests.filter(r=>r.path.endsWith("/anonymize-clinical-text"))).toHaveLength(0);await page.getByRole("button",{name:"לא עכשיו",exact:true}).click();await expect(page.getByLabel("סיכום המפגש",{exact:true})).toHaveValue("סיכום סינתטי לאישור");await page.getByRole("button",{name:"אני מאשר/ת את העיבוד והשמירה"}).click();await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
+});
+
+test("leaving during a pending save warns and cancellation retains entered content",async({page})=>{
+ let release!:()=>void;const gate=new Promise<void>(r=>{release=r;});await fixture(page,{beforeSave:async()=>{await gate;return undefined;}});await page.goto("/app/");await page.getByRole("button",{name:"התחלת מפגש"}).click();await page.getByLabel("סיכום המפגש",{exact:true}).fill("טיוטה סינתטית ממתינה");await expect(page.locator(".ww-save-saving")).toBeVisible();let warned=false;page.once("dialog",async d=>{warned=d.type()==="beforeunload";await d.dismiss();});await page.getByRole("link",{name:"לעמוד הבית",exact:true}).click();expect(warned).toBe(true);await expect(page.getByLabel("סיכום המפגש",{exact:true})).toHaveValue("טיוטה סינתטית ממתינה");release();await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
+});
+
+test("account switching rechecks consent and clears account-specific state",async({page})=>{
+ const options:{account?:typeof user;terms?:boolean}={};const requests=await fixture(page,options);await page.goto("/app/");await expect(page.getByRole("button",{name:"התחלת מפגש"})).toBeVisible();options.account={...user,id:"second-therapist",email:"second@example.invalid"};options.terms=false;await page.evaluate(account=>{const key="cbtipul.web.auth";const newValue=JSON.stringify({access_token:"second-token",refresh_token:"second-refresh",expires_at:Math.floor(Date.now()/1000)+3600,token_type:"bearer",user:account});localStorage.setItem(key,newValue);const channel=new BroadcastChannel(key);channel.postMessage({event:"SIGNED_IN",session:JSON.parse(newValue)});channel.close();},options.account);await expect(page.getByRole("button",{name:"קראתי ואני מסכים/ה"})).toBeVisible();expect(requests.filter(r=>r.path.endsWith("/record_my_consent"))).toHaveLength(0);await expect(page.getByRole("button",{name:"התחלת מפגש"})).toHaveCount(0);
+});
+
+
+test("server acceptance survives a new workspace and subsequent login; revocation requires new clinical consent",async({page})=>{
+ const requests=await fixture(page);await page.goto("/app/");await page.getByRole("button",{name:"התחלת מפגש",exact:true}).click();await page.getByLabel("סיכום המפגש",{exact:true}).fill("מפגש סינתטי ראשון");await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();await page.getByRole("button",{name:"סיום ושמירה",exact:true}).first().click();await page.getByRole("button",{name:"סיום ושמירה",exact:true}).last().click();await expect(page.getByRole("heading",{name:"המפגש נשמר"})).toBeVisible();await page.getByRole("button",{name:"התחלת מפגש חדש",exact:true}).click();await page.getByLabel("סיכום המפגש",{exact:true}).fill("מפגש סינתטי שני");await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();expect(requests.some(r=>r.path.endsWith("/record_my_consent"))).toBe(false);
+ await page.locator(".ww-help summary").click();await page.getByRole("button",{name:"ביטול האישור לעיבוד טקסט קליני"}).click();await expect(page.getByText(/האישור בוטל בחשבון/)).toBeVisible();await page.getByLabel("סיכום המפגש",{exact:true}).fill("שינוי סינתטי לאחר ביטול");await expect(page.getByRole("button",{name:"אני מאשר/ת את העיבוד והשמירה"})).toBeVisible();await page.getByRole("button",{name:"אני מאשר/ת את העיבוד והשמירה"}).click();await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
+ await page.getByRole("button",{name:"התנתקות",exact:true}).click();await expect(page).toHaveURL(/app\/login$/);await page.getByLabel("דוא״ל",{exact:true}).fill("fixture@example.invalid");await page.getByLabel("סיסמה",{exact:true}).fill("synthetic-test-password");await page.getByRole("button",{name:"כניסה",exact:true}).click();await expect(page.getByRole("button",{name:"המשך המפגש"})).toBeVisible();await expect(page.getByRole("button",{name:"קראתי ואני מסכים/ה"})).toHaveCount(0);
+});
+
+test("shared start and resume guidance at laptop and phone widths",async({page})=>{
+ await fixture(page);
+ for(const width of [1366,390]){await page.setViewportSize({width,height:900});await page.goto("/app/");await expect(page.getByRole("heading",{name:"מרחב העבודה למטפלים"})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:`test-results/shared-start-${width}.png`,fullPage:true});}
+});
+
+
+test("client navigation and logout both protect a pending workspace",async({page})=>{
+ let release!:()=>void;const gate=new Promise<void>(r=>{release=r;});const requests=await fixture(page,{beforeSave:async()=>{await gate;return undefined;}});await page.goto("/app/legal/privacy");await page.locator(".legal > a").click();await page.getByRole("button",{name:"התחלת מפגש",exact:true}).click();await page.getByLabel("סיכום המפגש",{exact:true}).fill("סינתטי להגנת מעבר");await expect(page.locator(".ww-save-saving")).toBeVisible();let warned=false;page.once("dialog",async d=>{warned=d.type()==="confirm";await d.dismiss();});await page.evaluate(()=>history.back());await expect.poll(()=>warned).toBe(true);await expect(page.getByLabel("סיכום המפגש",{exact:true})).toHaveValue("סינתטי להגנת מעבר");page.once("dialog",d=>d.dismiss());await page.getByRole("button",{name:"התנתקות",exact:true}).click();expect(requests.some(r=>r.path.endsWith("/logout"))).toBe(false);release();await expect(page.getByText("כל השינויים נשמרו")).toBeVisible();
+});
+
+
+test("signed-in name follows the shared header and disappears on logout", async ({ page }) => {
+  await fixture(page);
+  await page.goto("/app/");
+  await expect(page.locator(".cb-account-name")).toHaveText("ד״ר מטפל לדוגמה");
+  await page.getByRole("link", { name: "לעמוד הבית", exact: true }).click();
+  await expect(page.locator(".cb-account-name")).toHaveText("ד״ר מטפל לדוגמה");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.getByRole("button", { name: "התנתקות", exact: true }).click();
+  await expect(page.locator(".cb-account-name")).toHaveCount(0);
+});

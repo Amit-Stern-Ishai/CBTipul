@@ -236,27 +236,34 @@ fun PatientDiaryOneDetailScreen(
                 color = colors.textBright,
                 fontWeight = FontWeight.SemiBold,
             )
-            DetailBlock(stringResource(R.string.diary_one_event_title), entry.event)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    stringResource(R.string.diary_one_thought_title),
-                    color = colors.textBody,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
-                )
-                entry.automaticThoughts.forEach { thought ->
-                    Text(thought, color = colors.textBright)
-                }
-            }
-            DetailBlock(
-                stringResource(R.string.diary_feelings_title),
-                entry.feelings.joinToString(" · ") { "${it.name} ${it.intensity}%" },
-            )
-            DetailBlock(stringResource(R.string.diary_one_behaviour_title), entry.behaviour)
-            entry.physicalSymptoms?.takeIf { it.isNotBlank() }?.let {
-                DetailBlock(stringResource(R.string.diary_one_physical_title), it)
-            }
+            DiaryOneEntryContent(entry.event, entry.automaticThoughts, entry.feelings, entry.behaviour, entry.physicalSymptoms)
         }
+    }
+}
+
+/** The same read-only clinical body is used for native records and web worksheets. */
+@Composable
+fun DiaryOneEntryContent(event: String, automaticThoughts: List<String>, feelings: List<com.cbtipul.app.data.DiaryFeeling>, behaviour: String, physicalSymptoms: String?) {
+    val colors = Theme.colors
+    DetailBlock(stringResource(R.string.diary_one_event_title), event)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(R.string.diary_one_thought_title),
+            color = colors.textBody,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 12.sp,
+        )
+        automaticThoughts.forEach { thought ->
+            Text(thought, color = colors.textBright)
+        }
+    }
+    DetailBlock(
+        stringResource(R.string.diary_feelings_title),
+        feelings.joinToString(" · ") { "${it.name} ${it.intensity}%" },
+    )
+    DetailBlock(stringResource(R.string.diary_one_behaviour_title), behaviour)
+    physicalSymptoms?.takeIf { it.isNotBlank() }?.let {
+        DetailBlock(stringResource(R.string.diary_one_physical_title), it)
     }
 }
 

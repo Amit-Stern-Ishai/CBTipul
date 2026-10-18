@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { createBrowserRouter, RouterProvider, Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { createBrowserRouter, RouterProvider, Link, Navigate, Outlet, useLocation, useNavigate, useBlocker } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "../auth/Auth";
 import { Login } from "../auth/Login";
@@ -11,23 +11,24 @@ import { Workspace } from "../workspace/Workspace";
 import { notificationTarget } from "./Inbox";
 import { he } from "../he";
 import legal from "../legal-he.json";
+import { SiteHeader, SiteFooter } from "./SiteChrome";
+import { ConsentBoundary } from "./ConsentBoundary";
+import { unsaved } from "../domain/dirty";
+import nav from "../site-navigation.json";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: true, gcTime: 300_000 }, mutations: { retry: false } } });
 
 function Gate() {
   const { session, ready, logout } = useAuth();
   const access = useContextAccess(true);
-  const [accepted, setAccepted] = useState<string | null>(null);
   const id = session?.user.id;
-  const terms = id && localStorage.getItem(`cbtipul.terms.${id}`) === "2026-08-29";
   if (!ready) return <Loading />;
   if (!session) return <Navigate to="/login" replace />;
   if (session.user.is_anonymous) return <Denied logout={logout} />;
   if (access.isPending) return <Loading />;
   if (access.isError && !access.data) return <main className="gate"><ErrorBox error={access.error} retry={() => void access.refetch()} /><button onClick={() => void logout()}>{he.Profile001}</button></main>;
   if (!therapistAllowed(session.user, access.data ?? null)) return <Denied logout={logout} />;
-  if (!terms && accepted !== id) return <main className="gate legal"><h1>{he.App001}</h1><p>{he.App002}</p><details open><summary>{he.Login024}</summary><p className="prose">{legal.termsBody}</p></details><details><summary>{he.Login025}</summary><p className="prose">{legal.privacyBody}</p></details><button onClick={() => { localStorage.setItem(`cbtipul.terms.${id}`, "2026-08-29"); setAccepted(id ?? null); }}>{he.App003}</button><button className="secondary" onClick={() => void logout()}>{he.Profile001}</button></main>;
-  return <Outlet context={{ account: id, canWrite: access.data?.entitlement?.access === "full", logout }} />;
+  return <ConsentBoundary key={id} account={id!} type="terms_privacy" title={he.App001} description={he.App002} accept={he.App003} decline={logout} declineLabel={he.Profile001} wording={<><details open><summary>{he.Login024}</summary><p className="prose">{legal.termsBody}</p></details><details><summary>{he.Login025}</summary><p className="prose">{legal.privacyBody}</p></details></>}><Outlet context={{ account: id, canWrite: access.data?.entitlement?.access === "full", logout }} /></ConsentBoundary>;
 }
 function Denied({ logout }: { logout: () => Promise<void> }) { return <main className="gate"><h1>{he.App004}</h1><p>{he.App005}</p><button onClick={() => void logout()}>{he.Profile001}</button></main>; }
 function WorkspaceRoute() {
@@ -36,7 +37,7 @@ function WorkspaceRoute() {
   if (!session) return null;
   return <Workspace key={session.user.id} account={session.user.id} canWrite={access.data?.entitlement?.access === "full"} logout={logout} />;
 }
-function LegalPage() { const l = useLocation(); return <main className="gate legal"><Link to="/login">{he.Login022}</Link><h1>{l.pathname.endsWith("privacy") ? he.Login025 : he.Login024}</h1><p className="prose">{l.pathname.endsWith("privacy") ? legal.privacyBody : legal.termsBody}</p></main>; }
+function LegalPage() { const l = useLocation(); const {session}=useAuth(); return <main className="gate legal"><Link to={session?"/":"/login"}>{session?nav.workspace:he.Login022}</Link><h1>{l.pathname.endsWith("privacy") ? he.Login025 : he.Login024}</h1><p className="prose">{l.pathname.endsWith("privacy") ? legal.privacyBody : legal.termsBody}</p></main>; }
 function Callback() {
   const { session, ready } = useAuth();
   const [timeout, setTimeoutState] = useState(false);
@@ -45,13 +46,19 @@ function Callback() {
   return timeout ? <main className="gate"><ErrorBox error={null} /><Link to="/login">{he.Login022}</Link></main> : <Loading />;
 }
 function LoginRoute() { const { session, ready } = useAuth(); return ready && session ? <Navigate to="/" replace /> : <Login />; }
-const router = createBrowserRouter([
+function SiteLayout() {
+  const location = useLocation();
+  const blocker = useBlocker(({ currentLocation,nextLocation }) => unsaved.active && currentLocation.pathname !== nextLocation.pathname);
+  useEffect(() => { if (blocker.state === "blocked") { if(window.confirm(nav.leave)) blocker.proceed(); else blocker.reset(); } },[blocker]);
+  return <div className="cb-app-shell"><SiteHeader workspace path={"/app" + (location.pathname === "/" ? "/" : location.pathname)} /><div className="cb-app-content" id="content" tabIndex={-1}><Outlet /></div><SiteFooter path={"/app"+location.pathname} /></div>;
+}
+const router = createBrowserRouter([{ element: <SiteLayout />, children: [
   { path: "/login", element: <LoginRoute /> },
   { path: "/auth/callback", element: <Callback /> },
   { path: "/auth/reset", element: <Login /> },
   { path: "/legal/:document", element: <LegalPage /> },
   { element: <Gate />, children: [{ path: "/", element: <WorkspaceRoute /> }, { path: "*", element: <Navigate to="/" replace /> }] },
-], { basename: import.meta.env.BASE_URL.replace(/\/$/, "") });
+] }], { basename: import.meta.env.BASE_URL.replace(/\/$/, "") });
 export function App() { return <QueryClientProvider client={queryClient}><AuthProvider><RouterProvider router={router} /></AuthProvider></QueryClientProvider>; }
 
 // Legacy components remain in source for now; these exports keep them type-safe,

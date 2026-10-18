@@ -209,3 +209,27 @@
 .ww-thinking-catalogue { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .ww-thinking-catalogue label { font-weight:500; font-size:14px; }
 @media (max-width:620px) { .ww-thinking-catalogue { grid-template-columns:1fr; } }
+
+/* Shared site chrome stays in document flow, never over the worksheet controls. */
+.ww-app { min-height:0; }
+.ww-gate { min-height:calc(100dvh - 160px); }
+.ww-layout,.ww-rail { min-height:calc(100dvh - 160px); }
+.ww-neutral { padding:28px 36px; border-radius:16px; box-shadow:none; }
+.ww-neutral h1 { margin:12px 0; }
+.ww-explanation { text-align:start; margin-top:24px; padding-top:18px; border-top:1px solid var(--line); }
+.ww-explanation p { font-size:14px; margin:0 0 10px; }
+.ww-explanation ol { padding-inline-start:24px; margin:0 0 12px; font-size:15px; }
+.ww-explanation li { margin-block:6px; }
+.ww-help { margin:12px 8px; font-size:14px; }
+.ww-help summary { cursor:pointer; color:var(--brand); min-height:36px; padding-block:6px; font-weight:600; }
+.ww-help .ww-explanation { margin:8px 0 0; padding:12px 0 0; }
+.ww-rail > .ww-save { padding:0 12px; font-size:12px; }
+.cb-consent { max-width:800px; margin:28px auto; padding:24px; border:1px solid var(--line); background:#fff; border-radius:14px; }
+.cb-consent h2 { margin-top:0; }
+.cb-consent details { margin-block:16px; }
+.cb-consent .ww-actions { justify-content:flex-start; }
+.ww-consent-preferences { border-top:1px solid var(--line); padding-top:8px; }
+@media(max-width:900px) { .ww-layout,.ww-rail { min-height:0; } .ww-help { margin:8px 0; } .ww-help .ww-explanation { max-width:65ch; } }
+@media(max-width:480px) { .ww-neutral { padding:24px 20px; } .ww-neutral h1 { font-size:26px; } .cb-consent { margin:20px 16px; padding:20px; } }
+
+.ww-neutral .ww-resume-heading { font-size:19px; margin:8px 0; }

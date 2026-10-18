@@ -43,29 +43,39 @@ val webWorkspaceJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     val p_existing_session_id: String? = null, val p_create_session: Boolean = false,
     val p_link_questionnaire: Boolean = false, val p_session_date: String? = null,
     val p_session_type: String? = null,
+    val p_questionnaire_choice: JsonObject? = null, val p_preview_token: String? = null,
+    val p_acknowledge_existing_notes: Boolean = false,
 ) {
+    val target get() = WebAssociationTarget(p_workspace_id,p_patient_id,p_existing_session_id,p_create_session,p_session_date,p_session_type)
+    @Suppress("UNUSED_PARAMETER")
     fun valid(hasNotes: Boolean, hasQuestionnaire: Boolean): Boolean =
         NotificationRouting.uuidOrNull(p_patient_id) != null &&
         !(p_create_session && p_existing_session_id != null) &&
-        (!p_link_questionnaire || hasQuestionnaire) &&
+        (p_link_questionnaire || p_questionnaire_choice == null) &&
         (p_create_session || p_existing_session_id != null) == (hasNotes || p_link_questionnaire) &&
         if (p_create_session) p_session_date != null && !p_session_type.isNullOrBlank() else p_session_date == null && p_session_type == null
 }
 @Serializable data class WebAssociationResource(val item_id: String, val type: String, val id: String)
-@Serializable data class WebAssociationResult(val workspace_id: String, val patient_id: String, val session_id: String? = null, val resources: List<WebAssociationResource>)
+@Serializable data class WebAssociationResult(val workspace_id: String, val patient_id: String, val session_id: String? = null, val resources: List<WebAssociationResource>, val linked_questionnaire_id: String? = null, val notes_appended: Boolean)
 
-enum class WebWorkspaceFailure { InvalidSelection, Unavailable, Conflict, PatientMissing, SessionMissing, ReadOnly, Uncertain;
+enum class WebWorkspaceFailure { InvalidSelection, Unavailable, Conflict, PatientMissing, SessionMissing, ReadOnly, Uncertain, PreviewChanged, Rejected, ServiceUnavailable, QuestionnaireChanged;
     companion object {
         fun classify(error: Throwable): WebWorkspaceFailure {
             // Match only known server rejection tokens. Unknown/transport failures keep the exact request.
+            if (error is WebWorkspaceException) return error.failure
             val message = error.message.orEmpty()
+            val rest = error as? io.github.jan.supabase.exceptions.RestException
             return when {
+                rest?.error in listOf("PGRST202","42883") || listOf("PGRST202","42883").any(message::contains) -> ServiceUnavailable
+                listOf("association_preview_changed", "notes_append_confirmation_required").any(message::contains) -> PreviewChanged
+                listOf("questionnaire_choice_required", "invalid_questionnaire_choice", "unexpected_questionnaire_choice", "questionnaire_not_selectable", "questionnaire_ownership_mismatch").any(message::contains) -> QuestionnaireChanged
                 message.contains("session_already_has_questionnaire") -> Conflict
                 listOf("workspace_not_found", "workspace_not_pending", "already_associated").any(message::contains) -> Unavailable
                 message.contains("patient_not_found") -> PatientMissing
                 message.contains("session_not_found") -> SessionMissing
                 listOf("read_only", "therapist_access_required", "unauthorized").any(message::contains) -> ReadOnly
                 listOf("invalid_association", "session_required", "unused_session_target", "new_session_details_required", "unexpected_session_details", "no_questionnaire").any(message::contains) -> InvalidSelection
+                rest != null && ((rest.statusCode in 400..499 && rest.statusCode != 408) || rest.error.startsWith("PGRST") || Regex("^[0-9A-Z]{5}$").matches(rest.error)) -> Rejected
                 else -> Uncertain
             }
         }
@@ -89,7 +99,9 @@ class WebWorkspaceRepository(
     var refreshRecords: (suspend (String) -> Boolean)? = null
     var refreshNotifications: (suspend () -> Unit)? = null
     private var lastPatient: String? = null
-    fun clear() { generation++; owner = null; lastPatient = null; mutable.value = WebWorkspaceState() }
+    var linkedQuestionnaireId: String? = null
+        private set
+    fun clear() { linkedQuestionnaireId = null; generation++; owner = null; lastPatient = null; mutable.value = WebWorkspaceState() }
     private fun identify(): String {
         val user = currentUser() ?: throw WebWorkspaceException(WebWorkspaceFailure.ReadOnly)
         if (owner != user) {
@@ -115,7 +127,7 @@ class WebWorkspaceRepository(
                 val page = webWorkspaceJson.decodeFromString<List<WebWorkspaceSummary>>(rpc("list_pending_web_workspaces", buildJsonObject { put("p_limit", 100); put("p_offset", all.size) }))
                 all.addAll(page)
             } while (page.size == 100)
-            if (owner == user && generation == revision) mutable.value = mutable.value.copy(items = all.distinctBy { it.id }, failed = false)
+            if (owner == user && generation == revision) mutable.value = mutable.value.copy(items = all.distinctBy { it.id }.filterNot { it.id in mutable.value.closedIDs }, failed = false)
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) { if (generation == revision) mutable.value = mutable.value.copy(failed = true) }
         finally { if (generation == revision) mutable.value = mutable.value.copy(loading = false) }
@@ -127,6 +139,13 @@ class WebWorkspaceRepository(
             it.payload.items.forEach(WebWorksheet::validate)
         }
     }
+    suspend fun preview(target: WebAssociationTarget): WebAssociationPreview {
+        val user = identify()
+        if (!target.valid) throw WebWorkspaceException(WebWorkspaceFailure.InvalidSelection)
+        val result = webWorkspaceJson.decodeFromString<WebAssociationPreview>(rpc("preview_web_workspace_association",webWorkspaceJson.encodeToJsonElement(target).jsonObject))
+        if (owner != user || !result.workspace_id.equals(target.p_workspace_id,true) || !result.patient_id.equals(target.p_patient_id,true) || !result.session_id.equals(target.p_existing_session_id,true)) throw WebWorkspaceException(WebWorkspaceFailure.PreviewChanged)
+        return result
+    }
     suspend fun associate(proposed: WebAssociationRequest) {
         val user = identify()
         if (!canWrite()) throw WebWorkspaceException(WebWorkspaceFailure.ReadOnly)
@@ -134,14 +153,16 @@ class WebWorkspaceRepository(
         if (id in mutable.value.closedIDs) throw WebWorkspaceException(WebWorkspaceFailure.Unavailable)
         if (id in mutable.value.busy) throw WebWorkspaceException(WebWorkspaceFailure.Uncertain)
         val request = mutable.value.requests[id] ?: proposed
+        if (request.p_preview_token.isNullOrEmpty()) { request(id,null); throw WebWorkspaceException(WebWorkspaceFailure.PreviewChanged) }
         request(id, request)
         mutable.value = mutable.value.copy(busy = mutable.value.busy + id)
         try {
-            val result = webWorkspaceJson.decodeFromString<WebAssociationResult>(rpc("associate_web_workspace", webWorkspaceJson.encodeToJsonElement(request).jsonObject))
+            val result = webWorkspaceJson.decodeFromString<WebAssociationResult>(rpc("associate_web_workspace_v2", webWorkspaceJson.encodeToJsonElement(request).jsonObject))
             if (owner != user) return
             request(id, null)
             lastPatient = result.patient_id
-            mutable.value = mutable.value.copy(items = mutable.value.items.filterNot { it.id == id })
+            linkedQuestionnaireId = result.linked_questionnaire_id
+            mutable.value = mutable.value.copy(items = mutable.value.items.filterNot { it.id == id }, closedIDs=mutable.value.closedIDs+id)
             refreshAfterSuccess()
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) {
@@ -153,10 +174,15 @@ class WebWorkspaceRepository(
     }
     fun markUnavailable(id: String) { mutable.value = mutable.value.copy(closedIDs = mutable.value.closedIDs + id, items = mutable.value.items.filterNot { it.id == id }) }
     suspend fun refreshAfterSuccess() {
-        val success = lastPatient?.let { refreshRecords?.invoke(it) } ?: true
-        mutable.value = mutable.value.copy(refreshFailed = !success)
-        refreshNotifications?.invoke()
+        var success = true
+        try { if (lastPatient?.let { refreshRecords?.invoke(it) } == false) success = false }
+        catch (e: CancellationException) { throw e }
+        catch (_: Exception) { success = false }
+        try { refreshNotifications?.invoke() }
+        catch (e: CancellationException) { throw e }
+        catch (_: Exception) { success = false }
         refresh()
+        mutable.value = mutable.value.copy(refreshFailed = !success || mutable.value.failed)
     }
     suspend fun discard(id: String) {
         val user = identify()
@@ -184,4 +210,56 @@ object WebWorkspaceDates {
         java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
     fun toPicker(millis: Long, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long =
         java.time.Instant.ofEpochMilli(millis).atZone(zone).toLocalDate().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+}
+
+@Serializable data class WebAssociationTarget(
+    val p_workspace_id: String, val p_patient_id: String, val p_existing_session_id: String? = null,
+    val p_create_session: Boolean = false, val p_session_date: String? = null, val p_session_type: String? = null,
+) {
+    val valid get() = NotificationRouting.uuidOrNull(p_workspace_id) != null && NotificationRouting.uuidOrNull(p_patient_id) != null &&
+        !(p_create_session && p_existing_session_id != null) && (p_existing_session_id == null || NotificationRouting.uuidOrNull(p_existing_session_id) != null) &&
+        if (p_create_session) p_session_date != null && !p_session_type.isNullOrBlank() else p_session_date == null && p_session_type == null
+}
+@Serializable data class WebAssociationCandidate(
+    val source: String, val id: String? = null, val item_id: String? = null,
+    val measurement_date: String? = null, val recorded_at: String? = null, val time_kind: String? = null,
+    val session_id: String? = null, val selectable: Boolean, val is_current_session_questionnaire: Boolean,
+    val gad7_answers: List<Int?>? = null, val phq9_answers: List<Int?>? = null, val interference_level: Int? = null,
+    val gad7_score: Int? = null, val phq9_score: Int? = null,
+) {
+    val key get() = "$source:${id ?: item_id}"
+    val choice: JsonObject? get() = when {
+        source == "incoming" && NotificationRouting.uuidOrNull(item_id) != null -> buildJsonObject { put("source",source); put("item_id",item_id) }
+        source == "existing" && !id.isNullOrEmpty() && id.all(Char::isDigit) -> buildJsonObject { put("source",source); put("id",id) }
+        else -> null
+    }
+    val flagsQuestionNine get() = (phq9_answers?.getOrNull(8) ?: 0) > 0
+    val hasCompleteAnswers get() = gad7_answers?.size == 7 && phq9_answers?.size == 9 && (gad7_answers.orEmpty() + phq9_answers.orEmpty()).all { it != null && it in 0..3 }
+    val questionnaire get() = CombinedMoodQuestionnaire(List(7) { gad7_answers?.getOrNull(it) }, List(9) { phq9_answers?.getOrNull(it) }, interference_level)
+}
+@Serializable data class WebAssociationPreview(
+    val workspace_id: String, val patient_id: String, val session_id: String? = null, val preview_token: String,
+    val has_notes: Boolean, val session_has_notes: Boolean, val notes_will_append: Boolean,
+    val candidate_measurement_date: String? = null, val questionnaires: List<WebAssociationCandidate>,
+    val selectable_questionnaire_count: Int, val requires_questionnaire_choice: Boolean,
+    val current_session_questionnaire_id: String? = null,
+) {
+    val eligibleQuestionnaires get() = questionnaires.filter { it.selectable && it.choice != null }
+    fun resolvedChoice(explicitChoice: JsonObject?): JsonObject? {
+        val eligible = eligibleQuestionnaires
+        if (eligible.size != selectable_questionnaire_count) return null
+        if (eligible.size == 1) return eligible[0].choice
+        return explicitChoice?.takeIf { selected -> eligible.any { it.choice == selected } }
+    }
+    fun canContinueSaving(request: WebAssociationRequest, choice: JsonObject?, appendWasVisible: Boolean) =
+        request.valid(has_notes,false) && (!notes_will_append || appendWasVisible) && (!request.p_link_questionnaire || choice == request.p_questionnaire_choice) && runCatching { prepare(request,choice) }.isSuccess
+    fun confirmed(request: WebAssociationRequest): WebAssociationRequest {
+        if (request.p_preview_token != preview_token) throw WebWorkspaceException(WebWorkspaceFailure.PreviewChanged)
+        return prepare(request,request.p_questionnaire_choice).copy(p_acknowledge_existing_notes=notes_will_append)
+    }
+    fun prepare(base: WebAssociationRequest, choice: JsonObject?): WebAssociationRequest {
+        if (!workspace_id.equals(base.p_workspace_id,true) || !patient_id.equals(base.p_patient_id,true) || !session_id.equals(base.p_existing_session_id,true) || preview_token.isEmpty()) throw WebWorkspaceException(WebWorkspaceFailure.PreviewChanged)
+        if (base.p_link_questionnaire && (if (choice == null) selectable_questionnaire_count != 1 else questionnaires.none { it.selectable && it.choice == choice })) throw WebWorkspaceException(WebWorkspaceFailure.InvalidSelection)
+        return base.copy(p_questionnaire_choice = choice.takeIf { base.p_link_questionnaire }, p_preview_token = preview_token, p_acknowledge_existing_notes = false)
+    }
 }

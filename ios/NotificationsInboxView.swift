@@ -3,6 +3,7 @@ import SwiftUI
 /// Therapist Notification Center: persisted events, newest first.
 struct NotificationsInboxView: View {
     @Environment(PatientStore.self) private var store
+    @Environment(WebWorkspaceStore.self) private var workspaces
     @Environment(NotificationStore.self) private var notifications
     @Environment(TherapistNotificationCoordinator.self) private var coordinator
     @Environment(\.scenePhase) private var scenePhase
@@ -12,7 +13,10 @@ struct NotificationsInboxView: View {
     var body: some View {
         @Bindable var coordinator = coordinator
         NavigationStack(path: $navigationPath) {
-            Group {
+            VStack(spacing: 0) {
+                if workspaces.associationSaved {
+                    Label(L10n.wwDone, systemImage: "checkmark.circle").font(.subheadline).padding(8)
+                }
                 if notifications.isLoading && notifications.notifications.isEmpty {
                     ProgressView()
                 } else if notifications.didFailLastLoad && notifications.notifications.isEmpty {
@@ -46,7 +50,7 @@ struct NotificationsInboxView: View {
             .navigationDestination(for: PendingPatientNavigation.self) { target in
                 NotificationItemDestination(target: target)
             }
-            .navigationDestination(for: WebWorkspaceRoute.self) { WebWorkspacePreview(id: $0.id) }
+            .navigationDestination(for: WebWorkspaceRoute.self) { route in WebWorkspacePreview(id: route.id).id(route.id) }
             .onChange(of: coordinator.pendingWorkspace) { _, route in
                 guard let route else { return }; openWorkspace(route)
             }

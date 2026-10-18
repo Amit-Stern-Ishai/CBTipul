@@ -158,23 +158,8 @@ struct PatientDiaryOneDetailView: View {
                 Text(L10n.hebrewDateTime(entry.createdAt))
                     .font(.headline)
                     .foregroundStyle(Theme.textBright)
-                labeledBlock(L10n.diaryOneEventTitle, entry.event)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.diaryOneThoughtTitle)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    ForEach(Array(entry.automaticThoughts.enumerated()), id: \.offset) { _, thought in
-                        Text(thought)
-                            .font(.body)
-                            .foregroundStyle(Theme.textBright)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                labeledBlock(L10n.diaryFeelingsTitle, L10n.diaryFeelingsPreview(entry.feelings))
-                labeledBlock(L10n.diaryOneBehaviourTitle, entry.behaviour)
-                if let symptoms = entry.physicalSymptoms, !symptoms.isEmpty {
-                    labeledBlock(L10n.diaryOnePhysicalSymptomsTitle, symptoms)
-                }
+                DiaryOneEntryContent(event: entry.event, automaticThoughts: entry.automaticThoughts,
+                    feelings: entry.feelings, behaviour: entry.behaviour, physicalSymptoms: entry.physicalSymptoms)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -185,7 +170,36 @@ struct PatientDiaryOneDetailView: View {
         .navigationTitle(L10n.diaryOneTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
+}
 
+/// Shared read-only content for saved entries and incoming web worksheets.
+struct DiaryOneEntryContent: View {
+    let event: String
+    let automaticThoughts: [String]
+    let feelings: [DiaryFeeling]
+    let behaviour: String
+    let physicalSymptoms: String?
+    var body: some View {
+        Group {
+            labeledBlock(L10n.diaryOneEventTitle, event)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L10n.diaryOneThoughtTitle)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(Array(automaticThoughts.enumerated()), id: \.offset) { _, thought in
+                    Text(thought)
+                        .font(.body)
+                        .foregroundStyle(Theme.textBright)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            labeledBlock(L10n.diaryFeelingsTitle, feelings.map { "\($0.name) \($0.intensity)%" }.joined(separator: " · "))
+            labeledBlock(L10n.diaryOneBehaviourTitle, behaviour)
+            if let symptoms = physicalSymptoms, !symptoms.isEmpty {
+                labeledBlock(L10n.diaryOnePhysicalSymptomsTitle, symptoms)
+            }
+        }.textSelection(.enabled)
+    }
     private func labeledBlock(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)

@@ -1,12 +1,15 @@
 import SwiftUI
 
 struct WebWorkspaceRoute: Hashable { let id: String }
-struct WebWorkspaceAssociationRoute: Hashable { let id: String }
+struct WebWorkspaceInboxRoute: Hashable {}
 
 struct WebWorkspaceInboxView: View {
     @Environment(WebWorkspaceStore.self) private var workspaces
     var body: some View {
         List {
+            Group {
+            if workspaces.associationSaved { Section { Label(L10n.wwDone, systemImage: "checkmark.circle") } }
+            if workspaces.refreshFailed { Section { Text(L10n.wwRefreshFailed); Button(L10n.retry) { Task { await workspaces.refreshAfterSuccess() } } } }
             if workspaces.isLoading && workspaces.items.isEmpty { ProgressView() }
             if workspaces.failed {
                 Section { Text(L10n.wwLoadFailed); Button(L10n.retry) { Task { await workspaces.refresh() } } }
@@ -27,9 +30,9 @@ struct WebWorkspaceInboxView: View {
                     }.font(.subheadline).padding(.vertical, 6)
                 }
             }
+            }.listRowBackground(Theme.surface).listRowSeparatorTint(Theme.borderFaint)
         }
-        .navigationTitle(L10n.wwInbox).themedScreen()
-        .navigationDestination(for: WebWorkspaceRoute.self) { WebWorkspacePreview(id: $0.id) }
+        .navigationTitle(L10n.wwInbox).webWorkspaceStyle()
         .task { await workspaces.refresh() }
         .refreshable { await workspaces.refresh() }
         .toolbar { Button(L10n.wwRefresh, systemImage: "arrow.clockwise") { Task { await workspaces.refresh() } }.disabled(workspaces.isLoading) }
@@ -50,260 +53,395 @@ enum WebWorkspaceDate {
 
 struct WebWorkspacePreview: View {
     let id: String
+    var initialPatientID: String? = nil
     @Environment(WebWorkspaceStore.self) private var workspaces
-    @Environment(PatientStore.self) private var patients
-    @State private var entitlement = EntitlementState.shared
     @State private var workspace: WebWorkspace?
-    @State private var loading = true
+    @State private var loading = false
     @State private var error: String?
-    @State private var unavailable = false
-    @State private var completed = false
     @State private var confirmDiscard = false
-    private var busy: Bool { workspaces.busyIDs.contains(id) }
+    @State private var unavailable = false
+    @Environment(\.dismiss) private var dismiss
     var body: some View {
-        List {
-            if completed {
-                Section { Label(L10n.wwDone, systemImage: "checkmark.circle")
-                    if workspaces.refreshFailed { Text(L10n.wwRefreshFailed); Button(L10n.retry) { Task { await reloadRecords() } } }
-                }
+        Group {
+            if unavailable && workspaces.requests[id] == nil {
+                ContentUnavailableView {
+                    Label(L10n.wwUnavailable, systemImage: "tray")
+                } actions: { Button(L10n.back) { dismiss() } }
+                .navigationTitle(L10n.wwPreview).navigationBarTitleDisplayMode(.inline).webWorkspaceStyle()
             } else {
-                if loading { ProgressView() }
-                if let error { Section { Text(error).foregroundStyle(Theme.error)
-                    if !unavailable { Button(L10n.retry) { Task { await load() } } }
-                } }
-                if let workspace {
-                    Section {
-                        if let label = workspace.reference_label { Text(label).font(.headline) }
-                        Text(L10n.wwStarted + WebWorkspaceDate.display(workspace.started_at))
-                        if let finished = workspace.finished_at { Text(L10n.wwFinished + WebWorkspaceDate.display(finished)) }
-                        Text(L10n.wwActivityCount(workspace.payload.items.count, notes: workspace.payload.hasNotes))
-                    }
-                    ForEach(workspace.payload.items) { item in
-                        NavigationLink { WebWorksheetPreview(item: item) } label: {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(item.title)
-                                Text(WebWorkspaceDate.display(item.completed_at)).font(.caption)
-                                if case .questionnaire(let q) = item.content {
-                                    HStack { ScoreCapsule.gad7(q.questionnaire); ScoreCapsule.phq9(q.questionnaire) }
-                                    if q.flagsQuestionNine { Text(L10n.wwQuestionNineFlag).foregroundStyle(Theme.error) }
-                                }
-                            }
-                        }
-                    }
-                    if workspace.payload.hasNotes { Section(L10n.wwNotes) { Text(workspace.payload.notes).textSelection(.enabled) } }
-                }
-                if (!unavailable && !workspaces.closedIDs.contains(id)) || workspaces.requests[id] != nil {
-                    if entitlement.access == .full {
-                        if workspace != nil {
-                            NavigationLink(L10n.wwAssociate, value: WebWorkspaceAssociationRoute(id: id)).disabled(busy)
-                        } else if workspaces.requests[id] != nil {
-                            NavigationLink(L10n.wwRetryAssociation, value: WebWorkspaceAssociationRoute(id: id)).disabled(busy)
-                        }
-                        if workspace != nil && workspaces.requests[id] == nil {
-                            Button(L10n.wwDiscard, role: .destructive) { confirmDiscard = true }.disabled(busy)
-                        }
-                    } else { Text(L10n.entitlementReadOnlyExplanation).foregroundStyle(Theme.textBody) }
-                }
-                if busy { ProgressView() }
+                WebWorkspaceAssociationView(id: id, payload: workspace?.payload, initialPatientID: initialPatientID, context: workspace,
+                    contentError: error, reloadContent: { await load() }, onSuccess: { dismiss() })
+                    .id(id)
             }
         }
-        .navigationTitle(L10n.wwPreview).navigationBarTitleDisplayMode(.inline).themedScreen()
-        .navigationDestination(for: WebWorkspaceAssociationRoute.self) { route in
-            WebWorkspaceAssociationView(id: route.id, payload: workspace?.payload) { completed = true }
+        .task { await load() }
+        .toolbar {
+            if workspace != nil && workspaces.requests[id] == nil {
+                Menu {
+                    Button(L10n.wwDiscard, role: .destructive) { confirmDiscard = true }
+                } label: { Image(systemName: "ellipsis.circle") }
+                .accessibilityLabel(L10n.wwDiscard)
+                .disabled(workspaces.busyIDs.contains(id))
+            }
         }
-        .task { if !completed { await load() } }
-        .refreshable { if !completed && !busy { await load() } }
         .confirmationDialog(L10n.wwDiscard, isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button(L10n.wwDiscard, role: .destructive) { Task {
-                do { try await workspaces.discard(id); completed = true }
-                catch { self.error = (error as? WebWorkspaceFailure ?? .uncertain).message; await workspaces.refresh() }
+                do { try await workspaces.discard(id); dismiss() }
+                catch { self.error = WebWorkspaceFailure.classify(error).message }
             } }
         } message: { Text(L10n.wwDiscardConfirm) }
     }
     private func load() async {
+        guard !loading else { return }
         loading = true; defer { loading = false }
         do { workspace = try await workspaces.load(id); error = nil; unavailable = false }
         catch {
-            let failure = error as? WebWorkspaceFailure ?? WebWorkspaceFailure.classify(error)
-            unavailable = failure == .unavailable
-            self.error = unavailable ? L10n.wwUnavailable : L10n.wwLoadFailed
-            if unavailable {
-                if workspaces.requests[id] == nil { workspaces.markUnavailable(id) }
+            if Task.isCancelled { return }
+            unavailable = WebWorkspaceFailure.classify(error) == .unavailable
+            self.error = unavailable ? L10n.wwUnavailable : L10n.wwContentLoadingFailed
+            if unavailable && workspaces.requests[id] == nil {
+                workspaces.markUnavailable(id)
                 await workspaces.refresh()
             }
         }
-    }
-    private func reloadRecords() async {
-        // Completion already happened; retry only the refresh, never transfer again.
-        await workspaces.refreshAfterSuccess()
     }
 }
 
 struct WebWorkspaceAssociationView: View {
     let id: String
     let payload: WebWorkspacePayload?
+    var initialPatientID: String? = nil
+    var initialSessionID: String? = nil
+    var initialLinkQuestionnaire = false
+    var context: WebWorkspace? = nil
+    var contentError: String? = nil
+    var reloadContent: (() async -> Void)? = nil
+    // Dependency injection for native rendering/tests; production uses PatientStore.
+    var refreshPatientsAction: (() async throws -> Void)? = nil
     let onSuccess: () -> Void
     @Environment(WebWorkspaceStore.self) private var workspaces
     @Environment(PatientStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
+    @State private var initialized = false
     @State private var patientID = ""
-    @State private var target = 0 // 0 patient-level, 1 existing session, 2 new session
     @State private var sessionID = ""
+    @State private var createSession = false
     @State private var sessionDate = Date()
     @State private var sessionType: SessionType?
     @State private var linkQuestionnaire = false
     @State private var error: String?
     @State private var loadingPatients = false
     @State private var closed = false
-    @State private var confirmation: WebAssociationRequest?
+    @State private var submitting = false
+    @State private var preview: WebAssociationPreview?
+    @State private var previewFor: WebAssociationTarget?
+    @State private var previewGeneration = 0
+    @State private var previewLoading = false
+    @State private var choice: WebQuestionnaireChoice?
+    @State private var choiceWasExplicit = false
+    @State private var inspected: WebAssociationCandidate?
+    @State private var showContent = false
     @State private var entitlement = EntitlementState.shared
     private var locked: WebAssociationRequest? { workspaces.requests[id] }
-    private var busy: Bool { workspaces.busyIDs.contains(id) }
+    private var busy: Bool { submitting || workspaces.busyIDs.contains(id) }
     private var patient: Patient? { store.patients.first { $0.id.matches(patientID) } }
-    private var needsSession: Bool { payload?.hasNotes == true || linkQuestionnaire }
-    private var conflict: Bool {
-        guard linkQuestionnaire, target == 1, let patient else { return false }
-        return store.cachedQuestionnaires(for: patient)?.contains { $0.sessionID?.matches(sessionID) == true } == true
-    }
-    private var proposed: WebAssociationRequest {
+    private var hasNotes: Bool { preview?.has_notes ?? payload?.hasNotes ?? false }
+    private var needsSession: Bool { hasNotes || linkQuestionnaire }
+    private var base: WebAssociationRequest {
         WebAssociationRequest(p_workspace_id: id, p_patient_id: patientID,
-            p_existing_session_id: needsSession && target == 1 ? sessionID : nil,
-            p_create_session: needsSession && target == 2, p_link_questionnaire: linkQuestionnaire,
-            p_session_date: needsSession && target == 2 ? WebWorkspaceDate.dateOnly(sessionDate) : nil,
-            p_session_type: needsSession && target == 2 ? sessionType?.rawValue : nil)
+            p_existing_session_id: needsSession && !createSession && !sessionID.isEmpty ? sessionID : nil,
+            p_create_session: needsSession && createSession, p_link_questionnaire: linkQuestionnaire,
+            p_session_date: needsSession && createSession ? WebWorkspaceDate.dateOnly(sessionDate) : nil,
+            p_session_type: needsSession && createSession ? sessionType?.rawValue : nil)
     }
+    private var targetReady: Bool {
+        guard payload != nil || preview != nil, patient != nil, base.target.isValid else { return false }
+        if needsSession && !createSession { return patient?.sessions.contains { $0.databaseID?.matches(sessionID) == true } == true }
+        return true
+    }
+    private var readyPreview: WebAssociationPreview? { previewFor == base.target && !previewLoading ? preview : nil }
     private var valid: Bool {
-        guard !closed, !workspaces.closedIDs.contains(id), !loadingPatients, entitlement.access == .full else { return false }
+        guard !closed, !workspaces.closedIDs.contains(id), entitlement.access == .full else { return false }
         if locked != nil { return true }
-        guard let payload, patient != nil, !conflict,
-              !needsSession || (target == 2 || (target == 1 && patient?.sessions.contains { $0.databaseID?.matches(sessionID) == true } == true)) else { return false }
-        return (try? proposed.validate(hasNotes: payload.hasNotes, hasQuestionnaire: payload.hasQuestionnaire)) != nil
+        guard targetReady, let preview = readyPreview, !linkQuestionnaire || choice != nil else { return false }
+        return (try? base.validate(hasNotes: hasNotes, hasQuestionnaire: payload?.hasQuestionnaire == true)) != nil && (try? preview.prepare(base, choice: choice)) != nil
     }
     var body: some View {
         Form {
-            if let locked { Section { Text(L10n.wwUncertain); Text(summary(locked)) } }
-            else {
+            Group {
+            if let payload {
+                Section {
+                    WebWorkspaceContext(context: context, payload: payload)
+                    Button(L10n.wwPreview) { showContent = true }.accessibilityIdentifier("workspace.associate.content")
+                }
+            }
+            if let locked {
+                Section { Text(L10n.wwUncertain); Text(destination(locked)).font(.subheadline); if locked.p_acknowledge_existing_notes { Text(L10n.wwAppendExistingNotes) } }
+            } else {
                 Section(L10n.wwPatient) {
-                    Picker(L10n.wwPatient, selection: $patientID) {
-                        Text(L10n.wwChoosePatient).tag("")
-                        ForEach(store.patients) { Text($0.displayName).tag($0.id.queryValue) }
-                    }.pickerStyle(.menu).accessibilityIdentifier("workspace.associate.patient")
-                    if loadingPatients { ProgressView() }
-                    Button(L10n.wwRefresh) { Task { await refreshPatients() } }
-                }
-                if payload?.hasQuestionnaire == true {
-                    Section { Toggle(L10n.wwLinkQuestionnaire, isOn: $linkQuestionnaire); Text(L10n.wwQuestionnaireHelp).font(.footnote) }
-                }
-                if needsSession {
-                    Section(L10n.wwSessionTarget) {
-                        if payload?.hasNotes == true { Text(L10n.wwNotesRequireSession).font(.footnote) }
-                        Picker(L10n.wwSessionTarget, selection: $target) {
-                            Text(L10n.wwChooseSession).tag(0)
-                            Text(L10n.wwExistingSession).tag(1)
-                            Text(L10n.wwNewSession).tag(2)
-                        }.pickerStyle(.menu)
-                        if target == 1 {
-                            Picker(L10n.wwExistingSession, selection: $sessionID) {
-                                Text(L10n.wwChooseSession).tag("")
-                                ForEach(patient?.sessions.filter { $0.databaseID != nil }.sorted { $0.date > $1.date } ?? []) { session in
-                                    Text(L10n.hebrewDate(session.date) + " · " + (session.type.map(L10n.label(for:)) ?? L10n.sessionTypeNone)).tag(session.databaseID!.queryValue)
-                                }
-                            }.pickerStyle(.menu)
-                            if payload?.hasNotes == true { Text(L10n.wwAppendWarning).font(.footnote) }
-                        }
-                        if target == 2 {
-                            DatePicker(L10n.sessionDateTitle, selection: $sessionDate, displayedComponents: .date)
-                            Picker(L10n.sessionTypeLabel, selection: $sessionType) {
-                                Text(L10n.wwChooseType).tag(SessionType?.none)
-                                ForEach(SessionType.allCases, id: \.self) { Text(L10n.label(for: $0)).tag(Optional.some($0)) }
-                            }.pickerStyle(.menu)
-                        }
+                    HStack {
+                        Picker(L10n.wwPatient, selection: $patientID) {
+                            Text(L10n.wwChoosePatient).tag("")
+                            ForEach(store.patients) { Text($0.displayName).tag($0.id.queryValue) }
+                        }.pickerStyle(.menu).accessibilityIdentifier("workspace.associate.patient")
+                        if loadingPatients || previewLoading && !needsSession { ProgressView().accessibilityLabel(L10n.wwPreviewLoading) }
                     }
                 }
-                Section { Text(L10n.wwDiariesPatientLevel).font(.footnote) }
-                if conflict { Text(L10n.wwConflict).foregroundStyle(Theme.error) }
+                if payload?.hasQuestionnaire == true || hasNotes && (preview?.eligibleQuestionnaires.isEmpty == false || linkQuestionnaire) {
+                    Section {
+                        Toggle(L10n.wwLinkOptional, isOn: $linkQuestionnaire)
+                        if !linkQuestionnaire { Text(L10n.wwQuestionnairePatientLevel).font(.footnote).foregroundStyle(Theme.textBody) }
+                    }
+                }
+                if needsSession { sessionSection }
+                if let p = readyPreview {
+                    if p.notes_will_append {
+                        Section {
+                            Text(L10n.wwAppendExistingNotes)
+                            DisclosureGroup(L10n.wwAnalysisHelp) { Text(L10n.wwRegenerateAnalysis).font(.footnote).foregroundStyle(Theme.textBody) }
+                        }
+                    }
+                    if linkQuestionnaire { questionnaireSection(p) }
+                }
             }
-            if let error { Section { Text(error).foregroundStyle(Theme.error) } }
+            if let contentError, locked == nil { Section { Text(contentError).foregroundStyle(Theme.error); Button(L10n.retry) { Task { await reloadContent?() } } } }
+            else if payload == nil && locked == nil { Section { ProgressView().accessibilityLabel(L10n.wwPreviewLoading) } }
+            if let error { Section { Text(error).foregroundStyle(Theme.error); if locked == nil { Button(L10n.retry) { Task { await refreshPatients(); _ = await loadPreview() } } } } }
+            }.listRowBackground(Theme.surface).listRowSeparatorTint(Theme.borderFaint)
             if !closed {
-                Button(locked == nil ? L10n.wwReview : L10n.wwRetryAssociation) { confirmation = locked ?? proposed }
-                    .disabled(!valid || busy).accessibilityIdentifier("workspace.associate.review")
+                Section {
+                    Button {
+                        guard !busy, valid else { return }
+                        let request: WebAssociationRequest
+                        if let locked { request = locked }
+                        else { guard let p = readyPreview, let prepared = try? p.prepare(base, choice: choice), let confirmed = try? p.confirmed(prepared) else { return }; request = confirmed }
+                        // The one final action acknowledges the inline append message already visible above.
+                        submitting = true; error = nil
+                        Task { await submit(request, appendWasVisible: readyPreview?.notes_will_append == true || locked?.p_acknowledge_existing_notes == true) }
+                    } label: { HStack { if busy { ProgressView().tint(Theme.textOnAccent) }; Text(busy ? L10n.wwSavingToFile : L10n.wwAssociate).frame(maxWidth: .infinity) } }
+                    .buttonStyle(.pressableProminent).disabled(!valid || busy).accessibilityIdentifier("workspace.associate.save")
+                }.listRowBackground(Color.clear)
             }
-            if busy { ProgressView() }
         }
         .disabled(busy)
-        .navigationTitle(L10n.wwAssociate).themedScreen()
-        .task { await refreshPatients() }
-        .onChange(of: patientID) { _, _ in sessionID = ""; Task { await loadQuestionnaires() } }
-        .sheet(isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } })) {
-            NavigationStack {
-                List {
-                    if let request = confirmation { Text(summary(request)) }
-                    Button(L10n.wwConfirm) {
-                        guard let request = confirmation else { return }
-                        confirmation = nil
-                        Task { await submit(request) }
-                    }.buttonStyle(.borderedProminent)
-                    Button(L10n.cancel) { confirmation = nil }
-                }.navigationTitle(L10n.wwReview).themedScreen()
-            }.appTextSize()
+        .navigationTitle(L10n.wwAssociate).navigationBarTitleDisplayMode(.inline).navigationBarBackButtonHidden(busy).webWorkspaceStyle()
+        .task {
+            guard !initialized else { return }
+            initialized = true
+            workspaces.associationSaved = false
+            if let locked { restore(locked) }
+            else { patientID = initialPatientID ?? ""; sessionID = initialSessionID ?? ""; linkQuestionnaire = initialLinkQuestionnaire }
+            await refreshPatients()
+            _ = await loadPreview()
+        }
+        .task(id: base.target) { error = nil; _ = await loadPreview() }
+        .onChange(of: payload?.hasNotes) { _, _ in Task { _ = await loadPreview() } }
+        .onChange(of: patientID) { _, _ in
+            if locked == nil {
+                choiceWasExplicit = false
+                if let patient, !createSession, !sessionID.isEmpty, !patient.sessions.contains(where: { $0.databaseID?.matches(sessionID) == true }) { sessionID = "" }
+            }
+        }
+        .onChange(of: linkQuestionnaire) { _, _ in if locked == nil { choiceWasExplicit = false; if let p = readyPreview { choice = p.resolvedChoice(nil) } } }
+        .onChange(of: locked) { _, request in if let request { restore(request) } }
+        .sheet(item: $inspected) { candidate in NavigationStack { WebAssociationCandidateAnswers(candidate: candidate) }.appTextSize() }
+        .sheet(isPresented: $showContent) { if let payload { NavigationStack { WebWorkspaceContentView(payload: payload) }.appTextSize() } }
+    }
+    private var sessionSelection: Binding<String> { Binding(get: { createSession ? "new" : sessionID }, set: { value in createSession = value == "new"; if !createSession { sessionID = value } }) }
+    private var sessionSection: some View {
+        Section(L10n.wwSessionTarget) {
+            HStack {
+                Picker(L10n.wwChooseSession, selection: sessionSelection) {
+                    Text(L10n.wwChooseSession).tag("")
+                    ForEach(patient?.sessions.filter { $0.databaseID != nil }.sorted { $0.date > $1.date } ?? []) { session in
+                        Text(L10n.hebrewDate(session.date) + " · " + (session.type.map(L10n.label(for:)) ?? L10n.sessionTypeNone)).tag(session.databaseID!.queryValue)
+                    }
+                    Text(L10n.wwNewSession).tag("new")
+                }.pickerStyle(.menu)
+                if previewLoading { ProgressView().accessibilityLabel(L10n.wwPreviewLoading) }
+            }
+            if createSession {
+                DatePicker(L10n.sessionDateTitle, selection: $sessionDate, displayedComponents: .date)
+                Picker(L10n.sessionTypeLabel, selection: $sessionType) {
+                    Text(L10n.wwChooseType).tag(SessionType?.none)
+                    ForEach(SessionType.allCases, id: \.self) { Text(L10n.label(for: $0)).tag(Optional.some($0)) }
+                }.pickerStyle(.menu)
+            }
         }
     }
-    private func summary(_ r: WebAssociationRequest) -> String {
-        let name = store.patients.first { $0.id.matches(r.p_patient_id) }?.displayName ?? L10n.unnamedPatient
-        let session = store.patients.flatMap(\.sessions).first { $0.databaseID?.matches(r.p_existing_session_id ?? "") == true }
-        let destination = r.p_create_session ? L10n.wwNewSession + ": " + (r.p_session_date ?? "") + " · " + (r.p_session_type.flatMap(SessionType.init(rawValue:)).map(L10n.label(for:)) ?? "") : session.map { L10n.wwExistingSession + ": " + L10n.hebrewDate($0.date) } ?? L10n.wwNoSession
-        var lines = [L10n.wwPatient + ": " + name, L10n.wwDiariesPatientLevel, destination]
-        if payload?.hasQuestionnaire == true || r.p_link_questionnaire { lines.append(r.p_link_questionnaire ? L10n.wwQuestionnaireToSession : L10n.wwQuestionnairePatientLevel) }
-        if payload?.hasNotes == true { lines.append(L10n.wwNotesToSession) }
-        if (payload?.hasNotes == true || payload == nil), r.p_existing_session_id != nil { lines.append(L10n.wwAppendWarning) }
-        return lines.joined(separator: "\n\n")
+    @ViewBuilder private func questionnaireSection(_ p: WebAssociationPreview) -> some View {
+        if p.eligibleQuestionnaires.count > 1 {
+            Section(L10n.wwChooseResult) {
+                Text(L10n.wwPreserveResults).font(.footnote).foregroundStyle(Theme.textBody)
+                ForEach(p.questionnaires) { candidate in
+                    WebAssociationCandidateRow(candidate: candidate, selected: choice == candidate.choice, choose: {
+                        choice = candidate.choice; choiceWasExplicit = true; error = nil
+                    }, inspect: { inspected = candidate })
+                }
+            }
+        } else if let candidate = p.eligibleQuestionnaires.first {
+            Section { WebAssociationCandidateRow(candidate: candidate, selected: true, choose: nil, inspect: { inspected = candidate }); Text(L10n.wwPreserveResults).font(.footnote).foregroundStyle(Theme.textBody) }
+        } else { Section { Text(L10n.wwNoLinkedQuestionnaire).foregroundStyle(Theme.error) } }
+    }
+    private func restore(_ request: WebAssociationRequest) {
+        patientID = request.p_patient_id
+        sessionID = request.p_existing_session_id ?? ""
+        createSession = request.p_create_session
+        linkQuestionnaire = request.p_link_questionnaire
+        sessionType = request.p_session_type.flatMap(SessionType.init(rawValue:))
+        choice = request.p_questionnaire_choice; choiceWasExplicit = choice != nil
+        if let raw = request.p_session_date {
+            let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.calendar = Calendar(identifier: .gregorian); formatter.dateFormat = "yyyy-MM-dd"
+            if let date = formatter.date(from: raw) { sessionDate = date }
+        }
+    }
+    private func destination(_ request: WebAssociationRequest) -> String {
+        let name = store.patients.first { $0.id.matches(request.p_patient_id) }?.displayName ?? L10n.unnamedPatient
+        if request.p_create_session { return name + " · " + L10n.wwNewSession + " · " + (request.p_session_date ?? "") }
+        let session = store.patients.flatMap(\.sessions).first { $0.databaseID?.matches(request.p_existing_session_id ?? "") == true }
+        return name + (session.map { " · " + L10n.hebrewDate($0.date) } ?? "")
     }
     private func refreshPatients() async {
         loadingPatients = true; defer { loadingPatients = false }
-        do { try await store.loadPatients(); await loadQuestionnaires() }
-        catch { self.error = L10n.wwLoadFailed }
+        do {
+            if let refreshPatientsAction { try await refreshPatientsAction() } else { try await store.loadPatients() }
+            if !sessionID.isEmpty && !createSession && patient?.sessions.contains(where: { $0.databaseID?.matches(sessionID) == true }) != true { sessionID = "" }
+        } catch { self.error = L10n.wwLoadFailed }
     }
-    private func loadQuestionnaires() async {
-        guard let patient else { return }
-        do { _ = try await store.loadQuestionnaires(for: patient) }
-        catch { self.error = L10n.wwLoadFailed }
+    @discardableResult private func loadPreview(rejectedRequest: WebAssociationRequest? = nil) async -> WebAssociationPreview? {
+        previewGeneration += 1; let generation = previewGeneration
+        guard locked == nil, rejectedRequest?.target.isValid == true || targetReady else { previewLoading = false; return nil }
+        let intended = rejectedRequest?.target ?? base.target
+        let explicit = choiceWasExplicit ? choice : nil
+        previewFor = intended; previewLoading = true; preview = nil
+        defer { if generation == previewGeneration { previewLoading = false } }
+        do {
+            let result = try await workspaces.preview(intended)
+            guard !Task.isCancelled, generation == previewGeneration, rejectedRequest != nil || base.target == intended else { return nil }
+            preview = result; choice = result.resolvedChoice(explicit)
+            choiceWasExplicit = result.eligibleQuestionnaires.count > 1 && choice != nil && explicit != nil
+            return result
+        } catch {
+            guard !Task.isCancelled, generation == previewGeneration else { return nil }
+            self.error = WebWorkspaceFailure.classify(error) == .uncertain ? L10n.wwLoadFailed : WebWorkspaceFailure.classify(error).message
+            return nil
+        }
     }
-    private func submit(_ request: WebAssociationRequest) async {
-        do { try await workspaces.associate(request); onSuccess(); dismiss() }
-        catch {
-            let failure = error as? WebWorkspaceFailure ?? .uncertain
+    private func submit(_ request: WebAssociationRequest, appendWasVisible: Bool) async {
+        defer { submitting = false }
+        do {
+            do { try await workspaces.associate(request) }
+            catch {
+                let failure = WebWorkspaceFailure.classify(error)
+                guard failure == .previewChanged else { throw failure }
+                guard let fresh = await loadPreview(rejectedRequest: request) else { return }
+                guard fresh.canContinueSaving(request, choice: choice, appendWasVisible: appendWasVisible) else {
+                    self.error = fresh.notes_will_append && !appendWasVisible ? L10n.wwSummaryChanged : request.p_link_questionnaire && choice != request.p_questionnaire_choice ? L10n.wwChoiceChanged : L10n.wwPreviewChanged
+                    return
+                }
+                let next = try fresh.confirmed(fresh.prepare(request, choice: choice))
+                try await workspaces.associate(next)
+            }
+            closed = true
+            onSuccess()
+        } catch {
+            let failure = WebWorkspaceFailure.classify(error)
             self.error = failure.message
             if failure == .unavailable { closed = true }
-            if failure == .patientMissing || failure == .sessionMissing || failure == .conflict { await refreshPatients() }
+            if failure == .invalidSelection || failure == .questionnaireChanged || failure == .previewChanged { _ = await loadPreview() }
+            if failure == .patientMissing || failure == .sessionMissing { await refreshPatients(); _ = await loadPreview() }
         }
+    }
+}
+
+struct WebWorkspaceContext: View {
+    let context: WebWorkspace?
+    let payload: WebWorkspacePayload
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(context?.reference_label.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } ?? L10n.wwUntitled).font(.headline)
+            if let context {
+                Text(L10n.wwStarted + WebWorkspaceDate.display(context.started_at)).font(.caption)
+                if let finished = context.finished_at { Text(L10n.wwFinished + WebWorkspaceDate.display(finished)).font(.caption) }
+            }
+            Text(L10n.wwActivityCount(payload.items.count, notes: payload.hasNotes)).font(.subheadline).foregroundStyle(Theme.textBody)
+            if payload.hasNotes {
+                Text(L10n.wwNotes).font(.subheadline.weight(.semibold))
+                Text(payload.notes).lineLimit(3).textSelection(.enabled)
+            }
+            ForEach(payload.items.prefix(3)) { item in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.title).font(.subheadline.weight(.semibold))
+                    switch item.content {
+                    case .diaryOne(let d), .diaryTwo(let d): Text(d.event).lineLimit(2)
+                    case .diaryThree(let d): Text(d.situation).lineLimit(2)
+                    case .questionnaire(let q):
+                        if let date = item.measurement_date { Text(L10n.wwMeasurementDate + date).font(.caption) }
+                        HStack { ScoreCapsule.gad7(q.questionnaire); ScoreCapsule.phq9(q.questionnaire) }
+                        if q.flagsQuestionNine { Text(L10n.wwQuestionNineFlag).font(.footnote).foregroundStyle(Theme.error) }
+                    }
+                }
+            }
+        }.accessibilityIdentifier("workspace.context")
+    }
+}
+
+struct WebWorkspaceContentView: View {
+    let payload: WebWorkspacePayload
+    var body: some View {
+        List {
+            ForEach(payload.items) { item in NavigationLink(item.title) { WebWorksheetPreview(item: item) } }.listRowBackground(Theme.surface)
+            if payload.hasNotes { Section(L10n.wwNotes) { Text(payload.notes).textSelection(.enabled) }.listRowBackground(Theme.surface) }
+        }.navigationTitle(L10n.wwPreview).navigationBarTitleDisplayMode(.inline).webWorkspaceStyle()
     }
 }
 
 struct WebWorksheetPreview: View {
     let item: WebWorksheet
     var body: some View {
-        List {
-            Section { Text(WebWorkspaceDate.display(item.completed_at)); if let date = item.measurement_date { Text(L10n.wwMeasurementDate + date) } }
-            switch item.content {
-            case .questionnaire(let q):
-                if q.flagsQuestionNine { Section { Label(L10n.wwQuestionNineFlag, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.error) } }
-                QuestionnaireSections(questionnaire: .constant(q.questionnaire), isEditable: false)
-                if let notes = q.notes, !notes.isEmpty { Section(L10n.wwNotes) { Text(notes) } }
-            case .diaryOne(let d), .diaryTwo(let d):
-                section(L10n.diaryOneEventTitle, [d.event])
-                section(L10n.diaryOneThoughtTitle, d.automatic_thoughts)
-                section(L10n.diaryTwoFeelingsTitle, d.feelings.map { "\($0.name) — \($0.intensity)%" })
-                if let behaviour = d.behaviour { section(L10n.diaryOneBehaviourTitle, [behaviour]) }
-                if let physical = d.physical_symptoms, !physical.isEmpty { section(L10n.diaryOnePhysicalSymptomsTitle, [physical]) }
-                if let errors = d.thinking_errors { section(L10n.diaryThinkingErrorsTitle, errors.map(\.title)) }
-                if let alternatives = d.alternative_thoughts { section(L10n.diaryAlternativeThoughtsTitle, alternatives) }
-            case .diaryThree(let d):
-                // Read-only content uses the same renderer, without creating a clinical record or saving it.
-                DiaryThreeEntryContent(entry: DiaryThreeEntry(id: UUID(uuidString: item.id)!, patientId: .text("preview"), therapistId: UUID(uuidString: item.id)!, createdBy: .therapist, situation: d.situation, automaticThoughts: d.automatic_thoughts, feelings: d.feelings, thinkingErrors: d.thinking_errors, alternativeThoughts: d.alternative_thoughts, createdAt: .distantPast, updatedAt: .distantPast))
+        Group {
+            if case .questionnaire(let q) = item.content {
+                List {
+                    Group {
+                        Section { metadata }
+                        if q.flagsQuestionNine { Section { Label(L10n.wwQuestionNineFlag, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.error) } }
+                        QuestionnaireSections(questionnaire: .constant(q.questionnaire), isEditable: false)
+                        if let notes = q.notes, !notes.isEmpty { Section(L10n.wwNotes) { Text(notes) } }
+                    }.listRowBackground(Theme.surface)
+                }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        metadata
+                        diaryContent
+                    }.padding(20)
+                }
             }
-        }.navigationTitle(item.title).navigationBarTitleDisplayMode(.inline).themedScreen().textSelection(.enabled)
+        }.navigationTitle(item.title).navigationBarTitleDisplayMode(.inline).webWorkspaceStyle().textSelection(.enabled)
     }
-    private func section(_ title: String, _ values: [String]) -> some View {
-        Section(title) { ForEach(Array(values.enumerated()), id: \.offset) { Text($0.element) } }
+    @ViewBuilder private var metadata: some View {
+        Text(WebWorkspaceDate.display(item.completed_at)).font(.subheadline).foregroundStyle(Theme.textBody)
+        if let date = item.measurement_date { Text(L10n.wwMeasurementDate + date).font(.subheadline) }
+    }
+    @ViewBuilder private var diaryContent: some View {
+        switch item.content {
+        case .diaryOne(let d):
+            DiaryOneEntryContent(event: d.event, automaticThoughts: d.automatic_thoughts, feelings: d.feelings,
+                behaviour: d.behaviour ?? "", physicalSymptoms: d.physical_symptoms)
+        case .diaryTwo(let d):
+            DiaryTwoEntryContent(event: d.event, automaticThoughts: d.automatic_thoughts, feelings: d.feelings,
+                thinkingErrors: d.thinking_errors ?? [], alternativeThoughts: d.alternative_thoughts ?? [])
+        case .diaryThree(let d):
+            // Preview-only value; never inserted into a patient or diary store.
+            DiaryThreeEntryContent(entry: DiaryThreeEntry(id: UUID(uuidString: item.id)!, patientId: .text("preview"), therapistId: UUID(uuidString: item.id)!, createdBy: .therapist, situation: d.situation, automaticThoughts: d.automatic_thoughts, feelings: d.feelings, thinkingErrors: d.thinking_errors, alternativeThoughts: d.alternative_thoughts, createdAt: .distantPast, updatedAt: .distantPast))
+        case .questionnaire: EmptyView()
+        }
+    }
+}
+
+/// Resolve both native controls and custom surfaces from the app's appearance setting.
+extension View {
+    func webWorkspaceStyle() -> some View {
+        self.themedScreen().patientAtmosphere(Theme.gold).appTextSize()
+            .listSectionSpacing(.compact)
     }
 }

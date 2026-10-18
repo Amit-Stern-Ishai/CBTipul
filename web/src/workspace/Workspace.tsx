@@ -1,10 +1,11 @@
-import { appAsset } from "../domain/urls";
 import { useEffect, useRef, useState } from "react";
-import { Check, CircleHelp, Clock3, FilePlus2, LogOut, Plus, RotateCw, Trash2 } from "lucide-react";
+import { Check, CircleHelp, Clock3, FilePlus2, Plus, RotateCw, Trash2 } from "lucide-react";
 import { DiaryWorksheet } from "./DiaryWorksheet";
 import mobile from "../mobile-he.json";
 import { unsaved } from "../domain/dirty";
-import { grantWorkspaceClinicalConsent } from "../data/api";
+import { ConsentBoundary } from "../ui/ConsentBoundary";
+import { consents } from "../data/consent";
+import { he } from "../he";
 import { WorkspaceEngine, type WorkspaceViewState } from "./engine";
 import { createWorksheet, finishProblems, isFormComplete, questionnaireFlags, todayLocal, updateItem, type Worksheet, type WorksheetType, type WorkspacePayload } from "./model";
 import { questionnaireScore } from "./scores";
@@ -15,7 +16,7 @@ const titles: Record<WorksheetType, string> = { questionnaire: ww.question, diar
 const dateTime = (value: string) => new Intl.DateTimeFormat("he-IL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 const message = (code: string | null) => code ? (ww.errors as Record<string, string>)[code] ?? ww.errors.network : null;
 
-export function Workspace({ account, canWrite, logout }: { account: string; canWrite: boolean; logout: () => Promise<void> }) {
+export function Workspace({ account, canWrite }: { account: string; canWrite: boolean; logout?: () => Promise<void> }) {
   const [view, setView] = useState<WorkspaceViewState>({ phase: "loading", save: "saved", envelope: null, payload: null, error: null, reminderAt: null, reminderOpen: false });
   const engineRef = useRef<WorkspaceEngine | null>(null);
   if (!engineRef.current) engineRef.current = new WorkspaceEngine(account, undefined, sessionStorage, setView);
@@ -87,19 +88,12 @@ export function Workspace({ account, canWrite, logout }: { account: string; canW
   const doDiscard = async () => { try { await engine.discard(); setDiscardOpen(false); setSelected("notes"); } catch { /* Inline error. */ } };
 
   return <div className="ww-app" dir="rtl">
-    <header className="ww-header">
-      <div className="ww-brand"><img src={appAsset("brand.png")} alt="" /><span>CBTipul <small>{ww.title}</small></span></div>
-      <div className="ww-header-actions">
-        {view.phase === "editing" && <span className={`ww-save ww-save-${view.save}`} role="status" aria-live="polite">{view.save === "saved" ? <Check size={17} /> : <RotateCw size={17} />}{view.save === "saved" ? ww.statusSaved : view.save === "saving" ? ww.statusSaving : view.save === "offline" ? ww.statusOffline : ww.statusUnsaved}</span>}
-        <a href="/" target="_blank" rel="noreferrer">{ww.publicSite}</a>
-        <button type="button" className="ww-text-button" onClick={() => void logout()}><LogOut size={16} />{ww.signOut}</button>
-      </div>
-    </header>
+
 
     {view.phase !== "editing" && view.phase !== "lost" && view.phase !== "conflict" && <main className="ww-gate">
       {view.phase === "loading" && <div className="ww-neutral"><Clock3 size={28} /><h1>{ww.loading}</h1></div>}
-      {view.phase === "start" && <div className="ww-neutral"><span className="ww-emblem"><FilePlus2 size={32} /></span><h1>{ww.title}</h1><p>{ww.startDescription}</p>{canWrite ? <button onClick={() => void engine.begin()}>{ww.start}</button> : <p className="ww-alert">{ww.readOnly}</p>}</div>}
-      {view.phase === "resume" && <div className="ww-neutral"><span className="ww-emblem"><Clock3 size={32} /></span><h1>{ww.resumeTitle}</h1><p>{ww.resumeDescription}</p>{canWrite ? <button onClick={() => void engine.begin()}>{ww.resume}</button> : <p className="ww-alert">{ww.readOnly}</p>}</div>}
+      {view.phase === "start" && <div className="ww-neutral"><span className="ww-emblem"><FilePlus2 size={32} /></span><h1>{ww.introTitle}</h1><p>{ww.introSubtitle}</p>{canWrite ? <button onClick={() => void engine.begin()}>{ww.start}</button> : <p className="ww-alert">{ww.readOnly}</p>}<WorkspaceExplanation subtitle={false} /></div>}
+      {view.phase === "resume" && <div className="ww-neutral"><span className="ww-emblem"><Clock3 size={32} /></span><h1>{ww.introTitle}</h1><h2 className="ww-resume-heading">{ww.resumeTitle}</h2><p>{ww.resumeDescription}</p>{canWrite ? <button onClick={() => void engine.begin()}>{ww.resume}</button> : <p className="ww-alert">{ww.readOnly}</p>}<WorkspaceExplanation /></div>}
       {view.phase === "locked" && <div className="ww-neutral"><span className="ww-emblem"><CircleHelp size={32} /></span><h1>{ww.lockedTitle}</h1><p>{ww.lockedDescription}</p>{canWrite && <button onClick={() => void engine.begin(true)}>{ww.takeOver}</button>}{view.payload && <RecoveryCopy payload={view.payload} />}</div>}
       {view.phase === "error" && <div className="ww-neutral"><h1>{ww.title}</h1><p className="ww-alert" role="alert">{message(view.error)}</p><button onClick={() => void engine.inspect()}>{ww.retry}</button></div>}
       {view.phase === "finish_error" && <div className="ww-neutral"><h1>{ww.finishErrorTitle}</h1><p>{ww.finishErrorDescription}</p>{view.error && <p className="ww-alert" role="alert">{message(view.error)}</p>}<div className="ww-actions"><button onClick={() => void engine.retryFinish().catch(() => {})}>{ww.retry}</button>{["lease_lost", "revision_conflict"].includes(view.error ?? "") && <button className="secondary" onClick={() => void engine.recoverFailedFinish()}>{ww.returnToDraft}</button>}</div>{view.payload && <RecoveryCopy payload={view.payload} />}</div>}
@@ -110,6 +104,8 @@ export function Workspace({ account, canWrite, logout }: { account: string; canW
     {(view.phase === "editing" || view.phase === "lost" || view.phase === "conflict") && payload && <main className="ww-layout">
       <aside className="ww-rail" aria-label="פעילויות המפגש">
         <div className="ww-rail-heading"><h2>{ww.title}</h2><p>{view.envelope ? dateTime(view.envelope.started_at) : ww.started}</p></div>
+        <details className="ww-help"><summary>{ww.howItWorks}</summary><WorkspaceExplanation /><ConsentPreferences account={account} /></details>
+        {view.phase === "editing" && <span className={`ww-save ww-save-${view.save}`} role="status" aria-live="polite">{view.save === "saved" ? <Check size={17} /> : <RotateCw size={17} />}{view.save === "saved" ? ww.statusSaved : view.save === "saving" ? ww.statusSaving : view.save === "offline" ? ww.statusOffline : ww.statusUnsaved}</span>}
         <nav className="ww-items" aria-label="תוכן המפגש">
           {payload.items.map((entry, index) => <button key={entry.id} className={`ww-item ${selected === entry.id ? "active" : ""} ${showProblems && problems.includes(entry.id) ? "needs-attention" : ""}`} onClick={() => setSelected(entry.id)} aria-current={selected === entry.id ? "page" : undefined}><span>{titles[entry.type]}{entry.type !== "questionnaire" && <small> · {payload.items.slice(0, index + 1).filter((x) => x.type === entry.type).length}</small>}</span><small>{questionnaireFlags(entry)?.question9 ? ww.safetyShort : entry.completed_at && isFormComplete(entry) ? ww.completed : ww.incomplete}</small></button>)}
           <button className={`ww-item ${selected === "notes" ? "active" : ""}`} onClick={() => setSelected("notes")} aria-current={selected === "notes" ? "page" : undefined}><span>{ww.notes}</span><small>{payload.notes.trim() ? "נכתב" : "ריק"}</small></button>
@@ -126,7 +122,7 @@ export function Workspace({ account, canWrite, logout }: { account: string; canW
         {discardOpen && view.phase === "editing" && <section ref={discardRef} tabIndex={-1} className="ww-confirm ww-confirm-danger" aria-label={ww.discardConfirm}><h2>{ww.discardConfirm}</h2><p>{ww.discardDescription}</p><div className="ww-actions"><button onClick={() => void doDiscard()}>{ww.discard}</button><button className="secondary" onClick={() => setDiscardOpen(false)}>{ww.cancel}</button></div></section>}
         {showProblems && item && problems.includes(item.id) && <p className="ww-alert" role="alert">{ww.finishProblems}</p>}
         {view.error && <p className="ww-alert" role="alert">{message(view.error)}</p>}
-        {view.phase === "editing" && view.error === "consent" && <section className="ww-confirm" aria-label={ww.consentTitle}><h2>{ww.consentTitle}</h2><p>{ww.consentDescription}</p><button onClick={() => { grantWorkspaceClinicalConsent(account); void engine.flush().catch(() => {}); }}>{ww.consentAction}</button></section>}
+        {view.phase === "editing" && ["consent","consent_lookup","consent_persist","consent_unavailable"].includes(view.error ?? "") && <ConsentBoundary account={account} type="clinical_text_processing" title={ww.consentTitle} description={ww.consentDescription} accept={ww.consentAction} decline={async () => {}}><RetryConsentedSave engine={engine} /></ConsentBoundary>}
         {item ? <div className={view.phase !== "editing" ? "ww-readonly-editor" : ""}><WorksheetEditor key={item.id} item={item} onChange={editItem} disabled={view.phase !== "editing"} />{<WorksheetSave key={`save-${item.id}`} item={item} engine={engine} phase={view.phase} feedback={worksheetFeedback[item.id] ?? { status: "idle", submitted: "" }} setFeedback={(next) => { if (mounted.current) setWorksheetFeedback((previous) => ({ ...previous, [item.id]: next })); }} />}</div> : <section className="ww-sheet"><label htmlFor="session-notes">{ww.notes}</label><p className="ww-quiet">{ww.notesHint}</p><textarea id="session-notes" rows={16} value={payload.notes} disabled={view.phase !== "editing"} onChange={(event) => edit({ ...payload, notes: event.target.value })} maxLength={50000} /></section>}
         {view.phase === "editing" && view.save === "offline" && <button className="secondary" onClick={() => void engine.flush().catch(() => {})}>{ww.retrySave}</button>}
         {showProblems && problems.includes("empty") && <p className="ww-alert" role="alert">{ww.emptyProblem}</p>}
@@ -182,4 +178,16 @@ function WorksheetSave({ item, engine, phase, feedback, setFeedback }: { item: W
     {failed && <p className="ww-tone-error" role="alert">{diary ? ww.diaryFailed : ww.formFailed}</p>}
     {feedback.status === "saved" && <p className={newer ? "ww-tone-warning" : "ww-tone-good"} role="status">{newer ? engine.state.save === "saved" ? ww.newerSaved : ww.earlierSaved : diary ? ww.diarySaved : ww.formSaved}</p>}
   </div><button aria-busy={pending} disabled={pending || !complete || phase !== "editing"} onClick={() => void save()}>{pending ? <RotateCw size={18} className="ww-spinner" /> : <Check size={18} />}{pending ? ww.savingEntry : failed ? ww.retrySave : ww.saveEntry}</button></div>;
+}
+
+function RetryConsentedSave({ engine }: { engine:WorkspaceEngine }) {
+  useEffect(()=>{void engine.flush().catch(()=>{});},[engine]);
+  return null;
+}
+function WorkspaceExplanation({ subtitle = true }: { subtitle?:boolean }) {
+  return <section className="ww-explanation" aria-label={ww.howItWorks}>{subtitle && <p>{ww.introSubtitle}</p>}<ol>{ww.introSteps.map(step=><li key={step}>{step}</li>)}</ol><p>{ww.introAssociations}</p><p className="ww-quiet">{ww.introLimits}</p></section>;
+}
+function ConsentPreferences({ account }: { account:string }) {
+  const [busy,setBusy]=useState(false),[status,setStatus]=useState("");
+  return <div className="ww-consent-preferences"><button className="ww-text-button" disabled={busy} onClick={async()=>{setBusy(true);try{await consents.decide(account,"clinical_text_processing","revoked");setStatus(he.consentRevoked);}catch{setStatus(he.consentRevokeFailed);}finally{setBusy(false);}}}>{he.consentRevoke}</button>{status && <p role="status">{status}</p>}</div>;
 }

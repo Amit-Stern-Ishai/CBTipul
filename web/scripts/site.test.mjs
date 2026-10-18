@@ -8,7 +8,7 @@ import { composeSite, webRoot, pages, redirects } from "./compose-site.mjs";
 test("compiled public pages preserve original content, invitation behavior and verification bytes", async () => {
   const out = await mkdtemp(path.join(tmpdir(), "cbtipul-site-"));
   try {
-    await composeSite(out);
+    await composeSite(out, {script:"/app/assets/public-site-fixture.js",styles:["/app/assets/chrome-fixture.css"]});
     const manifest = JSON.parse(await readFile(path.join(webRoot, "site/source-manifest.json"), "utf8"));
     for (const [name, hash] of Object.entries(manifest)) assert.equal(createHash("sha256").update(await readFile(path.join(webRoot, "site/source", name))).digest("hex"), hash);
     for (const page of pages) {
@@ -22,7 +22,7 @@ test("compiled public pages preserve original content, invitation behavior and v
       const themeUrl = html.match(/href="(\/site-assets\/theme-[a-f0-9]{12}\.css)"/)[1];
       assert.deepEqual(await readFile(path.join(out, themeUrl)), await readFile(path.join(webRoot, "site/theme.css")));
       assert.ok(!html.includes('href="/style.css"'));
-      assert.ok(html.includes('width="48" height="48"'));
+      assert.ok(html.includes('width="40" height="40"'));
     }
     for (const name of ["apple-app-site-association", "assetlinks.json"]) assert.deepEqual(await readFile(path.join(out, ".well-known", name)), await readFile(path.join(webRoot, "site/source/.well-known", name)));
     assert.ok((await readFile(path.join(out, "404.html"), "utf8")).includes("העמוד לא נמצא"));

@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextId = next?.user.id ?? null;
       if (account.current !== nextId) {
         if (account.current) { names.clear(localStorage, account.current); clearWorkspaceRecovery(account.current); }
+        for (const id of [account.current,nextId]) if(id) { localStorage.removeItem(`cbtipul.terms.${id}`); localStorage.removeItem(`cbtipul.ai.${id}`); }
         client.clear();
         account.current = nextId;
         setApiIdentity(nextId);
@@ -55,12 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     if (unsaved.active && !window.confirm(he.Auth001)) return;
     const id = account.current;
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) throw new Error("logout_failed");
+    if (account.current !== id && account.current !== null) return;
     setApiIdentity(null);
     client.clear();
     if (id) { names.clear(localStorage, id); clearWorkspaceRecovery(id); }
+    unsaved.active = false;
     setSession(null);
     account.current = null;
-    await supabase.auth.signOut({ scope: "local" });
   };
   return (
     <AuthContext.Provider value={{ session, ready, logout }}>

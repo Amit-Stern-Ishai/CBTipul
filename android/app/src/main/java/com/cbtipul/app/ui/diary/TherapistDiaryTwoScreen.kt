@@ -132,11 +132,7 @@ fun TherapistDiaryTwoScreen(
             }) {
                 if (entry != null) {
                     Text(entryDate(entry)); Text(if (entry.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Patient) stringResource(R.string.patient_submission_read_only) else source(entry), color = Theme.colors.textBody)
-                    DiaryTwoCard(stringResource(R.string.diary_one_event_title)) { Text(entry.event) }
-                    DiaryTwoCard(stringResource(R.string.diary_one_thought_title)) { entry.automaticThoughts.forEach { Text(it) } }
-                    DiaryTwoCard(stringResource(R.string.diary_two_feelings_title)) { entry.feelings.forEach { Text("${it.name} — ${it.intensity}%") } }
-                    DiaryTwoCard(stringResource(R.string.diary_thinking_errors_title)) { entry.thinkingErrors.forEach { Text(stringResource(it.title)) } }
-                    DiaryTwoCard(stringResource(R.string.diary_alternative_thoughts_title)) { entry.alternativeThoughts.forEach { Text(it) } }
+                    DiaryTwoEntryContent(entry.event, entry.automaticThoughts, entry.feelings, entry.thinkingErrors, entry.alternativeThoughts)
                 } else if (state.loading || (id == focusEntryId && !consumedFocus)) {
                     CircularProgressIndicator()
                 } else {
@@ -193,6 +189,16 @@ private fun DiaryTwoFrame(patientName: String, atmosphere: Color?, onBack: () ->
             Column(Modifier.fillMaxSize().padding(padding).editorScroll().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
         }
     }
+}
+
+/** Shared read-only clinical body; no editing or store side effects. */
+@Composable
+fun DiaryTwoEntryContent(event: String, automaticThoughts: List<String>, feelings: List<DiaryFeeling>, thinkingErrors: List<ThinkingError>, alternativeThoughts: List<String>) {
+    DiaryTwoCard(stringResource(R.string.diary_one_event_title)) { Text(event) }
+    DiaryTwoCard(stringResource(R.string.diary_one_thought_title)) { automaticThoughts.forEach { Text(it) } }
+    DiaryTwoCard(stringResource(R.string.diary_two_feelings_title)) { feelings.forEach { Text("${it.name} — ${it.intensity}%") } }
+    DiaryTwoCard(stringResource(R.string.diary_thinking_errors_title)) { thinkingErrors.forEach { Text(stringResource(it.title)) } }
+    DiaryTwoCard(stringResource(R.string.diary_alternative_thoughts_title)) { alternativeThoughts.forEach { Text(it) } }
 }
 
 @Composable

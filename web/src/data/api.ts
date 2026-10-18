@@ -1,4 +1,5 @@
 import { supabase as db } from "./client";
+import { consents, type ConsentType } from "./consent";
 import { names, therapistAllowed } from "../domain/privacy";
 import {
   chatContext,
@@ -67,6 +68,7 @@ export function setApiIdentity(id: string | null) {
   if (identity !== id) {
     identity = id;
     generation++;
+    consents.setAccount(id);
   }
 }
 async function guard(write = false) {
@@ -93,11 +95,12 @@ function scrub(text: string) {
   if (!identity) throw new ApiError("access");
   return names.redact(localStorage, identity, text);
 }
-async function clinical(text: string, checkpoint: () => void) {
+async function clinical(text: string, checkpoint: () => void, consentType: ConsentType = "ai_data_sharing") {
   checkpoint();
   if (!text.trim()) return "";
-  if (localStorage.getItem(`cbtipul.ai.${identity}`) !== "yes")
-    throw new ApiError("consent");
+  if (!identity) throw new ApiError("access");
+  await consents.require(identity, consentType);
+  checkpoint();
   const r = await fn<{ anonymizedText: string }>("anonymize-clinical-text", {
     text: scrub(text),
     therapistIdentifiers: [],
@@ -112,15 +115,11 @@ export async function workspaceClinicalAnonymizer(account: string) {
   if (identity !== account) throw new ApiError("access");
   return async (text: string) => {
     if (identity !== account) throw new ApiError("access");
-    return clinical(text, checkpoint);
+    return clinical(text, checkpoint, "clinical_text_processing");
   };
 }
 export function workspaceIdentityMatches(account: string) {
   return identity === account;
-}
-export function grantWorkspaceClinicalConsent(account: string) {
-  if (identity !== account) throw new ApiError("access");
-  localStorage.setItem(`cbtipul.ai.${account}`, "yes");
 }
 async function anonymizeValue(
   v: Clinical,
@@ -540,8 +539,9 @@ export const api = {
   },
   async prepare(id: Id) {
     const done = await guard(true);
-    if (localStorage.getItem(`cbtipul.ai.${identity}`) !== "yes")
-      throw new ApiError("consent");
+    if (!identity) throw new ApiError("access");
+    await consents.require(identity, "ai_data_sharing");
+    done();
     const b = await api.bundle(id);
     const patientContext = preparationContext(safeBundle(b, scrub));
     const latest = b.sessions.filter(

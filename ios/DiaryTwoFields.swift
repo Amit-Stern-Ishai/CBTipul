@@ -77,11 +77,8 @@ struct DiaryTwoEntryDetailView: View {
                     Text(entry.createdAt.formatted(date: .numeric, time: .shortened)).font(.subheadline)
                     Text(entry.createdBy == .patient ? L10n.patientSubmissionReadOnly : L10n.diaryEntryTherapistSource)
                         .font(.caption).foregroundStyle(.secondary)
-                    section(L10n.diaryOneEventTitle, [entry.event])
-                    section(L10n.diaryOneThoughtTitle, entry.automaticThoughts)
-                    section(L10n.diaryTwoFeelingsTitle, entry.feelings.map { "\($0.name) — \($0.intensity)%" })
-                    section(L10n.diaryThinkingErrorsTitle, entry.thinkingErrors.map(\.title))
-                    section(L10n.diaryAlternativeThoughtsTitle, entry.alternativeThoughts)
+                    DiaryTwoEntryContent(event: entry.event, automaticThoughts: entry.automaticThoughts,
+                        feelings: entry.feelings, thinkingErrors: entry.thinkingErrors, alternativeThoughts: entry.alternativeThoughts)
                 }.padding(20)
             }
         }
@@ -98,7 +95,24 @@ struct DiaryTwoEntryDetailView: View {
         }
         .onAppear { if entry == nil { dismiss() } }
     }
+}
 
+/// Shared by the patient record and the read-only web-workspace preview.
+struct DiaryTwoEntryContent: View {
+    let event: String
+    let automaticThoughts: [String]
+    let feelings: [DiaryFeeling]
+    let thinkingErrors: [ThinkingError]
+    let alternativeThoughts: [String]
+    var body: some View {
+        Group {
+            section(L10n.diaryOneEventTitle, [event])
+            section(L10n.diaryOneThoughtTitle, automaticThoughts)
+            section(L10n.diaryTwoFeelingsTitle, feelings.map { "\($0.name) — \($0.intensity)%" })
+            section(L10n.diaryThinkingErrorsTitle, thinkingErrors.map(\.title))
+            section(L10n.diaryAlternativeThoughtsTitle, alternativeThoughts)
+        }
+    }
     private func section(_ title: String, _ values: [String]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).font(.headline)

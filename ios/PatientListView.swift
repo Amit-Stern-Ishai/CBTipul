@@ -28,7 +28,7 @@ struct PatientListView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            Group {
+            VStack(spacing: 0) {
                 if isLoading && store.patients.isEmpty {
                     ProgressView(L10n.loadingPatientsLabel)
                 } else if let loadError, store.patients.isEmpty {
@@ -52,7 +52,7 @@ struct PatientListView: View {
             .accessibilityIdentifier("patients.root")
             .safeAreaInset(edge: .top, spacing: 0) {
                 if !store.isDemoMode && workspaces.associationCount > 0 {
-                    NavigationLink { WebWorkspaceInboxView() } label: {
+                    NavigationLink(value: WebWorkspaceInboxRoute()) {
                         Label(L10n.wwPendingCount(workspaces.associationCount), systemImage: "tray.full")
                             .font(.headline).frame(maxWidth: .infinity, minHeight: 44).padding(.horizontal)
                     }.background(Theme.surface).accessibilityIdentifier("workspaces.inbox")
@@ -72,6 +72,9 @@ struct PatientListView: View {
             .navigationBarTitleDisplayMode(.large)
             .task { await load(); if !store.isDemoMode { await workspaces.refresh() } }
             .refreshable { await load(); if !store.isDemoMode { await workspaces.refresh() } }
+            // Destinations outlive the pending-count banner, including the final association.
+            .navigationDestination(for: WebWorkspaceInboxRoute.self) { _ in WebWorkspaceInboxView() }
+            .navigationDestination(for: WebWorkspaceRoute.self) { route in WebWorkspacePreview(id: route.id).id(route.id) }
             .navigationDestination(for: Patient.self) { patient in
                 PatientDetailView(patient: patient)
             }

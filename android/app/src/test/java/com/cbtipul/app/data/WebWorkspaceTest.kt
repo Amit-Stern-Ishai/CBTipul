@@ -10,10 +10,10 @@ class WebWorkspaceTest {
     private val patient = "33333333-3333-3333-3333-333333333333"
     private val session = "44444444-4444-4444-4444-444444444444"
     private val fixture = """{"id": "11111111-1111-1111-1111-111111111111", "status": "pending", "started_at": "2026-10-13T13:00:00.123+03:00", "finished_at": "2026-10-13T13:45:00+03:00", "reference_label": "בדיקה מקומית", "payload": {"version": 1, "notes": "הערות לבדיקה בלבד", "items": [{"id": "22222222-2222-2222-2222-000000000001", "type": "questionnaire", "completed_at": "2026-10-13T13:30:00.123+03:00", "data": {"gad7_answers": [0, 1, 2, 3, 0, 1, 2], "phq9_answers": [0, 1, 2, 3, 0, 1, 2, 3, 1], "interference_level": 2, "notes": "הערת שאלון"}, "measurement_date": "2026-10-10"}, {"id": "22222222-2222-2222-2222-000000000002", "type": "diary_one", "completed_at": "2026-10-13T13:30:00.123+03:00", "data": {"event": "אירוע לבדיקה", "automatic_thoughts": ["מחשבה אחת", "מחשבה נוספת"], "feelings": [{"name": "עצב", "intensity": 0}], "behaviour": "התנהגות", "physical_symptoms": null}}, {"id": "22222222-2222-2222-2222-000000000003", "type": "diary_two", "completed_at": "2026-10-13T13:30:00.123+03:00", "data": {"event": "אירוע נוסף", "automatic_thoughts": ["מחשבה"], "feelings": [{"name": "דאגה", "intensity": 100}], "thinking_errors": ["mind_reading"], "alternative_thoughts": ["מחשבה חלופית"]}}, {"id": "22222222-2222-2222-2222-000000000004", "type": "diary_three", "completed_at": "2026-10-13T13:30:00.123+03:00", "data": {"situation": "מצב לבדיקה", "automatic_thoughts": [{"text": "מחשבה", "beliefBefore": 100, "beliefAfter": 0}], "feelings": [{"name": "דאגה", "intensityBefore": 100, "intensityAfter": 0}], "thinking_errors": ["fortune_telling"], "alternative_thoughts": [{"text": "מחשבה חלופית", "belief": 85}]}}]}}"""
-    private val receipt get() = """{"workspace_id":"$id","patient_id":"$patient","session_id":null,"resources":[{"item_id":"$id","type":"questionnaire","id":"9223372036854775806"}]}"""
+    private val receipt get() = """{"workspace_id":"$id","patient_id":"$patient","session_id":null,"resources":[{"item_id":"$id","type":"questionnaire","id":"9223372036854775806"}],"linked_questionnaire_id":"9223372036854775806","notes_appended":true}"""
     private fun request(notes: Boolean = false, linked: Boolean = false, create: Boolean = false) = WebAssociationRequest(id, patient,
         p_existing_session_id = if ((notes || linked) && !create) session else null, p_create_session = create, p_link_questionnaire = linked,
-        p_session_date = if (create) "2026-10-14" else null, p_session_type = if (create) "intake" else null)
+        p_session_date = if (create) "2026-10-14" else null, p_session_type = if (create) "intake" else null, p_preview_token="test-preview", p_acknowledge_existing_notes=notes)
 
     @Test fun decodesEveryWorksheetPreservingOriginalDatesAndRatings() {
         val w = webWorkspaceJson.decodeFromString<WebWorkspace>(fixture)
@@ -43,7 +43,7 @@ class WebWorkspaceTest {
             assertEquals(!create || notes || linked, request(notes, linked, create).valid(notes, true))
         }
         assertFalse(request().valid(true, true))
-        assertFalse(request(linked = true).valid(false, false))
+        assertTrue(request(linked = true).valid(false, false)) // Existing, not necessarily incoming.
         assertFalse(request(notes = true, create = true).copy(p_existing_session_id = session).valid(true, true))
         assertFalse(request(notes = true).copy(p_session_date = "2026-10-14").valid(true, true))
         val body = webWorkspaceJson.encodeToJsonElement(request(notes = true)).jsonObject
@@ -131,4 +131,27 @@ class WebWorkspaceTest {
         }, { "a" }, { null }, { _, _ -> }, { true })
         repo.refresh(); assertEquals(listOf(0, 100), offsets); assertEquals(101, repo.state.value.items.size)
     }
+    @Test fun consecutiveAssociationsCannotReappearFromStalePendingList() = runBlocking {
+        val secondID="55555555-5555-5555-5555-555555555555"
+        val rows=webWorkspaceJson.encodeToString(listOf(id,secondID).map { WebWorkspaceSummary(it,"2026-10-15T09:00:00Z","2026-10-15T10:00:00Z",null,1,true) })
+        val transfers=mutableListOf<String>()
+        val repo=WebWorkspaceRepository({name,body ->
+            if(name=="list_pending_web_workspaces") rows else {
+                val target=body.getValue("p_workspace_id").jsonPrimitive.content
+                transfers+=target
+                receipt.replace(id,target)
+            }
+        },{"a"},{null},{_,_->},{true})
+        repo.refresh();assertEquals(2,repo.state.value.items.size)
+        repo.associate(request(notes=true))
+        assertEquals(listOf(secondID),repo.state.value.items.map {it.id})
+        assertTrue(repo.state.value.busy.isEmpty() && repo.state.value.requests.isEmpty())
+        repo.associate(request(notes=true).copy(p_workspace_id=secondID,p_preview_token="second-preview"))
+        repo.refresh()
+        assertTrue(repo.state.value.items.isEmpty())
+        assertEquals(listOf(id,secondID),transfers)
+        assertEquals(setOf(id,secondID),repo.state.value.closedIDs)
+        assertTrue(repo.state.value.busy.isEmpty() && repo.state.value.requests.isEmpty())
+    }
+
 }

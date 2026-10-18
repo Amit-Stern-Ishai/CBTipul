@@ -9,7 +9,7 @@ import Supabase
     let patient = "33333333-3333-3333-3333-333333333333"
     let session = "44444444-4444-4444-4444-444444444444"
     func request(notes: Bool = false, linked: Bool = false, create: Bool = false) -> WebAssociationRequest {
-        WebAssociationRequest(p_workspace_id: id, p_patient_id: patient, p_existing_session_id: (notes || linked) && !create ? session : nil, p_create_session: create, p_link_questionnaire: linked, p_session_date: create ? "2026-10-14" : nil, p_session_type: create ? "intake" : nil)
+        WebAssociationRequest(p_workspace_id: id, p_patient_id: patient, p_existing_session_id: (notes || linked) && !create ? session : nil, p_create_session: create, p_link_questionnaire: linked, p_session_date: create ? "2026-10-14" : nil, p_session_type: create ? "intake" : nil, p_preview_token: "test-preview", p_acknowledge_existing_notes: notes)
     }
     @Test func allWorksheetFormatsPreserveTimestampsAndRatings() throws {
         let workspace = try JSONDecoder().decode(WebWorkspace.self, from: Data(Self.fixture.utf8))
@@ -32,13 +32,13 @@ import Supabase
             if create && !hasNotes && !linked { #expect(throws: WebWorkspaceFailure.self) { try r.validate(hasNotes: hasNotes, hasQuestionnaire: true) } }
             else { try r.validate(hasNotes: hasNotes, hasQuestionnaire: true) }
         } } }
-        #expect(throws: WebWorkspaceFailure.self) { try request(linked: true).validate(hasNotes: false, hasQuestionnaire: false) }
+        try request(linked: true).validate(hasNotes: false, hasQuestionnaire: false) // Existing candidates also work for notes-only workspaces.
         #expect(throws: WebWorkspaceFailure.self) { try request().validate(hasNotes: true, hasQuestionnaire: true) }
         let r = request(notes: true)
         let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(r)) as! [String: Any]
         #expect(json["p_patient_id"] as? String == patient)
         #expect(json["p_link_questionnaire"] as? Bool == false)
-        #expect(json["p_session_date"] == nil && json["p_session_type"] == nil)
+        #expect(json["p_session_date"] is NSNull && json["p_session_type"] is NSNull)
         #expect(!json.keys.contains { $0.contains("name") })
     }
     @Test func bigintResourceIdentifiersRemainStrings() throws {
@@ -46,7 +46,7 @@ import Supabase
         #expect(result.resources[0].id == "9223372036854775806")
     }
     var receipt: String { """
-    {"workspace_id":"\(id)","patient_id":"\(patient)","session_id":null,"resources":[{"item_id":"\(id)","type":"questionnaire","id":"9223372036854775806"}]}
+    {"workspace_id":"\(id)","patient_id":"\(patient)","session_id":null,"resources":[{"item_id":"\(id)","type":"questionnaire","id":"9223372036854775806"}],"linked_questionnaire_id":"9223372036854775806","notes_appended":true}
     """ }
     @Test func lostResponsePersistsExactRequestAcrossStoreRecreation() async throws {
         let suite = "WebWorkspaceTests.\(UUID())"; let defaults = UserDefaults(suiteName: suite)!
@@ -117,4 +117,31 @@ import Supabase
         #expect(coordinator.pendingWorkspace == nil)
         coordinator.resetOnLogout()
     }
+    @Test func consecutiveAssociationsCannotReappearFromStalePendingList() async throws {
+        let secondID = "55555555-5555-5555-5555-555555555555"
+        let suite = "WebWorkspaceTests.\(UUID())"; let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let rows = [id, secondID].map { ["id": $0, "started_at": "2026-10-15T09:00:00Z", "finished_at": "2026-10-15T10:00:00Z", "item_count": 1, "has_notes": true] as [String: Any] }
+        let stale = try JSONSerialization.data(withJSONObject: rows)
+        var transfers: [String] = []
+        let store = WebWorkspaceStore(defaults: defaults, currentUser: { "therapist" }, canWrite: { true }, rpc: { name, body in
+            if name == "list_pending_web_workspaces" { return stale }
+            let request = try JSONDecoder().decode(WebAssociationRequest.self, from: body)
+            transfers.append(request.p_workspace_id)
+            return Data(receipt.replacingOccurrences(of: id, with: request.p_workspace_id).utf8)
+        })
+        await store.refresh()
+        #expect(store.associationCount == 2)
+        try await store.associate(request(notes: true))
+        #expect(store.items.map(\.id) == [secondID])
+        #expect(store.busyIDs.isEmpty && store.requests.isEmpty)
+        let second = WebAssociationRequest(p_workspace_id: secondID, p_patient_id: patient, p_existing_session_id: session, p_create_session: false, p_link_questionnaire: false, p_session_date: nil, p_session_type: nil, p_preview_token: "second-preview", p_acknowledge_existing_notes: true)
+        try await store.associate(second)
+        await store.refresh()
+        #expect(store.associationCount == 0 && store.associationSaved)
+        #expect(transfers == [id, secondID])
+        #expect(store.closedIDs == Set([id, secondID]))
+        #expect(store.busyIDs.isEmpty && store.requests.isEmpty)
+    }
+
 }
