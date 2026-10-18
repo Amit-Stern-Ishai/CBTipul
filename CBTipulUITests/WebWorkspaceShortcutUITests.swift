@@ -15,6 +15,13 @@ final class WebWorkspaceShortcutUITests: XCTestCase {
         XCTAssertTrue(patient.waitForExistence(timeout: 5)); patient.tap()
         let shortcut = app.buttons["patient.newSession"]
         XCTAssertTrue(shortcut.waitForExistence(timeout: 5))
+        let goal = app.descendants(matching: .any)["patient.treatmentGoal"].firstMatch
+        XCTAssertTrue(goal.exists)
+        XCTAssertLessThan(goal.frame.minY, shortcut.frame.minY)
+        let patientShot = XCTAttachment(screenshot: app.screenshot())
+        patientShot.name = "patient-screen-treatment-goal-and-actions"
+        patientShot.lifetime = .keepAlways
+        add(patientShot)
         for _ in 0..<3 { if shortcut.isHittable { break }; app.swipeUp() }
         shortcut.tap()
         XCTAssertTrue(app.buttons["session.save"].waitForExistence(timeout: 5))

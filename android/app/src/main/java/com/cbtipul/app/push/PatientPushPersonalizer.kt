@@ -60,6 +60,7 @@ object PatientPushPersonalizer {
         resourceType: String? = null,
         resourceId: String? = null,
         notificationId: String? = null,
+        referenceLabel: String? = null,
         nameForPatientId: (String) -> String?,
     ): Result {
         val resolvedType = type?.trim()?.takeIf { it.isNotEmpty() }
@@ -80,6 +81,10 @@ object PatientPushPersonalizer {
             notificationId = notificationId?.trim()?.takeIf { it.isNotEmpty() },
         )
         return when (resolvedType) {
+            "web_workspace_ready" -> meta.copy(
+                title = referenceLabel?.trim()?.takeIf { it.isNotEmpty() } ?: title,
+                body = fallbackBody.orEmpty(),
+            )
             TYPE_PATIENT_CONNECTED -> meta.copy(
                 body = namedOrFallback(name, PatientPushCopy::patientConnectedBody, fallbackBody, PatientPushCopy.GENERIC_PATIENT_CONNECTED),
             )

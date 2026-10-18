@@ -3,6 +3,24 @@ import XCTest
 @testable import CBTipul
 
 final class PatientPushPersonalizerTests: XCTestCase {
+    func testWorkspaceTagAppearsWithoutChangingRoutingOrBody() {
+        let content = UNMutableNotificationContent()
+        content.body = "ממתין לשיוך"
+        content.userInfo = ["type": "web_workspace_ready", "reference_label": "  מפגש ערב  ", "resourceId": "workspace-id"]
+        PatientPushPersonalizer.apply(to: content, nameForPatientId: { _ in nil })
+        XCTAssertEqual(content.subtitle, "מפגש ערב")
+        XCTAssertEqual(content.body, "ממתין לשיוך")
+        XCTAssertEqual(content.userInfo["resourceId"] as? String, "workspace-id")
+    }
+
+    func testBlankWorkspaceTagPreservesFallback() {
+        let content = UNMutableNotificationContent()
+        content.subtitle = "fallback"
+        content.userInfo = ["type": "web_workspace_ready", "reference_label": "  "]
+        PatientPushPersonalizer.apply(to: content, nameForPatientId: { _ in nil })
+        XCTAssertEqual(content.subtitle, "fallback")
+    }
+
     private let names: [String: String] = ["known-id": "דני"]
 
     func testUnknownTypeLeavesBodyUnchanged() {

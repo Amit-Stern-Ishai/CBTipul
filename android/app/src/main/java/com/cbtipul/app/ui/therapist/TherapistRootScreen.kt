@@ -248,7 +248,7 @@ fun TherapistRootScreen(
                         navController = inboxNav,
                         rootContent = {
                             NotificationsInboxScreen(
-                                repository = app.notifications, patients = patients, unnamed = unnamed,
+                                repository = app.notifications, workspaces = app.webWorkspaces, patients = patients, unnamed = unnamed,
                                 onOpen = { item ->
                                     val destination = NotificationRouting.destination(NotificationPayload.from(item))
                                     app.applicationScope.launch { app.notifications.markRead(item) }

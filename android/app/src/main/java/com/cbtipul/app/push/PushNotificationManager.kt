@@ -239,6 +239,7 @@ class PushNotificationManager(
             resourceType = payload?.resourceType,
             resourceId = payload?.resourceId,
             notificationId = payload?.notificationId,
+            referenceLabel = message.data["reference_label"] ?: message.data["referenceLabel"],
             nameForPatientId = ::localNameForPatientId,
         )
         onPushReceived()

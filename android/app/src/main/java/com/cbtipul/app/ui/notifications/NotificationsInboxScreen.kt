@@ -80,10 +80,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun NotificationsInboxScreen(
     repository: NotificationRepository,
+    workspaces: com.cbtipul.app.data.WebWorkspaceRepository,
     patients: List<Patient>,
     unnamed: String,
     onOpen: (AppNotification) -> Unit,
 ) {
+    val workspaceState by workspaces.state.collectAsStateWithLifecycle()
     val colors = Theme.colors
     val listState = rememberLazyListState()
     TabReselectionEffect { listState.animateScrollToItem(0) }
@@ -96,6 +98,7 @@ fun NotificationsInboxScreen(
 
     suspend fun loadAndMarkSeen(showLoading: Boolean = false) {
         repository.refresh(showLoading = showLoading)
+        if (!repository.isDemoInbox) workspaces.refresh()
         if (!repository.failed.value) repository.markInboxSeen()
     }
 
@@ -152,13 +155,13 @@ fun NotificationsInboxScreen(
                     if (unread.isNotEmpty()) {
                         item(key = "unread-header") { InboxSectionHeader(stringResource(R.string.notifications_unread_section), unread.size, true) }
                         items(unread, key = { it.id }) { item ->
-                            InboxRow(item, resolveName(item.patientId, patients, unnamed), { onOpen(item) })
+                            InboxRow(item, resolveName(item.patientId, patients, unnamed), workspaceState.items.firstOrNull { it.id == item.resourceId }?.reference_label, { onOpen(item) })
                         }
                     }
                     if (read.isNotEmpty()) {
                         item(key = "read-header") { InboxSectionHeader(stringResource(R.string.notifications_read_section), read.size, false) }
                         items(read, key = { it.id }) { item ->
-                            InboxRow(item, resolveName(item.patientId, patients, unnamed), { onOpen(item) })
+                            InboxRow(item, resolveName(item.patientId, patients, unnamed), workspaceState.items.firstOrNull { it.id == item.resourceId }?.reference_label, { onOpen(item) })
                         }
                     }
                 }
@@ -179,7 +182,7 @@ private fun InboxSectionHeader(title: String, count: Int, highlighted: Boolean) 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> Unit) {
+private fun InboxRow(item: AppNotification, patientName: String, workspaceTag: String?, onClick: () -> Unit) {
     val colors = Theme.colors
     val kind = NotificationRouting.inboxCopy(item.type)
     val eventColor = when (kind) {
@@ -208,7 +211,7 @@ private fun InboxRow(item: AppNotification, patientName: String, onClick: () -> 
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(if (item.type == com.cbtipul.app.data.AppNotificationTypes.WEB_WORKSPACE_READY) stringResource(R.string.ww_untitled) else patientName, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(if (item.type == com.cbtipul.app.data.AppNotificationTypes.WEB_WORKSPACE_READY) workspaceTag?.trim()?.takeIf { it.isNotEmpty() } ?: stringResource(R.string.ww_untitled) else patientName, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     if (item.isUnread) {
                         val unreadLabel = stringResource(R.string.notification_unread_accessibility)
                         Box(Modifier.size(7.dp).background(colors.gold, CircleShape).semantics { contentDescription = unreadLabel })

@@ -4,6 +4,18 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PatientPushPersonalizerTest {
+    @Test fun workspaceTagPreservesBodyAndRouting() {
+        val result = PatientPushPersonalizer.personalize("web_workspace_ready", null, "CBTipul", "ממתין לשיוך",
+            resourceId = "workspace-id", referenceLabel = "  מפגש ערב  ", nameForPatientId = { null })
+        assertEquals("מפגש ערב", result.title)
+        assertEquals("ממתין לשיוך", result.body)
+        assertEquals("workspace-id", result.resourceId)
+    }
+    @Test fun blankWorkspaceTagPreservesFallback() {
+        val result = PatientPushPersonalizer.personalize("web_workspace_ready", null, "CBTipul", "body",
+            referenceLabel = "  ", nameForPatientId = { null })
+        assertEquals("CBTipul", result.title)
+    }
     private val connectedGeneric = "המטופל/ת התחבר/ה בהצלחה ל-CBTipul"
     private val questionnaireGeneric = "מטופל/ת מילא/ה שאלון חדש"
     private val names = mapOf("known-id" to "דני")

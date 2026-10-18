@@ -26,6 +26,7 @@ enum PatientPushCopy {
 /// Unknown types and missing names leave the payload unchanged.
 enum PatientPushPersonalizer: Sendable {
     enum NotificationType: String {
+        case webWorkspaceReady = "web_workspace_ready"
         case patientConnected = "patient_connected"
         case questionnaireCompleted = "questionnaire_completed"
         case diaryTwoEntryAdded = "diary_2_entry_added"
@@ -45,6 +46,10 @@ enum PatientPushPersonalizer: Sendable {
         let typeRaw = stringValue(content.userInfo["type"])
         guard let typeRaw, let type = NotificationType(rawValue: typeRaw) else { return }
         switch type {
+        case .webWorkspaceReady:
+            if let tag = stringValue(content.userInfo["reference_label"] ?? content.userInfo["referenceLabel"]) {
+                content.subtitle = tag
+            }
         case .patientConnected:
             applyNamedBody(
                 to: content,

@@ -6,6 +6,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Share
@@ -74,7 +75,7 @@ internal fun rememberPatientConnection(patient: Patient?, repository: PatientAss
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PatientConnectionActions(patient: Patient, name: String, repository: PatientAssignmentRepository?, isDemo: Boolean,
-    busy: Boolean, onInvite: () -> Unit, onMessage: () -> Unit) {
+    busy: Boolean, onInvite: () -> Unit, onMessage: () -> Unit, onNewSession: () -> Unit) {
     val colors = Theme.colors
     val (connection, refresh) = rememberPatientConnection(patient, repository, isDemo)
     var sheet by remember { mutableStateOf<String?>(null) }
@@ -100,9 +101,15 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
         ConnectionUi.NotConnected -> R.string.patient_not_connected_status
     }
     GroupedListCard(accent = PatientAvatarColor.background(patient.id)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onNewSession, enabled = !busy && !sending,
+                modifier = Modifier.fillMaxWidth().entitlementCreateControl(),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
+                IconLabel(stringResource(R.string.ww_new_session), Icons.Outlined.Add)
+            }
+            HorizontalDivider(color = colors.borderFaint)
             Row(
-                Modifier.fillMaxWidth().height(48.dp * textScale),
+                Modifier.fillMaxWidth().heightIn(min = 48.dp * textScale),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -115,7 +122,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                         modifier = Modifier.size(48.dp).entitlementCreateControl()) {
                         Icon(Icons.Outlined.PersonAdd, contentDescription = stringResource(R.string.patient_reinvite_action), tint = colors.gold)
                     }
-                } else Spacer(Modifier.width(48.dp))
+                }
             }
             val checking = connection == ConnectionUi.Checking
             val actionLabel = when (connection) {
@@ -124,8 +131,8 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                 else -> R.string.patient_invite_to_app_action
             }
             // Keep the action slot present before the first result, without a misleading action.
-            Box(Modifier.fillMaxWidth().height(48.dp * textScale)) {
-                if (!checking) Button(
+            Box(Modifier.fillMaxWidth().heightIn(min = 48.dp * textScale)) {
+                if (!checking) OutlinedButton(
                     onClick = {
                         when (connection) {
                             ConnectionUi.Connected -> sheet = "send"
@@ -134,10 +141,10 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                         }
                     },
                     enabled = !busy && !sending,
-                    modifier = Modifier.fillMaxSize().then(if (connection == ConnectionUi.Failed) Modifier else Modifier.entitlementCreateControl()),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp * textScale).then(if (connection == ConnectionUi.Failed) Modifier else Modifier.entitlementCreateControl()),
                     shape = RoundedCornerShape(10.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.gold),
                 ) {
                     Icon(when (connection) {
                         ConnectionUi.Connected -> Icons.AutoMirrored.Outlined.Send

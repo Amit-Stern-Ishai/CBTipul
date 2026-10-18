@@ -24,7 +24,8 @@ struct NotificationsInboxView: View {
                         Label(L10n.notificationsLoadFailedTitle, systemImage: "exclamationmark.triangle")
                     } actions: {
                         Button(L10n.retry) {
-                            Task { await notifications.refresh() }
+                            Task { await notifications.refresh()
+                await workspaces.refresh() }
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -76,14 +77,17 @@ struct NotificationsInboxView: View {
                 #endif
                 if store.isDemoMode { return }
                 await notifications.refresh()
+                await workspaces.refresh()
             }
             .refreshable {
                 if store.isDemoMode { return }
                 await notifications.refresh()
+                await workspaces.refresh()
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, !store.isDemoMode else { return }
-                Task { await notifications.refresh() }
+                Task { await notifications.refresh()
+                await workspaces.refresh() }
             }
         }
     }
@@ -113,7 +117,8 @@ struct NotificationsInboxView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(L10n.notificationsRefreshFailed).font(.subheadline)
-                        Button(L10n.retry) { Task { await notifications.refresh() } }
+                        Button(L10n.retry) { Task { await notifications.refresh()
+                await workspaces.refresh() } }
                     }
                     .listRowBackground(Theme.surface)
                 }
@@ -146,6 +151,7 @@ struct NotificationsInboxView: View {
             } label: {
                 NotificationInboxRow(
                     item: item,
+                    workspaceTag: workspaces.items.first(where: { $0.id == item.resourceId })?.reference_label,
                     patientName: NotificationPatientName.resolve(
                         patientId: item.patientId,
                         patients: store.patients
@@ -180,6 +186,7 @@ struct NotificationsInboxView: View {
 
 private struct NotificationInboxRow: View {
     let item: AppNotification
+    let workspaceTag: String?
     let patientName: String
 
     var body: some View {
@@ -192,7 +199,7 @@ private struct NotificationInboxRow: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 7) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(item.type == .webWorkspaceReady ? L10n.wwUntitled : patientName)
+                    Text(item.type == .webWorkspaceReady ? (workspaceTag.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } ?? L10n.wwUntitled) : patientName)
                         .font(.headline)
                         .foregroundStyle(Theme.textBright)
                         .frame(maxWidth: .infinity, alignment: .leading)
