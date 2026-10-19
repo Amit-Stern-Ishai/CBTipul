@@ -19,7 +19,8 @@ struct AccountActionNotices: View {
         }
         .frame(maxWidth: .infinity)
         .padding(auth.accountActions.registrationWarningUserID == nil ? 0 : 12)
-        .background(Theme.surface)
+        // An empty notice must not paint over the current screen’s status-bar backdrop.
+        .background(Theme.surface, ignoresSafeAreaEdges: [])
         .sheet(isPresented: $showingRetry) {
             NavigationStack {
                 VStack(spacing: 20) {

@@ -45,6 +45,14 @@ enum PatientAvatarColor {
         Color(uiColor: UIColor(hex: palette[paletteIndex(for: id)]))
     }
 
+    /// A saturated, dark version of the assigned hue for readable white header text.
+    static func headerBackground(for id: DatabaseID) -> Color {
+        let source = UIColor(hex: palette[paletteIndex(for: id)])
+        var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+        source.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        return Color(uiColor: UIColor(hue: hue, saturation: max(saturation, 0.72), brightness: 0.34, alpha: 1))
+    }
+
     /// Black or white initials, whichever contrasts better with the
     /// patient's background color (WCAG relative luminance).
     static func foreground(for id: DatabaseID) -> Color {
