@@ -11,11 +11,19 @@ struct PatientDetailView: View {
     @Environment(TherapistProfileService.self) private var therapistProfiles
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    private enum RecordRoute: String, Identifiable {
+        case sessions, graphs, diaries, questionnaires
+        var id: String { rawValue }
+    }
+    @ScaledMetric(relativeTo: .title2) private var patientNameSize = 24.0
+    @State private var headerBottom: CGFloat = 340
+    @State private var recordRoute: RecordRoute?
+    @State private var journeyRoute: PatientJourneyRoute?
     @State private var newSession: Session?
     @State private var isSaving = false
     @State private var isShowingNotes = false
-    @State private var areDiariesExpanded = false
     @State private var isShowingSendOptions = false
     @State private var changingPatientAccess = false
     @State private var isShowingConnectionInfo = false
@@ -32,6 +40,7 @@ struct PatientDetailView: View {
     @State private var initialNotes: String?
     @State private var isEditingGoal = false
     @State private var goalDraft = ""
+    @State private var isGoalExpanded = false
     @State private var isEditingName = false
     @State private var firstNameDraft = ""
     @State private var lastNameDraft = ""
@@ -128,261 +137,97 @@ struct PatientDetailView: View {
         isTranscribing || isAnonymizingTranscription
     }
 
-    var body: some View {
-        List {
-            Section {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .top, spacing: 8) {
-                        Text(patient.displayName)
-                            .font(.title2.bold())
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Button {
-                            startEditingName()
-                        } label: {
-                            Image(systemName: "pencil")
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .accessibilityLabel(L10n.editPatientDetailsAction)
-                        .buttonStyle(.borderless)
-                    }
-                    .frame(maxWidth: .infinity)
-                    Menu {
-                        Picker(L10n.statusLabel, selection: Binding(
-                            get: { patient.status },
-                            set: { savePatientStatus($0) }
-                        )) {
-                            ForEach(PatientStatus.allCases) { status in
-                                Text(L10n.patientStatus(status)).tag(status)
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            StatusBadge(status: patient.status)
-                            Image(systemName: "chevron.down")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Theme.textBody)
-                        }
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.borderless)
-                    .entitlementCreateControl()
-                    .disabled(isSaving)
-                    .accessibilityLabel(L10n.statusLabel)
-                    .accessibilityValue(L10n.patientStatus(patient.status))
-                    .accessibilityIdentifier("patient.status")
+    private var patientScreenContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 6) {
+                    patientIdentity
+                    goalOverview
+                    PatientJourneySection(patient: patient, inHeader: true) { journeyRoute = PatientJourneyRoute(groupID: $0) }
                 }
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("patient.header")
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
-
-            Section {
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.treatmentGoalSection)
-                            .font(.caption).foregroundStyle(Theme.textBody)
-                        Text(treatmentGoal.wrappedValue.isEmpty
-                             ? L10n.noTreatmentGoalPlaceholder
-                             : treatmentGoal.wrappedValue)
-                            .font(.body)
-                            .foregroundStyle(treatmentGoal.wrappedValue.isEmpty ? Theme.textBody : Theme.textBright)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Button {
-                        guard EntitlementState.shared.allowMutation() else { return }
-                        goalDraft = treatmentGoal.wrappedValue
-                        isEditingGoal = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel(L10n.editTreatmentGoalAction)
-                    .buttonStyle(.borderless)
-                }
-                .frame(maxWidth: .infinity)
-                .accessibilityIdentifier("patient.treatmentGoal")
-                .listRowBackground(Theme.surface)
-            }
-
-            Section {
-                Button {
-                    if EntitlementState.shared.allowMutation() { newSession = Session() }
-                } label: {
-                    Label(L10n.wwNewSession, systemImage: "plus")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 24)
-                }
-                .buttonStyle(.pressableProminent)
-                .entitlementCreateControl()
-                .accessibilityIdentifier("patient.newSession")
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-            }
-
-            Section {
+                .padding(.horizontal, 16).padding(.bottom, 8)
+                .padding(.horizontal, -12)
+                .onGeometryChange(for: CGFloat.self) { geometry in
+                    geometry.frame(in: .global).maxY
+                } action: { headerBottom = $0 }
                 connectionCard
-                    .listRowBackground(Theme.surface)
-            }
-
-            PatientRecentActivityView(patient: patient)
-
-            Section(L10n.patientSessionWorkspaceTitle) {
-                NavigationLink {
-                    PatientSessionsView(patient: patient)
-                } label: {
-                    workspaceRow("calendar", title: L10n.sessionsTitle, detail: sessionSummary)
-                        .tutorialPulse(
-                            gettingStartedRouter.shouldPulse(.sessionsEntry)
-                                && patient.id == gettingStartedRouter.progress.focusPatientID
-                        )
-                }
-                .accessibilityIdentifier("patient.sessions")
-                .listRowBackground(groupBorderedRow(.first))
-
-                Button {
-                    errorMessage = nil
-                    isShowingNotes = true
-                } label: {
-                    workspaceRow("note.text", title: L10n.patientNotesTitle,
-                                 detail: patient.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                    ? L10n.patientNotesDescription : patient.notes)
+                    .padding(.horizontal, 10)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.borderDefault, lineWidth: 1) }
+                PatientRecentActivityView(patient: patient)
+                sessionActions
+                VStack(alignment: .leading, spacing: 4) {
+                sectionHeading(L10n.patientRecordsTitle)
+                recordActions
+                NavigationLink { PatientAIView(patient: patient) } label: {
+                    recordLabel("sparkles", L10n.patientAICompact, emphasized: true)
+                        .accessibilityLabel(L10n.aiChatNavigationTitle)
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("patient.notes")
-                .listRowBackground(groupBorderedRow(.last))
-            }
-
-            Section(L10n.patientRecordsTitle) {
-                DisclosureGroup(isExpanded: $areDiariesExpanded) {
-                    NavigationLink {
-                        PatientDiaryOneView(patient: patient)
-                    } label: {
-                        workspaceRow("book.closed", title: L10n.diaryOneTitle, detail: L10n.patientDiaryOnePurpose)
-                    }
-                    .accessibilityIdentifier("patient.diaryOne")
-                    NavigationLink {
-                        PatientDiaryTwoView(patient: patient)
-                    } label: {
-                        workspaceRow("book.closed", title: L10n.diaryTwoTitle, detail: L10n.patientDiaryTwoPurpose)
-                    }
-                    .accessibilityIdentifier("patient.diaryTwo")
-                    NavigationLink { PatientDiaryThreeView(patient: patient) } label: {
-                        workspaceRow("book.closed", title: L10n.diaryThreeTitle, detail: L10n.patientDiaryThreePurposeTitle)
-                    }
-                    .accessibilityIdentifier("patient.diaryThree")
-                } label: {
-                    iconChip("books.vertical", title: L10n.patientDiariesTitle)
-                        .foregroundStyle(Theme.textBright)
-                        .padding(.vertical, 4)
+                .accessibilityIdentifier("patient.aiChat")
+                let layout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+                layout {
+                    Button { errorMessage = nil; isShowingNotes = true } label: {
+                        recordLabel("note.text", L10n.patientNotesCompact).accessibilityLabel(L10n.patientNotesTitle)
+                    }.accessibilityIdentifier("patient.notes")
+                    NavigationLink { TherapistPatientMessagesView(patient: patient) } label: {
+                        recordLabel("envelope", L10n.messagesTitle)
+                    }.accessibilityIdentifier("patient.messages")
                 }
-                .accessibilityIdentifier("patient.diaries")
-                .listRowBackground(groupBorderedRow(.first))
-
-                NavigationLink {
-                    PatientQuestionnairesView(patient: patient)
-                } label: {
-                    workspaceRow("list.clipboard", title: L10n.questionnaireHistoryTitle,
-                                 detail: L10n.patientQuestionnairesDescription)
+                .buttonStyle(.plain)
                 }
-                .accessibilityIdentifier("patient.questionnaireHistory")
-                .listRowBackground(groupBorderedRow(.middle))
-
-                NavigationLink {
-                    PatientQuestionnairesView(patient: patient, startsOnGraphs: true)
-                } label: {
-                    workspaceRow("chart.xyaxis.line", title: L10n.graphsAndTrendsTitle,
-                                 detail: L10n.patientGraphsDescription)
-                }
-                .accessibilityIdentifier("patient.questionnaireGraphs")
-                .listRowBackground(groupBorderedRow(.middle))
-
-                NavigationLink {
-                    TherapistPatientMessagesView(patient: patient)
-                } label: {
-                    workspaceRow("envelope", title: L10n.messagesTitle,
-                                 detail: L10n.patientMessagesDescription)
-                }
-                .listRowBackground(groupBorderedRow(.last))
-
-            }
-
-            Section(L10n.patientAssistanceSectionTitle) {
-                Button {
-                    requestPrepareNextSession()
-                } label: {
-                    HStack {
-                        iconChip("wand.and.stars", title: L10n.prepareNextSessionAction)
-                        if isPreparing {
-                            Spacer()
-                            ProgressView()
-                        }
-                    }
-                }.entitlementCreateControl()
-                .disabled(isPreparing)
-                .listRowBackground(groupBorderedRow(.first))
-
+                .padding(8)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.borderFaint, lineWidth: 1) }
                 if let savedPreparation {
                     Button {
-                        preparationResult = NextSessionPreparationResult(
-                            response: savedPreparation.response,
-                            isOutdated: isSavedPreparationOutdated
-                        )
+                        preparationResult = NextSessionPreparationResult(response: savedPreparation.response,
+                                                                          isOutdated: isSavedPreparationOutdated)
                     } label: {
-                        HStack {
-                            iconChip("doc.text.magnifyingglass", title: L10n.lastPreparationAction)
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text(L10n.hebrewDate(savedPreparation.generatedAt))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                if isSavedPreparationOutdated {
-                                    Text(L10n.outdatedBadge)
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(Theme.warning)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Capsule().fill(Theme.warning.opacity(0.12)))
-                                }
-                            }
+                        VStack(alignment: .leading, spacing: 4) {
+                            recordLabel("doc.text.magnifyingglass", L10n.lastPreparationAction)
+                            Text(L10n.hebrewDate(savedPreparation.generatedAt)).font(.caption)
+                            if isSavedPreparationOutdated { Text(L10n.outdatedBadge).font(.caption).foregroundStyle(Theme.warning) }
                         }
-                    }
-                    .listRowBackground(groupBorderedRow(.middle))
+                    }.buttonStyle(.plain)
                 }
-                NavigationLink {
-                    PatientAIView(patient: patient)
-                } label: {
-                    workspaceRow("sparkles", title: L10n.patientAIAssistanceTitle,
-                                 detail: L10n.patientAIAssistanceDescription)
-                }
-                .listRowBackground(groupBorderedRow(.last))
-
+                if let errorMessage { Text(errorMessage).font(.footnote).foregroundStyle(Theme.error) }
             }
-
-            if let errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(Theme.error)
-                }
-                .listRowBackground(groupBorderedRow(.only))
+            .padding(.horizontal, 12).padding(.bottom, 16)
+        }
+        .background {
+            GeometryReader { geometry in
+                PatientHeaderBackdrop(accent: patientColor)
+                    .frame(height: max(0, headerBottom - geometry.frame(in: .global).minY))
+                    .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 24, bottomTrailingRadius: 24))
             }
+            .ignoresSafeArea(edges: .top)
+        }
+    }
+
+    var body: some View {
+        patientScreenContent
+        .navigationDestination(item: $recordRoute) { route in
+            switch route {
+            case .sessions: PatientSessionsView(patient: patient)
+            case .graphs: PatientQuestionnairesView(patient: patient, startsOnGraphs: true)
+            case .diaries: diaryDirectory
+            case .questionnaires: PatientQuestionnairesView(patient: patient)
+            }
+        }
+        .navigationDestination(item: $journeyRoute) { _ in
+            PatientJourneyHistory(patient: patient)
         }
         .patientAtmosphere(patientColor)
         .themedScreen()
-        .listSectionSpacing(16)
-        .contentMargins(.top, 12, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
         .dismissesKeyboardOnTap()
         .demoModeChrome()
-        .navigationTitle(patient.displayName)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
         .background(EnablesSwipeBack(isEnabled: !hasUnsavedChanges && !isSaving))
         .toolbar {
@@ -400,6 +245,21 @@ struct PatientDetailView: View {
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
+                    Button(L10n.editPatientDetailsAction) { startEditingName() }
+                    if connectionState == .connected {
+                        Button(L10n.patientReinviteAction) { isShowingConnectionInfo = true }
+                            .entitlementCreateControl()
+                            .accessibilityIdentifier("patient.reinvite")
+                            .disabled(isSendingToPatient)
+                    }
+                    Picker(L10n.statusLabel, selection: Binding(
+                        get: { patient.status }, set: { savePatientStatus($0) }
+                    )) {
+                        ForEach(PatientStatus.allCases) { status in
+                            Text(L10n.patientStatus(status)).tag(status)
+                        }
+                    }
+                    .entitlementCreateControl()
                     Button(L10n.deletePatientAction, role: .destructive) {
                         isShowingDeleteConfirmation = true
                     }
@@ -550,7 +410,6 @@ struct PatientDetailView: View {
             )
                 .presentationDetents([.medium])
         }
-        .subtleAnimation(value: areDiariesExpanded)
         .subtleAnimation(value: errorMessage)
         .subtleAnimation(value: isTranscribing)
         .subtleAnimation(value: isAnonymizingTranscription)
@@ -747,30 +606,157 @@ struct PatientDetailView: View {
         }
     }
 
-    private var sessionSummary: String {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: .now)
-        if let next = patient.sessions.filter({ $0.date >= today }).min(by: { $0.date < $1.date }) {
-            return L10n.patientListNextSession(next.date)
-        }
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? .now
-        guard let latest = patient.sessions.filter({ $0.date < tomorrow }).max(by: { $0.date < $1.date }) else {
-            return L10n.patientSessionsDescription
-        }
-        return L10n.patientLatestSession(L10n.hebrewDate(latest.date))
+    private func sectionHeading(_ title: String) -> some View {
+        Text(title).font(.headline).foregroundStyle(Theme.textBright)
+            .textCase(nil)
     }
 
-    private func workspaceRow(_ icon: String, title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            iconChip(icon, title: title)
-                .foregroundStyle(Theme.textBright)
-            Text(detail)
-                .font(.subheadline)
-                .foregroundStyle(Theme.textBody)
-                .lineLimit(2)
+    private var patientHeaderSurface: Color {
+        PatientAvatarColor.headerBackground(for: patient.id)
+    }
+
+    private var patientIdentity: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(String(patient.displayName.split(separator: " ").prefix(2).compactMap(\.first)))
+                .font(.title2.bold())
+                .foregroundStyle(PatientAvatarColor.foreground(for: patient.id))
+                .frame(width: 48, height: 48)
+                .background(LinearGradient(colors: [patientColor, patientColor.opacity(0.68)], startPoint: .topTrailing, endPoint: .bottomLeading), in: Circle())
+                .overlay { Circle().strokeBorder(.white.opacity(0.24), lineWidth: 1) }
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(patient.displayName).font(.system(size: patientNameSize, weight: .bold)).foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Text(L10n.patientStatus(patient.status)).font(.caption).foregroundStyle(.white)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(.black.opacity(0.22), in: Capsule())
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 0)
+    }
+
+    private var goalOverview: some View {
+        HStack(alignment: .center, spacing: 4) {
+            Button { isGoalExpanded.toggle() } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Text(L10n.treatmentGoalSection).font(.caption)
+                        Spacer(minLength: 4)
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            Image(systemName: isGoalExpanded ? "chevron.up" : "chevron.down").font(.caption2)
+                        }
+                    }.foregroundStyle(.white.opacity(0.85))
+                    Text(treatmentGoal.wrappedValue.isEmpty ? L10n.noTreatmentGoalPlaceholder : treatmentGoal.wrappedValue)
+                        .font(.subheadline.weight(.medium)).foregroundStyle(.white)
+                        .lineLimit(isGoalExpanded || dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("patient.treatmentGoal")
+                }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isGoalExpanded ? L10n.patientGoalCollapse : L10n.patientGoalExpand)
+            .accessibilityIdentifier("patient.goal.expand")
+            Button {
+                guard EntitlementState.shared.allowMutation() else { return }
+                goalDraft = treatmentGoal.wrappedValue
+                isEditingGoal = true
+            } label: { Image(systemName: "pencil").frame(width: 44, height: 44) }
+                .buttonStyle(.plain).foregroundStyle(.white)
+                .accessibilityLabel(L10n.editTreatmentGoalAction)
+        }
+        .padding(.leading, 10).padding(.vertical, 4)
+        .background {
+            RoundedRectangle(cornerRadius: 10).fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark).opacity(0.25)
+        }
+        .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.22), lineWidth: 1) }
+    }
+
+    private var sessionActions: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
+            Button {
+                if EntitlementState.shared.allowMutation() { newSession = Session() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus").accessibilityHidden(true)
+                    Text(L10n.wwNewSession)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .foregroundStyle(Theme.textOnAccent)
+                .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain).entitlementCreateControl()
+            .accessibilityIdentifier("patient.newSession")
+            Button { requestPrepareNextSession() } label: {
+                HStack {
+                    if isPreparing { ProgressView().controlSize(.small) }
+                    Text(L10n.prepareNextSessionAction).font(.subheadline.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .padding(.horizontal, 8)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+                .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.borderStrong, lineWidth: 1) }
+            }
+            .buttonStyle(.plain).entitlementCreateControl().disabled(isPreparing)
+            .accessibilityIdentifier("patient.prepareSession")
+        }
+    }
+
+    private var recordActions: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
+                                count: dynamicTypeSize.isAccessibilitySize ? 1 : 2), spacing: 4) {
+            Button { recordRoute = .sessions } label: {
+                recordLabel("calendar", L10n.sessionsTitle)
+            }.accessibilityIdentifier("patient.sessions")
+                .tutorialPulse(gettingStartedRouter.shouldPulse(.sessionsEntry)
+                    && patient.id == gettingStartedRouter.progress.focusPatientID)
+            Button { recordRoute = .graphs } label: {
+                recordLabel("chart.xyaxis.line", L10n.graphsAndTrendsTitle)
+            }.accessibilityIdentifier("patient.questionnaireGraphs")
+            Button { recordRoute = .diaries } label: {
+                recordLabel("book.closed", L10n.patientDiariesTitle)
+            }.accessibilityIdentifier("patient.diaries")
+            Button { recordRoute = .questionnaires } label: {
+                recordLabel("list.clipboard", L10n.patientRecordQuestionnaires)
+            }.accessibilityIdentifier("patient.questionnaireHistory")
+        }
+        .buttonStyle(.borderless)
+    }
+
+    private func recordLabel(_ icon: String, _ title: String, emphasized: Bool = false) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).font(.system(size: 20)).foregroundStyle(emphasized ? Color.purple : patientColor)
+                .frame(width: 24).accessibilityHidden(true)
+            Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textBright)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.forward").font(.caption).foregroundStyle(Theme.textBody).accessibilityHidden(true)
+        }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(.horizontal, 10)
+        .background(emphasized ? Color.purple.opacity(0.14) : Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+        .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(emphasized ? Color.purple.opacity(0.65) : Theme.borderDefault, lineWidth: 1) }
+        .contentShape(Rectangle())
+    }
+
+    private var diaryDirectory: some View {
+        List {
+            NavigationLink(L10n.diaryOneTitle) { PatientDiaryOneView(patient: patient) }
+                .accessibilityIdentifier("patient.diaryOne")
+            NavigationLink(L10n.diaryTwoTitle) { PatientDiaryTwoView(patient: patient) }
+                .accessibilityIdentifier("patient.diaryTwo")
+            NavigationLink(L10n.diaryThreeTitle) { PatientDiaryThreeView(patient: patient) }
+                .accessibilityIdentifier("patient.diaryThree")
+        }
+        .themedScreen()
+        .navigationTitle(L10n.patientDiariesTitle)
     }
 
     private var connectionStatusTitle: String {
@@ -801,55 +787,55 @@ struct PatientDetailView: View {
     }
 
     private var connectionCard: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Label(connectionStatusTitle, systemImage: connectionStatusIcon)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(connectionState == .connected ? Theme.success : Theme.textBody)
-                    .lineLimit(2)
-                Spacer(minLength: 0)
-                if connectionState == .connected {
-                    Button { isShowingConnectionInfo = true } label: {
-                        Image(systemName: "person.crop.circle.badge.plus")
-                            .foregroundStyle(Theme.gold)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .entitlementCreateControl()
-                    .disabled(isCreatingInvitation || isSaving || isSendingToPatient)
-                    .accessibilityLabel(L10n.patientReinviteAction)
-                    .accessibilityIdentifier("patient.reinvite")
-                }
-            }
-            .frame(minHeight: 24)
-
-            if connectionState != .checking {
-                Button {
-                    if connectionState == .failed {
-                        Task { await refreshConnectionState() }
-                    } else if EntitlementState.shared.allowMutation() {
-                        if connectionState == .connected {
-                            pendingSendAction = nil
-                            isShowingSendOptions = true
-                        } else {
-                            isShowingConnectionInfo = true
-                        }
-                    }
-                } label: {
-                    Label(connectionActionTitle, systemImage: connectionState == .connected ? "paperplane" : (connectionState == .failed ? "arrow.clockwise" : "person.crop.circle.badge.plus"))
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .foregroundStyle(Theme.gold)
-                }
-                .buttonStyle(.plain)
-                .disabled(isCreatingInvitation || isSaving || isSendingToPatient)
-                .accessibilityIdentifier(connectionState == .connected ? "patient.sending" : "patient.connectionInfo")
-            }
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
+            connectionSummary
+            if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
+            connectionAction
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("patient.connection")
+    }
+
+    private var connectionSummary: some View {
+        HStack(spacing: 8) {
+            if connectionState == .checking { ProgressView().controlSize(.small) }
+            else { Image(systemName: connectionStatusIcon).accessibilityHidden(true) }
+            Text(connectionState == .connected ? L10n.patientConnectedCompact : connectionStatusTitle).font(.caption)
+                .accessibilityLabel(connectionStatusTitle)
+        }
+        .foregroundStyle(connectionState == .connected ? Theme.success : Theme.textBody)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder private var connectionAction: some View {
+        if connectionState != .checking {
+            Button {
+                if connectionState == .failed { Task { await refreshConnectionState() } }
+                else if EntitlementState.shared.allowMutation() {
+                    if connectionState == .connected {
+                        pendingSendAction = nil
+                        isShowingSendOptions = true
+                    } else { isShowingConnectionInfo = true }
+                }
+            } label: {
+                Label(connectionState == .connected ? L10n.patientSendCompact : connectionActionTitle, systemImage: connectionState == .connected ? "paperplane" : "person.crop.circle.badge.plus")
+                    .font(.subheadline.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: 44)
+                    .padding(.horizontal, 10)
+                    .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.gold, lineWidth: 1) }
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(Theme.gold)
+            .disabled(isCreatingInvitation || isSaving || isSendingToPatient)
+            .accessibilityLabel(connectionActionTitle)
+            .accessibilityIdentifier(connectionState == .connected ? "patient.sending" : "patient.connectionInfo")
+
+        }
     }
 
     private var connectionInfoSheet: some View {
@@ -1595,4 +1581,40 @@ private enum PatientConnectionState {
     .environment(GettingStartedRouter())
     .environment(OnboardingStore.shared)
     .environment(TherapistProfileService(client: auth.client))
+}
+
+/// The approved header uses visible translucent planes over a patient-colored
+/// light source, rather than a single tinted rectangle. No clinical imagery.
+private struct PatientHeaderBackdrop: View {
+    let accent: Color
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Theme.base dark navy: this colored header keeps white text in both appearances.
+                Color(uiColor: UIColor(hex: 0x0C1420))
+                LinearGradient(colors: [accent.opacity(0.62), accent.opacity(0.12)],
+                               startPoint: .topTrailing, endPoint: .bottomLeading)
+                RadialGradient(colors: [accent.opacity(0.42), .clear],
+                               center: .topTrailing, startRadius: 0, endRadius: geometry.size.width * 1.1)
+                if !reduceTransparency {
+                    Canvas { context, size in
+                        func plane(_ points: [CGPoint], opacity: Double) {
+                            var path = Path()
+                            path.addLines(points.map { CGPoint(x: $0.x * size.width, y: $0.y * size.height) })
+                            path.closeSubpath()
+                            context.fill(path, with: .color(.white.opacity(opacity)))
+                        }
+                        plane([.init(x: 0.12, y: 0), .init(x: 0.43, y: 0), .init(x: 0.76, y: 1), .init(x: 0.36, y: 1)], opacity: 0.045)
+                        plane([.init(x: 0.62, y: 0), .init(x: 1, y: 0), .init(x: 0.46, y: 1), .init(x: 0.19, y: 1)], opacity: 0.035)
+                        plane([.init(x: 0, y: 0.18), .init(x: 0.21, y: 1), .init(x: 0, y: 1)], opacity: 0.05)
+                    }
+                }
+                LinearGradient(colors: [.clear, .black.opacity(0.18)], startPoint: .top, endPoint: .bottom)
+            }
+        }
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
 }

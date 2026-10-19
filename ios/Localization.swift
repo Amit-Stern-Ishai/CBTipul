@@ -196,6 +196,18 @@ enum L10n {
     static let patientAssistanceSectionTitle = "עזרה ותובנות"
     static let recentShowLess = "הצגת פחות מילויים"
     static func recentShowAll(_ count: Int) -> String { "הצגת כל \(count) המילויים" }
+    static let patientGoalExpand = "הרחבה"
+    static let patientGoalCollapse = "צמצום"
+    static let patientJourneyTitle = "רצף הטיפול"
+    static let patientJourneyFull = "לרצף המלא"
+    static let patientJourneyEmpty = "רצף הטיפול יופיע לאחר הוספת פגישות."
+    static let patientJourneyExplanation = "הפגישות מוצגות לפי תאריך וסוג, ללא פגישות עתידיות. הרצף מתאר את היסטוריית הטיפול, ולא מדד לשיפור."
+    static let patientRecordQuestionnaires = "שאלונים"
+    static func patientJourneyCount(_ count: Int) -> String { count == 1 ? "מפגש אחד" : "\(count) מפגשים" }
+    static let patientSendCompact = "שליחה למטופל/ת"
+    static let patientConnectedCompact = "מחובר/ת לאפליקציה"
+    static let patientNotesCompact = "הערות"
+    static let patientAICompact = "שיחת AI"
     static let patientRecordsTitle = "התיק הטיפולי"
     static let patientSessionsDescription = "תיעוד ועיון בפגישות הטיפול"
     static func patientLatestSession(_ date: String) -> String { "פגישה אחרונה: \(date)" }

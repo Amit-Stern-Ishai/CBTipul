@@ -8,6 +8,7 @@ struct PatientRecentActivityView: View {
     @Environment(DiaryOneStore.self) private var diaryOne
     @Environment(DiaryTwoStore.self) private var diaryTwo
     @Environment(DiaryThreeStore.self) private var diaryThree
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var failed = false
     @State private var dismissed = false
@@ -68,7 +69,7 @@ struct PatientRecentActivityView: View {
         allSubmissions.filter { !activityDismissals.contains($0.id, owner: activityOwner, patientID: patient.id) }
     }
     private var count: Int { submissions.count }
-    private var visibleSubmissions: [Submission] { Array(submissions.prefix(showAll ? count : 3)) }
+    private var visibleSubmissions: [Submission] { Array(submissions.prefix(showAll ? count : 2)) }
 
     @ViewBuilder
     private func destination(_ submission: Submission) -> some View {
@@ -83,49 +84,52 @@ struct PatientRecentActivityView: View {
     var body: some View {
         Group {
             if count > 0 || (!dismissed && failed) {
-                Section {
-                    if let cutoff { Text(L10n.recentSinceDate(L10n.hebrewDate(cutoff))).font(.caption).foregroundStyle(.secondary) }
-                    if count > 0 {
-                        Text(L10n.recentSubmissionCount(count))
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 8) {
+                        Text(cutoff == nil ? L10n.recentPatientSubmissions : L10n.sinceLastSession)
                             .font(.headline).foregroundStyle(Theme.textBright)
+                        if count > 0 {
+                            Text("\(count)").font(.subheadline.bold()).foregroundStyle(Theme.textOnAccent)
+                                .padding(7).background(Theme.accentFill, in: Circle())
+                                .accessibilityLabel(L10n.recentSubmissionCount(count))
+                        }
+                        Spacer(minLength: 0)
+                        if count > 2 {
+                            Button { showAll.toggle() } label: {
+                                Image(systemName: showAll ? "chevron.up" : "chevron.down").frame(width: 44, height: 44)
+                            }
+                            .accessibilityLabel(showAll ? L10n.recentShowLess : L10n.recentShowAll(count))
+                            .accessibilityIdentifier("patient.recent.showAll")
+                        }
+                        Menu {
+                            Button(L10n.closeAction) {
+                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                                    activityDismissals.dismiss(submissions.map(\.id), owner: activityOwner, patientID: patient.id)
+                                    dismissed = true
+                                }
+                            }.accessibilityIdentifier("patient.recent.dismiss")
+                        } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
+                        .accessibilityLabel(L10n.recentPatientSubmissions)
                     }
+                    .accessibilityHint(cutoff.map { L10n.recentSinceDate(L10n.hebrewDate($0)) } ?? "")
                     ForEach(visibleSubmissions) { submission in
+                        Divider().overlay(Theme.borderDefault)
                         NavigationLink { destination(submission) } label: {
-                            row(submission.title, icon: submission.icon, date: submission.date)
-                        }
-                    }
-                    if count > 3 {
-                        Button(showAll ? L10n.recentShowLess : L10n.recentShowAll(count)) {
-                            showAll.toggle()
-                        }
-                        .frame(minHeight: 44)
-                        .accessibilityIdentifier("patient.recent.showAll")
+                            HStack {
+                                row(submission.title, icon: submission.icon, date: submission.date)
+                                Spacer(minLength: 8)
+                                Image(systemName: "chevron.forward").font(.caption).foregroundStyle(Theme.textBody)
+                            }.contentShape(Rectangle())
+                        }.buttonStyle(.plain)
                     }
                     if failed {
                         Text(L10n.recentRefreshFailed).font(.footnote).foregroundStyle(Theme.error)
-                        Button(L10n.retry) { revision += 1 }
-                    }
-                } header: {
-                    HStack {
-                        Text(cutoff == nil ? L10n.recentPatientSubmissions : L10n.sinceLastSession)
-                        Spacer(minLength: 8)
-                        Button {
-                            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
-                                activityDismissals.dismiss(submissions.map(\.id), owner: activityOwner, patientID: patient.id)
-                                dismissed = true
-                            }
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.caption.weight(.semibold))
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(L10n.closeAction)
-                        .accessibilityIdentifier("patient.recent.dismiss")
+                        Button(L10n.retry) { revision += 1 }.frame(minHeight: 44)
                     }
                 }
-                .listRowBackground(Theme.surface)
+                .padding(.horizontal, 12).padding(.vertical, 4)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+                .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.borderFaint, lineWidth: 1) }
             }
         }
         .task(id: revision) {
@@ -139,12 +143,17 @@ struct PatientRecentActivityView: View {
     }
 
     private func row(_ title: String, icon: String, date: Date) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon).foregroundStyle(Theme.gold).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
+        HStack(spacing: 8) {
+            Image(systemName: icon).foregroundStyle(PatientAvatarColor.background(for: patient.id))
+                .frame(width: 24).accessibilityHidden(true)
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                : AnyLayout(HStackLayout(spacing: 8))
+            layout {
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textBright)
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
                 Text(L10n.hebrewDateTime(date)).font(.caption).foregroundStyle(.secondary)
             }
-        }
+        }.frame(minHeight: 44)
     }
 }
