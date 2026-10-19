@@ -1587,17 +1587,30 @@ private enum PatientConnectionState {
 /// light source, rather than a single tinted rectangle. No clinical imagery.
 private struct PatientHeaderBackdrop: View {
     let accent: Color
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Theme.base dark navy: this colored header keeps white text in both appearances.
-                Color(uiColor: UIColor(hex: 0x0C1420))
-                LinearGradient(colors: [accent.opacity(0.62), accent.opacity(0.12)],
+                // A tinted native material lets the underlying surface show through.
+                // Keep the material dark for the white header labels in both appearances.
+                if reduceTransparency {
+                    Color(uiColor: UIColor(hex: 0x0C1420))
+                } else {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .environment(\.colorScheme, .dark)
+                }
+                Color(uiColor: UIColor(hex: 0x0C1420)).opacity(0.5)
+                LinearGradient(colors: [accent.opacity(0.46), accent.opacity(0.15)],
                                startPoint: .topTrailing, endPoint: .bottomLeading)
-                RadialGradient(colors: [accent.opacity(0.42), .clear],
+                RadialGradient(colors: [accent.opacity(0.30), .clear],
                                center: .topTrailing, startRadius: 0, endRadius: geometry.size.width * 1.1)
+                // Preserve white-label contrast when the underlying page is light.
+                Color.black.opacity(colorScheme == .light ? 0.17 : 0)
+                LinearGradient(colors: [.white.opacity(0.05), .white.opacity(0.0175)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
                 if !reduceTransparency {
                     Canvas { context, size in
                         func plane(_ points: [CGPoint], opacity: Double) {
@@ -1611,7 +1624,7 @@ private struct PatientHeaderBackdrop: View {
                         plane([.init(x: 0, y: 0.18), .init(x: 0.21, y: 1), .init(x: 0, y: 1)], opacity: 0.05)
                     }
                 }
-                LinearGradient(colors: [.clear, .black.opacity(0.18)], startPoint: .top, endPoint: .bottom)
+                LinearGradient(colors: [.clear, .black.opacity(0.09)], startPoint: .top, endPoint: .bottom)
             }
         }
         .accessibilityHidden(true)

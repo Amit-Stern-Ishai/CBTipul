@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-19T16:22:10.611705+00:00",
+  "title": "Design System: CBTipul — iOS Patient Detail",
+  "extensions": {
+    "colorMeta": {
+      "base-dark": {
+        "role": "neutral",
+        "displayName": "Theme.base (dark)"
+      },
+      "base-light": {
+        "role": "neutral",
+        "displayName": "Theme.base (light)"
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Theme.surface (dark)"
+      },
+      "surface-light": {
+        "role": "neutral",
+        "displayName": "Theme.surface (light)"
+      },
+      "elevated-dark": {
+        "role": "neutral",
+        "displayName": "Theme.elevated (dark)"
+      },
+      "elevated-light": {
+        "role": "neutral",
+        "displayName": "Theme.elevated (light)"
+      },
+      "borderFaint-dark": {
+        "role": "neutral",
+        "displayName": "Theme.borderFaint (dark)"
+      },
+      "borderFaint-light": {
+        "role": "neutral",
+        "displayName": "Theme.borderFaint (light)"
+      },
+      "textBright-dark": {
+        "role": "neutral",
+        "displayName": "Theme.textBright (dark)"
+      },
+      "textBright-light": {
+        "role": "neutral",
+        "displayName": "Theme.textBright (light)"
+      },
+      "textBody-dark": {
+        "role": "neutral",
+        "displayName": "Theme.textBody (dark)"
+      },
+      "textBody-light": {
+        "role": "neutral",
+        "displayName": "Theme.textBody (light)"
+      },
+      "textFaint-dark": {
+        "role": "neutral",
+        "displayName": "Theme.textFaint (dark)"
+      },
+      "textFaint-light": {
+        "role": "neutral",
+        "displayName": "Theme.textFaint (light)"
+      },
+      "gold-dark": {
+        "role": "primary",
+        "displayName": "Theme.gold (dark)"
+      },
+      "gold-light": {
+        "role": "primary",
+        "displayName": "Theme.gold (light)"
+      },
+      "accentFill-dark": {
+        "role": "primary",
+        "displayName": "Theme.accentFill (dark)"
+      },
+      "accentFill-light": {
+        "role": "primary",
+        "displayName": "Theme.accentFill (light)"
+      },
+      "accentFillPressed-dark": {
+        "role": "primary",
+        "displayName": "Theme.accentFillPressed (dark)"
+      },
+      "accentFillPressed-light": {
+        "role": "primary",
+        "displayName": "Theme.accentFillPressed (light)"
+      },
+      "textOnAccent-dark": {
+        "role": "neutral",
+        "displayName": "Theme.textOnAccent (dark)"
+      },
+      "textOnAccent-light": {
+        "role": "neutral",
+        "displayName": "Theme.textOnAccent (light)"
+      },
+      "warning-dark": {
+        "role": "neutral",
+        "displayName": "Theme.warning (dark)"
+      },
+      "warning-light": {
+        "role": "neutral",
+        "displayName": "Theme.warning (light)"
+      },
+      "error-dark": {
+        "role": "neutral",
+        "displayName": "Theme.error (dark)"
+      },
+      "error-light": {
+        "role": "neutral",
+        "displayName": "Theme.error (light)"
+      },
+      "borderDefault-dark": {
+        "role": "neutral",
+        "displayName": "Theme.borderDefault (dark)"
+      },
+      "borderDefault-light": {
+        "role": "neutral",
+        "displayName": "Theme.borderDefault (light)"
+      },
+      "borderStrong-dark": {
+        "role": "neutral",
+        "displayName": "Theme.borderStrong (dark)"
+      },
+      "borderStrong-light": {
+        "role": "neutral",
+        "displayName": "Theme.borderStrong (light)"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Native headline",
+        "purpose": "Activity and other native headline labels. No separate journey heading inside the patient header."
+      },
+      "section-title": {
+        "displayName": "Native headline",
+        "purpose": "Heading within the shared record enclosure."
+      },
+      "body": {
+        "displayName": "Native body",
+        "purpose": "Record and submission rows."
+      },
+      "label": {
+        "displayName": "Native caption / subheadline",
+        "purpose": "Dates, counts, status and supporting labels."
+      },
+      "patient-title": {
+        "displayName": "ScaledMetric 24 pt bold",
+        "purpose": "Scales relative to title2; white patient name beside 48 pt gradient avatar."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "subtle-content",
+        "value": "easeInOut 0.18s",
+        "purpose": "Existing Theme.subtleAnimation; disabled by Reduce Motion."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "New session",
+      "kind": "button",
+      "description": "Compact plain native button: 44 pt minimum, subheadline semibold, Theme accent fill/text, 12 pt corners; no shared pressable padding or scaling.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-primary\">פגישה חדשה</button></div>",
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-primary{background:#E2BB76;color:#0C1420;border:0;border-radius:12px;padding:0;min-height:44px;font-weight:600;width:100%}.ds-primary:active{background:#C49C58}@media(prefers-color-scheme:light){.ds-primary{background:#203E61;color:#FFFFFF}.ds-primary:active{background:#172F4C}}",
+      "refersTo": "button-primary-dark"
+    },
+    {
+      "name": "Preparation",
+      "kind": "button",
+      "description": "Outlined native preparation button; preserves busy and disabled states.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-secondary\">הכנה לפגישה</button></div>",
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-secondary{border:0;background:transparent;color:#E2BB76;font-weight:600}@media(prefers-color-scheme:light){.ds-secondary{color:#285A8C}}.ds-secondary{border:1px solid #60738C;border-radius:14px;background:#172231;padding:0 8px}@media(prefers-color-scheme:light){.ds-secondary{background:#FFFFFF;border-color:#94A5BB}}"
+    },
+    {
+      "name": "Patient identity and compact goal",
+      "kind": "card",
+      "description": "Layered PatientHeaderBackdrop behind hidden toolbar background: Explicit existing dark navy #0C1420 in both appearances plus patient accent lights, translucent diagonal planes and bottom shade. Geometry tracks headerBottom and top safe area; lower corners24. Avatar48 uses existing palette/contrast. Goal dark ultraThinMaterial at .25 and border .22. Reduce Transparency omits facets. Native captures reviewed against the illustrative reference. Status capsule uses black .22; AccountActionNotices background excludes safe-area edges. Final dark/light render checks passed. Compact header spacing6/bottom8; ScaledMetric24 relative to title2. Final initial-fit test passed after root-gap6 correction.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><section class=\"ds-identity\"><div class=\"ds-person\"><span class=\"ds-avatar\" aria-hidden=\"true\">מ</span><div><strong class=\"ds-name\">שם המטופל</strong><p>פעיל</p></div></div><div class=\"ds-goalhead\"><span>מטרת הטיפול</span><button class=\"ds-action ds-expand\">הרחבה</button><button class=\"ds-action ds-expand\" aria-label=\"עריכת מטרת הטיפול\">עריכה</button></div><p class=\"ds-goaltext\">מטרת הטיפול תופיע כאן</p></section></div>",
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:white;padding:16px}.ds-identity{padding:12px 16px;border-radius:0 0 24px 24px;background:linear-gradient(to bottom,transparent,#0000002E),linear-gradient(60deg,transparent 25%,#FFFFFF0B 25%,#FFFFFF0B 45%,transparent 45%),radial-gradient(circle at top right,#4C9AFF6B,transparent 85%),linear-gradient(to bottom left,#4C9AFF9E,#4C9AFF1F),#0C1420}.ds-person{display:flex;align-items:start;gap:12px}.ds-avatar{display:grid;place-items:center;width:48px;height:48px;flex:none;border-radius:50%;background:linear-gradient(to bottom left,#4C9AFF,#4C9AFFAD);color:black;border:1px solid #FFFFFF3D}.ds-name{font-size:24px;font-weight:700}.ds-person p{color:white;background:#00000038;border-radius:999px;display:inline-block;padding:3px 8px}.ds-goalhead{display:flex;align-items:center;gap:8px;border:1px solid #FFFFFF38;border-radius:10px;padding:4px 10px;background:#17223140;backdrop-filter:blur(6px)}.ds-goalhead span{flex:1}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-expand{border:0;background:transparent;color:white}.ds-action:focus-visible{outline:2px solid white;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}.ds-goaltext{font-weight:500;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}@media(prefers-reduced-transparency:reduce){.ds-identity{background:linear-gradient(to bottom,transparent,#0000002E),radial-gradient(circle at top right,#4C9AFF6B,transparent 85%),linear-gradient(to bottom left,#4C9AFF9E,#4C9AFF1F),#0C1420}}"
+    },
+    {
+      "name": "Record destination",
+      "kind": "nav",
+      "description": "Bordered record button inside shared 16 pt record enclosure with heading, four destinations, AI, notes and messages; 8 pt outer padding, 4 pt vertical gaps and 8 pt column gaps. Accessibility grid uses one column.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-record\">פגישות</button></div>",
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-record{width:100%;text-align:start;min-height:60px;padding:0 4px;background:transparent;color:inherit;border:0;border-bottom:.5px solid #2C394B;font-weight:500}@media(prefers-color-scheme:light){.ds-record{border-bottom-color:#DFE5ED}}.ds-record{min-height:44px;padding:0 10px;background:#172231;border:1px solid #3B4B60;border-radius:12px;font-weight:600}@media(prefers-color-scheme:light){.ds-record{background:#FFFFFF;border-color:#CAD5E2}}"
+    },
+    {
+      "name": "AI chat",
+      "kind": "nav",
+      "description": "Full-width violet AI action with native Color.purple icon, 14% fill and 65% outline. CSS purple is illustrative, not a normative native color value.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-chat\">צ׳אט AI</button></div>",
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-chat{width:100%;text-align:start;background:#172231;color:#E2BB76;border:0;padding:12px 16px;font-weight:600}@media(prefers-color-scheme:light){.ds-chat{background:#FFFFFF;color:#285A8C}}.ds-chat{background:color-mix(in srgb,purple 14%,transparent);color:inherit;border:1px solid color-mix(in srgb,purple 65%,transparent);border-radius:12px;padding:0 10px;min-height:44px}@media(prefers-color-scheme:light){.ds-chat{background:color-mix(in srgb,purple 14%,transparent);color:inherit}}"
+    },
+    {
+      "name": "Horizontal recorded journey",
+      "kind": "custom",
+      "description": "Over the shared layered backdrop; no separate heading in header. Stage controls open timeline. Oldest RIGHT/newest LEFT; >4 stages each use one quarter container width and target latest on appearance/group-ID changes. Full timeline/accessibility fallback newest TOP. Compact-layout final fit and long-journey tests passed.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><section class=\"ds-journey\"><div class=\"ds-stages\"><button class=\"ds-action ds-stage\"><span class=\"ds-marker\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 3h8l4 4v14H6zM9 11h6M9 15h6\"/></svg></span><span>שלב קודם</span></button><button class=\"ds-action ds-stage\"><span class=\"ds-marker\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 3h8l4 4v14H6zM9 11h6M9 15h6\"/></svg></span><span>שלב ביניים</span></button><button class=\"ds-action ds-stage\"><span class=\"ds-marker\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 3h8l4 4v14H6zM9 11h6M9 15h6\"/></svg></span><span>שלב אחרון</span></button></div></section></div>",
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-journey{padding:8px 12px 12px;background:linear-gradient(#4C9AFF1F,#4C9AFF1F),#172231}.ds-journeytitle{font-weight:600;background:transparent;color:inherit;border:0}.ds-stages{display:flex;direction:rtl}.ds-stage{display:flex;flex:1;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;color:inherit;min-width:0}.ds-marker{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#4C9AFF;color:#000}@media(prefers-color-scheme:light){.ds-journey{background:linear-gradient(#4C9AFF1F,#4C9AFF1F),#FFFFFF}}.ds-journey{background:#183357;color:white}.ds-marker{background:#183357;border:1.5px solid #4C9AFF;color:white}.ds-stage:last-child .ds-marker{background:#4C9AFF;border-width:3px;color:black}@media(prefers-color-scheme:light){.ds-journey{background:#183357;color:white}}.ds-marker{width:24px;height:24px}.ds-marker svg{width:13px;height:13px}.ds-stage{gap:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Activity digest",
+    "overview": "This document captures the rebuilt native iOS PatientDetailView only. Final compact-layout verification passed: 2 journey unit tests and 5 iPhone UI tests using synthetic data. At default text size, AI, notes and messages are initially hittable and the notes control clears the tab bar; large text remains scrollable. This document describes current source behavior and makes no claim of pixel-perfect mockup fidelity. Its calm, compact treatment workspace uses the existing CBTipul navy/gold identity and adaptive Theme.swift values. It establishes no new app-wide visual identity and does not apply the screen composition to Android, the web workspace, or other iOS screens.\n\nExisting brand tokens remain authoritative in ios/Theme.swift. The approved screen composition and interaction contract live in .impeccable/surfaces/ios-patient-detail.md, with the A-horizontal and C-patient-color approval recorded in .impeccable/mocks/patient-horizontal/approval.json; PRODUCT.md supplies the Hebrew, accessibility, and clinical privacy constraints. The UI presents recorded activity without implying clinical improvement.",
+    "keyCharacteristics": [
+      "Native Hebrew RTL navigation and system typography.",
+      "Existing adaptive navy/gold and cool light surfaces.",
+      "Compact recorded activity with explicit, accessible actions.",
+      "Patient-color identity header and horizontal recorded journey."
+    ],
+    "rules": [],
+    "dos": [
+      "Do preserve adaptive Theme body surfaces, layered patient-hue backdrop and the scoped native purple AI treatment.",
+      "Do preserve Hebrew RTL order, readable wrapping, Dynamic Type and labeled native actions.",
+      "Do preserve all existing destinations and safety behavior.",
+      "Do derive activity counts and journey groups from recorded data.",
+      "Do place the newest stage at the left horizontally and at the top vertically.",
+      "Do derive header and journey colors from the existing patient palette, using white header text and adaptive body text."
+    ],
+    "donts": [
+      "Don't apply this screen's composition as an app-wide redesign.",
+      "Don't invent clinical summaries, progress stages, scores or trends.",
+      "Don't use color alone to express connection, failure or clinical meaning.",
+      "Don't replace native iOS interactions with web-style controls."
+    ]
+  }
+}

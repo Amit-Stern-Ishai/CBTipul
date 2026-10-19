@@ -1,0 +1,8 @@
+{
+  "approved": true,
+  "primary": "horizontal.png",
+  "colorReference": "header.png",
+  "scope": "iOS patient detail, iPhone only",
+  "latestDirection": "Newest stage at left in horizontal journey; newest at top in full vertical timeline",
+  "interpretation": "Native semantic controls, patient-specific colors, compact expandable goal; generated sample labels and numeric markers are not clinical contracts"
+}

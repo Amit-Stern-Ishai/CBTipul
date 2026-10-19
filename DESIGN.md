@@ -162,3 +162,9 @@ The sidecar previews are illustrative HTML equivalents of native patterns for th
 - Don't invent clinical summaries, progress stages, scores or trends.
 - Don't use color alone to express connection, failure or clinical meaning.
 - Don't replace native iOS interactions with web-style controls.
+
+
+### Patient header translucency refinement
+The header now uses dark ultraThinMaterial instead of an opaque navy base. The patient-color tint is 28% to 8%, with an 18% radial accent and 6% bottom shade. The previous white brightness wash is removed. The existing translucent facets and compact geometry remain. Reduce Transparency uses the solid navy fallback. This supersedes the earlier opaque-backdrop description.
+
+The selected midpoint retains ultraThinMaterial under a 50% navy veil, with 46%–15% patient tint, 30% radial accent, 5%–1.75% light wash and 9% bottom shade. Light appearance uses a 17% contrast scrim. This replaces the stronger-translucency values above; geometry is unchanged.
