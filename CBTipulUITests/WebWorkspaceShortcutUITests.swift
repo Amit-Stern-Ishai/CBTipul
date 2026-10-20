@@ -104,3 +104,226 @@ final class WebWorkspaceShortcutUITests: XCTestCase {
     }
 
 }
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testSessionDesignDark() throws { try reviewSessionDesign("dark") }
+    @MainActor func testSessionDesignLight() throws { try reviewSessionDesign("light") }
+    @MainActor private func reviewSessionDesign(_ appearance: String) throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-appAppearance", appearance, "-SessionDesignFixture"]
+        app.launch()
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 20))
+        search.tap(); search.typeText("ישראלית\n")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "ישראלה ישראלית")).firstMatch.tap()
+        let sessions = app.buttons["patient.sessions"]
+        XCTAssertTrue(sessions.waitForExistence(timeout: 5))
+        for _ in 0..<4 { if sessions.isHittable { break }; app.swipeUp() }
+        sessions.tap()
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "7,")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5)); row.tap()
+        let edit = app.buttons["session.notes"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["סיכום הפגישה"].exists)
+        XCTAssertFalse(app.staticTexts["הסיכום שלכם"].exists)
+        XCTAssertTrue(app.buttons["הקלטת סיכום הפגישה"].exists)
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "session-design-\(appearance)"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["session.readSummary"].tap()
+        XCTAssertTrue(app.scrollViews["session.summaryReader"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        let reader = XCTAttachment(screenshot: app.screenshot()); reader.name = "session-reader-\(appearance)"; reader.lifetime = .keepAlways; add(reader)
+        app.buttons["session.editSummaryText"].tap()
+        XCTAssertTrue(app.textFields["session.summaryText"].waitForExistence(timeout: 5))
+        let writer = XCTAttachment(screenshot: app.screenshot()); writer.name = "session-writer-\(appearance)"; writer.lifetime = .keepAlways; add(writer)
+        let notes = app.textFields["session.summaryText"]
+        let original = notes.value as? String
+        notes.tap(); notes.typeText(" UI test")
+        let typing = XCTAttachment(screenshot: app.screenshot()); typing.name = "session-typing-\(appearance)"; typing.lifetime = .keepAlways; add(typing)
+        XCTAssertFalse(app.buttons["session.toggleWriting"].exists)
+        XCTAssertTrue(app.navigationBars.buttons["שמירת הסיכום"].exists)
+        notes.typeText(String(repeating: "\nשורה נוספת לבדיקת סיכום ארוך", count: 18))
+        XCTAssertTrue(app.buttons["session.summaryRecording"].isHittable)
+        XCTAssertTrue(app.navigationBars.buttons["שמירת הסיכום"].isHittable)
+        let longSummary = XCTAttachment(screenshot: app.screenshot()); longSummary.name = "session-long-\(appearance)"; longSummary.lifetime = .keepAlways; add(longSummary)
+        app.navigationBars.buttons["חזרה"].firstMatch.tap()
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 3))
+        app.alerts.buttons["מחיקת השינויים"].tap()
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        edit.tap()
+        XCTAssertEqual(app.textFields["session.summaryText"].value as? String, original)
+        app.navigationBars.buttons["סגירה"].firstMatch.tap()
+    }
+}
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testSessionQuestionnaireCompletedDark() throws { try reviewSessionQuestionnaire("dark", number: "7") }
+    @MainActor func testSessionQuestionnaireCompletedLight() throws { try reviewSessionQuestionnaire("light", number: "7") }
+    @MainActor func testSessionQuestionnaireEmpty() throws { try reviewSessionQuestionnaire("dark", number: "1") }
+    @MainActor private func reviewSessionQuestionnaire(_ appearance: String, number: String) throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-appAppearance", appearance, "-SessionDesignFixture", "-SessionQuestionnaireFixture"]
+        app.launch()
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 20))
+        search.tap(); search.typeText("ישראלית\n")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "ישראלה ישראלית")).firstMatch.tap()
+        let sessions = app.buttons["patient.sessions"]
+        XCTAssertTrue(sessions.waitForExistence(timeout: 5))
+        for _ in 0..<4 { if sessions.isHittable { break }; app.swipeUp() }
+        sessions.tap()
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", number + ",")).firstMatch
+        for _ in 0..<5 { if row.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(row.waitForExistence(timeout: 5)); row.tap()
+        let entry = app.buttons["session.questionnaireEntry"]
+        for _ in 0..<6 { if entry.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(entry.waitForExistence(timeout: 5))
+        XCTAssertTrue(entry.isHittable)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "questionnaire-\(number)-\(appearance)"; shot.lifetime = .keepAlways; add(shot)
+        entry.tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "GAD-7")).firstMatch.waitForExistence(timeout: 5))
+    }
+}
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testLatestSessionShortcutDark() throws { try checkLatestSessionShortcut("dark") }
+    @MainActor func testLatestSessionShortcutLight() throws { try checkLatestSessionShortcut("light") }
+    @MainActor private func checkLatestSessionShortcut(_ appearance: String) throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-appAppearance", appearance]
+        app.launch()
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 20))
+        search.tap(); search.typeText("ישראלית\n")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "ישראלה ישראלית")).firstMatch.tap()
+        let latest = app.buttons["patient.latestSession"]
+        XCTAssertTrue(latest.waitForExistence(timeout: 5))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "patient-compact-\(appearance)"; screenshot.lifetime = .keepAlways; add(screenshot)
+        for _ in 0..<5 { if latest.isHittable { break }; app.swipeUp() }
+        latest.tap()
+        XCTAssertTrue(app.navigationBars["פגישה 7"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["session.notes"].exists)
+        app.navigationBars.buttons["חזרה"].firstMatch.tap()
+        XCTAssertTrue(latest.waitForExistence(timeout: 5))
+    }
+}
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testPatientDirectoryDark() throws { try reviewPatientDirectory("dark") }
+    @MainActor func testPatientDirectoryLight() throws { try reviewPatientDirectory("light") }
+    @MainActor func testPatientDirectoryAccessibleSearch() throws { try reviewPatientDirectory("dark", large: true) }
+    @MainActor private func reviewPatientDirectory(_ appearance: String, large: Bool = false) throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-appAppearance", appearance]
+        if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
+        app.launch()
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 20))
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "patient-list-\(appearance)-\(large ? "large" : "normal")"; shot.lifetime = .keepAlways; add(shot)
+        search.tap(); search.typeText("zzzz")
+        XCTAssertTrue(app.staticTexts["לא נמצאו מטופלים"].waitForExistence(timeout: 5))
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4))
+        search.typeText("ישראלית\n")
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "ישראלה ישראלית")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5)); row.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["patient.treatmentGoal"].firstMatch.waitForExistence(timeout: 5))
+    }
+}
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testSessionDirectoryDark() throws { try reviewSessionDirectory("dark") }
+    @MainActor func testSessionDirectoryLight() throws { try reviewSessionDirectory("light") }
+    @MainActor private func reviewSessionDirectory(_ appearance: String) throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-appAppearance", appearance]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["פגישות"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["פגישות"].tap()
+        let row = app.buttons["sessions.entry"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "session-list-\(appearance)"; shot.lifetime = .keepAlways; add(shot)
+        row.tap()
+        XCTAssertTrue(app.buttons["session.save"].waitForExistence(timeout: 5))
+    }
+}
+
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testPatientSessionHistoryDesign() throws {
+        let app = XCUIApplication(); app.launchArguments = ["-UITesting", "-appAppearance", "dark"]; app.launch()
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 20)); search.tap(); search.typeText("ישראלית\n")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "ישראלה ישראלית")).firstMatch.tap()
+        let sessions = app.buttons["patient.sessions"]
+        XCTAssertTrue(sessions.waitForExistence(timeout: 5))
+        for _ in 0..<4 { if sessions.isHittable { break }; app.swipeUp() }
+        sessions.tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "פגישה 7")).firstMatch.waitForExistence(timeout: 5))
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "session-list-patient"; shot.lifetime = .keepAlways; add(shot)
+    }
+}
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testNotificationDesignDark() throws { try reviewNotificationDesign("dark") }
+    @MainActor func testNotificationDesignLight() throws { try reviewNotificationDesign("light") }
+    @MainActor func testNotificationDesignLarge() throws { try reviewNotificationDesign("dark", large: true) }
+    @MainActor private func reviewNotificationDesign(_ appearance: String, large: Bool = false) throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-UITestingNotifications", "-appAppearance", appearance]
+        if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
+        app.launch()
+        let tab = app.tabBars.buttons["התראות"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 20)); tab.tap()
+        let row = app.buttons["notifications.entry.patient_connected"]
+        XCTAssertTrue(app.buttons["notifications.entry.questionnaire_completed"].waitForExistence(timeout: 10))
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "notifications-\(appearance)-\(large ? "large" : "normal")"; shot.lifetime = .keepAlways; add(shot)
+        for _ in 0..<6 { if row.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(row.isHittable); row.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["patient.treatmentGoal"].firstMatch.waitForExistence(timeout: 5))
+    }
+}
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testAIChatDesignDark() throws { try reviewAIChat("dark") }
+    @MainActor func testAIChatDesignLight() throws { try reviewAIChat("light") }
+    @MainActor private func reviewAIChat(_ appearance: String, transcript: Bool = false) throws {
+        let app = XCUIApplication(); app.launchArguments = ["-UITesting", "-appAppearance", appearance]
+        if transcript { app.launchArguments += ["-AIChatDesignFixture"] }
+        app.launch()
+        let tab = app.tabBars.buttons["AI"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 20)); tab.tap()
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "ישראלה ישראלית")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10)); row.tap()
+        let send = app.buttons["patient.ai.send"]
+        XCTAssertTrue(send.waitForExistence(timeout: 5)); XCTAssertFalse(send.isEnabled)
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "ai-chat-\(transcript ? "transcript" : appearance)"; shot.lifetime = .keepAlways; add(shot)
+        if !transcript {
+            app.buttons["patient.ai.suggestion.0"].tap()
+            XCTAssertTrue(send.isEnabled)
+            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+            let input = XCTAttachment(screenshot: app.screenshot()); input.name = "ai-chat-composer-\(appearance)"; input.lifetime = .keepAlways; add(input)
+        }
+    }
+}
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testAIPickerDark() throws { try reviewAIPicker("dark") }
+    @MainActor func testAIPickerLight() throws { try reviewAIPicker("light") }
+    @MainActor func testAIPickerLarge() throws { try reviewAIPicker("dark", large: true) }
+    @MainActor private func reviewAIPicker(_ appearance: String, large: Bool = false) throws {
+        let app = XCUIApplication(); app.launchArguments = ["-UITesting", "-appAppearance", appearance]
+        if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
+        app.launch()
+        let tab = app.tabBars.buttons["AI"]; XCTAssertTrue(tab.waitForExistence(timeout: 20)); tab.tap()
+        let search = app.searchFields["חיפוש מטופלים"]; XCTAssertTrue(search.waitForExistence(timeout: 10))
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "ai-picker-\(appearance)-\(large ? "large" : "normal")"; shot.lifetime = .keepAlways; add(shot)
+        search.tap(); search.typeText("zzzz")
+        XCTAssertTrue(app.staticTexts["לא נמצאו מטופלים"].waitForExistence(timeout: 5))
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4)); search.typeText("ישראלית\n")
+        let row = app.buttons["ai.picker.patient"].firstMatch
+        for _ in 0..<5 { if row.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(row.isHittable); row.tap()
+        XCTAssertTrue(app.buttons["patient.ai.send"].waitForExistence(timeout: 5))
+    }
+}

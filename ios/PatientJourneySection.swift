@@ -38,10 +38,14 @@ struct PatientJourneySection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-                if !inHeader {
+                if inHeader {
+                    Text(L10n.patientJourneyTitle)
+                        .font(.subheadline.weight(.bold)).foregroundStyle(.white)
+                        .accessibilityAddTraits(.isHeader)
+                } else {
                 Button { onOpen(nil) } label: {
                     HStack {
-                        Text(L10n.patientJourneyTitle).font(.headline)
+                        Text(L10n.patientJourneyTitle).font(inHeader ? .subheadline.weight(.bold) : .headline)
                         Spacer()
                         Image(systemName: "chevron.forward").font(.caption)
                     }
@@ -84,6 +88,14 @@ struct PatientJourneySection: View {
                 }
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, inHeader ? 10 : 0)
+        .padding(.vertical, inHeader ? 6 : 0)
+        .background {
+            if inHeader { RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.16)) }
+        }
+        .overlay {
+            if inHeader { RoundedRectangle(cornerRadius: 14).strokeBorder(Color.white.opacity(0.25), lineWidth: 1) }
+        }
     }
 
     private func icon(for group: PatientJourneyGroup) -> String {
@@ -104,14 +116,14 @@ struct PatientJourneySection: View {
                         HStack(spacing: 0) {
                             Rectangle().fill(group.id == groups.first?.id ? Color.clear : accent.opacity(0.8))
                             Rectangle().fill(group.id == groups.last?.id ? Color.clear : accent.opacity(0.8))
-                        }.frame(height: 2)
+                        }.frame(height: 3)
                     }
-                    Image(systemName: icon(for: group)).font(.system(size: horizontal ? 13 : 16, weight: .medium))
-                        .frame(width: horizontal ? 24 : 36, height: horizontal ? 24 : 36)
+                    Image(systemName: icon(for: group)).font(.system(size: horizontal ? 15 : 16, weight: .medium))
+                        .frame(width: horizontal ? 26 : 36, height: horizontal ? 26 : 36)
                         .background(group.id == groups.last?.id ? accent : PatientAvatarColor.headerBackground(for: patient.id), in: Circle())
                         .foregroundStyle(group.id == groups.last?.id ? PatientAvatarColor.foreground(for: patient.id) : Color.white)
                         .overlay { Circle().strokeBorder(accent, lineWidth: group.id == groups.last?.id ? 3 : 1.5) }
-                }.frame(height: horizontal ? 24 : 36).frame(maxWidth: horizontal ? .infinity : 36)
+                }.frame(height: horizontal ? 26 : 36).frame(maxWidth: horizontal ? .infinity : 36)
                     .accessibilityHidden(true)
                 VStack(alignment: horizontal ? .center : .leading, spacing: horizontal ? 2 : 4) {
                     Text(group.title).font(.caption.weight(.semibold)).foregroundStyle(inHeader ? Color.white : Theme.textBright)

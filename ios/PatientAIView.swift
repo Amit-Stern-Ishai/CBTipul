@@ -24,6 +24,7 @@ struct PatientAIView: View {
 
     @State private var chatEntries: [ChatEntry] = []
     @State private var prompt = ""
+    @FocusState private var composerFocused: Bool
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var typingTask: Task<Void, Never>?
@@ -41,7 +42,7 @@ struct PatientAIView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 10) {
+            LazyVStack(spacing: 18) {
                 ForEach(chatEntries) { entry in
                     chatBubble(entry)
                 }
@@ -55,15 +56,15 @@ struct PatientAIView: View {
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
-                        .overlay(RoundedRectangle(cornerRadius: 18)
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14)
                             .strokeBorder(patientOutline, lineWidth: 1))
                         Spacer(minLength: 48)
                     }
                 }
 
                 if let errorMessage {
-                    Text(errorMessage)
+                    Label(errorMessage, systemImage: "exclamationmark.circle")
                         .font(.footnote)
                         .foregroundStyle(Theme.error)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -80,7 +81,7 @@ struct PatientAIView: View {
                 GeometryReader { geometry in
                     ScrollView {
                         emptyState
-                            .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                            .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
                     }
                 }
             }
@@ -88,11 +89,22 @@ struct PatientAIView: View {
         .subtleAnimation(value: chatEntries.count)
         .subtleAnimation(value: isLoading)
         .subtleAnimation(value: errorMessage)
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack(spacing: 10) {
+                InitialsAvatar(name: patient.displayName, size: 36, patientID: patient.id)
+                Text(patient.displayName).font(.headline).foregroundStyle(Theme.textBright)
+                Spacer(minLength: 0)
+                Image(systemName: "sparkles").foregroundStyle(Theme.gold).accessibilityHidden(true)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .background(Theme.surface)
+            .overlay(alignment: .bottom) { Rectangle().fill(patientOutline).frame(height: 1) }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             inputBar
         }
         .demoModeChrome()
-        .navigationTitle(L10n.aiChatTitle(patient.displayName))
+        .navigationTitle(L10n.aiPatientPickerTitle)
         .navigationBarTitleDisplayMode(.inline)
         .task {
             // The questionnaire context needs the cache filled.
@@ -105,84 +117,97 @@ struct PatientAIView: View {
     /// Welcomes into the empty chat: what the assistant knows, plus a few
     /// example questions that fill the message field when tapped.
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 36))
-                .foregroundStyle(Theme.gold)
-                .padding(22)
-                .background(Theme.goldGhost, in: Circle())
+        VStack(alignment: .leading, spacing: 20) {
             Text(L10n.aiEmptyMessage)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            VStack(spacing: 8) {
-                ForEach(L10n.aiSuggestedQuestions, id: \.self) { question in
+                .font(.body)
+                .foregroundStyle(Theme.textBody)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 0) {
+                ForEach(Array(L10n.aiSuggestedQuestions.enumerated()), id: \.offset) { index, question in
                     Button {
                         prompt = question
+                        composerFocused = true
                     } label: {
-                        Text(question)
-                            .font(.subheadline)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
-                            .frame(minHeight: 44)
-                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(patientOutline, lineWidth: 1))
+                        HStack(alignment: .top, spacing: 12) {
+                            Text(question)
+                                .font(.body)
+                                .foregroundStyle(Theme.textBright)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "arrow.up.backward")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Theme.gold)
+                                .accessibilityHidden(true)
+                        }
+                        .padding(16)
+                        .frame(minHeight: 52)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("patient.ai.suggestion.\(index)")
+                    if index < L10n.aiSuggestedQuestions.count - 1 {
+                        Divider().overlay(Theme.borderFaint).padding(.horizontal, 16)
+                    }
                 }
             }
-            .padding(.top, 8)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(patientOutline, lineWidth: 1))
         }
-        .padding(32)
+        .padding(20)
     }
 
-    /// The message field with a send icon, pinned above the keyboard.
+    /// One bounded writing surface, pinned above the keyboard.
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: 10) {
             TextField(L10n.aiPromptPlaceholder(patient.displayName), text: $prompt, axis: .vertical).entitlementWriteControl()
                 .lineLimit(1...5)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 20))
-                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(patientOutline, lineWidth: 1))
-
+                .focused($composerFocused)
+                .accessibilityIdentifier("patient.ai.composer")
+                .padding(.vertical, 10)
+                .padding(.leading, 4)
             Button(action: send) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(canSend ? Theme.gold : Theme.textFaint)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
+                Image(systemName: "arrow.up")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(canSend ? Theme.textOnAccent : Theme.textFaint)
+                    .frame(width: 44, height: 44)
+                    .background(canSend ? Theme.accentFill : Theme.surface, in: RoundedRectangle(cornerRadius: 12))
             }
             .accessibilityLabel(L10n.aiSendAction)
             .accessibilityIdentifier("patient.ai.send")
             .disabled(!canSend)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(8)
+        .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(composerFocused ? Theme.gold : patientOutline, lineWidth: 1))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(Theme.surface)
     }
 
-    /// One transcript row: user messages on the right in an accent bubble,
-    /// AI answers on the left in a gray bubble.
     private func chatBubble(_ entry: ChatEntry) -> some View {
-        HStack {
-            if entry.role == .user { Spacer(minLength: 48) }
-            Text(entry.displayedText
-                 ?? (entry.role == .assistant ? aiMarkdown(entry.text) : AttributedString(entry.text)))
-                .textSelection(.enabled)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(
-                    entry.role == .user ? Theme.goldGhost : Theme.surface,
-                    in: RoundedRectangle(cornerRadius: 18)
-                )
-                // Patient color marks the patient-related content: only the
-                // AI's answers get the outline, the user's gold bubbles stay.
-                .overlay(RoundedRectangle(cornerRadius: 18)
-                    .strokeBorder(entry.role == .assistant ? patientOutline : .clear, lineWidth: 1))
-            if entry.role == .assistant { Spacer(minLength: 48) }
+        HStack(alignment: .top, spacing: 0) {
+            if entry.role == .user { Spacer(minLength: 32) }
+            VStack(alignment: .leading, spacing: 8) {
+                if entry.role == .assistant {
+                    Label("AI", systemImage: "sparkles")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.gold)
+                }
+                Text(entry.displayedText
+                     ?? (entry.role == .assistant ? aiMarkdown(entry.text) : AttributedString(entry.text)))
+                    .font(.body)
+                    .foregroundStyle(Theme.textBright)
+                    .lineSpacing(4)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .background(entry.role == .user ? Theme.goldGhost : Theme.surface,
+                        in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(entry.role == .assistant ? patientOutline : .clear, lineWidth: 1))
+            if entry.role == .assistant { Spacer(minLength: 12) }
         }
     }
 

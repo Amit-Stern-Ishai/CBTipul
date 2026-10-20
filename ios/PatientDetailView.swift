@@ -22,6 +22,7 @@ struct PatientDetailView: View {
     @State private var recordRoute: RecordRoute?
     @State private var journeyRoute: PatientJourneyRoute?
     @State private var newSession: Session?
+    @State private var latestSessionToOpen: Session?
     @State private var isSaving = false
     @State private var isShowingNotes = false
     @State private var isShowingSendOptions = false
@@ -154,8 +155,29 @@ struct PatientDetailView: View {
                     .padding(.horizontal, 10)
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
                     .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.borderDefault, lineWidth: 1) }
+                    .padding(.top, 10).padding(.bottom, 10)
                 PatientRecentActivityView(patient: patient)
-                sessionActions
+                VStack(spacing: 8) {
+                    sessionActions
+                    if let latest = latestRecordedSession {
+                        Button { latestSessionToOpen = latest } label: {
+                            HStack(spacing: 8) {
+                                Label(L10n.patientLatestSessionAction, systemImage: "clock.arrow.circlepath")
+                                    .font(.subheadline.weight(.semibold))
+                                Spacer(minLength: 4)
+                                Text(L10n.hebrewDate(latest.date)).font(.caption).foregroundStyle(Theme.textBody)
+                                Image(systemName: "chevron.forward").font(.caption.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .padding(.horizontal, 12)
+                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.borderDefault))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("patient.latestSession")
+                    }
+                }
+                .padding(.vertical, 12)
                 VStack(alignment: .leading, spacing: 4) {
                 sectionHeading(L10n.patientRecordsTitle)
                 recordActions
@@ -413,6 +435,11 @@ struct PatientDetailView: View {
         .subtleAnimation(value: errorMessage)
         .subtleAnimation(value: isTranscribing)
         .subtleAnimation(value: isAnonymizingTranscription)
+        .sheet(item: $latestSessionToOpen) { session in
+            SessionEditorView(session: session, patient: patient, isNew: false,
+                              sessionNumber: patient.sessions.sorted { $0.date < $1.date }.firstIndex { $0.id == session.id }.map { $0 + 1 })
+                .appTextSize()
+        }
         .sheet(item: $newSession) { session in
             SessionEditorView(session: session, patient: patient, isNew: true).appTextSize()
         }
@@ -624,7 +651,7 @@ struct PatientDetailView: View {
                 .background(LinearGradient(colors: [patientColor, patientColor.opacity(0.68)], startPoint: .topTrailing, endPoint: .bottomLeading), in: Circle())
                 .overlay { Circle().strokeBorder(.white.opacity(0.24), lineWidth: 1) }
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(patient.displayName).font(.system(size: patientNameSize, weight: .bold)).foregroundStyle(.white)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
@@ -672,6 +699,11 @@ struct PatientDetailView: View {
                 .environment(\.colorScheme, .dark).opacity(0.25)
         }
         .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.22), lineWidth: 1) }
+    }
+
+    private var latestRecordedSession: Session? {
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now)) ?? .now
+        return patient.sessions.filter { $0.date < tomorrow }.max { $0.date < $1.date }
     }
 
     private var sessionActions: some View {

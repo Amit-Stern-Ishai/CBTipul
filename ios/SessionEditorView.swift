@@ -58,9 +58,11 @@ struct SessionEditorView: View {
     // Keep recovered summary controls available even if the user clears the draft.
     @State private var showsSummaryEditor: Bool
     @State private var showingNotesEditor = false
+    @State private var isEditingSummary = false
     @State private var notesAtEditorOpen = ""
     @State private var confirmLeavingNotes = false
     @FocusState private var notesEditorFocused: Bool
+    @ScaledMetric(relativeTo: .body) private var summaryLineHeight = 32.0
 
     /// Whether anything would be lost by dismissing without saving: an edited
     /// date or notes, or a voice note that hasn't been transcribed into the
@@ -129,6 +131,11 @@ struct SessionEditorView: View {
         return store.patients.first { $0.id == patient.id } ?? patient
     }
 
+    private var patientHeaderColor: Color {
+        storePatient.map { PatientAvatarColor.headerBackground(for: $0.id) }
+            ?? Color(uiColor: UIColor(hex: 0x0C1420))
+    }
+
     private var patientAccent: Color {
         storePatient.map { PatientAvatarColor.background(for: $0.id) } ?? Theme.gold
     }
@@ -173,7 +180,8 @@ struct SessionEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
                 if recovery.hasError, let feedback = recovery.feedback {
                     Section { DeviceDraftFeedback(message: feedback, isError: true) }
                 }
@@ -191,134 +199,46 @@ struct SessionEditorView: View {
                             Text(store.patients.isEmpty ? L10n.noPatientsTitle : L10n.sessionChoosePatientHelp)
                         }
                     }
-                } else if let patient = storePatient {
-                    Section {
-                        VStack(spacing: 6) {
-                            Text(patient.displayName)
-                                .font(.title2.bold())
-                            if let sessionNumber {
-                                Text(L10n.session(sessionNumber))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .multilineTextAlignment(.center)
-                        .listRowBackground(Color.clear)
-                    }
                 }
-
-                Section {
-                    DatePicker(L10n.sessionDateTitle, selection: $session.date, displayedComponents: [.date]).entitlementWriteControl()
-                        .environment(\.locale, Locale(identifier: "he_IL"))
-                        .disabled(isWorking || !EntitlementState.shared.canWrite)
-                        .accessibilityIdentifier("session.date")
-                        .listRowBackground(groupBorderedRow(.first))
-                    typePicker
-                        .disabled(isWorking || !EntitlementState.shared.canWrite)
-                        .accessibilityIdentifier("session.type")
-                        .listRowBackground(groupBorderedRow(.last))
-                } footer: {
-                    if isNew && !showsSummaryEditor {
-                        Text(L10n.newSessionDetailsHelp)
-                    }
-                }
-
-//                if let firstFollowUp = pendingFollowUps.first {
-//                    Section {
-//                        followUpRow(firstFollowUp)
-//                        if pendingFollowUps.count > 1 {
-//                            Button {
-//                                isShowingAllFollowUps = true
-//                            } label: {
-//                                Label(L10n.moreFollowUps(pendingFollowUps.count - 1),
-//                                      systemImage: "ellipsis.circle")
-//                            }
-//                        }
-//                    } header: {
-//                        Label(L10n.fromLastSessionHeader, systemImage: "arrow.uturn.forward")
-//                    }
-//                }
+                sessionIdentityHeader
 
                 if showsSummaryEditor {
-                    Section(L10n.sessionOwnSummarySection) {
-                        VStack(alignment: .leading, spacing: 16) {
-                            if session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                Text(L10n.sessionEmptySummary)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text(session.notes)
-                                    .font(.body)
-                                    .foregroundStyle(Theme.textBright)
-                                    .lineLimit(6)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            Button { showingNotesEditor = true } label: {
-                                Label(EntitlementState.shared.canWrite ? (session.notes.isEmpty ? L10n.sessionWriteNotes : L10n.sessionReadNotes) : L10n.sessionViewSummary,
-                                      systemImage: "square.and.pencil")
-                                    .font(.subheadline.weight(.semibold))
+                    VStack(alignment: .leading, spacing: 12) {
+                        summaryHeading
+                        if session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Button { openSummary(editing: true) } label: {
+                                Text(L10n.sessionSummaryFieldPlaceholder)
+                                    .font(.subheadline).foregroundStyle(Theme.textBody)
                                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            .foregroundStyle(Theme.gold)
-                            .disabled(isWorking || (session.notes.isEmpty && !EntitlementState.shared.canWrite))
-                            .accessibilityIdentifier("session.notes")
-                            Divider()
-                            recordControl
-                            Text(L10n.sessionRecordingHelp)
-                                .font(.footnote).foregroundStyle(.secondary)
-                        }
-                        .listRowBackground(groupBorderedRow(.only))
-                        // Transcription starts automatically when recording
-                        // stops, so this row only ever appears after a failed
-                        // transcription — the recording survives for a retry.
-                        if voiceRecorder.recordingURL != nil, !isWorking {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text(L10n.sessionPendingRecording)
-                                    .foregroundStyle(.secondary)
-                                Button {
-                                    voiceRecorder.togglePlayback()
-                                } label: {
-                                    Label(voiceRecorder.isPlaying
-                                          ? L10n.stopPlaybackAction
-                                          : L10n.playRecordingAction,
-                                          systemImage: voiceRecorder.isPlaying
-                                          ? "stop.circle"
-                                          : "play.circle")
+                            .disabled(isWorking || !EntitlementState.shared.canWrite)
+                            .accessibilityIdentifier("session.emptySummary")
+                        } else {
+                            Button { openSummary(editing: false) } label: {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text(session.notes)
+                                        .font(.body).lineSpacing(5)
+                                        .foregroundStyle(Theme.textBright)
+                                        .lineLimit(5)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Label(L10n.sessionReadFullSummary, systemImage: "arrow.up.left.and.arrow.down.right")
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(Theme.gold)
+                                        .frame(minHeight: 44)
                                 }
-                                Button(L10n.transcribeAction) { transcribe() }
-                                    .fontWeight(.semibold)
-                                Button(role: .destructive) {
-                                    voiceRecorder.discard()
-                                } label: {
-                                    Label(L10n.discardRecordingAction, systemImage: "trash")
-                                }
-                                .accessibilityLabel(L10n.discardRecordingAction)
+                                .contentShape(Rectangle())
                             }
-                            .font(.subheadline)
-                            .buttonStyle(.borderless)
-                            .listRowBackground(groupBorderedRow(.middle))
+                            .buttonStyle(.plain)
+                            .disabled(isWorking)
+                            .accessibilityIdentifier("session.readSummary")
                         }
-
-                        if isTranscribing || isAnonymizingTranscription {
-                            HStack {
-                                ProgressView()
-                                Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .listRowBackground(groupBorderedRow(.middle))
-                        }
-
-                        if let recorderError = voiceRecorder.errorMessage {
-                            Text(recorderError)
-                                .font(.footnote)
-                                .foregroundStyle(Theme.error)
-                                .listRowBackground(groupBorderedRow(.middle))
-                        }
-
                     }
+                    .padding(16)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(patientAccent.opacity(0.35), lineWidth: 1))
+                    summaryRecordingPanel
                 }
 
                 if showsSummaryEditor && (!session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || session.structuredNotes != nil) {
@@ -338,15 +258,20 @@ struct SessionEditorView: View {
                     }
                     .listRowBackground(groupBorderedRow(.only))
                 }
+                }
+                .padding(.horizontal, 18)
+                .padding(.bottom, 18)
             }
-            .listSectionSpacing(.compact)
-            .patientAtmosphere(patientAccent)
+            .background(Theme.base)
             .themedScreen()
             .dismissesKeyboardOnTap()
             .navigationTitle(isNew
                              ? L10n.newSessionTitle
                              : L10n.sessionEditorTitle(sessionNumber))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(patientHeaderColor, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
@@ -395,9 +320,9 @@ struct SessionEditorView: View {
                     .buttonStyle(.pressableProminent)
                     .disabled(!canSave)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(.regularMaterial)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background(Theme.base)
             }
             // Mission dock must be the outermost bottom inset so it sits at
             // the physical bottom of the screen.
@@ -444,46 +369,70 @@ struct SessionEditorView: View {
                 }
                 Button(L10n.keepEditingAction, role: .cancel) {}
             }
+            .onChange(of: isEditingSummary) { _, editing in
+                notesEditorFocused = editing
+            }
             .fullScreenCover(isPresented: $showingNotesEditor) {
                 NavigationStack {
                     VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            Text(storePatient?.displayName ?? "")
-                                .font(.subheadline.weight(.medium))
-                            Spacer()
-                            Text(L10n.hebrewDate(session.date)).font(.caption)
-                        }
-                        .foregroundStyle(Theme.textBody)
-                        .padding(.horizontal, 24).padding(.vertical, 14)
-                        Divider().overlay(Theme.borderFaint)
-                        ZStack(alignment: .topLeading) {
-                            if session.notes.isEmpty {
-                                Text(L10n.sessionSummaryFieldPlaceholder)
-                                    .font(.body).foregroundStyle(Theme.textFaint)
-                                    .padding(.horizontal, 29).padding(.top, 24)
-                                    .allowsHitTesting(false)
+                        HStack(spacing: 10) {
+                            Image(systemName: "doc.text")
+                                .font(.title3).foregroundStyle(patientAccent)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(storePatient?.displayName ?? "")
+                                    .font(.headline).foregroundStyle(Theme.textBright)
+                                Text(L10n.hebrewDate(session.date))
+                                    .font(.caption).foregroundStyle(Theme.textBody)
                             }
-                            EntitlementTextEditor(text: $session.notes)
-                                .font(.body).lineSpacing(7)
-                                .foregroundStyle(Theme.textBright)
-                                .tint(Theme.gold)
-                                .focused($notesEditorFocused)
-                                .onAppear { notesAtEditorOpen = session.notes; notesEditorFocused = EntitlementState.shared.canWrite }
-                                .disabled(isWorking)
-                                .onDisappear { notesEditorFocused = false }
-                                .scrollContentBackground(.hidden)
-                                .scrollDismissesKeyboard(.interactively)
-                                .padding(.horizontal, 24).padding(.vertical, 16)
+                            Spacer(minLength: 8)
                         }
-                        if let saveStatus {
-                            Text(saveStatus)
-                                .font(.caption).foregroundStyle(Theme.textBody)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 24).padding(.vertical, 12)
+                        .padding(.horizontal, 20).padding(.vertical, 14)
+                        .background(patientAccent.opacity(0.08))
+
+                        if isEditingSummary {
+                            GeometryReader { space in
+                                VStack(spacing: 0) {
+                                    TextField(L10n.sessionSummaryFieldPlaceholder, text: $session.notes, axis: .vertical)
+                                        .font(.body).lineSpacing(7)
+                                        .lineLimit(3...max(3, Int((space.size.height - 48) / summaryLineHeight)))
+                                        .foregroundStyle(Theme.textBright)
+                                        .tint(Theme.gold)
+                                        .focused($notesEditorFocused)
+                                        .onAppear { notesEditorFocused = EntitlementState.shared.canWrite }
+                                        .disabled(isWorking || !EntitlementState.shared.canWrite)
+                                        .padding(16)
+                                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(patientAccent.opacity(0.4), lineWidth: 1))
+                                        .accessibilityIdentifier("session.summaryText")
+                                    Spacer(minLength: 0)
+                                }
+                                .padding(16)
+                            }
+                        } else {
+                            ScrollView {
+                                Button {
+                                    isEditingSummary = true
+                                    notesEditorFocused = true
+                                } label: {
+                                    Text(session.notes.isEmpty ? L10n.sessionSummaryStartHelp : session.notes)
+                                        .font(.body).lineSpacing(7)
+                                        .foregroundStyle(Theme.textBright)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(20)
+                                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(patientAccent.opacity(0.35), lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isWorking || !EntitlementState.shared.canWrite)
+                                .accessibilityHint(L10n.reviewEdit)
+                                .accessibilityIdentifier("session.editSummaryText")
+                                .padding(16)
+                            }
+                            .accessibilityIdentifier("session.summaryReader")
                         }
                     }
-                    .background(Theme.surface)
-                    .navigationTitle(L10n.sessionSummarySection)
+                    .background(Theme.base)
+                    .navigationTitle(L10n.sessionOwnSummarySection)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbarBackground(Theme.surface, for: .navigationBar)
                     .toolbarBackground(.visible, for: .navigationBar)
@@ -510,10 +459,29 @@ struct SessionEditorView: View {
                     .onChange(of: initialNotes) { _, value in
                         if let value { notesAtEditorOpen = value }
                     }
-                    .safeAreaInset(edge: .bottom) {
-                        if let errorMessage {
-                            Text(errorMessage).font(.callout).foregroundStyle(Theme.error).padding()
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if isEditingSummary && !isWorking && voiceRecorder.recordingURL == nil {
+                                recordControl
+                                    .accessibilityIdentifier("session.summaryRecording")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            } else {
+                                ScrollView {
+                                    summaryRecordingPanel
+                                }
+                                .frame(maxHeight: voiceRecorder.recordingURL != nil && !isWorking ? 230 : 126)
+                                .fixedSize(horizontal: false, vertical: true)
+                            }
+                            if let saveStatus {
+                                Text(saveStatus).font(.caption).foregroundStyle(Theme.textBody)
+                            }
+                            if let errorMessage {
+                                Text(errorMessage).font(.callout).foregroundStyle(Theme.error)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(Theme.base)
                     }
                     .busyOverlay(isSaving, label: busyLabel)
                     .alert(L10n.saveSummaryPrompt, isPresented: $confirmLeavingNotes) {
@@ -596,11 +564,190 @@ struct SessionEditorView: View {
         .appTextSize()
     }
 
+    private var summaryRecordingPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            recordControl
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(patientAccent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(patientAccent.opacity(0.4), lineWidth: 1))
+            if !isWorking && voiceRecorder.recordingURL == nil {
+                Text(L10n.sessionRecordingHelp).font(.footnote).foregroundStyle(Theme.textBody)
+            }
+                        // Transcription starts automatically when recording
+                        // stops, so this row only ever appears after a failed
+                        // transcription — the recording survives for a retry.
+                        if voiceRecorder.recordingURL != nil, !isWorking {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(L10n.sessionPendingRecording)
+                                    .foregroundStyle(.secondary)
+                                Button {
+                                    voiceRecorder.togglePlayback()
+                                } label: {
+                                    Label(voiceRecorder.isPlaying
+                                          ? L10n.stopPlaybackAction
+                                          : L10n.playRecordingAction,
+                                          systemImage: voiceRecorder.isPlaying
+                                          ? "stop.circle"
+                                          : "play.circle")
+                                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                }
+                                Button { transcribe() } label: {
+                                    Text(L10n.transcribeAction).fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                }
+                                Button(role: .destructive) {
+                                    voiceRecorder.discard()
+                                } label: {
+                                    Label(L10n.discardRecordingAction, systemImage: "trash")
+                                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                }
+                                .accessibilityLabel(L10n.discardRecordingAction)
+                            }
+                            .font(.subheadline)
+                            .buttonStyle(.borderless)
+                            .listRowBackground(groupBorderedRow(.middle))
+                        }
+
+                        if isTranscribing || isAnonymizingTranscription {
+                            HStack {
+                                ProgressView()
+                                Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .listRowBackground(groupBorderedRow(.middle))
+                        }
+
+                        if let recorderError = voiceRecorder.errorMessage {
+                            Text(recorderError)
+                                .font(.footnote)
+                                .foregroundStyle(Theme.error)
+                                .listRowBackground(groupBorderedRow(.middle))
+                        }
+
+        }
+    }
+
+    private func openSummary(editing: Bool) {
+        isEditingSummary = editing && EntitlementState.shared.canWrite
+        notesAtEditorOpen = session.notes
+        showingNotesEditor = true
+    }
+
+    private var summaryHeading: some View {
+        HStack {
+            Text(L10n.sessionOwnSummarySection).font(.headline)
+            Spacer(minLength: 8)
+            Button { openSummary(editing: true) } label: {
+                Label(EntitlementState.shared.canWrite ? (session.notes.isEmpty ? L10n.sessionWriteNotes : L10n.reviewEdit) : L10n.sessionViewSummary,
+                      systemImage: "square.and.pencil")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.gold)
+            .disabled(isWorking || (session.notes.isEmpty && !EntitlementState.shared.canWrite))
+            .accessibilityIdentifier("session.notes")
+        }
+    }
+
+    private var sessionIdentityHeader: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let patient = storePatient {
+                HStack(spacing: 10) {
+                    Text(patient.displayName.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined())
+                        .font(.headline)
+                        .foregroundStyle(PatientAvatarColor.foreground(for: patient.id))
+                        .frame(width: 42, height: 42)
+                        .background(patientAccent, in: Circle())
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(patient.displayName).font(.title2.bold())
+                        if let sessionNumber {
+                            Text(L10n.session(sessionNumber)).font(.caption)
+                        }
+                    }
+                }
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { sessionDateControl; compactTypeControl }
+                VStack(alignment: .leading, spacing: 8) { sessionDateControl; compactTypeControl }
+            }
+            if isNew && !showsSummaryEditor {
+                Text(L10n.newSessionDetailsHelp).font(.footnote)
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 18)
+        .padding(.top, 10)
+        .padding(.bottom, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            ZStack {
+                patientHeaderColor
+                LinearGradient(colors: [patientAccent.opacity(0.34), .clear], startPoint: .topTrailing, endPoint: .bottomLeading)
+                Canvas { context, size in
+                    var path = Path()
+                    path.addLines([CGPoint(x: 0, y: 0), CGPoint(x: size.width * 0.35, y: 0), CGPoint(x: size.width * 0.65, y: size.height), CGPoint(x: size.width * 0.30, y: size.height)])
+                    path.closeSubpath()
+                    context.fill(path, with: .color(.white.opacity(0.045)))
+                }.accessibilityHidden(true)
+            }
+            .ignoresSafeArea(edges: .top)
+        }
+        .padding(.horizontal, -18)
+    }
+
+    private var sessionDateControl: some View {
+        DatePicker(L10n.sessionDateTitle, selection: $session.date, displayedComponents: [.date])
+            .labelsHidden()
+            .environment(\.locale, Locale(identifier: "he_IL"))
+            .environment(\.colorScheme, .dark)
+            .disabled(isWorking || !EntitlementState.shared.canWrite)
+            .accessibilityIdentifier("session.date")
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(.white.opacity(0.2), lineWidth: 1))
+    }
+
+    private var compactTypeControl: some View {
+        Menu {
+            Picker(L10n.sessionTypeLabel, selection: $session.type) {
+                Text(L10n.sessionTypeNone).tag(SessionType?.none)
+                ForEach(SessionType.allCases, id: \.self) { type in
+                    Text(L10n.label(for: type)).tag(SessionType?.some(type))
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(session.type.map { L10n.label(for: $0) } ?? L10n.sessionTypeNone)
+                Image(systemName: "chevron.down").font(.caption)
+            }
+            .font(.subheadline)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.horizontal, 8)
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(.white.opacity(0.2), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(isWorking || !EntitlementState.shared.canWrite)
+        .accessibilityLabel(L10n.sessionOptionalDetails)
+        .accessibilityIdentifier("session.type")
+    }
+
     private var aiSummarySection: some View {
-        Section(L10n.sessionOptionalAI) {
-            VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(L10n.sessionAISummaryTitle, systemImage: "sparkles").font(.headline)
+                Spacer(minLength: 4)
+                Text(L10n.sessionOptionalBadge).font(.caption2).foregroundStyle(Theme.textBody)
+                    .padding(5).overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.borderFaint))
+            }
+            VStack(alignment: .leading, spacing: 12) {
                 Text(L10n.sessionAIHelp)
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(Theme.textBody)
                 if let structuredNotes = session.structuredNotes {
                     Text(structuredNotes.sessionSummary)
                         .lineLimit(6)
@@ -628,15 +775,19 @@ struct SessionEditorView: View {
                               systemImage: "sparkles")
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                             .contentShape(Rectangle())
+                            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.purple.opacity(0.4)))
                     }
                     .disabled(isWorking || !EntitlementState.shared.canWrite || session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || voiceRecorder.recordingURL != nil)
                 }
             }
             .font(.subheadline)
             .buttonStyle(.plain)
-            .tint(Theme.gold)
+            .tint(Theme.textBright)
             .listRowBackground(groupBorderedRow(.only))
         }
+        .padding(14)
+        .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.purple.opacity(0.30), lineWidth: 1))
     }
 
     private var patientPicker: some View {
@@ -724,16 +875,29 @@ struct SessionEditorView: View {
         } else {
             Button {
                 guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
+                notesEditorFocused = false
+                isEditingSummary = false
                 isRequestingRecording = true
                 Task {
                     await voiceRecorder.startRecording()
                     isRequestingRecording = false
                 }
             } label: {
-                Label(L10n.recordSessionNotesAction, systemImage: "mic.fill")
-                    .frame(minHeight: 44)
+                HStack(spacing: 12) {
+                    Image(systemName: "mic.fill")
+                        .foregroundStyle(patientAccent)
+                        .frame(width: 36, height: 36)
+                        .background(patientAccent.opacity(0.14), in: Circle())
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(L10n.recordSessionNotesAction).font(.subheadline.weight(.semibold))
+                        Text(L10n.sessionRecordingSubtitle).font(.caption).foregroundStyle(Theme.textBody)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(minHeight: 44)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(L10n.recordSessionNotesAction)
             .disabled(isWorking || voiceRecorder.recordingURL != nil)
             .tutorialPulse(gettingStartedRouter.shouldPulse(.recordNotes))
         }
@@ -937,59 +1101,91 @@ struct SessionEditorView: View {
     }
 
     private var questionnaireSection: some View {
-        Section(L10n.questionnaireSectionTitle) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 10) {
+                Image(systemName: "list.clipboard")
+                    .foregroundStyle(patientAccent)
+                Text(L10n.questionnaireSectionTitle).font(.headline)
+                Spacer(minLength: 0)
+                if isLoadingQuestionnaire || isRefreshingQuestionnaire { ProgressView() }
+            }
             if questionnaireRefreshFailed {
-                Text(L10n.questionnaireRefreshFailed).foregroundStyle(Theme.error)
-                Button(L10n.questionnaireRefreshAction) { Task { await refreshQuestionnaireState() } }
-                    .disabled(isRefreshingQuestionnaire)
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(L10n.questionnaireRefreshFailed, systemImage: "exclamationmark.circle")
+                        .font(.footnote).foregroundStyle(Theme.error)
+                    Button(L10n.questionnaireRefreshAction) { Task { await refreshQuestionnaireState() } }
+                        .font(.subheadline.weight(.semibold)).frame(minHeight: 44)
+                        .disabled(isRefreshingQuestionnaire)
+                }
             }
             if let patient = storePatient, let questionnaire {
-                // Opens the questionnaire pre-filled with the saved answers,
-                // read-only until Edit is chosen; saving upserts the same row.
                 NavigationLink {
                     CombinedMoodQuestionnaireView(patient: patient, session: session,
                                                   isExisting: true)
                 } label: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label(L10n.questionnaireCompletedLabel, systemImage: "checkmark.circle")
-                            .font(.subheadline)
+                    VStack(alignment: .leading, spacing: 14) {
                         Text(L10n.hebrewDate(questionnaire.answeredDate))
-                            .font(.headline)
-                        HStack(spacing: 8) {
-                            ScoreCapsule.gad7(questionnaire.questionnaire,
-                                              previous: previousQuestionnaireRecord?.questionnaire)
-                            ScoreCapsule.phq9(questionnaire.questionnaire,
-                                              previous: previousQuestionnaireRecord?.questionnaire)
+                            .font(.subheadline).foregroundStyle(Theme.textBody)
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 12) {
+                                ScoreCapsule.gad7(questionnaire.questionnaire, previous: previousQuestionnaireRecord?.questionnaire)
+                                ScoreCapsule.phq9(questionnaire.questionnaire, previous: previousQuestionnaireRecord?.questionnaire)
+                            }
+                            VStack(alignment: .leading, spacing: 10) {
+                                ScoreCapsule.gad7(questionnaire.questionnaire, previous: previousQuestionnaireRecord?.questionnaire)
+                                ScoreCapsule.phq9(questionnaire.questionnaire, previous: previousQuestionnaireRecord?.questionnaire)
+                            }
                         }
+                        Divider().overlay(Theme.borderFaint)
+                        HStack(spacing: 8) {
+                            Label(L10n.questionnaireCompletedLabel, systemImage: "checkmark.circle.fill")
+                                .font(.subheadline.weight(.medium))
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.forward").font(.caption.weight(.semibold))
+                        }
+                        .foregroundStyle(Theme.gold)
+                        .frame(minHeight: 44)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-                .listRowBackground(groupBorderedRow(.only))
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("session.questionnaireEntry")
             } else {
                 therapistQuestionnaireEntryRow
-                    .listRowBackground(groupBorderedRow(.first))
                 if let patient = storePatient {
+                    Divider().overlay(Theme.borderFaint)
                     QuestionnaireAccessControl(patient: patient)
-                        .listRowBackground(groupBorderedRow(.last))
                 }
             }
         }
+        .padding(16)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(patientAccent.opacity(0.35), lineWidth: 1))
     }
 
     @ViewBuilder
     private var therapistQuestionnaireEntryRow: some View {
-        if isLoadingQuestionnaire {
-            ProgressView()
-        } else if let patient = storePatient {
+        if !isLoadingQuestionnaire, let patient = storePatient {
             NavigationLink {
                 CombinedMoodQuestionnaireView(patient: patient, session: session)
             } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Label(L10n.fillQuestionnaireHereAction, systemImage: "square.and.pencil")
-                    Text(L10n.questionnaireSessionEntryHelp)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(L10n.fillQuestionnaireHereAction, systemImage: "square.and.pencil")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.gold)
+                        Text(L10n.questionnaireSessionEntryHelp)
+                            .font(.footnote).foregroundStyle(Theme.textBody)
+                    }
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.forward")
+                        .font(.caption.weight(.semibold)).foregroundStyle(Theme.gold)
                 }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("session.questionnaireEntry")
             .tutorialPulse(gettingStartedRouter.shouldPulse(.fillQuestionnaire))
         }
     }

@@ -138,7 +138,7 @@ struct NotificationsInboxView: View {
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .themedScreen()
     }
@@ -152,6 +152,7 @@ struct NotificationsInboxView: View {
                 NotificationInboxRow(
                     item: item,
                     workspaceTag: workspaces.items.first(where: { $0.id == item.resourceId })?.reference_label,
+                    patient: store.patients.first(where: { $0.id.queryValue == item.patientId }),
                     patientName: NotificationPatientName.resolve(
                         patientId: item.patientId,
                         patients: store.patients
@@ -159,7 +160,8 @@ struct NotificationsInboxView: View {
                 )
             }
             .buttonStyle(.plain)
-            .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+            .accessibilityIdentifier("notifications.entry.\(item.type.rawValue)")
+            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
         }
@@ -187,30 +189,39 @@ struct NotificationsInboxView: View {
 private struct NotificationInboxRow: View {
     let item: AppNotification
     let workspaceTag: String?
+    let patient: Patient?
     let patientName: String
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(eventColor)
-                .frame(width: 42, height: 42)
-                .background(eventColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
-                .accessibilityHidden(true)
+            Group {
+                if let patient, item.type != .webWorkspaceReady {
+                    InitialsAvatar(name: patientName, size: 44, patientID: patient.id)
+                } else {
+                    Image(systemName: symbol)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(eventColor)
+                        .frame(width: 44, height: 44)
+                        .background(eventColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+            .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 7) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(item.type == .webWorkspaceReady ? (workspaceTag.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } ?? L10n.wwUntitled) : patientName)
-                        .font(.headline)
+                        .font(.title3.weight(item.isUnread ? .semibold : .medium))
                         .foregroundStyle(Theme.textBright)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if item.isUnread {
                         Circle().fill(Theme.gold).frame(width: 7, height: 7)
                             .accessibilityLabel(L10n.notificationUnreadAccessibility)
                     }
                 }
-                Text(NotificationInboxCopy.message(for: item.type))
+                Label(NotificationInboxCopy.message(for: item.type), systemImage: symbol)
                     .font(.subheadline)
                     .foregroundStyle(Theme.textBody)
+                    .fixedSize(horizontal: false, vertical: true)
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) {
                         timestamp
@@ -226,17 +237,21 @@ private struct NotificationInboxRow: View {
             }
         }
         .padding(16)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
         .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(item.isUnread ? Theme.gold.opacity(0.4) : Theme.borderFaint, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14).fill(identityColor.opacity(item.isUnread ? 0.065 : 0.02))
+                .allowsHitTesting(false)
         }
-        .contentShape(RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(item.isUnread ? identityColor.opacity(0.4) : Theme.borderFaint, lineWidth: 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 14))
     }
 
     private var timestamp: some View {
         Text(L10n.notificationTimestamp(item.createdAt))
-            .font(.caption).foregroundStyle(Theme.textFaint)
+            .font(.caption).foregroundStyle(Theme.textBody)
             .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -247,8 +262,12 @@ private struct NotificationInboxRow: View {
                 Image(systemName: "chevron.forward").font(.system(size: 9, weight: .semibold))
             }
             .font(.caption.weight(.semibold)).foregroundStyle(Theme.gold)
-            .fixedSize(horizontal: true, vertical: false)
+            .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var identityColor: Color {
+        patient.map { PatientAvatarColor.background(for: $0.id) } ?? eventColor
     }
 
     private var actionTitle: String? {
@@ -263,6 +282,7 @@ private struct NotificationInboxRow: View {
 
     private var symbol: String {
         switch item.type {
+        case .webWorkspaceReady: "desktopcomputer"
         case .questionnaireCompleted: "list.clipboard"
         case .patientConnected: "person.crop.circle.badge.checkmark"
         case .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded: "book.closed"

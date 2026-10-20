@@ -168,3 +168,14 @@ The sidecar previews are illustrative HTML equivalents of native patterns for th
 The header now uses dark ultraThinMaterial instead of an opaque navy base. The patient-color tint is 28% to 8%, with an 18% radial accent and 6% bottom shade. The previous white brightness wash is removed. The existing translucent facets and compact geometry remain. Reduce Transparency uses the solid navy fallback. This supersedes the earlier opaque-backdrop description.
 
 The selected midpoint retains ultraThinMaterial under a 50% navy veil, with 46%–15% patient tint, 30% radial accent, 5%–1.75% light wash and 9% bottom shade. Light appearance uses a 17% contrast scrim. This replaces the stronger-translucency values above; geometry is unchanged.
+
+
+### iOS session editor — approved A (screen-local)
+
+The session editor uses the approved summary-first A direction and the heading **סיכום הפגישה**. Its contract and validation are recorded in [.impeccable/surfaces/ios-session-editor.md](.impeccable/surfaces/ios-session-editor.md). This extension does not change the patient-detail decisions above or establish a global redesign.
+
+`SessionEditorView` uses an 18 pt scroll rhythm and horizontal inset, a patient identity/date/type header, the existing summary editing sheet, recording, an optional AI panel, the existing questionnaire and a pinned save action. Preserve date/type-first creation, stop → transcription → anonymization, AI review and save/discard protections. Native system typography, Hebrew RTL, patient palette and adaptive Theme body tokens remain authoritative.
+
+Session-local header values are #233D44 with a 34% patient-color gradient and a 4.5% white plane; the toolbar is #285454. Identity uses a 42 pt initials circle; date/type controls have 9 pt corners and 44 pt minimum height. Recording uses 12 pt corners, 10% patient-accent fill and 40% outline. AI uses native purple at 8% fill/30% outline, 12 pt corners and 14 pt padding. Summary and AI help use Theme.textBody following contrast review. These observed values do not replace patient-header styling or the existing frontmatter tokens. Build, creation and dark/light summary/edit/discard checks passed, including the final contrast-corrected build and dark/light edit/discard rerun. Final captures are complete; reviewer contrast verification passed in both appearances; the finding is resolved. Live microphone/backend behavior was not tested.
+
+The summary interaction refinement separates full-text reading from writing, preserves the draft across modes, and shares recording/recovery controls between overview and summary. See the session surface brief for the current interaction contract and verification limits.

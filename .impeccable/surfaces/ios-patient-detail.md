@@ -20,3 +20,9 @@ Superseded exploration: larger navigation title and two-stage compact summary we
 Journey timeline displays the latest stage at the top; date ranges and consecutive grouping remain unchanged.
 
 Approved A horizontal journey plus C patient-color header. References: .impeccable/mocks/patient-horizontal/horizontal.png and header.png. Latest horizontal stage goes LEFT (user correction), vertical history stays newest at top. Full chronological groups, compact expandable goal, real per-patient palette. At accessibility size preserve readable vertical flow; overflow histories scroll. Generated mockup labels remain illustrative.
+
+### Journey emphasis — 2026-10-20
+The inline journey now has a visible, tappable heading, a 16% black translucent fill, a 25% white 1 pt outline, 14 pt corners and 10 pt inset. Horizontal markers grow from 24 to 30 pt with 15 pt symbols and a 3 pt connecting line. Patient color, newest-at-left ordering, treatment-goal placement and journey destinations are unchanged.
+
+### Compact header and session shortcut
+The journey retains its translucent boundary but uses a static compact heading, 6 pt vertical inset and 26 pt markers. Stages remain tappable, with latest on the left. Identity spacing is reduced. Invitation has 10 pt exterior vertical spacing; the session action group has 12 pt exterior spacing. “הפגישה האחרונה” opens the latest recorded session through the existing editor; future days are excluded, and the shortcut is omitted when no recorded session exists.

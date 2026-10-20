@@ -262,6 +262,8 @@ struct PatientListView: View {
                 }
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .patientAtmosphere(Theme.gold)
         .themedScreen()
         .searchable(text: $patientSearch, placement: .navigationBarDrawer(displayMode: .always), prompt: L10n.patientsSearchPrompt)
@@ -276,13 +278,24 @@ struct PatientListView: View {
                 && gettingStartedRouter.shouldPulse(.tutorialPatient)
                 && patient.id == tutorialFocusPatientID
             NavigationLink(value: patient) {
-                PatientListRow(patient: patient, recentSubmissionCount: recentSubmissionCount(for: patient))
+                PatientListRow(patient: patient, recentSubmissionCount: recentSubmissionCount(for: patient), directoryStyle: true)
                     .tutorialPulse(isTutorialFocus)
             }
-            .listRowBackground(groupBorderedRow(
-                .at(patients.firstIndex(of: patient) ?? 0, of: patients.count),
-                accent: Theme.gold))
-            .listRowSeparatorTint(Theme.borderFaint)
+            .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16))
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Theme.surface)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(PatientAvatarColor.background(for: patient.id).opacity(0.055))
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(PatientAvatarColor.background(for: patient.id).opacity(0.30), lineWidth: 1)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 4)
+            )
+            .listRowSeparator(.hidden)
         }
     }
 
@@ -410,13 +423,17 @@ struct PatientListRow: View {
     let patient: Patient
     var actionSubtitle: String? = nil
     var recentSubmissionCount: Int = 0
+    var directoryStyle = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            InitialsAvatar(name: patient.displayName, size: 44, patientID: patient.id)
-            VStack(alignment: .leading, spacing: actionSubtitle == nil ? 3 : 7) {
+        HStack(alignment: directoryStyle ? .top : .center, spacing: 12) {
+            InitialsAvatar(name: patient.displayName, size: directoryStyle ? 50 : 44, patientID: patient.id)
+                .padding(.top, directoryStyle ? 2 : 0)
+            VStack(alignment: .leading, spacing: directoryStyle ? 7 : (actionSubtitle == nil ? 3 : 7)) {
                 Text(patient.displayName)
-                    .font(.headline)
+                    .font(directoryStyle ? .title3.weight(.semibold) : .headline)
+                    .foregroundStyle(Theme.textBright)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let actionSubtitle {
                     Label(actionSubtitle, systemImage: "bubble.left.and.bubble.right")
                         .font(.subheadline)
@@ -425,14 +442,22 @@ struct PatientListRow: View {
                         .padding(.vertical, 5)
                         .background(Theme.goldGhost, in: Capsule())
                 } else {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.textBody)
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        if directoryStyle { Image(systemName: "calendar").accessibilityHidden(true) }
+                        Text(subtitle)
+                    }
+                    .font(directoryStyle ? .footnote : .subheadline)
+                    .foregroundStyle(Theme.textBody)
                     if recentSubmissionCount > 0 {
                         Label(L10n.recentSubmissionCount(recentSubmissionCount), systemImage: "doc.text")
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(Theme.gold)
                             .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, directoryStyle ? 8 : 0)
+                            .padding(.vertical, directoryStyle ? 5 : 0)
+                            .background {
+                                if directoryStyle { RoundedRectangle(cornerRadius: 8).fill(Theme.goldGhost) }
+                            }
                     }
                 }
             }
