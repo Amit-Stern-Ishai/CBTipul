@@ -6,7 +6,7 @@ import {
   type ReactNode,
   type TextareaHTMLAttributes,
 } from "react";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, CalendarDays, MessageCircle, Heart, Activity, ScanSearch, Lightbulb, RefreshCw } from "lucide-react";
 import mobile from "../mobile-he.json";
 import { he } from "../he";
 import { ww } from "./he";
@@ -39,11 +39,12 @@ function GrowingText(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   }, [props.value]);
   return <textarea {...props} ref={ref} rows={props.rows ?? 3} maxLength={50000} />;
 }
-function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+const sectionIcons = { event: CalendarDays, thought: MessageCircle, feeling: Heart, behaviour: Activity, examine: ScanSearch, alternative: Lightbulb, review: RefreshCw };
+function Section({ title, hint, kind = "event", children }: { title: string; hint?: string; kind?: keyof typeof sectionIcons; children: ReactNode }) {
+  const Icon = sectionIcons[kind];
   return (
-    <section className="ww-sheet ww-diary-section" aria-label={title}>
-      <h2>{title}</h2>
-      {hint && <p className="ww-diary-hint">{hint}</p>}
+    <section className="ww-sheet ww-diary-section" data-part={kind} aria-label={title}>
+      <div className="ww-diary-heading"><Icon size={19} strokeWidth={1.8} aria-hidden="true" /><h2>{title}</h2>{hint && <details className="ww-diary-hint"><summary aria-label={`הנחיה: ${title}`}>?</summary><p>{hint}</p></details>}</div>
       {children}
     </section>
   );
@@ -83,6 +84,7 @@ function Rating({
         />
         <span aria-hidden="true">%</span>
       </div>
+      <details className="ww-rating-adjust"><summary aria-label={`התאמת ${title}`}>כוונון</summary>
       {current === null ? (
         <div className="ww-rating-choices" aria-label={title}>
           {[0, 25, 50, 75, 100].map((n) => (
@@ -110,6 +112,7 @@ function Rating({
           onChange={(e) => onChange(Number(e.target.value))}
         />
       )}
+      </details>
     </div>
   );
 }
@@ -307,6 +310,7 @@ function ThinkingErrorPicker({
   const id = useId();
   const panel = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const [query, setQuery] = useState("");
   const selected = Array.isArray(value) ? (value as string[]) : [];
   const close = () => {
     panel.current?.hidePopover();
@@ -364,10 +368,11 @@ function ThinkingErrorPicker({
             <X size={20} />
           </button>
         </div>
+        <label htmlFor={`${id}-search`}>חיפוש טעות חשיבה</label><input id={`${id}-search`} value={query} onChange={e => setQuery(e.target.value)} />
         <div className="ww-thinking-catalogue">
-          {thinkingErrors.filter(([code]) => !selected.includes(code)).map(([code, key]) => (
+          {thinkingErrors.filter(([code, key]) => !selected.includes(code) && String((mobile as Record<string, unknown>)[key]).includes(query.trim())).map(([code, key]) => (
             <button key={code} type="button" className="secondary" disabled={disabled}
-              onClick={() => { onChange([...selected, code]); close(); }}>
+              onClick={() => { onChange([...selected, code]); setQuery(""); close(); }}>
               <Plus size={16} aria-hidden="true" />
               <span>{String((mobile as Record<string, unknown>)[key])}</span>
             </button>
@@ -424,7 +429,7 @@ export function DiaryWorksheet({
   ) => {
     const values = Array.isArray(d[key]) ? (d[key] as unknown[]) : [];
     return (
-      <Section title={title} hint={third ? (key === "automatic_thoughts" ? ww.thoughtBeforeHelp : ww.alternativeBeliefHelp) : undefined}>
+      <Section title={title} kind={key === "automatic_thoughts" ? "thought" : "alternative"} hint={third ? (key === "automatic_thoughts" ? ww.thoughtBeforeHelp : ww.alternativeBeliefHelp) : undefined}>
         <div className="ww-rows">
           {values.map((value, index) => (
             <div className="ww-diary-row ww-thought-row" key={index}>
@@ -483,7 +488,7 @@ export function DiaryWorksheet({
           type="button"
           className="secondary"
           disabled={disabled || values.length >= 100}
-          onClick={() =>
+          onClick={() => {
             set(key, [
               ...values,
               object
@@ -491,8 +496,11 @@ export function DiaryWorksheet({
                   ? { text: "", beliefBefore: null, beliefAfter: null }
                   : { text: "", belief: null }
                 : "",
-            ])
-          }
+            ]);
+            requestAnimationFrame(() => {
+              document.getElementById(`${item.id}-${key}-${values.length}`)?.focus();
+            });
+          }}
         >
           <Plus size={16} />
           {key === "automatic_thoughts" ? ww.addAutomaticThought : ww.addAlternativeThought}
@@ -501,8 +509,10 @@ export function DiaryWorksheet({
     );
   };
   return (
+    <>
+    {third && <nav className="ww-stage-links" aria-label="שלבי היומן">{[ww.diaryThreeBefore, ww.diaryThreeExamine, ww.diaryThreeAfter].map((title, index) => <a key={title} href={`#${item.id}-stage-${index}`}>{title}</a>)}</nav>}
     <div className={`ww-diary-grid ww-diary-${item.type}`}>
-      {third && <div className="ww-diary-stage"><h2>{ww.diaryThreeBefore}</h2><p>{ww.diaryThreeBeforeHelp}</p></div>}
+      {third && <div id={`${item.id}-stage-0`} className="ww-diary-stage" tabIndex={-1}><h2>{ww.diaryThreeBefore}</h2><details><summary>הנחיה</summary><p>{ww.diaryThreeBeforeHelp}</p></details></div>}
       <Section title={third ? ww.situation : ww.event}>
         <label className="ww-sr" htmlFor={`${item.id}-event`}>
           {third ? ww.situation : ww.event}
@@ -520,7 +530,7 @@ export function DiaryWorksheet({
         third,
         third ? "beliefBefore" : undefined,
       )}
-      <Section title={third ? "רגשות ועוצמה לפני" : he.Diaries017} hint={third ? ww.feelingBeforeHelp : undefined}>
+      <Section kind="feeling" title={third ? "רגשות ועוצמה לפני" : he.Diaries017} hint={third ? ww.feelingBeforeHelp : undefined}>
         <div className="ww-rows">
           {feelings.map((row, index) =>
             String(row.name ?? "").trim() ? (
@@ -568,7 +578,7 @@ export function DiaryWorksheet({
         />
       </Section>
       {item.type === "diary_one" ? (
-        <Section title={ww.behaviour}>
+        <Section kind="behaviour" title={ww.behaviour}>
           <label className="ww-sr" htmlFor={`${item.id}-behaviour`}>
             {ww.behaviour}
           </label>
@@ -588,8 +598,8 @@ export function DiaryWorksheet({
         </Section>
       ) : (
         <>
-          {third && <div className="ww-diary-stage"><h2>{ww.diaryThreeExamine}</h2><p>{ww.diaryThreeExamineHelp}</p></div>}
-          <Section title={he.Diaries020}>
+          {third && <div id={`${item.id}-stage-1`} className="ww-diary-stage" tabIndex={-1}><h2>{ww.diaryThreeExamine}</h2><details><summary>הנחיה</summary><p>{ww.diaryThreeExamineHelp}</p></details></div>}
+          <Section kind="examine" title={he.Diaries020}>
             <ThinkingErrorPicker
               value={d.thinking_errors}
               disabled={disabled}
@@ -606,8 +616,8 @@ export function DiaryWorksheet({
       )}
       {third && (
         <>
-          <div className="ww-diary-stage"><h2>{ww.diaryThreeAfter}</h2><p>{ww.diaryThreeAfterHelp}</p></div>
-          <Section title="הערכה מחדש של המחשבות האוטומטיות" hint={ww.thoughtAfterHelp}>
+          <div id={`${item.id}-stage-2`} className="ww-diary-stage" tabIndex={-1}><h2>{ww.diaryThreeAfter}</h2><details><summary>הנחיה</summary><p>{ww.diaryThreeAfterHelp}</p></details></div>
+          <Section kind="review" title="הערכה מחדש של המחשבות האוטומטיות" hint={ww.thoughtAfterHelp}>
             {thoughts.map((row, index) => (
               <div className="ww-diary-row" key={index}>
                 <p className="ww-original-text">{String(row.text ?? "").trim() ? String(row.text) : ww.thoughtMissing}</p>
@@ -629,7 +639,7 @@ export function DiaryWorksheet({
               </div>
             ))}
           </Section>
-          <Section title="רגשות ועוצמה אחרי" hint={ww.feelingAfterHelp}>
+          <Section kind="feeling" title="רגשות ועוצמה אחרי" hint={ww.feelingAfterHelp}>
             {!feelings.some(row => String(row.name ?? "").trim()) && <p className="ww-quiet">{ww.feelingsMissing}</p>}
             {feelings
               .filter((row) => String(row.name ?? "").trim())
@@ -662,5 +672,6 @@ export function DiaryWorksheet({
         </>
       )}
     </div>
+    </>
   );
 }

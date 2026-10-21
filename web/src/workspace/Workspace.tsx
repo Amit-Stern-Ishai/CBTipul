@@ -26,6 +26,7 @@ export function Workspace({ account, canWrite }: { account: string; canWrite: bo
   const mounted = useRef(false);
   const [selected, setSelected] = useState<string>("notes");
   const [worksheetFeedback, setWorksheetFeedback] = useState<Record<string, WorksheetFeedback>>({});
+  const [wideDiary, setWideDiary] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -119,7 +120,7 @@ export function Workspace({ account, canWrite }: { account: string; canWrite: bo
       {view.phase === "success" && <div className="ww-neutral"><span className="ww-emblem ww-emblem-success"><Check size={32} /></span><h1>{ww.successTitle}</h1><p>{ww.successDescription}</p><button onClick={() => { setReference(""); setSelected("notes"); void engine.begin(); }}>{ww.newSession}</button></div>}
     </main>}
 
-    {(view.phase === "editing" || view.phase === "lost" || view.phase === "conflict") && payload && <main className="ww-layout">
+    {(view.phase === "editing" || view.phase === "lost" || view.phase === "conflict") && payload && <main className={`ww-layout ${wideDiary && item && item.type !== "questionnaire" ? "ww-wide-diary" : ""}`}>
       <aside className="ww-rail" aria-label="פעילויות המפגש">
         <div className="ww-rail-heading"><h2>{ww.title}</h2><p>{view.envelope ? dateTime(view.envelope.started_at) : ww.started}</p></div>
         <details className="ww-help"><summary>{ww.howItWorks}</summary><WorkspaceExplanation /><ConsentPreferences account={account} /></details>
@@ -135,7 +136,7 @@ export function Workspace({ account, canWrite }: { account: string; canWrite: bo
         {view.phase === "lost" && <div className="ww-banner" role="alert"><h2>{ww.lostTitle}</h2><p>{ww.lostDescription}</p><button onClick={() => void engine.begin(true)}>{ww.takeOver}</button><RecoveryCopy payload={payload} /></div>}
         {view.phase === "conflict" && <div className="ww-banner" role="alert"><h2>{ww.conflictTitle}</h2><p>{ww.conflictDescription}</p><button onClick={() => { if (window.confirm(ww.useServerConfirm)) void engine.useServerVersion(); }}>{ww.useServer}</button>{view.error === "workspace_in_use" && <button className="secondary" onClick={() => { if (window.confirm(ww.useServerConfirm)) void engine.useServerVersion(true); }}>{ww.takeOver}</button>}<RecoveryCopy payload={payload} /></div>}
         {view.phase === "editing" && view.reminderOpen && <div className="ww-banner ww-reminder" role="alert"><h2>{ww.hourQuestion}</h2><div className="ww-actions"><button className="secondary" onClick={() => engine.continueReminder()}>{ww.hourContinue}</button><button onClick={() => { engine.continueReminder(); startFinish(); }}>{ww.finish}</button></div></div>}
-        <div className="ww-page-head"><div><h1>{item ? titles[item.type] : ww.notes}</h1><p>{item ? item.completed_at && isFormComplete(item) ? `${ww.completed} · ${dateTime(item.completed_at)}` : ww.incomplete : ww.notesHint}</p>{item && questionnaireFlags(item)?.question9 && <p className="ww-safety" role="alert">{ww.safetyShort}</p>}</div>{item && view.phase === "editing" && <button className="ww-text-button ww-danger-text" onClick={() => remove(item.id)}><Trash2 size={16} />{ww.remove}</button>}</div>
+        <div className="ww-page-head"><div>{item && item.type !== "questionnaire" && <button className="ww-text-button ww-density-toggle" aria-expanded={!wideDiary} onClick={() => setWideDiary(!wideDiary)}>{wideDiary ? "הצגת פעילויות המפגש" : "הרחבת דף העבודה"}</button>}<h1>{item ? titles[item.type] : ww.notes}</h1>{item && item.type !== "questionnaire" && <a className="ww-save-jump" href={`#save-${item.id}`}>לשמירת הרשומה</a>}<p>{item ? item.completed_at && isFormComplete(item) ? `${ww.completed} · ${dateTime(item.completed_at)}` : ww.incomplete : ww.notesHint}</p>{item && questionnaireFlags(item)?.question9 && <p className="ww-safety" role="alert">{ww.safetyShort}</p>}</div>{item && view.phase === "editing" && <button className="ww-text-button ww-danger-text" onClick={() => remove(item.id)}><Trash2 size={16} />{ww.remove}</button>}</div>
         {finishOpen && view.phase === "editing" && <section ref={finishRef} tabIndex={-1} className="ww-confirm" aria-label={ww.finishConfirm}><h2>{ww.finishConfirm}</h2><p>{ww.finishDescription}</p>{payload.items.some((entry) => questionnaireFlags(entry)?.question9) && <p className="ww-safety" role="alert">{ww.safety}</p>}<label htmlFor="reference-code">{ww.reference}</label><input id="reference-code" value={reference} maxLength={100} onChange={(e) => setReference(e.target.value)} /><p className="ww-quiet">{ww.referenceHelp}</p><div className="ww-actions"><button onClick={() => void doFinish()}>{ww.finish}</button><button className="secondary" onClick={() => setFinishOpen(false)}>{ww.cancel}</button></div></section>}
         {discardOpen && view.phase === "editing" && <section ref={discardRef} tabIndex={-1} className="ww-confirm ww-confirm-danger" aria-label={ww.discardConfirm}><h2>{ww.discardConfirm}</h2><p>{ww.discardDescription}</p><div className="ww-actions"><button onClick={() => void doDiscard()}>{ww.discard}</button><button className="secondary" onClick={() => setDiscardOpen(false)}>{ww.cancel}</button></div></section>}
         {showProblems && item && problems.includes(item.id) && <p className="ww-alert" role="alert">{ww.finishProblems}</p>}
@@ -191,7 +192,7 @@ function WorksheetSave({ item, engine, phase, feedback, setFeedback }: { item: W
       setFeedback({ status: "failed", submitted: wording });
     } finally { inFlight.current = false; }
   };
-  return <div className="ww-form-end"><div>
+  return <div id={`save-${item.id}`} className="ww-form-end"><div>
     {!complete && <p>{ww.formIncomplete}</p>}
     {failed && <p className="ww-tone-error" role="alert">{diary ? ww.diaryFailed : ww.formFailed}</p>}
     {feedback.status === "saved" && <p className={newer ? "ww-tone-warning" : "ww-tone-good"} role="status">{newer ? engine.state.save === "saved" ? ww.newerSaved : ww.earlierSaved : diary ? ww.diarySaved : ww.formSaved}</p>}
