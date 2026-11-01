@@ -62,3 +62,36 @@ test('shared new questionnaire completes scores and flags question nine without 
 
 test('lost create response can recover by opening the confirmed row, then UPDATE',async({context,page})=>{const f=await fixture(context,{loseAfterSave:true});await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();await page.getByLabel('סיכום הפגישה',{exact:true}).fill('טיוטה סינתטית');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText(/לא ניתן לוודא אם הרשומה נשמרה/)).toBeVisible();await page.getByRole('button',{name:'בדיקת ההיסטוריה',exact:true}).click();page.once('dialog',dialog=>dialog.accept());await page.locator('.pw-session-list button').first().click();await expect(page.getByText(/לא ניתן לוודא אם הרשומה נשמרה/)).toHaveCount(0);await page.getByLabel('סיכום הפגישה',{exact:true}).fill('עריכה סינתטית');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();expect(f.requests.filter(r=>r.path.endsWith('/Sessions')&&r.method==='POST')).toHaveLength(1);expect(f.requests.filter(r=>r.path.endsWith('/Sessions')&&r.method==='PATCH')).toHaveLength(1);});
 test('search retains the selected patient identity',async({context,page})=>{await fixture(context);await page.goto(`/app/patients/${patient}/sessions`);await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א'})).toBeVisible();await page.getByLabel('חיפוש מטופל/ת',{exact:true}).fill('לדוגמה ב');await expect(page.getByLabel('מעבר למטופל/ת')).toHaveValue(patient);await expect(page.getByLabel('מעבר למטופל/ת').locator('option:checked')).toHaveText('מטופלת לדוגמה א');});
+
+for(const width of [1440,800,390])test(`contextual record lists ${width}`,async({context,page},info)=>{
+ const f=await fixture(context);await page.setViewportSize({width,height:900});
+ f.records.Sessions=[{id:'s1',patient_id:patient,session_date:'2026-10-30',type:'intake',notes:'סיכום סינתטי לדוגמה. זוהי תצוגה מקדימה של הפגישה, לפתיחת הסיכום המלא בוחרים בשורה.'},{id:'s2',patient_id:patient,session_date:'2026-10-20',type:'',notes:''}];
+ f.records.CombinedMood.push({...f.records.CombinedMood[0],id:'q2',answered_date:'2026-10-22',gad7_answers:[1,null],phq9_answers:[0,1],session_id:'s1'});
+ for(const route of ['','sessions','questionnaire','diary_three']){
+  await page.goto(route?`/app/patients/${patient}/${route}`:'/app/');await expect(page.locator('.pw-record-list').first()).toBeVisible();
+  await expect(page.locator('.pw-record-list>li').first()).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath(`${route||'patients'}-${width}.png`),fullPage:true});
+  if(route==='questionnaire'){await expect(page.getByText('תשובות · טרם הושלם')).toHaveCount(2);await expect(page.locator('.pw-list-scores').first()).toContainText('7');}
+ }
+ await page.goto('/app/');await page.getByLabel('חיפוש מטופל/ת',{exact:true}).fill('אין התאמה');await expect(page.getByText('לא נמצאו מטופלים בחיפוש זה.')).toBeVisible();
+});
+test('visible intensity controls preserve null, keyboard values and before/after serialization',async({context,page},info)=>{
+ const f=await fixture(context);f.records.diary_three_entries[0].feelings=[{name:'עצב',intensityBefore:null,intensityAfter:null}];
+ await openEntry(page,'diary_three');
+ const before=page.getByRole('slider',{name:'עוצמה לפני — עצב — מחוון',exact:true});
+ const number=page.getByRole('spinbutton',{name:'עוצמה לפני — עצב — אחוז',exact:true});
+ await expect(before).toBeVisible();await expect(number).toHaveValue('');await expect(before).toHaveAttribute('aria-valuetext','טרם נבחרה עוצמה');
+ await before.focus();await page.keyboard.press('Home');await expect(number).toHaveValue('0');await page.keyboard.press('ArrowRight');await expect(number).toHaveValue('1');
+ await number.fill('73');await expect(before).toHaveValue('73');
+ const after=page.getByRole('spinbutton',{name:'עוצמה אחרי — עצב — אחוז',exact:true});await after.fill('25');await expect(number).toHaveValue('73');
+ await page.screenshot({path:info.outputPath('intensity-desktop.png'),fullPage:true});
+ await page.setViewportSize({width:390,height:844});await expect(number).toHaveValue('73');await expect(after).toHaveValue('25');
+ await page.locator('[data-part="feeling"]').first().scrollIntoViewIfNeeded();
+ await page.screenshot({path:info.outputPath('intensity-mobile.png')});
+ await page.locator('[data-part="feeling"]').last().scrollIntoViewIfNeeded();
+ await page.screenshot({path:info.outputPath('intensity-mobile-after.png')});
+ await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();
+ expect(f.records.diary_three_entries[0].feelings).toEqual([{name:'עצב',intensityBefore:73,intensityAfter:25}]);
+ expect(f.requests.some(r=>r.path.includes('anonymize'))).toBe(false);
+});
