@@ -325,6 +325,7 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
     expect(await thought.evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(70);
     await thoughtSection.getByRole("button", {name:"הוספת מחשבה אוטומטית",exact:true}).click();
     const secondThought = thoughtSection.locator("textarea").nth(1);
+    await expect(secondThought).toBeFocused();
     const thoughtText = "מחשבה סינתטית ארוכה עם מילים נוספות. ".repeat(8);
     await secondThought.fill(thoughtText);
     expect(await secondThought.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(70);
@@ -335,6 +336,20 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
       await page.getByLabel("אמונה אחרי — 2 — אחוז", {exact:true}).fill("25");
     }
     const event = page.locator(".ww-diary-section textarea").first();
+    const initialEvent = await event.inputValue();
+    const originalWidth = await page.locator(".ww-diary-grid").evaluate(el => el.clientWidth);
+    await page.getByRole("button", {name:"הרחבת דף העבודה",exact:true}).click();
+    await expect(page.getByRole("complementary", {name:"פעילויות המפגש"})).toBeHidden();
+    expect(await page.locator(".ww-diary-grid").evaluate(el => el.clientWidth)).toBeGreaterThan(originalWidth);
+    await expect(event).toHaveValue(initialEvent);
+    await page.screenshot({path:`test-results/density-${type}-wide.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    await event.scrollIntoViewIfNeeded();
+    await page.screenshot({path:`test-results/density-${type}-phone.png`});
+    await page.setViewportSize({width:1366,height:768});
+    await page.getByRole("button", {name:"הצגת פעילויות המפגש",exact:true}).click();
+    await expect(page.getByRole("complementary", {name:"פעילויות המפגש"})).toBeVisible();
+
     const long = 'אמא אמרה: "לא!"\n' + "טקסט עברי סינתטי ארוך, ללא מידע אמיתי. ".repeat(35);
     await event.fill(long);
     await page.getByRole("button", { name: "הוספת רגש", exact: true }).click();
@@ -349,6 +364,7 @@ for (const type of ["diary_one", "diary_two", "diary_three"] as const) {
     await expect(page.getByLabel(before, { exact: true })).toHaveValue(type === "diary_three" ? "" : "80");
     await page.getByLabel(before, { exact: true }).fill("0");
     const slider = page.getByLabel(before.replace("— אחוז", "— מחוון"), {exact:true});
+    await page.getByLabel(`התאמת ${before.replace(" — אחוז", "")}`, {exact:true}).click();
     await slider.focus(); await page.keyboard.press("End");
     await expect(page.getByLabel(before, {exact:true})).toHaveValue("100");
     await page.keyboard.press("Home");

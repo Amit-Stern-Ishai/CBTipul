@@ -11,6 +11,15 @@ export const escapeHtml = text => text.replaceAll("&", "&amp;").replaceAll("<", 
 const stores = `<div class="store-actions" aria-label="הורדת האפליקציה"><a class="store-button" href="https://apps.apple.com/il/app/cbtipul/id6809343831?l=he" rel="noopener noreferrer"><img class="store-mark" src="/site-assets/store-apple.svg" alt="" width="28" height="32" /><span>הורדה מ-App Store</span></a><a class="store-button secondary" href="https://play.google.com/store/apps/details?id=com.CBTipul.app" rel="noopener noreferrer"><img class="store-mark" src="/site-assets/store-google-play.svg" alt="" width="28" height="32" /><span>הורדה מ-Google Play</span></a></div>`;
 export const redirects = `/app /app/ 302
 /app/login /app/ 200
+/app/patients/:patient/sessions /app/ 200
+/app/patients/:patient/questionnaire /app/ 200
+/app/patients/:patient/diary_one /app/ 200
+/app/patients/:patient/diary_two /app/ 200
+/app/patients/:patient/diary_three /app/ 200
+/app/shared/:patient/questionnaire /app/ 200
+/app/shared/:patient/diary_one /app/ 200
+/app/shared/:patient/diary_two /app/ 200
+/app/shared/:patient/diary_three /app/ 200
 /app/auth/callback /app/ 200
 /app/auth/reset /app/ 200
 /app/legal/privacy /app/ 200
@@ -43,7 +52,7 @@ export async function composeSite(output = path.join(webRoot, "dist"), publicAss
     html = html.replace(/href="\/style\.css"/g, `href="${themeUrl}"`);
     if (page === "terms" || page === "privacy") {
       const body = legal[page === "terms" ? "termsBody" : "privacyBody"];
-      html = html.replace(/<article[^>]*>[\s\S]*?<\/article>/, `<article class="card"><h1>${page === "terms" ? "תנאי שימוש" : "מדיניות פרטיות"}</h1><div class="canonical-legal">${escapeHtml(body)}</div></article>`);
+      html = html.replace(/<article[^>]*>[\s\S]*?<\/article>/, `<article class="card"><h1>${page === "terms" ? "תנאי שימוש" : "מדיניות פרטיות"}</h1><div class="canonical-legal">${escapeHtml(body).replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, address => `<a href="mailto:${address}">${address}</a>`)}</div></article>`);
     }
     // Preserve imported behavior/content except the explicitly selected canonical legal bodies.
     html = html.replace(/<style>[\s\S]*?<\/style>/g, "");

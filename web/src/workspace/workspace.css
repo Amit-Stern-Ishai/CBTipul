@@ -255,3 +255,118 @@
   .ww-diary-diary_three > .ww-diary-section { grid-column:span 2; }
   .ww-diary-diary_three > .ww-diary-section:nth-child(n+6) { grid-column:span 3; }
 }
+
+/* Diary writing surface: one continuous RTL worksheet, with quiet writing lanes. */
+.ww-diary-grid { border-color:var(--line); border-radius:16px; }
+.ww-diary-grid .ww-diary-section { padding:18px 16px 20px; background:var(--surface); transition:background-color .16s ease; }
+.ww-diary-grid .ww-diary-section:focus-within { background:#fcfaf5; }
+.ww-diary-heading { display:flex; align-items:flex-start; gap:8px; margin:-18px -16px 16px; padding:14px 16px; min-height:56px; background:var(--warm); border-block-end:1px solid var(--line); color:var(--brand); }
+.ww-diary-heading > svg { flex:none; margin-block-start:3px; }
+.ww-diary-heading h2 { margin:0; color:var(--brand); font-size:16px; font-weight:700; line-height:1.5; }
+.ww-diary-section[data-part=alternative] .ww-diary-heading,
+.ww-diary-section[data-part=review] .ww-diary-heading { background:#f6efdf; }
+.ww-diary-section .ww-diary-hint { font-size:13px; color:var(--muted); margin-bottom:16px; }
+.ww-diary-section textarea { background:#fcfcfa; border:1px solid var(--line); border-radius:8px; padding:12px; font-size:16px; line-height:1.75; caret-color:var(--brand); transition:background-color .16s,border-color .16s; }
+.ww-diary-section textarea:hover { border-color:var(--teal); }
+.ww-diary-section textarea:focus { background:white; border-color:var(--brand); }
+.ww-diary-section :is(textarea,input,button):focus-visible { outline:2px solid var(--teal); outline-offset:3px; }
+.ww-diary-section .ww-rows { gap:12px; }
+.ww-diary-section .ww-thought-row { grid-template-columns:8px minmax(0,1fr) 32px; column-gap:4px; }
+.ww-thought-row::before { background:var(--gold); width:5px; height:5px; margin-top:21px; }
+.ww-diary-section .ww-thought-row textarea { background:transparent; padding:8px 4px; border-block-end:1px solid var(--line); font-size:16px; line-height:1.75; }
+.ww-diary-section .ww-thought-row textarea:focus { background:white; }
+.ww-thought-row .ww-diary-row-head .ww-text-button { min-width:32px; padding:6px; color:var(--muted); }
+.ww-thought-row .ww-diary-row-head .ww-text-button:hover { color:var(--error); }
+.ww-diary-section > .secondary { display:inline-flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border:1px dashed var(--line); background:transparent; color:var(--teal); border-radius:8px; }
+.ww-diary-section > .secondary:hover { border-color:var(--teal); background:var(--warm); }
+.ww-diary-row-head strong { font-weight:650; color:var(--brand); }
+.ww-diary-section .ww-rating { margin:8px 0; }
+.ww-rating-label { gap:4px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.ww-rating-label label { font-size:12px; }
+.ww-diary-section .ww-rating input[type=number] { width:56px; min-height:36px; padding:4px; background:var(--warm); border-color:transparent; font-size:15px; font-weight:650; color:var(--brand); text-align:center; }
+.ww-rating-choices { flex-wrap:nowrap; gap:0; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+.ww-diary-section .ww-rating-choices button { flex:1; min-width:0; min-height:36px; padding:4px 0; background:var(--surface); border:0; border-radius:0; color:var(--muted); }
+.ww-diary-section .ww-rating-choices button + button { border-inline-start:1px solid var(--line); }
+.ww-diary-section .ww-rating-choices button:hover { color:var(--brand); background:var(--warm); }
+.ww-diary-section .ww-rating-choices button:focus-visible { outline-offset:-3px; }
+.ww-diary-stage { display:flex; align-items:baseline; gap:8px 20px; flex-wrap:wrap; padding:12px 18px; background:var(--brand); border-block-end:0; }
+.ww-diary-stage h2 { color:white; font-size:17px; margin:0; }
+.ww-diary-stage p { color:#e4ecf5; font-size:13px; }
+.ww-diary-stage:not(:first-child) { margin-top:12px; }
+.ww-thinking-selected .secondary { background:var(--warm); color:var(--brand); border-color:transparent; border-radius:8px; }
+.ww-diary-section .ww-none { margin-top:12px; font-size:13px; }
+.ww-original-text { padding:0 0 8px; margin:0; line-height:1.7; }
+.ww-feeling-picker { padding:24px; border-radius:16px; }
+.ww-feeling-picker::backdrop { background:rgba(24,44,70,.24); }
+.ww-feeling-groups h3 { color:var(--brand); border-bottom:1px solid var(--line); padding-bottom:6px; }
+@container (max-width:499px) {
+  .ww-diary-grid .ww-diary-section { padding:16px; }
+  .ww-diary-heading { margin:-16px -16px 14px; padding:12px 16px; min-height:48px; }
+  .ww-diary-section textarea { min-height:88px; }
+  .ww-diary-stage { display:block; }
+  .ww-diary-stage p { margin-top:4px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .ww-diary-grid .ww-diary-section, .ww-diary-section textarea { transition:none; }
+}
+
+/* Text grows with content; no competing manual-resize handle in writing rows. */
+.ww-diary-section textarea { resize:none; }
+.ww-diary-row-head .ww-danger-text { color:var(--muted); }
+.ww-diary-row-head .ww-danger-text:hover { color:var(--error); }
+
+/* Density-first worksheet: independent writing columns, compact controls. */
+.ww-wide-diary { grid-template-columns:minmax(0,1fr); }
+.ww-wide-diary > .ww-rail { display:none; }
+.ww-work-area-diary { padding:12px 16px 40px; }
+.ww-work-area-diary .ww-page-head { margin-bottom:10px; align-items:center; }
+.ww-work-area-diary .ww-page-head h1 { font-size:22px; margin:0; }
+.ww-density-toggle { padding:2px 0; min-height:32px; text-decoration:underline; text-underline-offset:4px; }
+.ww-diary-grid { align-items:start; gap:12px; border:0; background:transparent; overflow:visible; }
+.ww-diary-grid .ww-diary-section { border:1px solid var(--line); border-radius:10px; padding:10px; overflow-wrap:anywhere; }
+.ww-diary-heading { margin:-10px -10px 8px; padding:9px 10px; min-height:42px; border-radius:9px 9px 0 0; gap:6px; }
+.ww-diary-heading h2 { font-size:15px; margin:0; }
+.ww-diary-section textarea { margin:4px 0 8px; padding:8px; min-height:80px; line-height:1.5; }
+.ww-diary-section .ww-rows { gap:6px; margin-bottom:6px; }
+.ww-diary-section .ww-thought-row textarea { line-height:1.5; min-height:40px; padding:8px 2px; }
+.ww-diary-row + .ww-diary-row { padding-top:6px; }
+.ww-diary-section .ww-diary-hint { margin:0 0 6px; font-size:13px; }
+.ww-diary-hint summary, .ww-rating-adjust summary, .ww-diary-stage summary { cursor:pointer; min-height:32px; display:list-item; align-content:center; color:var(--teal); }
+.ww-diary-hint p { margin:4px 0 8px; line-height:1.5; }
+.ww-diary-section .ww-rating { margin:4px 0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ww-rating-label { flex:1; min-width:100px; }
+.ww-rating-adjust { width:100%; }
+.ww-rating-adjust:not([open]) { width:auto; }
+.ww-rating-adjust summary { font-size:12px; }
+.ww-diary-section .ww-rating input[type=number] { min-height:36px; width:54px; }
+.ww-diary-section > .secondary { margin-top:4px; border-style:solid; }
+.ww-diary-stage { margin:0!important; padding:6px 10px; min-height:38px; border-radius:6px; scroll-margin-top:16px; }
+.ww-diary-stage h2 { font-size:15px; }
+.ww-diary-stage summary { color:white; }
+.ww-diary-stage p { max-width:80ch; }
+.ww-stage-links { display:flex; flex-wrap:wrap; gap:6px 20px; margin-bottom:10px; font-size:14px; }
+.ww-stage-links a { color:var(--brand); padding:6px 0; text-underline-offset:4px; }
+.ww-original-text { line-height:1.5; padding-bottom:2px; }
+.ww-diary-section .ww-quiet { margin:4px 0; }
+.ww-work-area-diary .ww-form-end { position:static; margin-top:12px; padding:8px 12px; background:var(--surface); border-top:1px solid var(--line); }
+.ww-work-area-diary :is(textarea,input,button,summary) { scroll-margin-block:80px; }
+.ww-diary-section summary:focus-visible, .ww-stage-links a:focus-visible { outline:2px solid var(--teal); outline-offset:3px; }
+@container (min-width:1040px) {
+ .ww-diary-diary_two { grid-template-columns:minmax(0,1.25fr) minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.35fr); }
+}
+@container (max-width:499px) {
+ .ww-diary-grid { gap:10px; }
+ .ww-diary-section .ww-thought-row textarea { min-height:40px; }
+ .ww-stage-links { gap:2px 12px; }
+}
+
+.ww-diary-heading { align-items:center; flex-wrap:wrap; }
+.ww-diary-heading h2 { flex:1; }
+.ww-diary-heading .ww-diary-hint { margin:0; }
+.ww-diary-heading .ww-diary-hint[open] { flex-basis:100%; }
+.ww-diary-heading .ww-diary-hint summary { min-width:32px; text-align:center; font-weight:700; }
+.ww-diary-heading .ww-diary-hint p { color:var(--ink); font-weight:400; }
+.ww-work-area-diary .ww-page-head { flex-wrap:wrap; }
+
+.ww-save-jump { display:inline-block; color:var(--teal); font-size:14px; padding:4px 0; text-underline-offset:4px; }
+.ww-work-area-diary .ww-form-end { scroll-margin-block:24px; }

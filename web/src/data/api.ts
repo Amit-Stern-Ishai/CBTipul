@@ -80,7 +80,7 @@ export function setApiIdentity(id: string | null) {
     consents.setAccount(id);
   }
 }
-async function guard(write = false) {
+export async function guard(write = false) {
   const id = identity,
     version = generation;
   const auth = await db.auth.getUser();
@@ -154,7 +154,7 @@ async function anonymizeValue(
     );
   return v;
 }
-async function rows<T>(
+export async function rows<T>(
   table: string,
   columns: string,
   patientId?: Id,
@@ -182,7 +182,7 @@ async function rows<T>(
 }
 const qcols =
   "id,patient_id,session_id,created_by,answered_date,gad7_answers,phq9_answers,interference_level,combined_notes";
-const scols = "id,patient_id,session_date,notes,type,structured_notes";
+const scols = "id::text,patient_id,session_date,notes,type,structured_notes";
 const dcols = [
   "id,patient_id,created_by,created_at,updated_at,event,automatic_thoughts,feelings,behaviour,physical_symptoms",
   "id,patient_id,created_by,created_at,updated_at,event,automatic_thoughts,feelings,thinking_errors,alternative_thoughts",
