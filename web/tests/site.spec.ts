@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+const legal = JSON.parse(await readFile(new URL("../src/legal-he.json", import.meta.url), "utf8"));
 const pages = ["", "invite", "privacy", "terms", "support", "privacy-choices", "delete-account"];
 const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
 for (const name of pages) test(`public ${name || "home"}: content, navigation, desktop and phone`, async ({ page }) => {
@@ -14,7 +15,8 @@ for (const name of pages) test(`public ${name || "home"}: content, navigation, d
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     const sourceText = await page.evaluate((html) => new DOMParser().parseFromString(html, "text/html").querySelector("article")!.textContent!, original);
     const visibleText = normalize(await page.locator("article").textContent() ?? "");
-    if (name) expect(visibleText).toBe(normalize(sourceText)); else expect(visibleText).toContain(normalize(sourceText));
+    if (name === "privacy" || name === "terms") expect(normalize(await page.locator(".canonical-legal").textContent() ?? "")).toBe(normalize(legal[name === "privacy" ? "privacyBody" : "termsBody"]));
+    else if (name) expect(visibleText).toBe(normalize(sourceText)); else expect(visibleText).toContain(normalize(sourceText));
     await page.screenshot({ path: `test-results/public-${name || "home"}-${width}.png`, fullPage: true });
     // Check lower sections as well as the initial viewport on long legal pages.
     await page.locator(".site-footer").scrollIntoViewIfNeeded();

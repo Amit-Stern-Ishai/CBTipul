@@ -1,6 +1,7 @@
 import { supabase } from "./client";
 // Proposed wording identifiers. Production stays disabled until registry and live consent review.
 export const consentVersions = {
+  patient_name_storage: "2026-10-29",
   terms_privacy: "2026-08-29",
   clinical_text_processing: "2026-10-14",
   ai_data_sharing: "2026-08-29",

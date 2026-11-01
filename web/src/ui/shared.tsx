@@ -105,7 +105,7 @@ export function Heading({
     </header>
   );
 }
-export function DirtyGuard({ dirty }: { dirty: boolean }) {
+export function DirtyGuard({ dirty, busy = false }: { dirty: boolean; busy?: boolean }) {
   useEffect(() => {
     unsaved.active = dirty;
     return () => {
@@ -113,6 +113,7 @@ export function DirtyGuard({ dirty }: { dirty: boolean }) {
     };
   }, [dirty]);
   const blocker = useBlocker(dirty);
+  useEffect(() => { if (busy && blocker.state === "blocked") blocker.reset(); }, [busy, blocker]);
   useEffect(() => {
     const f = (e: BeforeUnloadEvent) => {
       if (dirty) {
