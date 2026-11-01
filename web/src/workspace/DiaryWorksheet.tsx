@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type CSSProperties,
   type TextareaHTMLAttributes,
 } from "react";
 import { Plus, Trash2, X, CalendarDays, MessageCircle, Heart, Activity, ScanSearch, Lightbulb, RefreshCw } from "lucide-react";
@@ -79,40 +80,15 @@ function Rating({
           value={current ?? ""}
           placeholder="—"
           onChange={(e) =>
-            onChange(e.target.value === "" ? null : Number(e.target.value))
+            onChange(e.target.value === "" ? null : Math.max(0, Math.min(100, Number(e.target.value))))
           }
         />
         <span aria-hidden="true">%</span>
       </div>
-      <details className="ww-rating-adjust"><summary aria-label={`התאמת ${title}`}>כוונון</summary>
-      {current === null ? (
-        <div className="ww-rating-choices" aria-label={title}>
-          {[0, 25, 50, 75, 100].map((n) => (
-            <button
-              type="button"
-              className="secondary"
-              disabled={disabled}
-              key={n}
-              aria-label={`${title}: ${n}%`}
-              onClick={() => onChange(n)}
-            >
-              {n}%
-            </button>
-          ))}
-        </div>
-      ) : (
-        <input
-          aria-label={`${title} — מחוון`}
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={current}
-          disabled={disabled}
-          onChange={(e) => onChange(Number(e.target.value))}
-        />
-      )}
-      </details>
+      <div className="ww-rating-track" data-empty={current===null} style={{"--rating-fill":`${current??0}%`} as CSSProperties}>
+        <input aria-label={`${title} — מחוון`} aria-valuetext={current===null?'טרם נבחרה עוצמה':`${current}%`} type="range" dir="ltr" min={0} max={100} step={1} value={current??50} disabled={disabled} onChange={e=>onChange(Number(e.target.value))} onPointerUp={e=>{if(current===null)onChange(Number(e.currentTarget.value));}}/>
+        <div className="ww-rating-scale" aria-hidden="true" dir="ltr"><span>0%</span>{current===null&&<span>בחירת עוצמה</span>}<span>100%</span></div>
+      </div>
     </div>
   );
 }
