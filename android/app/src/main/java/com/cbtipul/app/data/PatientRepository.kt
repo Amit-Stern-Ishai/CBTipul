@@ -1,6 +1,14 @@
 package com.cbtipul.app.data
 
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.functions.functions
+import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.contentOrNull
 
 import com.cbtipul.app.model.AiException
 import com.cbtipul.app.model.CBTSessionAnalysis
@@ -22,7 +30,6 @@ import com.cbtipul.app.model.WhatAmIMissingResponse
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -86,21 +93,9 @@ class PatientRepository(
         if (_patients.value.isNotEmpty()) return
         val cached = cache.load() ?: return
         _patients.value = cached.patients.map { patient ->
-            textGate.markSafe(patient.notes)
-            markFormulationSafe(patient.formulation)
-            patient.sessions.forEach {
-                textGate.markSafe(it.notes)
-                markAnalysisSafe(it.structuredNotes)
-            }
             patient.copy(localName = identityStore.name(patient.id))
         }
-        _questionnaires.value = cached.questionnaires.mapValues { (_, records) ->
-            records.onEach { record ->
-                record.questionnaire.gad7Notes.forEach { textGate.markSafe(it) }
-                record.questionnaire.phq9Notes.forEach { textGate.markSafe(it) }
-                textGate.markSafe(record.questionnaire.interferenceNote)
-            }
-        }
+        _questionnaires.value = cached.questionnaires
     }
 
     private fun persistCache() {
@@ -238,24 +233,72 @@ class PatientRepository(
         }
     }
 
+    /** Original storage text; AI input is protected separately. */
+    suspend fun prepareSummaryForStorage(text: String, patientNotes: Boolean = false): String = text
+    private suspend fun saveEncrypted(endpoint: String, previous: JsonObject?, id: DatabaseId? = null, changes: JsonObject): JsonObject {
+        if(id != null && previous?.get("id")?.jsonPrimitive?.content != id.queryValue) throw SummaryFailure(SummaryFailure.Kind.Conflict)
+        val owner = client.auth.currentUserOrNull()?.id ?: throw CancellationException()
+        val epoch = clinicalLoadEpoch
+        fun checkpoint() { if(owner != client.auth.currentUserOrNull()?.id || epoch != clinicalLoadEpoch || _isDemoMode.value) throw CancellationException() }
+        return ClinicalRecordSave.save(previous, changes, ::checkpoint) { body ->
+            json.decodeFromString<JsonObject>(client.functions.invoke(endpoint, body = body, headers = PatientNameSync.jsonHeaders()).bodyAsText())
+        }
+    }
+    private fun applyEncryptedPatient(record: JsonObject) {
+        val row = json.decodeFromJsonElement<PatientRow>(record)
+        _patients.update { list -> list.map { if(it.id == row.id) it.copy(notes = row.notes.orEmpty(), formulation = decodeFormulation(row.formulation), status = PatientStatus.fromActive(row.active), loadedClinicalRecord = record) else it } }
+        persistCache()
+    }
+    private suspend fun saveEncryptedSession(session: Session, patientId: DatabaseId? = null, beforeInsert: (String) -> Unit = {}) {
+        if (patientId != null && session.type == null) throw SummaryFailure(SummaryFailure.Kind.Validation)
+        val changes = sessionWriteBody(session.date, session.notes, session.type, patientId).toMutableMap()
+        session.loadedClinicalRecord?.let { baseline ->
+            val row = json.decodeFromJsonElement<SessionRow>(baseline)
+            if(session.type == row.sessionType) changes.remove("type")
+            if(dateOnly.format(session.date) == dateOnly.format(parseDate(row.sessionDate))) changes.remove("session_date")
+        }
+        if(session.loadedClinicalRecord != null && session.notes == (session.loadedClinicalRecord["notes"] as? JsonPrimitive)?.contentOrNull.orEmpty()) changes.remove("notes")
+        val analysis = session.structuredNotes?.let { json.encodeToJsonElement(CBTSessionAnalysis.serializer(), it) } ?: JsonNull
+        if(session.structuredNotes != decodeAnalysis(session.loadedClinicalRecord?.get("structured_notes"))) changes["structured_notes"] = analysis
+        beforeInsert(session.notes)
+        val record = saveEncrypted("save-session", session.loadedClinicalRecord, if(patientId == null) session.databaseId else null, JsonObject(changes))
+        val row = json.decodeFromJsonElement<SessionRow>(record)
+        val saved = session.copy(databaseId = row.id, date = parseDate(row.sessionDate), notes = row.notes.orEmpty(), type = row.sessionType, structuredNotes = decodeAnalysis(row.structuredNotes), loadedClinicalRecord = record)
+        _patients.update { list -> list.map { patient -> if(patient.id == row.patientId) patient.copy(sessions = (patient.sessions.filterNot { it.databaseId == row.id || it.id == session.id } + saved).sortedBy { it.date }) else patient } }
+        persistCache()
+    }
+
+    private var clinicalLoadEpoch = UUID.randomUUID()
+    private suspend fun loadClinical(endpoint: String, patientId: String? = null): List<JsonObject> {
+        val owner = client.auth.currentUserOrNull()?.id ?: throw CancellationException()
+        val epoch = clinicalLoadEpoch
+        return ClinicalRecordLoad.pages(endpoint,
+            buildJsonObject { patientId?.let { put("patient_id", JsonPrimitive(it.lowercase())) } },
+            checkpoint = {
+                if (owner != client.auth.currentUserOrNull()?.id || epoch != clinicalLoadEpoch || _isDemoMode.value) throw CancellationException()
+            }, invoke = { name, body ->
+                json.decodeFromString<JsonObject>(client.functions.invoke(name, body = body, headers = PatientNameSync.jsonHeaders()).bodyAsText())
+            })
+    }
+
     private suspend fun loadPatientsLocked() {
         val nameOwner = nameSync.account
-        val patientRows = client.from("Patients")
-            .select(Columns.raw("id, active, notes, formulation"))
-            .decodeList<PatientRow>()
-        val sessionRows = client.from("Sessions")
-            .select(Columns.raw("id, patient_id, session_date, notes, type, structured_notes"))
-            .decodeList<SessionRow>()
+        val epoch = clinicalLoadEpoch
+        val patientRecords = loadClinical("load-patients")
+        val sessionRecords = loadClinical("load-sessions")
+        if (epoch != clinicalLoadEpoch) throw CancellationException()
+        val patientRows = patientRecords.map { json.decodeFromJsonElement<PatientRow>(it) }
+        val sessionRows = sessionRecords.map { json.decodeFromJsonElement<SessionRow>(it) }
+        val patientSnapshots = patientRecords.associateBy { it.getValue("id").jsonPrimitive.content }
+        val sessionSnapshots = sessionRecords.associateBy { it.getValue("id").jsonPrimitive.content }
         if (_isDemoMode.value || nameOwner != nameSync.account) return
 
         val sessionsByPatient = sessionRows.groupBy { it.patientId.queryValue }
         val existing = _patients.value
         val loaded = patientRows.map { row ->
-            textGate.markSafe(row.notes)
             val current = existing.find { it.id.queryValue == row.id.queryValue }
             val sessions = (sessionsByPatient[row.id.queryValue] ?: emptyList())
                 .map { sessionRow ->
-                    textGate.markSafe(sessionRow.notes)
                     val existingSession = current?.sessions?.find {
                         it.databaseId?.queryValue == sessionRow.id.queryValue
                     }
@@ -264,21 +307,22 @@ class PatientRepository(
                         databaseId = sessionRow.id,
                         date = parseDate(sessionRow.sessionDate),
                         notes = sessionRow.notes.orEmpty(),
+                        loadedClinicalRecord = sessionSnapshots[sessionRow.id.queryValue],
                         type = sessionRow.sessionType,
-                        structuredNotes = decodeAnalysis(sessionRow.structuredNotes)?.also { markAnalysisSafe(it) },
+                        structuredNotes = decodeAnalysis(sessionRow.structuredNotes),
                     )
                 }
                 .sortedBy { it.date }
             val decodedFormulation = decodeFormulation(row.formulation)
-            if (decodedFormulation != null) markFormulationSafe(decodedFormulation)
             val patient = Patient(
                 id = row.id,
                 firstName = current?.firstName.orEmpty(),
                 lastName = current?.lastName.orEmpty(),
                 status = PatientStatus.fromActive(row.active),
                 notes = row.notes.orEmpty(),
+                loadedClinicalRecord = patientSnapshots[row.id.queryValue],
                 sessions = sessions,
-                formulation = decodedFormulation ?: current?.formulation,
+                formulation = decodedFormulation,
             )
             patient.copy(localName = identityStore.name(patient.id))
         }
@@ -309,11 +353,8 @@ class PatientRepository(
         val enteredName = listOf(firstName, lastName).filter { it.isNotEmpty() }.joinToString(" ")
         if (!PatientNameRules.valid(enteredName)) throw NameSyncFailure("invalid_name")
         val nameOwner = nameSync.account
-        val inserted = client.from("Patients")
-            .insert(NewPatientRecord(active = status == PatientStatus.Active)) {
-                select(Columns.raw("id"))
-            }
-            .decodeSingle<InsertedRow>()
+        val encryptedRecord = saveEncrypted("save-patient", null, changes = buildJsonObject { put("active", JsonPrimitive(status == PatientStatus.Active)) })
+        val inserted = InsertedRow(DatabaseId.Text(encryptedRecord.getValue("id").jsonPrimitive.content))
         if (nameOwner != nameSync.account || _isDemoMode.value) return
         val patient = Patient(
             id = inserted.id,
@@ -323,7 +364,7 @@ class PatientRepository(
         )
         runCatching { identityStore.save(patient.id, enteredName) }
         nameSync.rememberCreated(patient.id.queryValue, enteredName)
-        val named = patient.copy(localName = identityStore.name(patient.id))
+        val named = patient.copy(localName = identityStore.name(patient.id), loadedClinicalRecord = encryptedRecord)
         _patients.update { it + named }
         scheduleNameSync()
         persistCache()
@@ -416,25 +457,7 @@ class PatientRepository(
             return
         }
         ensureConfigured()
-        val notes = preparedNotes ?: textGate.prepare(session.notes)
-        val analysis = anonymizedAnalysis(session.structuredNotes)
-        beforeInsert(notes.orEmpty())
-        val inserted = client.from("Sessions")
-            .insert(sessionWriteBody(session.date, notes, session.type, patientId, analysis)) {
-                select(Columns.raw("id"))
-            }
-            .decodeSingle<InsertedRow>()
-        val saved = session.copy(databaseId = inserted.id, notes = notes.orEmpty(), structuredNotes = analysis)
-        _patients.update { list ->
-            list.map { patient ->
-                if (patient.id.queryValue == patientId.queryValue) {
-                    patient.copy(sessions = (patient.sessions + saved).sortedBy { it.date })
-                } else {
-                    patient
-                }
-            }
-        }
-        persistCache()
+        saveEncryptedSession(session, patientId, beforeInsert)
     }
 
     suspend fun updateSession(session: Session, preparedNotes: String? = null) {
@@ -464,28 +487,7 @@ class PatientRepository(
             return
         }
         ensureConfigured()
-        val sessionId = session.databaseId
-            ?: throw PatientStoreException(PatientStoreException.Kind.SessionNotSaved)
-        val notes = preparedNotes ?: textGate.prepare(session.notes)
-        val analysis = anonymizedAnalysis(session.structuredNotes)
-        val updated = client.from("Sessions")
-            .update(sessionWriteBody(session.date, notes, session.type, analysis = analysis)) {
-                filter { eq("id", sessionId.queryValue) }
-                select(Columns.raw("id"))
-            }
-            .decodeList<InsertedRow>()
-        if (updated.isEmpty()) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
-        val saved = session.copy(notes = notes.orEmpty(), structuredNotes = analysis)
-        _patients.update { list ->
-            list.map { patient ->
-                patient.copy(
-                    sessions = patient.sessions
-                        .map { if (it.id == session.id || it.databaseId?.queryValue == sessionId.queryValue) saved else it }
-                        .sortedBy { it.date },
-                )
-            }
-        }
-        persistCache()
+        saveEncryptedSession(session)
     }
 
     suspend fun deleteSession(session: Session) {
@@ -611,22 +613,9 @@ class PatientRepository(
             return
         }
         ensureConfigured()
-        val prepared = textGate.prepare(notes)
-        val updated = client.from("Patients")
-            .update(buildJsonObject {
-                if (prepared == null) put("notes", JsonNull) else put("notes", JsonPrimitive(prepared))
-            }) {
-                filter { eq("id", patientId.queryValue) }
-                select(Columns.raw("id"))
-            }
-            .decodeList<InsertedRow>()
-        if (updated.isEmpty()) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
-        _patients.update { list ->
-            list.map {
-                if (it.id.queryValue == patientId.queryValue) it.copy(notes = prepared.orEmpty()) else it
-            }
-        }
-        persistCache()
+
+        val previous = _patients.value.firstOrNull { it.id == patientId }?.loadedClinicalRecord
+        applyEncryptedPatient(saveEncrypted("save-patient", previous, patientId, buildJsonObject { put("notes", JsonPrimitive(notes)) }))
     }
 
     suspend fun updatePatientStatus(patientId: DatabaseId, status: PatientStatus) {
@@ -641,21 +630,9 @@ class PatientRepository(
             return
         }
         ensureConfigured()
-        val updated = client.from("Patients")
-            .update(buildJsonObject {
-                put("active", JsonPrimitive(status.storageActive))
-            }) {
-                filter { eq("id", patientId.queryValue) }
-                select(Columns.raw("id"))
-            }
-            .decodeList<InsertedRow>()
-        if (updated.isEmpty()) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
-        _patients.update { list ->
-            list.map {
-                if (it.id.queryValue == patientId.queryValue) it.copy(status = status) else it
-            }
-        }
-        persistCache()
+
+        val previous = _patients.value.firstOrNull { it.id == patientId }?.loadedClinicalRecord
+        applyEncryptedPatient(saveEncrypted("save-patient", previous, patientId, buildJsonObject { put("active", JsonPrimitive(status.storageActive)) }))
     }
 
     suspend fun saveFormulation(patientId: DatabaseId, formulation: PatientFormulation) {
@@ -672,22 +649,9 @@ class PatientRepository(
             return
         }
         ensureConfigured()
-        val anonymized = anonymizedFormulation(formulation)
-        val updated = client.from("Patients")
-            .update(buildJsonObject {
-                put("formulation", json.encodeToJsonElement(PatientFormulation.serializer(), anonymized))
-            }) {
-                filter { eq("id", patientId.queryValue) }
-                select(Columns.raw("id"))
-            }
-            .decodeList<InsertedRow>()
-        if (updated.isEmpty()) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
-        _patients.update { list ->
-            list.map {
-                if (it.id.queryValue == patientId.queryValue) it.copy(formulation = anonymized) else it
-            }
-        }
-        persistCache()
+
+        val previous = _patients.value.firstOrNull { it.id == patientId }?.loadedClinicalRecord
+        applyEncryptedPatient(saveEncrypted("save-patient", previous, patientId, buildJsonObject { put("formulation", json.encodeToJsonElement(PatientFormulation.serializer(), formulation)) }))
     }
 
     suspend fun challengeFormulation(patientId: DatabaseId): FormulationSupervision {
@@ -723,12 +687,9 @@ class PatientRepository(
             return _questionnaires.value[patientId.queryValue].orEmpty()
         }
         ensureConfigured()
-        val rows = client.from(CombinedMoodQuestionnaire.TABLE)
-            .select(Columns.raw("id, session_id, created_by, answered_date, gad7_answers, phq9_answers, interference_level, combined_notes")) {
-                filter { eq("patient_id", patientId.queryValue) }
-                order("answered_date", Order.DESCENDING)
-            }
-            .decodeList<QuestionnaireDbRow>()
+        val records = loadClinical("load-questionnaires", patientId.queryValue)
+        val rows = records.map { json.decodeFromJsonElement<QuestionnaireDbRow>(it) }
+        val snapshots = records.associateBy { it.getValue("id").jsonPrimitive.content }
         val loaded = rows.map { row ->
             val questionnaire = CombinedMoodQuestionnaire(
                 gad7Answers = paddedAnswers(row.gad7Answers, CombinedMoodQuestionnaire.GAD7_COUNT),
@@ -738,17 +699,15 @@ class PatientRepository(
                 phq9Notes = paddedNotes(row.combinedNotes?.phq9, CombinedMoodQuestionnaire.PHQ9_COUNT),
                 interferenceNote = row.combinedNotes?.interference.orEmpty(),
             )
-            questionnaire.gad7Notes.forEach { textGate.markSafe(it) }
-            questionnaire.phq9Notes.forEach { textGate.markSafe(it) }
-            textGate.markSafe(questionnaire.interferenceNote)
             CompletedQuestionnaire(
                 databaseId = row.id,
                 sessionId = row.sessionId,
                 answeredDate = row.answeredDate?.let(::parseDate) ?: Date(),
                 questionnaire = questionnaire,
                 createdBy = row.createdBy,
+                loadedClinicalRecord = snapshots[row.id.queryValue],
             )
-        }
+        }.sortedByDescending { it.answeredDate.time }
         if (_isDemoMode.value) return loaded
         _questionnaires.update { it + (patientId.queryValue to loaded) }
         persistCache()
@@ -781,52 +740,22 @@ class PatientRepository(
                 return@measure
             }
             ensureConfigured()
-            val sessionId = session.databaseId
-            val gad7Notes = textGate.prepare(questionnaire.gad7Notes)
-            val phq9Notes = textGate.prepare(questionnaire.phq9Notes)
-            val interferenceNote = textGate.prepare(questionnaire.interferenceNote).orEmpty()
-            val anonymized = questionnaire.copy(
-                gad7Notes = gad7Notes,
-                phq9Notes = phq9Notes,
-                interferenceNote = interferenceNote,
-            )
-            val payload = NewQuestionnaireRecord(
-                        patientId = patientId,
-                        sessionId = sessionId,
-                        answeredDate = dateOnly.format(session.date),
-                        gad7Answers = anonymized.gad7Answers.mapNotNull { it },
-                        phq9Answers = anonymized.phq9Answers.mapNotNull { it },
-                        interferenceLevel = anonymized.interferenceLevel,
-                        combinedNotes = QuestionnaireNotes(
-                            gad7 = anonymized.gad7Notes,
-                            phq9 = anonymized.phq9Notes,
-                            interference = anonymized.interferenceNote,
-                        ),
-                    )
-            val table = client.from(CombinedMoodQuestionnaire.TABLE)
-            val saved = when {
-                recordId != null -> table.update(payload) {
-                    filter { eq("created_by", "therapist"); eq("id", recordId.queryValue); eq("patient_id", patientId.queryValue) }
-                    select(Columns.raw("id"))
-                }
-                sessionId != null -> table.upsert(payload) {
-                    onConflict = "session_id"
-                    select(Columns.raw("id"))
-                }
-                else -> table.insert(payload) { select(Columns.raw("id")) }
-            }.decodeSingle<InsertedRow>()
-            val completed = CompletedQuestionnaire(
-                databaseId = saved.id,
-                sessionId = sessionId,
-                answeredDate = session.date,
-                questionnaire = anonymized,
-            )
-            _questionnaires.update { cache ->
-                val current = cache[patientId.queryValue].orEmpty()
-                    .filterNot { (recordId != null && it.databaseId == recordId) || (sessionId != null && it.sessionId?.queryValue == sessionId.queryValue) } + completed
-                cache + (patientId.queryValue to current.sortedByDescending { it.answeredDate.time })
-            }
-            persistCache()
+
+            val previous = _questionnaires.value[patientId.queryValue].orEmpty().firstOrNull { if(recordId != null) it.databaseId == recordId else session.databaseId != null && it.sessionId == session.databaseId }
+            val existingId = recordId ?: previous?.databaseId
+            val payload = NewQuestionnaireRecord(patientId, session.databaseId, dateOnly.format(session.date), questionnaire.gad7Answers.mapNotNull { it }, questionnaire.phq9Answers.mapNotNull { it }, questionnaire.interferenceLevel,
+                QuestionnaireNotes(questionnaire.gad7Notes, questionnaire.phq9Notes, questionnaire.interferenceNote))
+            val changes = json.encodeToJsonElement(NewQuestionnaireRecord.serializer(), payload).jsonObject.toMutableMap()
+            // The nullable link is deliberate even when the encoder omits defaults.
+            changes["session_id"] = session.databaseId?.let { JsonPrimitive(it.queryValue) } ?: JsonNull
+            if(previous != null && previous.questionnaire.gad7Notes == questionnaire.gad7Notes && previous.questionnaire.phq9Notes == questionnaire.phq9Notes && previous.questionnaire.interferenceNote == questionnaire.interferenceNote) changes.remove("combined_notes")
+            val record = saveEncrypted("save-questionnaire", previous?.loadedClinicalRecord, existingId, JsonObject(changes))
+            val row = json.decodeFromJsonElement<QuestionnaireDbRow>(record)
+            val value = CombinedMoodQuestionnaire(gad7Answers = paddedAnswers(row.gad7Answers, 7), phq9Answers = paddedAnswers(row.phq9Answers, 9), interferenceLevel = row.interferenceLevel,
+                gad7Notes = paddedNotes(row.combinedNotes?.gad7, 7), phq9Notes = paddedNotes(row.combinedNotes?.phq9, 9), interferenceNote = row.combinedNotes?.interference.orEmpty())
+            val completed = CompletedQuestionnaire(databaseId = row.id, sessionId = row.sessionId, answeredDate = row.answeredDate?.let(::parseDate) ?: session.date, questionnaire = value, createdBy = row.createdBy, loadedClinicalRecord = record)
+            _questionnaires.update { cache -> cache + (patientId.queryValue to (cache[patientId.queryValue].orEmpty().filterNot { it.databaseId == row.id } + completed).sortedByDescending { it.answeredDate.time }) }
+            persistCache(); return@measure
 
         }
     }
@@ -870,6 +799,7 @@ class PatientRepository(
         patient(patientId)?.sessions?.find { it.id.toString() == sessionId || it.databaseId?.queryValue == sessionId }
 
     fun clearAllCaches() {
+        clinicalLoadEpoch = UUID.randomUUID()
         if (_isDemoMode.value) {
             resetDemoContent(_patients.value)
             demoClinicStore.clearAll()
@@ -1064,7 +994,7 @@ private data class NewPatientRecord(val active: Boolean)
 
 @Serializable
 private data class PatientRow(
-    val id: DatabaseId,
+    @Serializable(with = ClinicalStringId::class) val id: DatabaseId,
     val active: Boolean? = null,
     val notes: String? = null,
     val formulation: JsonElement? = null,
@@ -1072,8 +1002,8 @@ private data class PatientRow(
 
 @Serializable
 private data class SessionRow(
-    val id: DatabaseId,
-    @SerialName("patient_id") val patientId: DatabaseId,
+    @Serializable(with = ClinicalStringId::class) val id: DatabaseId,
+    @SerialName("patient_id") @Serializable(with = ClinicalStringId::class) val patientId: DatabaseId,
     @SerialName("session_date") val sessionDate: String,
     val notes: String? = null,
     @SerialName("type") val sessionType: SessionType? = null,
@@ -1094,8 +1024,8 @@ private data class NewQuestionnaireRecord(
 @Serializable
 private data class QuestionnaireDbRow(
     @SerialName("created_by") val createdBy: String? = null,
-    val id: DatabaseId,
-    @SerialName("session_id") val sessionId: DatabaseId? = null,
+    @Serializable(with = ClinicalStringId::class) val id: DatabaseId,
+    @SerialName("session_id") @Serializable(with = ClinicalStringId::class) val sessionId: DatabaseId? = null,
     @SerialName("answered_date") val answeredDate: String? = null,
     @SerialName("gad7_answers") val gad7Answers: List<Int>? = null,
     @SerialName("phq9_answers") val phq9Answers: List<Int>? = null,

@@ -590,6 +590,7 @@ fun PatientsNavHost(
                 isAnonymizingTranscription = ui.isAnonymizingTranscription,
                 isAnalyzing = ui.isAnalyzing,
                 errorMessage = ui.sessionError,
+                hasVersionConflict = ui.sessionConflict,
                 onBack = {
                     viewModel.clearSessionError()
                     navController.popScreen()
@@ -605,7 +606,7 @@ fun PatientsNavHost(
                         rejected,
                         sessionNotSaved,
                         anonymizationFailed,
-                        onSaved = { if (draft.clearAudio(recoveryApp)) draft.markSaved(edited) },
+                        onSaved = { saved -> if (draft.clearAudio(recoveryApp)) draft.markSaved(saved) },
                         recovery = draft,
                         accountActive = { recoveryAccount == recoveryApp.authRepository.currentUserId() },
                     ) {

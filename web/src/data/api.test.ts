@@ -22,11 +22,11 @@ beforeEach(() => {
     data: { user: { id: "account-a", is_anonymous: false } },
     error: null,
   });
-  fake.invoke.mockImplementation(async (name: string) => ({
+  fake.invoke.mockImplementation(async (name: string, options?: {body:Record<string,unknown>}) => ({
     data:
       name === "get-app-context"
         ? { role: "therapist", entitlement: { access: "full" } }
-        : {},
+        : name.startsWith("save-") ? {record:{id:'server-id',_version:'v2',...options?.body.changes as object}} : {},
     error: null,
   }));
 });
@@ -66,8 +66,8 @@ describe("write authorization and account boundaries", () => {
     const insert = vi.fn().mockReturnValue({ select });
     fake.from.mockReturnValue({ insert });
     expect(await api.createPatient(true)).toMatchObject({ id: "server-id" });
-    expect(fake.from).toHaveBeenCalledWith("Patients");
-    expect(insert).toHaveBeenCalledWith({ active: true });
+    expect(fake.from).not.toHaveBeenCalled();
+    expect(fake.invoke).toHaveBeenCalledWith("save-patient", {body:{mode:"create",changes:{active:true}}});
   });
 });
 describe("ongoing assignments", () => {

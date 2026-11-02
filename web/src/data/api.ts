@@ -1,3 +1,5 @@
+import { clinicalSave, sameClinicalValue } from "./clinical-save";
+import { loadClinical } from "./clinical-load";
 import { supabase as db } from "./client";
 import { consents, type ConsentType } from "./consent";
 import { names, therapistAllowed } from "../domain/privacy";
@@ -33,21 +35,46 @@ function unwrap<T>(r: { data: T | null; error: unknown }): NonNullable<T> {
   if (r.error || r.data === null) throw new ApiError();
   return r.data as NonNullable<T>;
 }
-async function fn<T>(name: string, body?: object, consentType?: ConsentType): Promise<T> {
-  const caller = identity, callerGeneration = generation;
+async function fn<T>(
+  name: string,
+  body?: object,
+  consentType?: ConsentType,
+): Promise<T> {
+  const caller = identity,
+    callerGeneration = generation;
   const r = await db.functions.invoke(name, body ? { body } : undefined);
   if (r.error) {
     let code = r.error.context?.status === 429 ? "quota" : "failed";
     try {
       const detail = await r.error.context?.json();
       const refusal = detail?.error ?? detail?.code;
-      if (consentType && caller && callerGeneration === generation && refusal === "consent_required") {
+      if (
+        consentType &&
+        caller &&
+        callerGeneration === generation &&
+        refusal === "consent_required"
+      ) {
         const types: ConsentType[] = [consentType];
         for (const type of types) consents.refuse(caller, type);
-        await Promise.allSettled(types.map(type => consents.lookup(caller, type)));
-        code = types.every(type => consents.snapshot(caller, type).record?.status === "accepted") ? "consent_unavailable" : "consent_lookup";
+        await Promise.allSettled(
+          types.map((type) => consents.lookup(caller, type)),
+        );
+        code = types.every(
+          (type) =>
+            consents.snapshot(caller, type).record?.status === "accepted",
+        )
+          ? "consent_unavailable"
+          : "consent_lookup";
       }
-      if (["consent_service_unavailable", "consent_version_mismatch", "consent_registry_not_ready", "unsupported_consent_type"].includes(refusal)) code = "consent_unavailable";
+      if (
+        [
+          "consent_service_unavailable",
+          "consent_version_mismatch",
+          "consent_registry_not_ready",
+          "unsupported_consent_type",
+        ].includes(refusal)
+      )
+        code = "consent_unavailable";
       if (
         [
           "AI_LIMIT_REACHED",
@@ -104,18 +131,27 @@ function scrub(text: string) {
   if (!identity) throw new ApiError("access");
   return names.redact(localStorage, identity, text);
 }
-async function clinical(text: string, checkpoint: () => void, consentType: ConsentType = "ai_data_sharing") {
+async function clinical(
+  text: string,
+  checkpoint: () => void,
+  consentType: ConsentType = "ai_data_sharing",
+) {
   checkpoint();
   if (!text.trim()) return "";
   if (!identity) throw new ApiError("access");
   await consents.require(identity, consentType);
   checkpoint();
-  const r = await fn<{ anonymizedText: string }>("anonymize-clinical-text", {
-    text: scrub(text),
-    therapistIdentifiers: [],
-  }, consentType);
+  const r = await fn<{ anonymizedText: string }>(
+    "anonymize-clinical-text",
+    {
+      text: scrub(text),
+      therapistIdentifiers: [],
+    },
+    consentType,
+  );
   checkpoint();
-  if (typeof r.anonymizedText !== "string" || !r.anonymizedText.trim()) throw new ApiError();
+  if (typeof r.anonymizedText !== "string" || !r.anonymizedText.trim())
+    throw new ApiError();
   return scrub(r.anonymizedText);
 }
 // Workspace notes use the existing anonymizer and their separate consent type.
@@ -127,32 +163,15 @@ export async function workspaceClinicalAnonymizer(account: string) {
     return clinical(text, checkpoint, "clinical_text_processing");
   };
 }
-export function workspaceAccount() { return identity; }
+export function workspaceAccount() {
+  return identity;
+}
 export async function refreshWorkspaceTerms(account: string) {
   consents.refuse(account, "terms_privacy");
   await consents.lookup(account, "terms_privacy").catch(() => {});
 }
 export function workspaceIdentityMatches(account: string) {
   return identity === account;
-}
-async function anonymizeValue(
-  v: Clinical,
-  checkpoint: () => void,
-): Promise<Clinical> {
-  checkpoint();
-  if (typeof v === "string") return clinical(v, checkpoint);
-  if (Array.isArray(v))
-    return Promise.all(v.map((value) => anonymizeValue(value, checkpoint)));
-  if (v && typeof v === "object")
-    return Object.fromEntries(
-      await Promise.all(
-        Object.entries(v).map(async ([k, value]) => [
-          k,
-          k === "status" ? value : await anonymizeValue(value, checkpoint),
-        ]),
-      ),
-    );
-  return v;
 }
 export async function rows<T>(
   table: string,
@@ -180,9 +199,7 @@ export async function rows<T>(
   }
   return all;
 }
-const qcols =
-  "id,patient_id,session_id,created_by,answered_date,gad7_answers,phq9_answers,interference_level,combined_notes";
-const scols = "id::text,patient_id,session_date,notes,type,structured_notes";
+
 const dcols = [
   "id,patient_id,created_by,created_at,updated_at,event,automatic_thoughts,feelings,behaviour,physical_symptoms",
   "id,patient_id,created_by,created_at,updated_at,event,automatic_thoughts,feelings,thinking_errors,alternative_thoughts",
@@ -226,37 +243,29 @@ export const api = {
   context: () => fn<AppContext>("get-app-context"),
   async patients() {
     const done = await guard();
-    const value = await rows<Patient>(
-      "Patients",
-      "id,active,notes,formulation",
-    );
+    const value = await loadClinical<Patient>("load-patients", {}, done);
     done();
     return value;
   },
   async patient(id: Id) {
     const done = await guard();
-    const p = unwrap(
-      await db
-        .from("Patients")
-        .select("id,active,notes,formulation")
-        .eq("id", id)
-        .single(),
-    ) as Patient;
+    const [p] = await loadClinical<Patient>(
+      "load-patients",
+      { id: String(id) },
+      done,
+    );
+    if (!p) throw new ApiError("access");
     done();
     return p;
   },
   async createPatient(active: boolean) {
     const done = await guard(true);
-    done();
-    const p = unwrap(
-      await db
-        .from("Patients")
-        .insert({ active })
-        .select("id,active,notes,formulation")
-        .single(),
-    ) as Patient;
-    done();
-    return p;
+    return (await clinicalSave.save(
+      "save-patient",
+      null,
+      { active },
+      done,
+    )) as unknown as Patient;
   },
   async updatePatient(
     p: Patient,
@@ -265,28 +274,20 @@ export const api = {
     active: boolean,
   ) {
     const done = await guard(true);
-    const treatmentGoal =
-      goal === p.formulation?.treatmentGoal ? goal : await clinical(goal, done);
-    const safeNotes = notes === p.notes ? notes : await clinical(notes, done);
-    done();
-    const result = unwrap(
-      await db
-        .from("Patients")
-        .update({
-          active,
-          notes: safeNotes,
-          formulation: { ...p.formulation, treatmentGoal },
-        })
-        .eq("id", p.id)
-        .select("id")
-        .single(),
-    );
-    done();
-    return result;
+
+    const changes: Record<string, unknown> = { active };
+    if (notes !== (p.notes ?? "")) changes.notes = notes;
+    if (goal !== (p.formulation?.treatmentGoal ?? ""))
+      changes.formulation = { ...p.formulation, treatmentGoal: goal };
+    return clinicalSave.save("save-patient", { ...p }, changes, done);
   },
   async sessions(id?: Id) {
     const done = await guard();
-    const data = await rows<Session>("Sessions", scols, id);
+    const data = await loadClinical<Session>(
+      "load-sessions",
+      id === undefined ? {} : { patient_id: String(id) },
+      done,
+    );
     done();
     return data.sort((a, b) => b.session_date.localeCompare(a.session_date));
   },
@@ -297,39 +298,41 @@ export const api = {
     type: string,
     notes: string,
     analysis: Record<string, Clinical> | null,
+    previous?: Session,
   ) {
     const done = await guard(true);
-    const safe = await clinical(notes, done);
-    const structured = analysis ? await anonymizeValue(analysis, done) : null;
-    done();
-    const payload = {
-      patient_id: patientId,
+    if (!id && !type) throw new ApiError('invalid');
+
+    if (id && (!previous || previous.id !== id))
+      throw new ApiError("record_changed");
+    const changes: Record<string, unknown> = {
       session_date: dateOnly(date),
       type: type || null,
-      notes: safe,
-      structured_notes: structured,
     };
-    const query =
-      id !== null
-        ? db
-            .from("Sessions")
-            .update(payload)
-            .eq("id", id)
-            .eq("patient_id", patientId)
-        : db.from("Sessions").insert(payload);
-    const data = unwrap(await query.select(scols).single()) as Session;
-    done();
-    return data;
+    if (!id) changes.patient_id = patientId;
+    if (!previous || notes !== (previous.notes ?? "")) changes.notes = notes;
+    if (!sameClinicalValue(analysis, previous?.structured_notes ?? null))
+      changes.structured_notes = analysis;
+    return (await clinicalSave.save(
+      "save-session",
+      previous ? { ...previous } : null,
+      changes,
+      done,
+    )) as unknown as Session;
   },
   async questionnaires(id: Id) {
     const done = await guard();
-    const data = (await rows<Questionnaire>("CombinedMood", qcols, id)).map(
-      (q) => ({
-        ...q,
-        gad7_answers: Array.isArray(q.gad7_answers) ? q.gad7_answers : [],
-        phq9_answers: Array.isArray(q.phq9_answers) ? q.phq9_answers : [],
-      }),
-    );
+    const data = (
+      await loadClinical<Questionnaire>(
+        "load-questionnaires",
+        { patient_id: String(id) },
+        done,
+      )
+    ).map((q) => ({
+      ...q,
+      gad7_answers: Array.isArray(q.gad7_answers) ? q.gad7_answers : [],
+      phq9_answers: Array.isArray(q.phq9_answers) ? q.phq9_answers : [],
+    }));
     done();
     return data.sort((a, b) =>
       (b.answered_date ?? "").localeCompare(a.answered_date ?? ""),
@@ -352,28 +355,21 @@ export const api = {
       phq9_answers,
       interference_level,
     } = q;
-    const combined_notes = await anonymizeValue(
-      q.combined_notes as Clinical,
+    return (await clinicalSave.save(
+      "save-questionnaire",
+      null,
+      {
+        patient_id,
+        session_id,
+        answered_date: dateOnly(q.answered_date ?? ""),
+        gad7_answers,
+        phq9_answers,
+        interference_level,
+        combined_notes: q.combined_notes,
+        ...(q.notes !== undefined ? { notes: q.notes } : {}),
+      },
       done,
-    );
-    done();
-    const result = unwrap(
-      await db
-        .from("CombinedMood")
-        .insert({
-          patient_id,
-          session_id,
-          answered_date: dateOnly(q.answered_date ?? ""),
-          gad7_answers,
-          phq9_answers,
-          interference_level,
-          combined_notes,
-        })
-        .select("id")
-        .single(),
-    );
-    done();
-    return result as { id: Id };
+    )) as { id: Id };
   },
   async diaries(id: Id, index: number) {
     const done = await guard();

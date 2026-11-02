@@ -2,12 +2,14 @@ export type Id = string | number;
 export type Clinical =
   string | number | boolean | null | Clinical[] | { [key: string]: Clinical };
 export interface Patient {
+  _version?: string;
   id: Id;
   active: boolean | null;
   notes: string | null;
   formulation: Record<string, Clinical> | null;
 }
 export interface Session {
+  _version?: string;
   id: Id;
   patient_id: Id;
   session_date: string;
@@ -16,6 +18,8 @@ export interface Session {
   structured_notes: Record<string, Clinical> | null;
 }
 export interface Questionnaire {
+  _version?: string;
+  notes?: string | null;
   id: Id;
   patient_id: Id;
   session_id: Id | null;

@@ -120,4 +120,20 @@ class SessionRecoveryTest {
         assertEquals(draft.notes, draft.baselineNotes)
     }
 
+    @Test fun recoveryKeepsOriginalVersionAndAcknowledgementReplacesIt() {
+        val storage = MemoryStorage()
+        fun record(version: String) = kotlinx.serialization.json.Json.parseToJsonElement("""{"id":"session","_version":"$version","notes":"saved"}""").let { it as kotlinx.serialization.json.JsonObject }
+        val original = Session(databaseId = DatabaseId.Text("session"), notes = "saved", loadedClinicalRecord = record("v1"))
+        val draft = SessionEditorDraft(original)
+        draft.configureRecovery(storage, "account:session")
+        draft.notes = "unsaved edit"
+        assertTrue(draft.persistRecovery())
+        val restored = SessionEditorDraft(original.copy(loadedClinicalRecord = record("v2")))
+        restored.configureRecovery(storage, "account:session")
+        assertEquals(kotlinx.serialization.json.JsonPrimitive("v1"), restored.snapshot().loadedClinicalRecord?.get("_version"))
+        assertEquals("unsaved edit",restored.notes)
+        restored.markSaved(restored.snapshot().copy(notes = "server accepted", loadedClinicalRecord = record("v3")))
+        assertEquals(kotlinx.serialization.json.JsonPrimitive("v3"),restored.snapshot().loadedClinicalRecord?.get("_version"))
+        assertEquals("server accepted", restored.notes)
+    }
 }

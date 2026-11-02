@@ -63,6 +63,7 @@ data class PatientListUiState(
     val missingReview: WhatAmIMissingResponse? = null,
     val longitudinalReview: LongitudinalCaseReviewResponse? = null,
     val sessionError: String? = null,
+    val sessionConflict: Boolean = false,
 )
 
 class PatientListViewModel(
@@ -222,7 +223,7 @@ class PatientListViewModel(
 
     fun session(patientId: String, sessionId: String): Session? = repository.session(patientId, sessionId)
 
-    fun clearSessionError() = _ui.update { it.copy(sessionError = null) }
+    fun clearSessionError() = _ui.update { it.copy(sessionError = null, sessionConflict = false) }
 
     fun saveSession(
         patientId: DatabaseId,
@@ -233,7 +234,7 @@ class PatientListViewModel(
         rejected: String,
         sessionNotSaved: String,
         anonymizationFailed: String,
-        onSaved: () -> Unit = {},
+        onSaved: (Session) -> Unit = {},
         recovery: SessionEditorDraft? = null,
         accountActive: () -> Boolean = { true },
         onDone: () -> Unit,
@@ -251,7 +252,7 @@ class PatientListViewModel(
                     }
                 }
                 if (recovery != null && recovery.prepared == null) {
-                    val prepared = repository.anonymizedText(session.notes)
+                    val prepared = repository.prepareSummaryForStorage(session.notes)
                     check(accountActive())
                     recovery.preparedSource = session.notes; recovery.preparedText = prepared
                     if (!recovery.persistRecovery()) throw com.cbtipul.app.data.SummaryFailure(com.cbtipul.app.data.SummaryFailure.Kind.Local)
@@ -268,7 +269,7 @@ class PatientListViewModel(
                 if (!accountActive()) return@launch
                 refreshGettingStartedProgress()
                 _ui.update { it.copy(isSavingSession = false) }
-                onSaved()
+                onSaved(repository.patients.value.flatMap { it.sessions }.firstOrNull { it.id == session.id } ?: session)
                 if (leaveAfterSave) onDone()
             } catch (error: Exception) {
                 if (!accountActive()) return@launch
@@ -281,6 +282,7 @@ class PatientListViewModel(
                     it.copy(
                         isSavingSession = false,
                         sessionError = safeError.message,
+                        sessionConflict = safeError.kind == com.cbtipul.app.data.SummaryFailure.Kind.Conflict,
                     )
                 }
             } finally {
@@ -368,7 +370,7 @@ class PatientListViewModel(
             try {
                 if (recovery != null) {
                     processSummaryVoice(recovery, { repository.summaryAllowance() },
-                        { repository.transcribeAudio(file) }, { repository.anonymizedText(it) },
+                        { repository.transcribeAudio(file) }, { repository.prepareSummaryForStorage(it) },
                         onNotes, accountActive) {
                         _ui.update { it.copy(isTranscribing=false, isAnonymizingTranscription=true) }
                     }
@@ -377,7 +379,7 @@ class PatientListViewModel(
                 val text = repository.transcribeAudio(file)
                 _ui.update { it.copy(isTranscribing=false, isAnonymizingTranscription=true) }
                 val combined = if(existingNotes.isBlank()) text else existingNotes+"\n\n"+text
-                val notes = repository.anonymizedText(combined)
+                val notes = repository.prepareSummaryForStorage(combined, patientNotes = true)
                 onNotes(notes)
                 onTranscribed()
                 val saved = sessionForAutosave?.copy(notes = notes)
@@ -395,6 +397,7 @@ class PatientListViewModel(
                         isTranscribing = false,
                         isAnonymizingTranscription = false,
                         sessionError = safeError.message,
+                        sessionConflict = safeError.kind == com.cbtipul.app.data.SummaryFailure.Kind.Conflict,
                     )
                 }
             } finally {
@@ -527,7 +530,6 @@ class PatientListViewModel(
             _ui.update { it.copy(isAnonymizingTranscription = true, sessionError = null) }
             try {
                 val notes = repository.anonymizedText(session.notes)
-                onNotes(notes)
                 _ui.update { it.copy(isAnonymizingTranscription = false, isAnalyzing = true) }
                 val analysis = repository.analyzeSessionNotes(notes)
                 repository.registerAIAnalysis(analysis)
@@ -642,7 +644,7 @@ class PatientListViewModel(
     ) {
         if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
-            _ui.update { it.copy(sessionError = null) }
+            _ui.update { it.copy(sessionError = null, sessionConflict = false) }
             try {
                 onAnswer(repository.chat(patientId, systemPrompt, turns))
             } catch (error: Exception) {

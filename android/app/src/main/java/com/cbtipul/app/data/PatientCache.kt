@@ -168,9 +168,11 @@ private data class CachedQuestionnaire(
     val gad7Notes: List<String> = emptyList(),
     val phq9Notes: List<String> = emptyList(),
     val interferenceNote: String = "",
+    val loadedClinicalRecord: kotlinx.serialization.json.JsonObject? = null,
 ) {
     fun toCompleted() = CompletedQuestionnaire(
         createdBy = createdBy,
+        loadedClinicalRecord = loadedClinicalRecord,
         databaseId = databaseID,
         sessionId = sessionID,
         answeredDate = Date(answeredMillis),
@@ -187,6 +189,7 @@ private data class CachedQuestionnaire(
     companion object {
         fun from(record: CompletedQuestionnaire) = CachedQuestionnaire(
             createdBy = record.createdBy,
+            loadedClinicalRecord = record.loadedClinicalRecord,
             databaseID = record.databaseId,
             sessionID = record.sessionId,
             answeredMillis = record.answeredDate.time,
@@ -209,6 +212,7 @@ private data class CachedPatient(
     val notes: String? = null,
     val sessions: List<CachedSession> = emptyList(),
     val formulation: PatientFormulation? = null,
+    val loadedClinicalRecord: kotlinx.serialization.json.JsonObject? = null,
 ) {
     fun toPatient(): Patient? {
         val id = databaseID ?: return null
@@ -220,6 +224,7 @@ private data class CachedPatient(
             notes = notes.orEmpty(),
             sessions = sessions.map { it.toSession() },
             formulation = formulation,
+            loadedClinicalRecord = loadedClinicalRecord,
         )
     }
 
@@ -232,6 +237,7 @@ private data class CachedPatient(
             notes = patient.notes,
             sessions = patient.sessions.map { CachedSession.from(it) },
             formulation = patient.formulation,
+            loadedClinicalRecord = patient.loadedClinicalRecord,
         )
     }
 }
@@ -243,6 +249,7 @@ private data class CachedSession(
     val notes: String,
     val type: SessionType? = null,
     val structuredNotes: CBTSessionAnalysis? = null,
+    val loadedClinicalRecord: kotlinx.serialization.json.JsonObject? = null,
 ) {
     fun toSession() = Session(
         id = UUID.randomUUID(),
@@ -251,6 +258,7 @@ private data class CachedSession(
         notes = notes,
         type = type,
         structuredNotes = structuredNotes,
+        loadedClinicalRecord = loadedClinicalRecord,
     )
 
     companion object {
@@ -260,6 +268,7 @@ private data class CachedSession(
             notes = session.notes,
             type = session.type,
             structuredNotes = session.structuredNotes,
+            loadedClinicalRecord = session.loadedClinicalRecord,
         )
     }
 }

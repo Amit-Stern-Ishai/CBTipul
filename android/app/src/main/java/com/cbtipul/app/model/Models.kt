@@ -99,6 +99,7 @@ data class Session(
     val notes: String = "",
     val type: SessionType? = null,
     val structuredNotes: CBTSessionAnalysis? = null,
+    val loadedClinicalRecord: kotlinx.serialization.json.JsonObject? = null,
 )
 
 enum class GAD7Severity {
@@ -165,6 +166,7 @@ data class CompletedQuestionnaire(
     val answeredDate: Date,
     val questionnaire: CombinedMoodQuestionnaire,
     val createdBy: String? = "therapist",
+    val loadedClinicalRecord: kotlinx.serialization.json.JsonObject? = null,
 )
 
 @Serializable
@@ -197,6 +199,7 @@ data class Patient(
     val sessions: List<Session> = emptyList(),
     val localName: String? = null,
     val formulation: PatientFormulation? = null,
+    val loadedClinicalRecord: kotlinx.serialization.json.JsonObject? = null,
 ) {
     val backendName: String
         get() = listOf(firstName, lastName)

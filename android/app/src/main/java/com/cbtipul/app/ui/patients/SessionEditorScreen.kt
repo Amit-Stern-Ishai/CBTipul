@@ -140,6 +140,7 @@ fun SessionEditorScreen(
     errorMessage: String?,
     onBack: () -> Unit,
     onCheckSessions: () -> Unit = {},
+    hasVersionConflict: Boolean = false,
     onSave: (Session, Boolean) -> Unit,
     onDelete: (Session) -> Unit,
     onTranscribe: (File, String, Session, (String) -> Unit, () -> Unit) -> Unit,
@@ -371,6 +372,9 @@ fun SessionEditorScreen(
                 TextButton(onClick = { editorDraft.persistRecovery() }) { Text("שמירת הטיוטה מחדש") }
             } // Successful local draft persistence is silent.
             localError?.let { Text(it, color = colors.error) }
+            if (hasVersionConflict) {
+                TextButton(onClick = { if (editorDraft.persistRecovery()) onCheckSessions() }, enabled = !busy && patient != null) { Text("בדיקת המפגש המעודכן — הטיוטה נשארת במכשיר") }
+            }
             if (editorDraft.pendingCreation) {
                 Text(if (editorDraft.recoverySaved && !editorDraft.recoveryFailed)
                     "לא ניתן לוודא אם הסיכום נשמר. הטיוטה נשמרה במכשיר. יש לבדוק ברשימת המפגשים לפני ניסיון נוסף."

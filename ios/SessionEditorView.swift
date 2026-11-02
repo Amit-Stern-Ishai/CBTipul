@@ -55,6 +55,7 @@ struct SessionEditorView: View {
     /// Status line under the busy spinner; the anonymization notice during
     /// saves, nothing during deletes.
     @State private var busyLabel: String?
+    @State private var hasVersionConflict = false
     @State private var errorMessage: String?
     @State private var isShowingCancelWarning = false
     @State private var isShowingDeleteConfirmation = false
@@ -98,7 +99,7 @@ struct SessionEditorView: View {
     }
 
     private var recoveryValue: SessionRecovery {
-        SessionRecovery(date: session.date, notes: session.notes, type: session.type, structuredNotes: session.structuredNotes, selectedPatientID: selectedPatientID, audioFileName: audioFileName, transcriptReady: transcriptReady, safeSummary: safeSummary, safeSummarySource: safeSummarySource, pendingCreation: pendingCreation, summaryWorkStarted: hasSummaryWork)
+        SessionRecovery(date: session.date, notes: session.notes, type: session.type, structuredNotes: session.structuredNotes, selectedPatientID: selectedPatientID, audioFileName: audioFileName, transcriptReady: transcriptReady, safeSummary: safeSummary, safeSummarySource: safeSummarySource, pendingCreation: pendingCreation, summaryWorkStarted: hasSummaryWork, clinicalVersion: session.loadedClinicalRecord?.version)
     }
 
     @discardableResult
@@ -137,6 +138,12 @@ struct SessionEditorView: View {
     @ViewBuilder private var recoveryActions: some View {
         if pendingCreation || hasSummaryWork {
             VStack(alignment: .leading, spacing: 8) {
+                if hasVersionConflict {
+                    Button("בדיקת המפגש המעודכן — הטיוטה נשארת במכשיר") {
+                        guard persistRecovery() else { return }
+                        showingRecoverySessions = true
+                    }.disabled(storePatient == nil)
+                }
                 if pendingCreation {
                     Button("בדיקה ברשימת המפגשים") {
                         guard persistRecovery() else { return }
@@ -703,6 +710,10 @@ struct SessionEditorView: View {
                     initialStructuredNotes = session.structuredNotes
                     let target = isNew ? "new:\(patient?.id.queryValue ?? "global")" : "session:\(session.databaseID?.queryValue ?? session.id.uuidString)"
                     if let saved = recovery.restore(userID: auth.currentUserId, kind: store.isDemoMode ? "demo-session" : "therapist-session", target: target) {
+                        if var values = session.loadedClinicalRecord?.values, let version = saved.clinicalVersion {
+                            values["_version"] = .string(version)
+                            session.loadedClinicalRecord = ClinicalLoadedRecord(values: values)
+                        } else { session.loadedClinicalRecord = nil }
                         session.date = saved.date
                         session.notes = saved.notes
                         session.type = saved.type
@@ -1178,7 +1189,7 @@ struct SessionEditorView: View {
                 isTranscribing = false
                 isAnonymizingTranscription = true
                 try await checkAllowance(needsTokens: store.summaryRequiresAnonymization(session.notes))
-                let anonymized = try await store.anonymizedText(session.notes)
+                let anonymized = try await store.prepareSummaryForStorage(session.notes)
                 guard owner == auth.currentUserId else { throw CancellationError() }
                 safeSummarySource = session.notes
                 safeSummary = anonymized
@@ -1221,7 +1232,6 @@ struct SessionEditorView: View {
                 isAnonymizingTranscription = true
                 try await checkAllowance(needsTokens: true)
                 let anonymizedNotes = try await store.anonymizedText(session.notes)
-                session.notes = anonymizedNotes
                 isAnonymizingTranscription = false
                 isAnalyzing = true
                 let analysis = try await whisperService.analyzeSession(sessionNotes: anonymizedNotes)
@@ -1510,7 +1520,7 @@ struct SessionEditorView: View {
                 guard let owner = recoveryAccount, owner == auth.currentUserId else { throw ClientFailure.expiredLogin }
                 guard persistRecovery() else { throw ClientFailure.localDraft }
                 try await checkAllowance(needsTokens: store.summaryRequiresAnonymization(session.notes) || session.structuredNotes != initialStructuredNotes)
-                let anonymized = try await store.anonymizedText(session.notes)
+                let anonymized = try await store.prepareSummaryForStorage(session.notes)
                 guard owner == auth.currentUserId else { throw CancellationError() }
                 safeSummarySource = session.notes
                 safeSummary = anonymized
@@ -1549,10 +1559,11 @@ struct SessionEditorView: View {
                     tokensExhausted = true
                     allowanceMessage = SummaryAllowanceError.tokensExhausted.localizedDescription
                 }
-                if pendingCreation && error is PostgrestError {
+                if pendingCreation && (error is PostgrestError || [.conflict, .validation, .restricted, .expiredLogin].contains(ClientFailure.from(error))) {
                     pendingCreation = false
                     persistRecovery()
                 }
+                hasVersionConflict = ClientFailure.from(error) == .conflict
                 errorMessage = pendingCreation ? uncertainSaveMessage : error.userFacingMessage
             }
             isSaving = false
@@ -1583,4 +1594,5 @@ struct SessionRecovery: Codable, Equatable {
     var safeSummarySource: String? = nil
     var pendingCreation: Bool? = nil
     var summaryWorkStarted: Bool? = nil
+    var clinicalVersion: String? = nil
 }

@@ -240,6 +240,7 @@ private nonisolated struct QuestionnaireRow: Decodable {
 
 /// Disk-cache snapshot of a session.
 private nonisolated struct CachedSession: Codable {
+    var loadedClinicalRecord: ClinicalLoadedRecord? = nil
     let databaseID: DatabaseID?
     let date: Date
     let notes: String
@@ -249,7 +250,8 @@ private nonisolated struct CachedSession: Codable {
     let structuredNotes: WhisperService.CBTSessionAnalysis?
 
     init(databaseID: DatabaseID?, date: Date, notes: String,
-         type: SessionType?, structuredNotes: WhisperService.CBTSessionAnalysis?) {
+         type: SessionType?, structuredNotes: WhisperService.CBTSessionAnalysis?, loadedClinicalRecord: ClinicalLoadedRecord? = nil) {
+        self.loadedClinicalRecord = loadedClinicalRecord
         self.databaseID = databaseID
         self.date = date
         self.notes = notes
@@ -259,6 +261,7 @@ private nonisolated struct CachedSession: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        loadedClinicalRecord = try container.decodeIfPresent(ClinicalLoadedRecord.self, forKey: .loadedClinicalRecord)
         databaseID = try container.decodeIfPresent(DatabaseID.self, forKey: .databaseID)
         date = try container.decode(Date.self, forKey: .date)
         notes = try container.decode(String.self, forKey: .notes)
@@ -275,6 +278,7 @@ private nonisolated struct CachedSession: Codable {
 
 /// Disk-cache snapshot of a patient.
 private nonisolated struct CachedPatient: Codable {
+    var loadedClinicalRecord: ClinicalLoadedRecord? = nil
     let databaseID: DatabaseID?
     let firstName: String
     let lastName: String
@@ -593,7 +597,9 @@ final class PatientStore {
     /// can be shown in a field and saved afterwards without a second call.
     /// Only restored from the authenticated account's protected recovery receipt.
     func registerRecoveredAnonymizedSummary(original: String, anonymized: String) {
-        textGate.restorePrepared(original: original, anonymized: anonymized)
+        // A recovery value identical to its source may be an encrypted-storage draft.
+        // Never promote it to an AI-safe value merely because it was persisted locally.
+        if original != anonymized { textGate.restorePrepared(original: original, anonymized: anonymized) }
     }
 
     func summaryRequiresAnonymization(_ text: String) -> Bool { textGate.requiresProcessing(text) }
@@ -689,19 +695,81 @@ final class PatientStore {
 
     /// Replaces the in-memory patient list with the contents of the
     /// `Patients` and `Sessions` tables.
+    /// Storage preserves original text. AI callers must use anonymizedText separately.
+    func prepareSummaryForStorage(_ text: String, patientNotes: Bool = false) async throws -> String { text }
+    private func clinicalJSON<T: Encodable>(_ value: T) throws -> AnyJSON {
+        try JSONDecoder().decode(AnyJSON.self, from: JSONEncoder().encode(value))
+    }
+    private func saveEncrypted(_ endpoint: String, previous: ClinicalLoadedRecord?, id: DatabaseID? = nil,
+                               changes: [String: AnyJSON]) async throws -> ClinicalLoadedRecord {
+        if let id, previous?.id.lowercased() != id.queryValue.lowercased() { throw ClientFailure.conflict }
+        let owner = client.auth.currentUser?.id, epoch = clinicalLoadEpoch
+        guard owner != nil else { throw ClientFailure.expiredLogin }
+        return try await ClinicalRecordSave.save(endpoint: endpoint, previous: previous, proposed: changes,
+            checkpoint: { [self] in
+                guard owner == client.auth.currentUser?.id, epoch == clinicalLoadEpoch, !isDemoMode else { throw CancellationError() }
+            }, invoke: { [self] name, body in
+                try await client.functions.invoke(name, options: FunctionInvokeOptions(body: body))
+            })
+    }
+    private func applyEncryptedPatient(_ record: ClinicalLoadedRecord, to patient: Patient) throws {
+        let row = try record.decode(PatientRow.self)
+        patient.notes = row.notes ?? ""
+        patient.formulation = row.patientFormulation
+        patient.status = row.active == false ? .inactive : .active
+        patient.loadedClinicalRecord = record
+        saveCachedPatients()
+    }
+    private func saveEncryptedSession(_ session: Session, patient: Patient? = nil, beforeSave: (() throws -> Void)?) async throws {
+        if patient != nil && session.type == nil { throw ClientFailure.validation }
+        var changes: [String: AnyJSON] = ["session_date": .string(Self.dateOnlyFormatter.string(from: session.date)),
+            "notes": .string(session.notes), "type": try clinicalJSON(session.type)]
+        // Only a changed analysis replaces the server analysis; supplying changed notes
+        // alone lets the server invalidate stale analysis atomically.
+        let baseline = try session.loadedClinicalRecord?.decode(SessionRow.self)
+        if let baseline {
+            if session.notes == (baseline.notes ?? "") { changes.removeValue(forKey: "notes") }
+            if session.type == baseline.sessionType { changes.removeValue(forKey: "type") }
+            if Self.dateOnlyFormatter.string(from: session.date) == Self.dateOnlyFormatter.string(from: parseDate(baseline.sessionDate)) { changes.removeValue(forKey: "session_date") }
+        }
+        if session.structuredNotes != baseline?.structuredNotes { changes["structured_notes"] = try clinicalJSON(session.structuredNotes) }
+        if let patient { changes["patient_id"] = .string(patient.id.queryValue.lowercased()) }
+        try beforeSave?()
+        let record = try await saveEncrypted("save-session", previous: session.loadedClinicalRecord, id: patient == nil ? session.databaseID : nil, changes: changes)
+        let row = try record.decode(SessionRow.self)
+        session.databaseID = row.id; session.date = parseDate(row.sessionDate)
+        session.notes = row.notes ?? ""; session.type = row.sessionType; session.structuredNotes = row.structuredNotes
+        session.loadedClinicalRecord = record
+        if let patient { patient.sessions.append(session) } else { publishSavedSession(session) }
+        saveCachedPatients()
+    }
+
+    private var clinicalLoadEpoch = UUID()
+    private func loadClinical(_ endpoint: String, patient: String? = nil) async throws -> [ClinicalLoadedRecord] {
+        let owner = client.auth.currentUser?.id, epoch = clinicalLoadEpoch
+        guard owner != nil else { throw CancellationError() }
+        return try await ClinicalRecordLoad.pages(endpoint: endpoint,
+            parameters: patient.map { ["patient_id": .string($0.lowercased())] } ?? [:],
+            checkpoint: { [self] in
+                guard owner == client.auth.currentUser?.id, epoch == clinicalLoadEpoch, !isDemoMode else { throw CancellationError() }
+            }, invoke: { [self] endpoint, body in
+                try await client.functions.invoke(endpoint, options: FunctionInvokeOptions(body: body))
+            })
+    }
+
     func loadPatients() async throws {
         if isDemoMode { return }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
         let nameOwner = nameSync.account
-        let patientRows: [PatientRow] = try await client.from("Patients")
-            .select("id, active, notes, formulation")
-            .execute()
-            .value
-        let sessionRows: [SessionRow] = try await client.from("Sessions")
-            .select("id, patient_id, session_date, notes, type, structured_notes")
-            .execute()
-            .value
+        let epoch = clinicalLoadEpoch
+        let patientRecords = try await loadClinical("load-patients")
+        let sessionRecords = try await loadClinical("load-sessions")
+        guard epoch == clinicalLoadEpoch else { throw CancellationError() }
+        let patientRows = try patientRecords.map { try $0.decode(PatientRow.self) }
+        let sessionRows = try sessionRecords.map { try $0.decode(SessionRow.self) }
+        let patientSnapshots = Dictionary(uniqueKeysWithValues: patientRecords.map { ($0.id, $0) })
+        let sessionSnapshots = Dictionary(uniqueKeysWithValues: sessionRecords.map { ($0.id, $0) })
 
         // Entering sample mode while a real-clinic refresh is in flight must
         // not replace the sample records with the eventual network response.
@@ -722,28 +790,19 @@ final class PatientStore {
                 ?? Patient(id: row.id)
             patient.status = (row.active ?? true) ? .active : .inactive
             patient.notes = row.notes ?? ""
-            // Everything read back from Supabase is already anonymized, so
-            // re-saving it unchanged must not call the Edge Function again.
-            textGate.markSafe(row.notes)
-            markFormulationSafe(row.patientFormulation)
-            // A null column never clears a local formulation: the app never
-            // deletes formulations server-side, so null just means "not
-            // saved to the DB yet" (e.g. written before this column existed).
-            if let formulation = row.patientFormulation {
-                patient.formulation = formulation
-            }
+            patient.formulation = row.patientFormulation
+            patient.loadedClinicalRecord = patientSnapshots[row.id.queryValue]
 
             let existingSessions = patient.sessions
             patient.sessions = (sessionRowsByPatient[row.id] ?? [])
                 .map { sessionRow in
                     let session = existingSessions.first { $0.databaseID == sessionRow.id }
                         ?? Session(databaseID: sessionRow.id)
+                    session.loadedClinicalRecord = sessionSnapshots[sessionRow.id.queryValue]
                     session.date = parseDate(sessionRow.sessionDate)
                     session.notes = sessionRow.notes ?? ""
                     session.type = sessionRow.sessionType
                     session.structuredNotes = sessionRow.structuredNotes
-                    textGate.markSafe(sessionRow.notes)
-                    markAnalysisSafe(sessionRow.structuredNotes)
                     return session
                 }
                 .sorted { $0.date < $1.date }
@@ -787,11 +846,14 @@ final class PatientStore {
                 status: cachedPatient.active ? .active : .inactive,
                 notes: cachedPatient.notes ?? "",
                 sessions: cachedPatient.sessions.map {
-                    Session(databaseID: $0.databaseID, date: $0.date, notes: $0.notes,
+                    let session = Session(databaseID: $0.databaseID, date: $0.date, notes: $0.notes,
                             type: $0.type, structuredNotes: $0.structuredNotes)
+                    session.loadedClinicalRecord = $0.loadedClinicalRecord
+                    return session
                 }
             )
             patient.formulation = cachedPatient.formulation
+            patient.loadedClinicalRecord = cachedPatient.loadedClinicalRecord
             // Cache loads only resolve names; migration waits for authoritative ownership.
             patient.localName = nameSync.displayed(patient.id.queryValue, legacy: identityStore.name(for: patient.id))
             return patient
@@ -805,6 +867,7 @@ final class PatientStore {
         if isDemoMode || !persistPatientCache { return }
         let snapshot = patients.map { patient in
             CachedPatient(
+                loadedClinicalRecord: patient.loadedClinicalRecord,
                 databaseID: patient.id,
                 firstName: patient.firstName,
                 lastName: patient.lastName,
@@ -812,7 +875,7 @@ final class PatientStore {
                 notes: patient.notes,
                 sessions: patient.sessions.map {
                     CachedSession(databaseID: $0.databaseID, date: $0.date, notes: $0.notes,
-                                  type: $0.type, structuredNotes: $0.structuredNotes)
+                                  type: $0.type, structuredNotes: $0.structuredNotes, loadedClinicalRecord: $0.loadedClinicalRecord)
                 },
                 formulation: patient.formulation
             )
@@ -829,6 +892,7 @@ final class PatientStore {
     /// Clears everything cached for the signed-in user (disk snapshot and all
     /// in-memory data), so nothing leaks into the next session on sign-out.
     func clearAllCaches() {
+        clinicalLoadEpoch = UUID()
         if isDemoMode {
             clearDemoContent()
             EntitlementState.shared.setLocalDemo(false)
@@ -905,16 +969,12 @@ final class PatientStore {
         let enteredName = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
         guard PatientNameRules.valid(enteredName) else { throw NameSyncFailure(code: "invalid_name") }
         let nameOwner = nameSync.account
-        let record = NewPatientRecord(active: status == .active)
-        let inserted: InsertedRow = try await client.from("Patients")
-            .insert(record)
-            .select("id")
-            .single()
-            .execute()
-            .value
+        let encryptedRecord = try await saveEncrypted("save-patient", previous: nil, changes: ["active": .bool(status == .active)])
+        let inserted = InsertedRow(id: .text(encryptedRecord.id))
 
         guard nameOwner == nameSync.account, !isDemoMode else { return }
         let patient = Patient(id: inserted.id, firstName: firstName, lastName: lastName, status: status)
+        patient.loadedClinicalRecord = encryptedRecord
         // Preserve the entered name locally before consent-gated synchronization.
         // A failed name-cache write must never make creation appear to have failed after the ID exists.
         try? identityStore.save(patientID: patient.id, name: enteredName)
@@ -972,34 +1032,8 @@ final class PatientStore {
             return
         }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        let patientID = patient.id
 
-        // Anonymize every field before anything is sent; a failure aborts
-        // the whole insert without uploading any original text.
-        let anonymizedNotes = try await textGate.prepare(session.notes)
-        let anonymizedAnalysis = try await anonymized(session.structuredNotes)
-        let record = NewSessionRecord(
-            patientID: patientID,
-            sessionDate: Self.dateOnlyFormatter.string(from: session.date),
-            notes: anonymizedNotes,
-            sessionType: session.type,
-            structuredNotes: anonymizedAnalysis
-        )
-        try beforeInsert?()
-        let inserted: InsertedRow = try await client.from("Sessions")
-            .insert(record)
-            .select("id")
-            .single()
-            .execute()
-            .value
-
-        // The local model mirrors what the server now stores.
-        session.notes = anonymizedNotes ?? ""
-        session.structuredNotes = anonymizedAnalysis
-        session.databaseID = inserted.id
-        patient.sessions.append(session)
-        AppLog.store.info("Session added: \(inserted.id.queryValue, privacy: .public) for patient \(patientID.queryValue, privacy: .public)")
-        saveCachedPatients()
+        try await saveEncryptedSession(session, patient: patient, beforeSave: beforeInsert)
     }
 
     /// Publish the formulation locally only after the server accepts it.
@@ -1013,23 +1047,10 @@ final class PatientStore {
         }
 
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        let patientID = patient.id
 
-        // Anonymize every free-text field before anything is sent; a
-        // failure aborts the update without uploading any original text.
-        let anonymizedFormulation = try await anonymized(formulation)
-        // Select the updated rows back: with row-level security a blocked
-        // update "succeeds" with zero rows, which must not pass as saved.
-        let updated: [InsertedRow] = try await client.from("Patients")
-            .update(UpdatedPatientFormulationRecord(patientFormulation: anonymizedFormulation))
-            .eq("id", value: patientID.queryValue)
-            .select("id")
-            .execute()
-            .value
-        guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
-        // The local model mirrors what the server now stores.
-        patient.formulation = anonymizedFormulation
-        saveCachedPatients()
+        let record = try await saveEncrypted("save-patient", previous: patient.loadedClinicalRecord, id: patient.id,
+            changes: ["formulation": try clinicalJSON(formulation)])
+        try applyEncryptedPatient(record, to: patient)
     }
 
     /// Persists notes changes of an already-saved patient.
@@ -1041,23 +1062,10 @@ final class PatientStore {
             return
         }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        let patientID = patient.id
 
-        // Anonymize before anything is sent; a failure aborts the update
-        // without uploading the original text.
-        let anonymizedNotes = try await textGate.prepare(patient.notes)
-        // Select the updated rows back: with row-level security a blocked
-        // update "succeeds" with zero rows, which must not pass as saved.
-        let updated: [InsertedRow] = try await client.from("Patients")
-            .update(UpdatedPatientNotesRecord(notes: anonymizedNotes, active: patient.status == .active))
-            .eq("id", value: patientID.queryValue)
-            .select("id")
-            .execute()
-            .value
-        guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
-        // The local model mirrors what the server now stores.
-        patient.notes = anonymizedNotes ?? ""
-        saveCachedPatients()
+        let record = try await saveEncrypted("save-patient", previous: patient.loadedClinicalRecord, id: patient.id,
+            changes: ["notes": .string(patient.notes), "active": .bool(patient.status == .active)])
+        try applyEncryptedPatient(record, to: patient)
     }
 
     /// Persists only the active/inactive flag, without touching notes.
@@ -1068,15 +1076,10 @@ final class PatientStore {
             return
         }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        let patientID = patient.id
-        let updated: [InsertedRow] = try await client.from("Patients")
-            .update(UpdatedPatientStatusRecord(active: patient.status == .active))
-            .eq("id", value: patientID.queryValue)
-            .select("id")
-            .execute()
-            .value
-        guard !updated.isEmpty else { throw PatientStoreError.updateRejected }
-        saveCachedPatients()
+
+        let record = try await saveEncrypted("save-patient", previous: patient.loadedClinicalRecord, id: patient.id,
+            changes: ["active": .bool(patient.status == .active)])
+        try applyEncryptedPatient(record, to: patient)
     }
 
     /// Persists date and notes changes of an already-saved session.
@@ -1098,37 +1101,9 @@ final class PatientStore {
             return
         }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-        guard let sessionID = session.databaseID else { throw PatientStoreError.sessionNotSaved }
+        guard session.databaseID != nil else { throw PatientStoreError.sessionNotSaved }
 
-        // Anonymize every field before anything is sent; a failure aborts
-        // the whole update without uploading any original text.
-        let anonymizedNotes = try await textGate.prepare(session.notes)
-        let anonymizedAnalysis = try await anonymized(session.structuredNotes)
-        let record = UpdatedSessionRecord(
-            sessionDate: Self.dateOnlyFormatter.string(from: session.date),
-            notes: anonymizedNotes,
-            sessionType: session.type,
-            structuredNotes: anonymizedAnalysis
-        )
-        // Select the updated rows back: with row-level security a blocked
-        // update "succeeds" with zero rows, which must not pass as saved.
-        try beforeUpdate?()
-        let updated: [InsertedRow] = try await client.from("Sessions")
-            .update(record)
-            .eq("id", value: sessionID.queryValue)
-            .select("id")
-            .execute()
-            .value
-        guard !updated.isEmpty else {
-            AppLog.store.error("Session update rejected: \(sessionID.queryValue, privacy: .public)")
-            throw PatientStoreError.updateRejected
-        }
-        // The local model mirrors what the server now stores.
-        session.notes = anonymizedNotes ?? ""
-        session.structuredNotes = anonymizedAnalysis
-        AppLog.store.info("Session updated: \(sessionID.queryValue, privacy: .public)")
-        publishSavedSession(session)
-        saveCachedPatients()
+        try await saveEncryptedSession(session, beforeSave: beforeUpdate)
     }
 
     private func publishSavedSession(_ draft: Session) {
@@ -1260,14 +1235,6 @@ final class PatientStore {
             try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id) || isDemoMode)
             if let existingID, cachedQuestionnaires(for: patient)?.contains(where: { $0.databaseID == existingID && $0.isPatientSubmitted }) == true { throw PatientStoreError.updateRejected }
             let clinicalDate = min(answeredDate, Date.now)
-            var anonymizedQuestionnaire = questionnaire
-            if !DemoData.isDemoID(patient.id) && !isDemoMode {
-                anonymizedQuestionnaire.gad7Notes = try await textGate.prepare(notes: questionnaire.gad7Notes)
-                anonymizedQuestionnaire.phq9Notes = try await textGate.prepare(notes: questionnaire.phq9Notes)
-                anonymizedQuestionnaire.interferenceNote =
-                    try await textGate.prepare(questionnaire.interferenceNote) ?? ""
-            }
-
             if DemoData.isDemoID(patient.id) || isDemoMode {
                 let previousSessionID = existingID.flatMap { id in
                     questionnairesByPatient[patient.id]?.first { $0.databaseID == id }?.sessionID
@@ -1276,11 +1243,11 @@ final class PatientStore {
                     databaseID: existingID ?? .text("demo-q-\(UUID().uuidString)"),
                     sessionID: sessionID,
                     answeredDate: clinicalDate,
-                    questionnaire: anonymizedQuestionnaire
+                    questionnaire: questionnaire
                 )
                 upsertCachedQuestionnaire(record, for: patient, replacing: existingID)
                 syncSessionQuestionnaire(
-                    anonymizedQuestionnaire,
+                    questionnaire,
                     for: patient,
                     sessionID: sessionID,
                     previousSessionID: previousSessionID
@@ -1289,71 +1256,33 @@ final class PatientStore {
                 return
             }
             guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
-            let patientID = patient.id
-            let previousSessionID = existingID.flatMap { id in
-                questionnairesByPatient[patientID]?.first { $0.databaseID == id }?.sessionID
-            }
-            let answeredDateString = Self.dateOnlyFormatter.string(from: clinicalDate)
-            let notes = QuestionnaireNotes(
-                gad7: anonymizedQuestionnaire.gad7Notes,
-                phq9: anonymizedQuestionnaire.phq9Notes,
-                interference: anonymizedQuestionnaire.interferenceNote
-            )
-            let savedID: DatabaseID
-            if let existingID {
-                let update = UpdatedQuestionnaireRecord(
-                    sessionID: sessionID,
-                    answeredDate: answeredDateString,
-                    gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
-                    phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
-                    interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
-                    combinedNotes: notes
-                )
-                let updated: [InsertedRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
-                    .update(update)
-                    .eq("id", value: existingID.queryValue)
-                    .eq("created_by", value: "therapist")
-                    .select("id")
-                    .execute()
-                    .value
-                guard let id = updated.first?.id else {
-                    AppLog.store.error("Questionnaire update rejected: \(existingID.queryValue, privacy: .public)")
-                    throw PatientStoreError.updateRejected
-                }
-                savedID = id
-            } else {
-                let record = NewQuestionnaireRecord(
-                    patientID: patientID,
-                    sessionID: sessionID,
-                    answeredDate: answeredDateString,
-                    gad7Answers: anonymizedQuestionnaire.gad7Answers.compactMap { $0 },
-                    phq9Answers: anonymizedQuestionnaire.phq9Answers.compactMap { $0 },
-                    interferenceLevel: anonymizedQuestionnaire.interferenceLevel,
-                    combinedNotes: notes
-                )
-                let saved: InsertedRow = try await client.from(CombinedMoodQuestionnaire.tableName)
-                    .insert(record)
-                    .select("id")
-                    .single()
-                    .execute()
-                    .value
-                savedID = saved.id
-            }
 
-            let completed = CompletedQuestionnaire(
-                databaseID: savedID,
-                sessionID: sessionID,
-                answeredDate: clinicalDate,
-                questionnaire: anonymizedQuestionnaire
-            )
-            upsertCachedQuestionnaire(completed, for: patient, replacing: existingID ?? savedID)
-            syncSessionQuestionnaire(
-                anonymizedQuestionnaire,
-                for: patient,
-                sessionID: sessionID,
-                previousSessionID: previousSessionID
-            )
-            AppLog.store.info("Questionnaire saved: \(savedID.queryValue, privacy: .public)")
+            let previous = existingID.flatMap { id in questionnairesByPatient[patient.id]?.first { $0.databaseID == id } }
+            let notes = QuestionnaireNotes(gad7: questionnaire.gad7Notes, phq9: questionnaire.phq9Notes, interference: questionnaire.interferenceNote)
+            var changes: [String: AnyJSON] = ["session_id": sessionID.map { .string($0.queryValue) } ?? .null,
+                "answered_date": .string(Self.dateOnlyFormatter.string(from: clinicalDate)),
+                "gad7_answers": try clinicalJSON(questionnaire.gad7Answers.compactMap { $0 }),
+                "phq9_answers": try clinicalJSON(questionnaire.phq9Answers.compactMap { $0 }),
+                "interference_level": try clinicalJSON(questionnaire.interferenceLevel), "combined_notes": try clinicalJSON(notes)]
+            if let previous, previous.questionnaire.gad7Notes == questionnaire.gad7Notes,
+                previous.questionnaire.phq9Notes == questionnaire.phq9Notes, previous.questionnaire.interferenceNote == questionnaire.interferenceNote { changes.removeValue(forKey: "combined_notes") }
+            if existingID == nil { changes["patient_id"] = .string(patient.id.queryValue.lowercased()) }
+            let saved = try await saveEncrypted("save-questionnaire", previous: previous?.loadedClinicalRecord, id: existingID, changes: changes)
+            let row = try saved.decode(QuestionnaireRow.self)
+            var value = CombinedMoodQuestionnaire()
+            value.gad7Answers = Self.paddedAnswers(row.gad7Answers, count: 7)
+            value.phq9Answers = Self.paddedAnswers(row.phq9Answers, count: 9)
+            value.interferenceLevel = row.interferenceLevel
+            value.gad7Notes = Self.paddedNotes(row.combinedNotes?.gad7, count: 7)
+            value.phq9Notes = Self.paddedNotes(row.combinedNotes?.phq9, count: 9)
+            value.interferenceNote = row.combinedNotes?.interference ?? ""
+            let completed = CompletedQuestionnaire(databaseID: row.id, sessionID: row.sessionID,
+                answeredDate: row.answeredDate.map(parseDate) ?? clinicalDate, questionnaire: value,
+                createdBy: row.createdBy, loadedClinicalRecord: saved)
+            upsertCachedQuestionnaire(completed, for: patient, replacing: existingID)
+            syncSessionQuestionnaire(value, for: patient, sessionID: row.sessionID, previousSessionID: previous?.sessionID)
+            saveCachedPatients()
+            return
 
         }
     }
@@ -1445,12 +1374,9 @@ final class PatientStore {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         let patientID = patient.id
 
-        let rows: [QuestionnaireRow] = try await client.from(CombinedMoodQuestionnaire.tableName)
-            .select("id, session_id, created_by, answered_date, gad7_answers, phq9_answers, interference_level, combined_notes")
-            .eq("patient_id", value: patientID.queryValue)
-            .order("answered_date", ascending: false)
-            .execute()
-            .value
+        let records = try await loadClinical("load-questionnaires", patient: patientID.queryValue)
+        let rows = try records.map { try $0.decode(QuestionnaireRow.self) }
+        let snapshots = Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0) })
 
         let questionnaires = rows.map { row in
             var questionnaire = CombinedMoodQuestionnaire()
@@ -1460,19 +1386,15 @@ final class PatientStore {
             questionnaire.gad7Notes = Self.paddedNotes(row.combinedNotes?.gad7, count: L10n.gad7Questions.count)
             questionnaire.phq9Notes = Self.paddedNotes(row.combinedNotes?.phq9, count: L10n.phq9Questions.count)
             questionnaire.interferenceNote = row.combinedNotes?.interference ?? ""
-            // Notes read back from Supabase are already anonymized, so
-            // re-saving them unchanged must not call the Edge Function again.
-            questionnaire.gad7Notes.forEach { textGate.markSafe($0) }
-            questionnaire.phq9Notes.forEach { textGate.markSafe($0) }
-            textGate.markSafe(questionnaire.interferenceNote)
             return CompletedQuestionnaire(
                 databaseID: row.id,
                 sessionID: row.sessionID,
                 answeredDate: row.answeredDate.map(parseDate) ?? .now,
                 questionnaire: questionnaire,
-                createdBy: row.createdBy
+                createdBy: row.createdBy,
+                loadedClinicalRecord: snapshots[row.id.queryValue]
             )
-        }
+        }.sorted { $0.answeredDate > $1.answeredDate }
         questionnairesByPatient[patientID] = questionnaires
         return questionnaires
     }

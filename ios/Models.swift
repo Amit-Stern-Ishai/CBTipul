@@ -110,6 +110,7 @@ final class Patient: Identifiable {
     var lastName: String
     var status: PatientStatus
     var notes: String
+    var loadedClinicalRecord: ClinicalLoadedRecord?
     var sessions: [Session]
     /// The therapist's own clinical formulation; kept out of `init` because
     /// it is loaded from the local cache, never from the database.
@@ -193,6 +194,7 @@ final class Session: Identifiable {
     var databaseID: DatabaseID?
     var date: Date
     var notes: String
+    var loadedClinicalRecord: ClinicalLoadedRecord?
     /// The protocol stage of the session, once one has been picked.
     var type: SessionType?
     var questionnaire: CombinedMoodQuestionnaire
@@ -201,11 +203,14 @@ final class Session: Identifiable {
 
     /// An editor owns its values independently of background store refreshes.
     func editingCopy() -> Session {
-        Session(id: id, databaseID: databaseID, date: date, notes: notes, type: type,
+        let copy = Session(id: id, databaseID: databaseID, date: date, notes: notes, type: type,
                 questionnaire: questionnaire, structuredNotes: structuredNotes)
+        copy.loadedClinicalRecord = loadedClinicalRecord
+        return copy
     }
 
     func applySavedContent(from draft: Session) {
+        loadedClinicalRecord = draft.loadedClinicalRecord
         date = draft.date
         notes = draft.notes
         type = draft.type
@@ -341,6 +346,7 @@ struct CompletedQuestionnaire: Identifiable, Codable {
     let questionnaire: CombinedMoodQuestionnaire
 
     var createdBy: String? = "therapist"
+    var loadedClinicalRecord: ClinicalLoadedRecord? = nil
     var isPatientSubmitted: Bool { createdBy == "patient" }
 
     var id: DatabaseID { databaseID }

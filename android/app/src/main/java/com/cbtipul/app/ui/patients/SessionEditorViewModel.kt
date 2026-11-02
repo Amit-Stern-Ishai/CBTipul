@@ -28,6 +28,7 @@ private data class SessionRecovery(
     val preparedText: String? = null,
     val pendingCreation: Boolean = false,
     val started: Boolean = false,
+    val clinicalVersion: String? = null,
 )
 
 class SessionEditorDraft(val initial: Session) {
@@ -40,6 +41,7 @@ class SessionEditorDraft(val initial: Session) {
     var transcriptReady by mutableStateOf(false)
     var preparedSource by mutableStateOf<String?>(null)
     var preparedText by mutableStateOf<String?>(null)
+    private var loadedClinicalRecord = initial.loadedClinicalRecord
     var pendingCreation by mutableStateOf(false)
     val prepared: String? get() = preparedText?.takeIf { preparedSource == notes }
     fun audioFile(context: android.content.Context): java.io.File? {
@@ -84,6 +86,9 @@ class SessionEditorDraft(val initial: Session) {
         try {
             store.read(key)?.let {
                 val saved = json.decodeFromString(SessionRecovery.serializer(), it)
+                loadedClinicalRecord = if(saved.clinicalVersion != null) initial.loadedClinicalRecord?.let {
+                    kotlinx.serialization.json.JsonObject(it + ("_version" to kotlinx.serialization.json.JsonPrimitive(saved.clinicalVersion)))
+                } else null
                 date = java.util.Date(saved.date)
                 notes = saved.notes
                 type = saved.type
@@ -114,7 +119,7 @@ class SessionEditorDraft(val initial: Session) {
             }
             recoveryStore!!.write(recoveryKey!!, json.encodeToString(SessionRecovery.serializer(),
                 SessionRecovery(date.time, notes, type, structuredNotes, selectedPatientId,
-                    audioName, audioSeconds, transcriptReady, preparedSource, preparedText, pendingCreation, hasSummaryDraft)))
+                    audioName, audioSeconds, transcriptReady, preparedSource, preparedText, pendingCreation, hasSummaryDraft, (loadedClinicalRecord?.get("_version") as? kotlinx.serialization.json.JsonPrimitive)?.content)))
             recoverySaved = true
             recoveryFailed = false
             true
@@ -168,6 +173,8 @@ class SessionEditorDraft(val initial: Session) {
             pendingCreation = wasPending
             recoveryClosed = true // Do not overwrite the retained receipt-uncertain manifest on dispose.
         }
+        loadedClinicalRecord = saved.loadedClinicalRecord
+        date = saved.date; notes = saved.notes; type = saved.type; structuredNotes = saved.structuredNotes
         baselineDate = saved.date
         baselineNotes = saved.notes
         baselineType = saved.type
@@ -175,5 +182,5 @@ class SessionEditorDraft(val initial: Session) {
         saveRevision += 1
     }
 
-    fun snapshot(): Session = initial.copy(date = date, notes = notes, type = type, structuredNotes = structuredNotes)
+    fun snapshot(): Session = initial.copy(date = date, notes = notes, type = type, structuredNotes = structuredNotes, loadedClinicalRecord = loadedClinicalRecord)
 }

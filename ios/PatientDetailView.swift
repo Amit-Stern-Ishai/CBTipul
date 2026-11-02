@@ -1355,7 +1355,7 @@ struct PatientDetailView: View {
                 isAnonymizingTranscription = true
                 let existing = patient.notes.trimmingCharacters(in: .whitespacesAndNewlines)
                 let combined = existing.isEmpty ? text : patient.notes + "\n\n" + text
-                let anonymized = try await store.anonymizedText(combined)
+                let anonymized = try await store.prepareSummaryForStorage(combined, patientNotes: true)
                 patient.notes = anonymized
                 voiceRecorder.discard()
                 isAnonymizingTranscription = false

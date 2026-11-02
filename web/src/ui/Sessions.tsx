@@ -155,7 +155,7 @@ function Editor({ id, original: s }: { id: string; original?: Session }) {
       (analysis !== s?.structured_notes && analysis !== null));
   useReadOnDisplay(!!s);
   const save = useAction(() =>
-    api.saveSession(id, s?.id ?? null, day, type, notes, analysis),
+    api.saveSession(id, s?.id ?? null, day, type, notes, analysis, s),
   );
   const ai = useAction(() => api.analyze(notes));
   async function submit(e: FormEvent) {
@@ -196,6 +196,7 @@ function Editor({ id, original: s }: { id: string; original?: Session }) {
             <label>
               {he.Sessions014}
               <select
+                required={!s}
                 value={type}
                 onChange={(e) => {
                   setType(e.target.value);

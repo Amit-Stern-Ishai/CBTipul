@@ -91,12 +91,13 @@ final class SummaryRecoveryTests: XCTestCase {
     func testTranscriptAndUncertainInsertSurviveRelaunch() throws {
         let value = SessionRecovery(date: .now, notes: "תמלול מקורי", type: nil,
             structuredNotes: nil, selectedPatientID: nil, audioFileName: UUID().uuidString + ".m4a",
-            transcriptReady: true, pendingCreation: true)
+            transcriptReady: true, pendingCreation: true, clinicalVersion: "original-loaded-version")
         let restored = try JSONDecoder().decode(SessionRecovery.self, from: JSONEncoder().encode(value))
         XCTAssertEqual(restored.notes, "תמלול מקורי")
         XCTAssertEqual(restored.transcriptReady, true)
         XCTAssertEqual(restored.pendingCreation, true)
         XCTAssertEqual(restored.audioFileName, value.audioFileName)
+        XCTAssertEqual(restored.clinicalVersion, "original-loaded-version")
     }
     func testAudioPathCannotEscapeOrCrossAccounts() throws {
         let name = UUID().uuidString + ".m4a"

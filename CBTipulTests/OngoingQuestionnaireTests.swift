@@ -11,7 +11,7 @@ struct OngoingQuestionnaireTests {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [QuestionnaireHTTPStub.self]
         return SupabaseClient(supabaseURL: URL(string: "https://questionnaire.invalid")!, supabaseKey: "test",
-            options: .init(global: .init(session: URLSession(configuration: config))))
+            options: .init(auth: .init(storage: ClinicalTestAuthStorage(), autoRefreshToken: false), global: .init(session: URLSession(configuration: config))))
     }
     private func row(cancelled: Bool = false) -> String {
         """
@@ -141,7 +141,11 @@ struct OngoingQuestionnaireTests {
     @Test func therapistSaveStillWritesTheSessionID() async throws {
         await EntitlementTestIsolation.acquire()
         defer { EntitlementTestIsolation.release() }
-        let store = PatientStore(client: client(), anonymizeText: { $0 })
+        let authenticatedClient = client()
+        _ = try await authenticatedClient.auth.signIn(email: "synthetic@example.invalid", password: "unused")
+        EntitlementState.shared.setLocalDemo(false)
+        EntitlementState.shared.apply(AppContext(version: 1, role: .therapist, activation: nil, patientId: nil, entitlement: .init(access: .full)))
+        let store = PatientStore(client: authenticatedClient, persistPatientCache: false, anonymizeText: { $0 })
         let sessionID = DatabaseID.text(UUID().uuidString)
         let session = Session(databaseID: sessionID)
         let person = Patient(id: .text(patient.uuidString))
@@ -151,9 +155,10 @@ struct OngoingQuestionnaireTests {
         answers.phq9Answers = Array(repeating: 1, count: 9)
         answers.interferenceLevel = 0
         try await store.saveQuestionnaire(answers, for: person, session: session)
-        let request = try #require(QuestionnaireHTTPStub.recorded().first)
-        #expect(request.url.path == "/rest/v1/CombinedMood" && request.method == "POST")
-        let body = try JSONSerialization.jsonObject(with: request.body) as! [String: Any]
+        let request = try #require(QuestionnaireHTTPStub.recorded().first { $0.url.path == "/functions/v1/save-questionnaire" })
+        #expect(request.url.path == "/functions/v1/save-questionnaire" && request.method == "POST")
+        let envelope = try JSONSerialization.jsonObject(with: request.body) as! [String: Any]
+        let body = envelope["changes"] as! [String: Any]
         #expect(body["session_id"] as? String == sessionID.queryValue)
         #expect(body["assignment_id"] == nil && body["created_by"] == nil)
         #expect(store.cachedQuestionnaires(for: person)?.first?.sessionID == sessionID)
@@ -198,7 +203,15 @@ private final class QuestionnaireHTTPStub: URLProtocol, @unchecked Sendable {
         }
         Self.lock.lock()
         Self.requests.append(.init(url: request.url!, method: request.httpMethod ?? "", body: data))
-        let body = Self.response; let status = Self.status
+        var body = Self.response; let status = Self.status
+        if request.url?.path == "/functions/v1/save-questionnaire" {
+            let envelope = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+            var record = envelope["changes"] as? [String: Any] ?? [:]
+            record["id"] = "92"; record["_version"] = "v2"
+            body = try! JSONSerialization.data(withJSONObject: ["record":record])
+        } else if request.url?.path == "/auth/v1/token" {
+            body = Data(#"{"access_token":"synthetic","refresh_token":"synthetic","token_type":"bearer","expires_in":3600,"expires_at":4102444800,"user":{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","aud":"authenticated","app_metadata":{},"user_metadata":{},"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}"#.utf8)
+        }
         Self.lock.unlock()
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
