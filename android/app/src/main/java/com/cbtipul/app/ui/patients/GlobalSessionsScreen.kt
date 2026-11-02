@@ -126,7 +126,7 @@ fun GlobalSessionsScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(stringResource(R.string.empty_sessions_body), color = colors.textBody, textAlign = TextAlign.Center)
                 }
-                else -> LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)) {
+                else -> LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
                     listOf(true to upcoming, false to past).forEach { (isUpcoming, section) ->
                     item(key = "section-$isUpcoming") {
                         Text(stringResource(if (isUpcoming) R.string.upcoming_sessions_section else R.string.past_sessions_section),
@@ -152,6 +152,7 @@ fun GlobalSessionsScreen(
                                         session = item.session,
                                         number = item.number,
                                         patientName = item.patient.displayName(unnamed),
+                                        patientColor = PatientAvatarColor.background(item.patient.id),
                                         scores = sessionScores(
                                             item.session,
                                             patientSessions.indexOfFirst { it.id == item.session.id },

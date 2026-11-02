@@ -66,8 +66,8 @@ nonisolated struct ClinicalTextAnonymizer {
                 )
             )
         } catch {
-            AppLog.ai.error("Anonymization failed: \(error.localizedDescription, privacy: .public)")
-            throw ClinicalTextAnonymizerError.anonymizationFailed
+            AppLog.ai.error("Anonymization failed")
+            throw error
         }
 
         let anonymized = response.anonymizedText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -99,6 +99,14 @@ final class ClinicalTextGate {
 
     /// Trimmed texts that are already safe to persist remotely.
     private var safeTexts: Set<String> = []
+    private var preparedTexts: [String: String] = [:]
+    private var identityGeneration = UUID()
+
+    func resetForAccountChange() {
+        identityGeneration = UUID()
+        safeTexts.removeAll()
+        preparedTexts.removeAll()
+    }
 
     init(anonymize: @escaping @Sendable (String) async throws -> String) {
         self.anonymize = anonymize
@@ -112,6 +120,17 @@ final class ClinicalTextGate {
         safeTexts.insert(trimmed)
     }
 
+    func restorePrepared(original: String, anonymized: String) {
+        guard !anonymized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        preparedTexts[original.trimmingCharacters(in: .whitespacesAndNewlines)] = anonymized
+        markSafe(anonymized)
+    }
+
+    func requiresProcessing(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && !safeTexts.contains(trimmed) && preparedTexts[trimmed] == nil
+    }
+
     /// The value to persist for one field: `nil` for empty input, the text
     /// itself when it is already safe, otherwise the anonymized replacement.
     /// Throws without any fallback when anonymization fails.
@@ -119,10 +138,14 @@ final class ClinicalTextGate {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         if safeTexts.contains(trimmed) { return trimmed }
+        if let prepared = preparedTexts[trimmed] { return prepared }
+        let generation = identityGeneration
         let anonymized = try await anonymize(trimmed)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard generation == identityGeneration else { throw CancellationError() }
         guard !anonymized.isEmpty else { throw ClinicalTextAnonymizerError.anonymizationFailed }
         safeTexts.insert(anonymized)
+        preparedTexts[trimmed] = anonymized
         return anonymized
     }
 

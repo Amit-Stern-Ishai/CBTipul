@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -211,7 +212,7 @@ fun PatientAIScreen(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = accent.copy(alpha = .1f)),
             )
         },
     ) { padding ->
@@ -229,13 +230,16 @@ fun PatientAIScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
                         ) {
+                            Column(Modifier.widthIn(max = 560.dp)) {
+                                if (!mine) Text("AI", style = MaterialTheme.typography.labelSmall, color = colors.gold, modifier = Modifier.padding(bottom = 4.dp))
+                                SelectionContainer {
                             Text(
                                 text = aiMarkdown(entry.displayed ?: entry.text),
                                 color = colors.textBright,
                                 modifier = Modifier
-                                    .widthIn(max = 320.dp)
+                                    .widthIn(max = 560.dp)
                                     .background(
-                                        if (mine) colors.goldGhost else colors.surface,
+                                        if (mine) (accent ?: colors.gold).copy(alpha = .15f) else colors.surface,
                                         bubbleShape,
                                     )
                                     .then(
@@ -244,6 +248,8 @@ fun PatientAIScreen(
                                     )
                                     .padding(horizontal = 14.dp, vertical = 10.dp),
                             )
+                                }
+                            }
                         }
                     }
                     if (isLoading) {
@@ -279,7 +285,7 @@ fun PatientAIScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(80.dp)
+                                .size(56.dp)
                                 .background(colors.goldGhost, CircleShape),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -287,9 +293,11 @@ fun PatientAIScreen(
                                 Icons.Outlined.AutoAwesome,
                                 contentDescription = null,
                                 tint = colors.gold,
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(28.dp),
                             )
                         }
+                        Text(stringResource(R.string.ui_ai_context), style = MaterialTheme.typography.titleLarge,
+                            color = colors.textBright, textAlign = TextAlign.Center)
                         Text(
                             stringResource(R.string.ai_empty_message),
                             color = colors.textBody,
@@ -306,7 +314,7 @@ fun PatientAIScreen(
                                     question,
                                     color = colors.textBright,
                                     fontSize = 14.sp,
-                                    modifier = Modifier
+                                    modifier = Modifier.fillMaxWidth()
                                         .background(colors.surface, RoundedCornerShape(14.dp))
                                         .border(1.dp, patientOutline, RoundedCornerShape(14.dp))
                                         .clickable(role = androidx.compose.ui.semantics.Role.Button) { prompt = question }
@@ -319,14 +327,7 @@ fun PatientAIScreen(
                 }
             }
             errorMessage?.let {
-                Text(
-                    it,
-                    color = colors.error,
-                    fontSize = 13.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                )
+                AIUsageNotice(it, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             }
             Row(
                 modifier = Modifier

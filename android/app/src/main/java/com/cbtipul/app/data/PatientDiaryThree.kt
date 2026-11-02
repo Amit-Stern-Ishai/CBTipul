@@ -46,7 +46,7 @@ interface PatientDiaryThreeAccess {
 
 object PatientDiaryThreeHistory {
     fun visible(entries: List<DiaryThreeEntry>, patientId: String) = entries.filter {
-        it.createdBy == DiaryOneEntryCreator.Patient && it.patientId.queryValue.equals(patientId, true)
+        it.patientId.queryValue.equals(patientId, true)
     }.sortedByDescending { it.createdAt }
 }
 
@@ -54,12 +54,21 @@ object PatientDiaryThreeHistory {
 class PatientDiaryThreeService(private val client: SupabaseClient) : PatientDiaryThreeAccess {
     override suspend fun loadPatientCreatedEntries(patientId: String): List<DiaryThreeEntry> {
         val id = UUID.fromString(patientId).toString()
-        val rows = client.from("diary_three_entries").select(Columns.raw(
+        val rows = mutableListOf<DiaryThreeEntryRow>()
+        var offset = 0
+        while (true) {
+            val page = client.from("diary_three_entries").select(Columns.raw(
             "id, patient_id, therapist_id, created_by, situation, automatic_thoughts, feelings, thinking_errors, alternative_thoughts, created_at, updated_at",
         )) {
-            filter { eq("patient_id", id); eq("created_by", "patient") }
+            filter { eq("patient_id", id) }
             order("created_at", Order.DESCENDING)
+                order("id", Order.DESCENDING)
+                range(offset.toLong(), (offset + 249).toLong())
         }.decodeList<DiaryThreeEntryRow>()
+            rows.addAll(page)
+            if (page.size < 250) break
+            offset += page.size
+        }
         return PatientDiaryThreeHistory.visible(rows.map { row ->
             DiaryThreeEntry(row.id, requireNotNull(DatabaseId.parse(row.patientId)), row.therapistId,
                 DiaryOneEntryCreator.fromRaw(row.createdBy), row.situation, row.automaticThoughts, row.feelings,

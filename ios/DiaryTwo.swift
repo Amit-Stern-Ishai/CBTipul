@@ -75,14 +75,12 @@ struct DiaryTwoEntryClinicalUpdate: Encodable {
     let feelings: [DiaryFeeling]
     let thinkingErrors: [ThinkingError]
     let alternativeThoughts: [String]
-    let updatedAt: String
 
     enum CodingKeys: String, CodingKey {
         case event, feelings
         case thinkingErrors = "thinking_errors"
         case automaticThoughts = "automatic_thoughts"
         case alternativeThoughts = "alternative_thoughts"
-        case updatedAt = "updated_at"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -92,7 +90,6 @@ struct DiaryTwoEntryClinicalUpdate: Encodable {
         try container.encode(feelings, forKey: .feelings)
         try container.encode(thinkingErrors, forKey: .thinkingErrors)
         try container.encode(alternativeThoughts, forKey: .alternativeThoughts)
-        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }
 
@@ -136,18 +133,24 @@ final class DiaryTwoStore {
             throw AuthError.notConfigured
         }
         do {
-            let rows: [DiaryTwoEntry] = try await client.from("diary_two_entries")
-                .select(diaryTwoSelectColumns)
-                .eq("patient_id", value: patientUUID)
-                .order("created_at", ascending: false)
-                .execute()
-                .value
+            var rows: [DiaryTwoEntry] = []
+            var offset = 0
+            while true {
+                let page: [DiaryTwoEntry] = try await client.from("diary_two_entries")
+                    .select(diaryTwoSelectColumns)
+                    .eq("patient_id", value: patientUUID)
+                    .order("created_at", ascending: false).order("id", ascending: false)
+                    .range(from: offset, to: offset + 249).execute().value
+                rows.append(contentsOf: page)
+                if page.count < 250 { break }
+                offset += page.count
+            }
             entriesByPatient[patientId.queryValue] = rows
             AppLog.store.info("Diary 2 entries loaded")
             return rows
         } catch {
             AppLog.store.error(
-                "Diary 2 load failed: \(error.localizedDescription, privacy: .public)"
+                "Diary 2 load failed"
             )
             throw error
         }
@@ -222,7 +225,7 @@ final class DiaryTwoStore {
                 return saved
             } catch {
                 AppLog.store.error(
-                    "Diary 2 create failed: \(error.localizedDescription, privacy: .public)"
+                    "Diary 2 create failed"
                 )
                 throw error
             }
@@ -241,7 +244,6 @@ final class DiaryTwoStore {
     ) async throws -> DiaryTwoEntry {
         return try await TelemetryMeasure.run(.submission, form: .diaryTwo) { [self] in
             try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
-            guard !entries(for: patientId).contains(where: { $0.id == id && $0.createdBy == .patient }) else { throw PatientStoreError.updateRejected }
             if DemoData.isDemoID(patientId) {
                 guard var entry = cached(for: patientId).first(where: { $0.id == id }) else {
                     throw AuthError.notConfigured
@@ -264,23 +266,23 @@ final class DiaryTwoStore {
                             automaticThoughts: automaticThoughts,
                             feelings: feelings,
                             thinkingErrors: thinkingErrors,
-                            alternativeThoughts: alternativeThoughts,
-                            updatedAt: Self.timestampString(from: Date())
+                            alternativeThoughts: alternativeThoughts
                         )
                     )
                     .eq("id", value: id)
-                    .eq("created_by", value: "therapist")
+                    .eq("patient_id", value: patientId.queryValue)
                     .eq("patient_id", value: patientId.queryValue)
                     .select(diaryTwoSelectColumns)
                     .single()
                     .execute()
                     .value
+                guard saved.id == id, saved.patientId.isSameIdentity(as: patientId) else { throw PatientStoreError.updateRejected }
                 upsertCache(saved)
                 AppLog.store.info("Diary 2 entry updated")
                 return saved
             } catch {
                 AppLog.store.error(
-                    "Diary 2 update failed: \(error.localizedDescription, privacy: .public)"
+                    "Diary 2 update failed"
                 )
                 throw error
             }
@@ -316,7 +318,7 @@ final class DiaryTwoStore {
             AppLog.store.info("Diary 2 entry deleted")
         } catch {
             AppLog.store.error(
-                "Diary 2 delete failed: \(error.localizedDescription, privacy: .public)"
+                "Diary 2 delete failed"
             )
             throw error
         }

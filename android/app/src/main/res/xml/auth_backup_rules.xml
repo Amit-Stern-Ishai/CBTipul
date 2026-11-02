@@ -3,4 +3,5 @@
     <!-- Supabase SettingsSessionManager and SettingsCodeVerifierCache. -->
     <exclude domain="sharedpref" path="com.CBTipul.app_preferences.xml" />
     <exclude domain="sharedpref" path="browser_auth.xml" />
+        <exclude domain="sharedpref" path="CBTipul.form-drafts.xml" />
 </full-backup-content>

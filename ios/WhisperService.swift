@@ -67,14 +67,12 @@ nonisolated struct WhisperService {
             return response.text
 
         } catch let error as WhisperError {
-            AppLog.ai.error("Transcription failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.ai.error("Transcription failed")
             throw error
 
         } catch {
-            AppLog.ai.error("Transcription failed: \(error.localizedDescription, privacy: .public)")
-            throw WhisperError.requestFailed(
-                error.localizedDescription
-            )
+            AppLog.ai.error("Transcription failed")
+            throw error
         }
 
         telemetry.succeeded()
@@ -322,21 +320,7 @@ nonisolated struct WhisperService {
                 200...299 ~= httpResponse.statusCode
             else {
 
-                if let errorResponse =
-                    try? JSONDecoder()
-                        .decode(
-                            APIErrorResponse.self,
-                            from: data
-                        )
-                {
-                    throw APIError.server(
-                        errorResponse.error
-                    )
-                }
-
-                throw APIError.server(
-                    L10n.sessionAnalysisFailedError
-                )
+                throw FunctionsError.httpError(code: httpResponse.statusCode, data: data)
             }
 
             // --------------------------------------------------------------
@@ -552,16 +536,11 @@ nonisolated struct WhisperService {
             telemetry.succeeded()
             return response
         } catch let error as APIError {
-            AppLog.ai.error("Next-session preparation failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.ai.error("Next-session preparation failed")
             throw error
-        } catch let error as FunctionsError {
-            if case .httpError(_, let data) = error,
-               let serverError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
-                throw APIError.server(serverError.error)
-            }
-            throw APIError.server(error.localizedDescription)
         } catch {
-            throw APIError.server(error.localizedDescription)
+            // Retain status and structured codes for the shared user-facing classifier.
+            throw error
         }
 
         telemetry.succeeded()
@@ -600,16 +579,11 @@ nonisolated struct WhisperService {
             telemetry.succeeded()
             return supervision
         } catch let error as APIError {
-            AppLog.ai.error("Formulation supervision failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.ai.error("Formulation supervision failed")
             throw error
-        } catch let error as FunctionsError {
-            if case .httpError(_, let data) = error,
-               let serverError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
-                throw APIError.server(serverError.error)
-            }
-            throw APIError.server(error.localizedDescription)
         } catch {
-            throw APIError.server(error.localizedDescription)
+            // Retain status and structured codes for the shared user-facing classifier.
+            throw error
         }
 
         telemetry.succeeded()
@@ -645,16 +619,11 @@ nonisolated struct WhisperService {
             telemetry.succeeded()
             return response
         } catch let error as APIError {
-            AppLog.ai.error("What-am-I-missing review failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.ai.error("What-am-I-missing review failed")
             throw error
-        } catch let error as FunctionsError {
-            if case .httpError(_, let data) = error,
-               let serverError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
-                throw APIError.server(serverError.error)
-            }
-            throw APIError.server(error.localizedDescription)
         } catch {
-            throw APIError.server(error.localizedDescription)
+            // Retain status and structured codes for the shared user-facing classifier.
+            throw error
         }
 
         telemetry.succeeded()
@@ -689,16 +658,11 @@ nonisolated struct WhisperService {
             telemetry.succeeded()
             return response
         } catch let error as APIError {
-            AppLog.ai.error("Longitudinal case review failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.ai.error("Longitudinal case review failed")
             throw error
-        } catch let error as FunctionsError {
-            if case .httpError(_, let data) = error,
-               let serverError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
-                throw APIError.server(serverError.error)
-            }
-            throw APIError.server(error.localizedDescription)
         } catch {
-            throw APIError.server(error.localizedDescription)
+            // Retain status and structured codes for the shared user-facing classifier.
+            throw error
         }
 
         telemetry.succeeded()

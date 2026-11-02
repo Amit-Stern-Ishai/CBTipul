@@ -7,8 +7,8 @@ enum PatientIdentityStoreError: Error {
     case keychainFailure(OSStatus)
 }
 
-/// Local mapping of a patient to their name, so names can later be removed
-/// from the backend and kept only on the therapist's own devices.
+/// Legacy local/iCloud mapping retained as migration input. PatientNameSync
+/// resolves confirmed server names and explicit edits ahead of this store.
 ///
 /// Each patient is one Keychain generic-password item: service
 /// `CBTipul.patient-names`, account = the server-assigned patient ID,
@@ -70,8 +70,7 @@ final class PatientIdentityStore {
     }
 
     /// Removes the mapping of a patient. Only for an actual patient-delete
-    /// operation — never for pruning after a load, since the Keychain will
-    /// eventually hold the only copy of each name.
+    /// operation — never for pruning after a load or successful migration.
     func delete(patientID: DatabaseID) throws {
         let status = SecItemDelete(Self.query(for: patientID.queryValue) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
@@ -102,7 +101,8 @@ final class PatientIdentityStore {
     }
 
     /// Copies existing Keychain names into App Group storage for the
-    /// Notification Service Extension. Keychain remains the source of truth.
+    /// Notification Service Extension in legacy flows. Updated patient loading
+    /// mirrors resolved names through PatientStore instead.
     func mirrorExistingNamesToAppGroup() {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

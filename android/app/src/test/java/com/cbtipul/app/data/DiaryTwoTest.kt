@@ -50,8 +50,8 @@ class DiaryTwoTest {
         assertEquals(listOf("a", "b"), created.getValue("alternative_thoughts").jsonArray.map { it.jsonPrimitive.content })
         assertEquals(errors.map { it.code }, created.getValue("thinking_errors").jsonArray.map { it.jsonPrimitive.content })
         assertEquals(0, created.getValue("feelings").jsonArray[0].jsonObject.getValue("intensity").jsonPrimitive.int)
-        val edited = DiaryTwoRepository.updatePayload("e", listOf("one", "two"), feelings, errors, listOf("a", "b"), "2026-09-02T12:00:00Z")
-        assertEquals(setOf("event", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts", "updated_at"), edited.keys)
+        val edited = DiaryTwoRepository.updatePayload("e", listOf("one", "two"), feelings, errors, listOf("a", "b"))
+        assertEquals(setOf("event", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts"), edited.keys)
     }
     @Test fun editorRestoresArraysAndValidationTrimsBlankRows() {
         val entry = DiaryTwoEntry("e1", DatabaseId.Text("p1"), "t1", DiaryOneEntryCreator.Patient, "event", listOf("one", "two"), feelings, errors, listOf("a", "b"), Date(1), Date(2))

@@ -72,19 +72,17 @@ private struct NewDiaryOneEntry: Encodable {
     }
 }
 
-private struct DiaryOneEntryClinicalUpdate: Encodable {
+struct DiaryOneEntryClinicalUpdate: Encodable {
     let event: String
     let automaticThoughts: [String]
     let feelings: [DiaryFeeling]
     let behaviour: String
     let physicalSymptoms: String?
-    let updatedAt: String
 
     enum CodingKeys: String, CodingKey {
         case event, feelings, behaviour
         case automaticThoughts = "automatic_thoughts"
         case physicalSymptoms = "physical_symptoms"
-        case updatedAt = "updated_at"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -94,7 +92,6 @@ private struct DiaryOneEntryClinicalUpdate: Encodable {
         try container.encode(feelings, forKey: .feelings)
         try container.encode(behaviour, forKey: .behaviour)
         try container.encode(physicalSymptoms, forKey: .physicalSymptoms)
-        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }
 
@@ -138,18 +135,24 @@ final class DiaryOneStore {
             throw AuthError.notConfigured
         }
         do {
-            let rows: [DiaryOneEntry] = try await client.from("diary_one_entries")
-                .select(diaryOneSelectColumns)
-                .eq("patient_id", value: patientUUID)
-                .order("created_at", ascending: false)
-                .execute()
-                .value
+            var rows: [DiaryOneEntry] = []
+            var offset = 0
+            while true {
+                let page: [DiaryOneEntry] = try await client.from("diary_one_entries")
+                    .select(diaryOneSelectColumns)
+                    .eq("patient_id", value: patientUUID)
+                    .order("created_at", ascending: false).order("id", ascending: false)
+                    .range(from: offset, to: offset + 249).execute().value
+                rows.append(contentsOf: page)
+                if page.count < 250 { break }
+                offset += page.count
+            }
             entriesByPatient[patientId.queryValue] = rows
             AppLog.store.info("Diary 1 entries loaded")
             return rows
         } catch {
             AppLog.store.error(
-                "Diary 1 load failed: \(error.localizedDescription, privacy: .public)"
+                "Diary 1 load failed"
             )
             throw error
         }
@@ -183,7 +186,7 @@ final class DiaryOneStore {
             return entry
         } catch {
             AppLog.store.error(
-                "Diary 1 entry load failed: \(error.localizedDescription, privacy: .public)"
+                "Diary 1 entry load failed"
             )
             throw error
         }
@@ -243,7 +246,7 @@ final class DiaryOneStore {
                 return saved
             } catch {
                 AppLog.store.error(
-                    "Diary 1 create failed: \(error.localizedDescription, privacy: .public)"
+                    "Diary 1 create failed"
                 )
                 throw error
             }
@@ -262,7 +265,6 @@ final class DiaryOneStore {
     ) async throws -> DiaryOneEntry {
         return try await TelemetryMeasure.run(.submission, form: .diaryOne) { [self] in
             try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patientId))
-            guard !entries(for: patientId).contains(where: { $0.id == id && $0.createdBy == .patient }) else { throw PatientStoreError.updateRejected }
             let symptoms = Self.nullIfEmpty(physicalSymptoms)
             if DemoData.isDemoID(patientId) {
                 guard var entry = cached(for: patientId).first(where: { $0.id == id }) else {
@@ -286,22 +288,22 @@ final class DiaryOneStore {
                             automaticThoughts: automaticThoughts,
                             feelings: feelings,
                             behaviour: behaviour,
-                            physicalSymptoms: symptoms,
-                            updatedAt: Self.timestampString(from: Date())
+                            physicalSymptoms: symptoms
                         )
                     )
                     .eq("id", value: id)
-                    .eq("created_by", value: "therapist")
+                    .eq("patient_id", value: patientId.queryValue)
                     .select(diaryOneSelectColumns)
                     .single()
                     .execute()
                     .value
+                guard saved.id == id, saved.patientId.isSameIdentity(as: patientId) else { throw PatientStoreError.updateRejected }
                 upsertCache(saved)
                 AppLog.store.info("Diary 1 entry updated")
                 return saved
             } catch {
                 AppLog.store.error(
-                    "Diary 1 update failed: \(error.localizedDescription, privacy: .public)"
+                    "Diary 1 update failed"
                 )
                 throw error
             }
@@ -336,7 +338,7 @@ final class DiaryOneStore {
             AppLog.store.info("Diary 1 entry deleted")
         } catch {
             AppLog.store.error(
-                "Diary 1 delete failed: \(error.localizedDescription, privacy: .public)"
+                "Diary 1 delete failed"
             )
             throw error
         }

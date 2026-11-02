@@ -52,6 +52,15 @@ class DiaryTwoViewModelTest {
             assertTrue(returnedToDetail)
             assertEquals("edited", repo.entriesFor(patient).single().event)
             assertEquals(entry.createdAt, repo.entriesFor(patient).single().createdAt)
+            // Discarding an edited draft never sends a mutation or changes saved history.
+            restored.openEditor(entry.id)
+            restored.changeDraft(restored.draft.value.copy(event = "cancelled edit"))
+            assertTrue(restored.hasChanges())
+            restored.closeEditor()
+            restored.openEditor(entry.id)
+            assertFalse(restored.hasChanges())
+            assertEquals("edited", restored.draft.value.event)
+            assertEquals(1, repo.entriesFor(patient).size)
             var deleted = false
             restored.delete(entry.id) { deleted = true }
             advanceUntilIdle()

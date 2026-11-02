@@ -202,6 +202,7 @@ fun PatientDiaryTwoHubScreen(
 fun PatientDiaryTwoDetailScreen(
     entry: DiaryTwoEntry,
     onBack: () -> Unit,
+    onEdit: (() -> Unit)? = null,
 ) {
     val colors = Theme.colors
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -220,6 +221,7 @@ fun PatientDiaryTwoDetailScreen(
                         )
                     }
                 },
+                actions = { if (onEdit != null) TextButton(onClick = onEdit) { Text(stringResource(R.string.diary_entry_edit)) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },

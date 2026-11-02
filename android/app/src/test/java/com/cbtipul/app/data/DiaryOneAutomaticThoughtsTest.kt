@@ -117,8 +117,8 @@ class DiaryOneAutomaticThoughtsTest {
                 entry("new", DiaryOneEntryCreator.Patient, 2, "חדש"),
             ),
         )
-        assertEquals(listOf("new", "old"), visible.map { it.id })
-        assertTrue(visible.all { it.createdBy == DiaryOneEntryCreator.Patient })
+        assertEquals(listOf("therapist", "new", "old"), visible.map { it.id })
+        assertTrue(visible.any { it.createdBy == DiaryOneEntryCreator.Therapist })
     }
 
     @Test

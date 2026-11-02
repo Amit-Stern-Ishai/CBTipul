@@ -82,7 +82,9 @@ test('visible intensity controls preserve null, keyboard values and before/after
  const before=page.getByRole('slider',{name:'עוצמה לפני — עצב — מחוון',exact:true});
  const number=page.getByRole('spinbutton',{name:'עוצמה לפני — עצב — אחוז',exact:true});
  await expect(before).toBeVisible();await expect(number).toHaveValue('');await expect(before).toHaveAttribute('aria-valuetext','טרם נבחרה עוצמה');
- await before.focus();await page.keyboard.press('Home');await expect(number).toHaveValue('0');await page.keyboard.press('ArrowRight');await expect(number).toHaveValue('1');
+ await before.focus();await page.keyboard.press('Home');await expect(number).toHaveValue('0');await page.keyboard.press('ArrowLeft');await expect(number).toHaveValue('1');
+ await expect(before).toHaveAttribute('dir','rtl');
+ const track=await before.boundingBox();await before.click({position:{x:track!.width-2,y:track!.height/2}});await expect(number).toHaveValue('0');
  await number.fill('73');await expect(before).toHaveValue('73');
  const after=page.getByRole('spinbutton',{name:'עוצמה אחרי — עצב — אחוז',exact:true});await after.fill('25');await expect(number).toHaveValue('73');
  await page.screenshot({path:info.outputPath('intensity-desktop.png'),fullPage:true});
@@ -94,4 +96,22 @@ test('visible intensity controls preserve null, keyboard values and before/after
  await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();
  expect(f.records.diary_three_entries[0].feelings).toEqual([{name:'עצב',intensityBefore:73,intensityAfter:25}]);
  expect(f.requests.some(r=>r.path.includes('anonymize'))).toBe(false);
+});
+
+for(const width of [1440,390])test(`focused editors cancel and preserve list ${width}`,async({context,page},info)=>{
+ const f=await fixture(context);f.records.Sessions=[{id:'s1',patient_id:patient,session_date:'2026-10-30',type:'intake',notes:'סיכום לדוגמה בלבד'}];await page.setViewportSize({width,height:900});
+ await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'מפגש חדש',exact:true});await expect(dialog).toBeVisible();await expect(page.locator('.pw-session-list li')).toHaveCount(1);
+ await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).waitFor({state:'visible'});
+ await page.screenshot({path:info.outputPath(`session-dialog-${width}.png`)});
+ await dialog.getByRole('button',{name:'ביטול',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('button',{name:'מפגש חדש',exact:true})).toBeFocused();
+ await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();await page.getByLabel('סיכום הפגישה',{exact:true}).fill('טיוטה סינתטית');page.once('dialog',d=>d.dismiss());await page.keyboard.press('Escape');await expect(dialog).toBeVisible();await expect(page.getByLabel('סיכום הפגישה',{exact:true})).toHaveValue('טיוטה סינתטית');
+ page.once('dialog',d=>d.accept());await dialog.getByRole('button',{name:'ביטול',exact:true}).click();await expect(dialog).toHaveCount(0);expect(f.requests.filter(r=>r.path.endsWith('/Sessions')&&r.method==='POST')).toHaveLength(0);
+ await openEntry(page,'questionnaire');const q=page.getByRole('dialog',{name:'עריכת שאלון',exact:true});await expect(q).toBeVisible();await page.screenshot({path:info.outputPath(`questionnaire-dialog-${width}.png`)});
+ await q.getByRole('button',{name:'חזרה לשאלונים',exact:true}).click();await expect(q).toHaveCount(0);await expect(page.locator('.pw-history button').first()).toBeFocused();
+ await page.locator('.pw-history button').first().click();await page.locator('fieldset.ww-question').first().getByRole('radio').nth(2).check();page.once('dialog',d=>d.dismiss());await q.getByRole('button',{name:'חזרה לשאלונים',exact:true}).click();await expect(q).toBeVisible();await expect(page.locator('fieldset.ww-question').first().getByRole('radio').nth(2)).toBeChecked();
+ page.once('dialog',d=>d.accept());await page.keyboard.press('Escape');await expect(q).toHaveCount(0);expect(f.requests.filter(r=>r.method==='PATCH')).toHaveLength(0);
+});
+test('session modal cannot dismiss while saving',async({context,page})=>{
+ let release!:()=>void;await fixture(context,{delay:new Promise<void>(r=>release=r)});await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();await page.getByLabel('סיכום הפגישה',{exact:true}).fill('סינתטי');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByRole('button',{name:'ביטול',exact:true})).toBeDisabled();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeVisible();release();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();await page.getByRole('button',{name:'חזרה למפגשים',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('.pw-session-list li')).toHaveCount(1);
 });

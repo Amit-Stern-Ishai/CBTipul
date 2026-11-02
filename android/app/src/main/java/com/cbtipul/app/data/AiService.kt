@@ -56,8 +56,7 @@ class AiService(
                 val body = stream?.use { it.readBytes().decodeToString() }.orEmpty()
                 connection.disconnect()
                 if (code !in 200..299) {
-                    val error = runCatching { json.decodeFromString<ApiErrorResponse>(body).error }.getOrNull()
-                    throw AiException(error ?: "session_analysis_failed")
+                    throw SummaryFailure(SummaryFailure.classify(code, body))
                 }
                 json.decodeFromString<SessionReviewResponse>(body).analysis
             } catch (error: ConsentDeclinedException) {
@@ -65,7 +64,7 @@ class AiService(
             } catch (error: AiException) {
                 throw error
             } catch (error: Exception) {
-                throw AiException(error.message ?: "session_analysis_failed")
+                throw SummaryFailure.from(error)
             }
         }
 
@@ -92,7 +91,7 @@ class AiService(
         } catch (error: ConsentDeclinedException) {
             throw error
         } catch (error: Exception) {
-            throw AiException(error.message ?: error.toString())
+            throw SummaryFailure.from(error)
         }
 
         }
@@ -125,7 +124,7 @@ class AiService(
         } catch (error: AiException) {
             throw error
         } catch (error: Exception) {
-            throw AiException(error.message ?: error.toString())
+            throw SummaryFailure.from(error)
         }
 
         }
@@ -151,7 +150,7 @@ class AiService(
         } catch (error: ConsentDeclinedException) {
             throw error
         } catch (error: Exception) {
-            throw AiException(error.message ?: error.toString())
+            throw SummaryFailure.from(error)
         }
 
         }
@@ -174,7 +173,7 @@ class AiService(
         } catch (error: ConsentDeclinedException) {
             throw error
         } catch (error: Exception) {
-            throw AiException(error.message ?: error.toString())
+            throw SummaryFailure.from(error)
         }
 
         }
@@ -197,7 +196,7 @@ class AiService(
         } catch (error: ConsentDeclinedException) {
             throw error
         } catch (error: Exception) {
-            throw AiException(error.message ?: error.toString())
+            throw SummaryFailure.from(error)
         }
 
         }

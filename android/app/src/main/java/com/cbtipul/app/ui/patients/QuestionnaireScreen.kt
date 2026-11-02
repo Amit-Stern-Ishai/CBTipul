@@ -1,5 +1,20 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material3.MaterialTheme
+
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.foundation.layout.heightIn
+import com.cbtipul.app.data.QuestionnaireAnswerHistory
+import com.cbtipul.app.ui.theme.QuestionnaireHistoryColors
+
+
 import androidx.compose.material.icons.automirrored.outlined.Notes
 import com.cbtipul.app.ui.theme.editorScroll
 import com.cbtipul.app.ui.theme.editorFocus
@@ -12,9 +27,6 @@ import com.cbtipul.app.model.missingRequiredAnswers
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.ui.semantics.Role
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -86,6 +98,7 @@ fun QuestionnaireScreen(
     patientName: String = "",
     allowRecordEditing: Boolean = true,
     previous: CompletedQuestionnaire?,
+    history: List<CompletedQuestionnaire> = emptyList(),
     atmosphere: Color?,
     isSaving: Boolean,
     errorMessage: String?,
@@ -95,7 +108,14 @@ fun QuestionnaireScreen(
     gettingStarted: com.cbtipul.app.ui.onboarding.GettingStartedRouter? = null,
     viewingPatientId: com.cbtipul.app.model.DatabaseId? = null,
 ) {
+    var showHistoryHelp by remember { mutableStateOf(false) }
     val colors = Theme.colors
+    if (showHistoryHelp) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { showHistoryHelp = false },
+        title = { Text(stringResource(R.string.ui_history_help_title)) },
+        text = { Text(stringResource(R.string.questionnaire_history_help)) },
+        confirmButton = { TextButton(onClick = { showHistoryHelp = false }) { Text(stringResource(R.string.ui_got_it)) } })
+
 
     LaunchedEffect(viewingPatientId?.queryValue) {
         gettingStarted?.setPlacement(
@@ -210,7 +230,9 @@ fun QuestionnaireScreen(
                     Text(aiMarkdown(stringResource(R.string.gad7_main_question)), color = colors.textBright, fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold)
                     Text(answers.joinToString("  ·  ") { "\u2068$it\u2069" },
                         color = colors.textBody, fontSize = 12.sp, lineHeight = 17.sp)
-                    previous?.let {
+                    if (history.isNotEmpty()) TextButton(onClick = { showHistoryHelp = true }) {
+                        Text(stringResource(R.string.questionnaire_history_hint), style = MaterialTheme.typography.labelSmall)
+                    } else previous?.let {
                         Text(stringResource(R.string.previous_answer_legend, hebrewDate(it.answeredDate)), color = colors.warning, fontSize = 12.sp, lineHeight = 16.sp)
                     }
                 }
@@ -222,6 +244,7 @@ fun QuestionnaireScreen(
                         selection = draft.gad7Answers.getOrNull(index),
                         note = draft.gad7Notes.getOrNull(index).orEmpty(),
                         previousAnswer = previous?.questionnaire?.gad7Answers?.getOrNull(index),
+                        history = history.map { it.questionnaire.gad7Answers.getOrNull(index) },
                         accent = accent,
                         editable = editable,
                         onSelect = { value ->
@@ -260,6 +283,7 @@ fun QuestionnaireScreen(
                         selection = draft.phq9Answers.getOrNull(index),
                         note = draft.phq9Notes.getOrNull(index).orEmpty(),
                         previousAnswer = previous?.questionnaire?.phq9Answers?.getOrNull(index),
+                        history = history.map { it.questionnaire.phq9Answers.getOrNull(index) },
                         accent = accent,
                         editable = editable,
                         onSelect = { value ->
@@ -357,6 +381,7 @@ private fun QuestionBlock(
     selection: Int?,
     note: String,
     previousAnswer: Int?,
+    history: List<Int?>,
     accent: Color,
     editable: Boolean,
     onSelect: (Int) -> Unit,
@@ -377,6 +402,7 @@ private fun QuestionBlock(
         AnswerScale(
             selection = selection,
             previousAnswer = previousAnswer,
+            history = history,
             accent = accent,
             editable = editable,
             onSelect = onSelect,
@@ -388,6 +414,7 @@ private fun QuestionBlock(
 private fun AnswerScale(
     selection: Int?,
     previousAnswer: Int?,
+    history: List<Int?>,
     accent: Color,
     editable: Boolean,
     onSelect: (Int) -> Unit,
@@ -401,10 +428,21 @@ private fun AnswerScale(
         (0..3).forEach { value ->
             val selected = selection == value
             val previous = previousAnswer == value
+            val distribution = QuestionnaireAnswerHistory.calculate(history, value)
+            val historyDescription = stringResource(R.string.questionnaire_history_value, distribution.count, distribution.total, (distribution.weight * 100).toInt())
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .background(if (selected) colors.gold else colors.elevated, shape)
+                    .heightIn(min = 48.dp)
+                    .clip(shape)
+                    .background(if (selected) colors.accentFill else if (distribution.total > 0) QuestionnaireHistoryColors.background(colors.isPaper) else colors.elevated, shape)
+                    .drawBehind {
+                        if (!selected && distribution.count > 0) {
+                            val height = size.height * distribution.frequency
+                            drawRect(QuestionnaireHistoryColors.bands(colors.isPaper)[distribution.band], Offset(0f, size.height - height), Size(size.width, height))
+                        }
+                    }
+                    .semantics { if (distribution.total > 0) stateDescription = historyDescription }
                     .border(
                         width = if (previous) 2.dp else 1.dp,
                         color = when {
@@ -414,13 +452,13 @@ private fun AnswerScale(
                         },
                         shape = shape,
                     )
-                    .clickable(enabled = editable) { onSelect(value) }
+                    .selectable(selected = selected, enabled = editable, role = Role.RadioButton) { onSelect(value) }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     "$value",
-                    color = if (selected) colors.textOnAccent else colors.textBright,
+                    color = if (selected) colors.textOnAccent else if (distribution.total > 0) QuestionnaireHistoryColors.foreground(colors.isPaper) else colors.textBright,
                     fontWeight = FontWeight.Medium,
                 )
             }

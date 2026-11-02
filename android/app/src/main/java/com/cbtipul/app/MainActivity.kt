@@ -46,6 +46,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch { (application as CbTipulApp).patientRepository.nameSync.refresh() }
+    }
+
     private var incomingStart = com.cbtipul.app.telemetry.Start.cold
     override fun onNewIntent(intent: Intent) {
         incomingStart = com.cbtipul.app.telemetry.Start.warm

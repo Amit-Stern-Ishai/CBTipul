@@ -87,6 +87,7 @@ enum class SessionType {
     @SerialName("diary_two") DiaryTwo,
     @SerialName("diary_three") DiaryThree,
     @SerialName("case_formulation") CaseFormulation,
+    @SerialName("core_belief_challenge") CoreBeliefChallenge,
     @SerialName("behavioral_interventions") BehavioralInterventions,
     @SerialName("relapse_prevention_and_termination") RelapsePreventionAndTermination,
 }

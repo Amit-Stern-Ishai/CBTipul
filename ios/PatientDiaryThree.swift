@@ -50,12 +50,12 @@ struct SubmitDiaryThreeEntryResponse: Decodable, Sendable {
 enum PatientDiaryThreeHistory {
     static func visible(_ entries: [DiaryThreeEntry], patientId: UUID) -> [DiaryThreeEntry] {
         entries
-            .filter { $0.createdBy == .patient && $0.patientId.uuidValue == patientId }
+            .filter { $0.patientId.uuidValue == patientId }
             .sorted { $0.createdAt > $1.createdAt }
     }
 }
 
-/// Patient Mode history (patient-created rows only) and Edge Function submit.
+/// Full patient-linked history and Edge Function creation. Editing uses the shared authenticated diary store.
 @MainActor
 final class PatientDiaryThreeService {
     static let functionName = "submit-diary-three-entry"
@@ -68,17 +68,22 @@ final class PatientDiaryThreeService {
     func loadPatientCreatedEntries(patientId: UUID) async throws -> [DiaryThreeEntry] {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         do {
-            let rows: [DiaryThreeEntry] = try await client.from("diary_three_entries")
-                .select(diaryThreeSelectColumns)
-                .eq("patient_id", value: patientId)
-                .eq("created_by", value: DiaryOneEntryCreator.patient.rawValue)
-                .order("created_at", ascending: false)
-                .execute()
-                .value
+            var rows: [DiaryThreeEntry] = []
+            var offset = 0
+            while true {
+                let page: [DiaryThreeEntry] = try await client.from("diary_three_entries")
+                    .select(diaryThreeSelectColumns)
+                    .eq("patient_id", value: patientId)
+                    .order("created_at", ascending: false).order("id", ascending: false)
+                    .range(from: offset, to: offset + 249).execute().value
+                rows.append(contentsOf: page)
+                if page.count < 250 { break }
+                offset += page.count
+            }
             return PatientDiaryThreeHistory.visible(rows, patientId: patientId)
         } catch {
             AppLog.store.error(
-                "Patient Diary 3 history load failed: \(error.localizedDescription, privacy: .public)"
+                "Patient Diary 3 history load failed"
             )
             throw error
         }
@@ -116,10 +121,8 @@ final class PatientDiaryThreeService {
             } catch let FunctionsError.httpError(code, data) {
                 throw Self.submitError(from: data, statusCode: code)
             } catch {
-                AppLog.store.error(
-                    "Patient Diary 3 submit failed: \(error.localizedDescription, privacy: .public)"
-                )
-                throw PatientDiaryThreeSubmitError.failed(L10n.patientDiaryOneSubmitError)
+                // Preserve transport errors; the screen supplies safe, contextual copy.
+                throw error
             }
 
         }
@@ -139,6 +142,10 @@ final class PatientDiaryThreeService {
         case "duplicate_thinking_error": return .invalid(L10n.diaryTwoDuplicateThinkingError)
         case "invalid_alternative_thoughts": return .invalid(L10n.diaryTwoValidationAlternatives)
         default:
+            let classified = ClientFailure.from(FunctionsError.httpError(code: statusCode, data: data))
+            if classified != .unknown && classified != .validation && statusCode != 401 && statusCode != 403 {
+                return .failed(classified.localizedDescription)
+            }
             if statusCode == 401 || statusCode == 403 { return .accessDenied(L10n.patientDiaryTwoAccessDenied) }
             return .failed(L10n.patientDiaryOneSubmitError)
         }

@@ -155,7 +155,21 @@
         "purpose": "Existing Theme.subtleAnimation; disabled by Reduce Motion."
       }
     ],
-    "breakpoints": []
+    "breakpoints": [],
+    "iosPaper20261022": {
+      "scope": "iOS light appearance",
+      "approvedConcept": "B",
+      "patientHomeComposition": "C",
+      "tokens": {
+        "base": "#FAF7F1",
+        "header": "#EDE7F2",
+        "text": "#352144",
+        "body": "#665A6F",
+        "accent": "#5C4476",
+        "pressed": "#49325F"
+      },
+      "nativeVisualVerification": "Five iPhone light-mode checks passed; patient Mode C runtime visual review pending."
+    }
   },
   "components": [
     {
@@ -163,7 +177,7 @@
       "kind": "button",
       "description": "Compact plain native button: 44 pt minimum, subheadline semibold, Theme accent fill/text, 12 pt corners; no shared pressable padding or scaling.",
       "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-primary\">פגישה חדשה</button></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-primary{background:#E2BB76;color:#0C1420;border:0;border-radius:12px;padding:0;min-height:44px;font-weight:600;width:100%}.ds-primary:active{background:#C49C58}@media(prefers-color-scheme:light){.ds-primary{background:#203E61;color:#FFFFFF}.ds-primary:active{background:#172F4C}}",
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-primary{background:#E2BB76;color:#0C1420;border:0;border-radius:12px;padding:0;min-height:44px;font-weight:600;width:100%}.ds-primary:active{background:#C49C58}@media(prefers-color-scheme:light){.ds-primary{background:#5C4476;color:#FFFFFF}.ds-primary:active{background:#49325F}}",
       "refersTo": "button-primary-dark"
     },
     {
@@ -171,7 +185,7 @@
       "kind": "button",
       "description": "Outlined native preparation button; preserves busy and disabled states.",
       "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-secondary\">הכנה לפגישה</button></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-secondary{border:0;background:transparent;color:#E2BB76;font-weight:600}@media(prefers-color-scheme:light){.ds-secondary{color:#285A8C}}.ds-secondary{border:1px solid #60738C;border-radius:14px;background:#172231;padding:0 8px}@media(prefers-color-scheme:light){.ds-secondary{background:#FFFFFF;border-color:#94A5BB}}"
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-secondary{border:0;background:transparent;color:#E2BB76;font-weight:600}@media(prefers-color-scheme:light){.ds-secondary{color:#5C4476}}.ds-secondary{border:1px solid #60738C;border-radius:14px;background:#172231;padding:0 8px}@media(prefers-color-scheme:light){.ds-secondary{background:#FFFFFF;border-color:#96849F}}"
     },
     {
       "name": "Patient identity and compact goal",
@@ -185,21 +199,21 @@
       "kind": "nav",
       "description": "Bordered record button inside shared 16 pt record enclosure with heading, four destinations, AI, notes and messages; 8 pt outer padding, 4 pt vertical gaps and 8 pt column gaps. Accessibility grid uses one column.",
       "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-record\">פגישות</button></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-record{width:100%;text-align:start;min-height:60px;padding:0 4px;background:transparent;color:inherit;border:0;border-bottom:.5px solid #2C394B;font-weight:500}@media(prefers-color-scheme:light){.ds-record{border-bottom-color:#DFE5ED}}.ds-record{min-height:44px;padding:0 10px;background:#172231;border:1px solid #3B4B60;border-radius:12px;font-weight:600}@media(prefers-color-scheme:light){.ds-record{background:#FFFFFF;border-color:#CAD5E2}}"
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-record{width:100%;text-align:start;min-height:60px;padding:0 4px;background:transparent;color:inherit;border:0;border-bottom:.5px solid #2C394B;font-weight:500}@media(prefers-color-scheme:light){.ds-record{border-bottom-color:#E4DCD2}}.ds-record{min-height:44px;padding:0 10px;background:#172231;border:1px solid #3B4B60;border-radius:12px;font-weight:600}@media(prefers-color-scheme:light){.ds-record{background:#FFFFFF;border-color:#D6C9DE}}"
     },
     {
       "name": "AI chat",
       "kind": "nav",
       "description": "Full-width violet AI action with native Color.purple icon, 14% fill and 65% outline. CSS purple is illustrative, not a normative native color value.",
       "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-chat\">צ׳אט AI</button></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-chat{width:100%;text-align:start;background:#172231;color:#E2BB76;border:0;padding:12px 16px;font-weight:600}@media(prefers-color-scheme:light){.ds-chat{background:#FFFFFF;color:#285A8C}}.ds-chat{background:color-mix(in srgb,purple 14%,transparent);color:inherit;border:1px solid color-mix(in srgb,purple 65%,transparent);border-radius:12px;padding:0 10px;min-height:44px}@media(prefers-color-scheme:light){.ds-chat{background:color-mix(in srgb,purple 14%,transparent);color:inherit}}"
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-chat{width:100%;text-align:start;background:#172231;color:#E2BB76;border:0;padding:12px 16px;font-weight:600}@media(prefers-color-scheme:light){.ds-chat{background:#FFFFFF;color:#5C4476}}.ds-chat{background:color-mix(in srgb,purple 14%,transparent);color:inherit;border:1px solid color-mix(in srgb,purple 65%,transparent);border-radius:12px;padding:0 10px;min-height:44px}@media(prefers-color-scheme:light){.ds-chat{background:color-mix(in srgb,purple 14%,transparent);color:inherit}}"
     },
     {
       "name": "Horizontal recorded journey",
       "kind": "custom",
       "description": "Over the shared layered backdrop; no separate heading in header. Stage controls open timeline. Oldest RIGHT/newest LEFT; >4 stages each use one quarter container width and target latest on appearance/group-ID changes. Full timeline/accessibility fallback newest TOP. Compact-layout final fit and long-journey tests passed.",
       "html": "<div class=\"ds-preview\" dir=\"rtl\"><section class=\"ds-journey\"><div class=\"ds-stages\"><button class=\"ds-action ds-stage\"><span class=\"ds-marker\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 3h8l4 4v14H6zM9 11h6M9 15h6\"/></svg></span><span>שלב קודם</span></button><button class=\"ds-action ds-stage\"><span class=\"ds-marker\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 3h8l4 4v14H6zM9 11h6M9 15h6\"/></svg></span><span>שלב ביניים</span></button><button class=\"ds-action ds-stage\"><span class=\"ds-marker\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 3h8l4 4v14H6zM9 11h6M9 15h6\"/></svg></span><span>שלב אחרון</span></button></div></section></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#F1F4F8;color:#182C46}.ds-action:focus-visible{outline-color:#285A8C}}.ds-journey{padding:8px 12px 12px;background:linear-gradient(#4C9AFF1F,#4C9AFF1F),#172231}.ds-journeytitle{font-weight:600;background:transparent;color:inherit;border:0}.ds-stages{display:flex;direction:rtl}.ds-stage{display:flex;flex:1;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;color:inherit;min-width:0}.ds-marker{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#4C9AFF;color:#000}@media(prefers-color-scheme:light){.ds-journey{background:linear-gradient(#4C9AFF1F,#4C9AFF1F),#FFFFFF}}.ds-journey{background:#183357;color:white}.ds-marker{background:#183357;border:1.5px solid #4C9AFF;color:white}.ds-stage:last-child .ds-marker{background:#4C9AFF;border-width:3px;color:black}@media(prefers-color-scheme:light){.ds-journey{background:#183357;color:white}}.ds-marker{width:24px;height:24px}.ds-marker svg{width:13px;height:13px}.ds-stage{gap:2px}"
+      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-journey{padding:8px 12px 12px;background:linear-gradient(#4C9AFF1F,#4C9AFF1F),#172231}.ds-journeytitle{font-weight:600;background:transparent;color:inherit;border:0}.ds-stages{display:flex;direction:rtl}.ds-stage{display:flex;flex:1;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;color:inherit;min-width:0}.ds-marker{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#4C9AFF;color:#000}@media(prefers-color-scheme:light){.ds-journey{background:linear-gradient(#4C9AFF1F,#4C9AFF1F),#FFFFFF}}.ds-journey{background:#183357;color:white}.ds-marker{background:#183357;border:1.5px solid #4C9AFF;color:white}.ds-stage:last-child .ds-marker{background:#4C9AFF;border-width:3px;color:black}@media(prefers-color-scheme:light){.ds-journey{background:#183357;color:white}}.ds-marker{width:24px;height:24px}.ds-marker svg{width:13px;height:13px}.ds-stage{gap:2px}"
     }
   ],
   "narrative": {
@@ -226,5 +240,12 @@
       "Don't use color alone to express connection, failure or clinical meaning.",
       "Don't replace native iOS interactions with web-style controls."
     ]
+  },
+  "nativePaper20261022": {
+    "scope": "iOS and Android light appearance",
+    "approvedConcept": "B",
+    "patientHomeComposition": "C",
+    "secondaryInk": "#6C6073",
+    "verification": "Both native builds pass; 331 Android unit tests pass. Synthetic native patient-home screenshots inspected on both platforms. Live invitations/messages and all-screen walkthrough remain unverified."
   }
 }

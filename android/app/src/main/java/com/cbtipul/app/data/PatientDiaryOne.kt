@@ -12,7 +12,6 @@ import kotlinx.serialization.Serializable
 object PatientDiaryOneHistory {
     fun visible(entries: List<DiaryOneEntry>): List<DiaryOneEntry> =
         entries
-            .filter { it.createdBy == DiaryOneEntryCreator.Patient }
             .sortedByDescending { it.createdAt.time }
 }
 

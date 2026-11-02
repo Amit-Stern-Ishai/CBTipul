@@ -148,9 +148,18 @@ class CbTipulApp : Application() {
         onboardingStore = OnboardingStore(this)
         demoClinicStore = DemoClinicStore(this)
         val anonymizer = ClinicalTextAnonymizer(client, aiConsentStore)
+        val nameSync = com.cbtipul.app.data.PatientNameSync.live(client, formDrafts, applicationScope) { id -> identityStore.legacyName(com.cbtipul.app.model.DatabaseId.Text(id)) }
+        identityStore.resolvedName = { id -> nameSync.displayed(id.queryValue, identityStore.legacyName(id)) }
+        applicationScope.launch {
+            authRepository.contextSessionChanges.collect { session ->
+                nameSync.setAccount(if (authRepository.isAnonymousSession()) null else session?.userId)
+            }
+        }
         patientRepository = PatientRepository(
             client = client,
             identityStore = identityStore,
+            nameSync = nameSync,
+            nameScope = applicationScope,
             cache = PatientCache(this),
             textGate = ClinicalTextGate { anonymizer.anonymize(it) },
             whisper = WhisperService(client, aiConsentStore),

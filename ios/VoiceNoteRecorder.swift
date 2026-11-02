@@ -19,7 +19,7 @@ final class VoiceNoteRecorder {
     private(set) var duration: TimeInterval = 0
     var errorMessage: String?
 
-    func startRecording() async {
+    func startRecording(destination: URL? = nil) async {
         guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
 
@@ -33,7 +33,7 @@ final class VoiceNoteRecorder {
             try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
             try session.setActive(true)
 
-            let url = FileManager.default.temporaryDirectory
+            let url = destination ?? FileManager.default.temporaryDirectory
                 .appendingPathComponent("voice-note-\(UUID().uuidString).m4a")
             let settings: [String: Any] = [
                 AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
@@ -42,10 +42,14 @@ final class VoiceNoteRecorder {
                 AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
             ]
             let recorder = try AVAudioRecorder(url: url, settings: settings)
-            recorder.record()
+            try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUnlessOpen], ofItemAtPath: url.path)
+            var protectedURL = url
+            var values = URLResourceValues(); values.isExcludedFromBackup = true
+            try protectedURL.setResourceValues(values)
+            guard recorder.record() else { throw ClientFailure.localDraft }
 
             self.recorder = recorder
-            recordingURL = nil
+            recordingURL = destination == nil ? nil : url
             duration = 0
             isRecording = true
 
@@ -60,7 +64,7 @@ final class VoiceNoteRecorder {
                 }
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = error.userFacingMessage
         }
     }
 
@@ -73,6 +77,19 @@ final class VoiceNoteRecorder {
         self.recorder = nil
         isRecording = false
         try? AVAudioSession.sharedInstance().setActive(false)
+    }
+
+    func restoreRecording(at url: URL) {
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        recordingURL = url
+        duration = (try? AVAudioPlayer(contentsOf: url).duration) ?? 0
+    }
+
+    /// Account changes stop playback/capture without deleting the owner's file.
+    func detach() {
+        stopRecording()
+        player?.stop(); player = nil; isPlaying = false
+        recordingURL = nil; duration = 0
     }
 
     func togglePlayback() {
@@ -108,20 +125,27 @@ final class VoiceNoteRecorder {
                 }
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = error.userFacingMessage
         }
     }
 
     /// Deletes the recorded file and resets to the idle state.
-    func discard() {
+    @discardableResult
+    func discard() -> Bool {
+        stopRecording()
         player?.stop()
         player = nil
         isPlaying = false
         tickTask?.cancel()
         if let recordingURL {
-            try? FileManager.default.removeItem(at: recordingURL)
+            do {
+                if FileManager.default.fileExists(atPath: recordingURL.path) {
+                    try FileManager.default.removeItem(at: recordingURL)
+                }
+            } catch { errorMessage = "לא ניתן למחוק את ההקלטה מהמכשיר. נסו שוב."; return false }
         }
         recordingURL = nil
         duration = 0
+        return true
     }
 }

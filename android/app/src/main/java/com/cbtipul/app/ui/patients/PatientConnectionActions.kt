@@ -72,7 +72,7 @@ internal fun rememberPatientConnection(patient: Patient?, repository: PatientAss
     return state to { revision++ }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 internal fun PatientConnectionActions(patient: Patient, name: String, repository: PatientAssignmentRepository?, isDemo: Boolean,
     busy: Boolean, onInvite: () -> Unit, onMessage: () -> Unit, onNewSession: () -> Unit) {
@@ -101,15 +101,11 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
         ConnectionUi.NotConnected -> R.string.patient_not_connected_status
     }
     GroupedListCard(accent = PatientAvatarColor.background(patient.id)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onNewSession, enabled = !busy && !sending,
-                modifier = Modifier.fillMaxWidth().entitlementCreateControl(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
-                IconLabel(stringResource(R.string.ww_new_session), Icons.Outlined.Add)
-            }
-            HorizontalDivider(color = colors.borderFaint)
+        androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            maxItemsInEachRow = if (textScale > 1.3f) 1 else 2,
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp * textScale),
+                Modifier.weight(1f).heightIn(min = 48.dp * textScale),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -131,7 +127,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                 else -> R.string.patient_invite_to_app_action
             }
             // Keep the action slot present before the first result, without a misleading action.
-            Box(Modifier.fillMaxWidth().heightIn(min = 48.dp * textScale)) {
+            Box(Modifier.weight(1f).heightIn(min = 48.dp * textScale)) {
                 if (!checking) OutlinedButton(
                     onClick = {
                         when (connection) {

@@ -17,7 +17,7 @@ struct PressableProminentButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, minHeight: 24)
             .background(
                 isEnabled ? (configuration.isPressed ? Theme.accentFillPressed : Theme.accentFill) : Theme.elevated,
-                in: RoundedRectangle(cornerRadius: 16)
+                in: RoundedRectangle(cornerRadius: Theme.isPaper ? 10 : 16)
             )
             .opacity(configuration.isPressed ? 0.85 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)

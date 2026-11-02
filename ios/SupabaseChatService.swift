@@ -105,7 +105,7 @@ nonisolated struct SupabaseChatService {
         } catch let error as OpenAIChatError {
             throw error
         } catch {
-            AppLog.ai.error("Chat completion failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.ai.error("Chat completion failed")
             throw error
         }
 

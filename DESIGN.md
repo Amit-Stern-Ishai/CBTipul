@@ -3,29 +3,29 @@ name: CBTipul — iOS Patient Detail
 description: Screen-scoped activity digest using the existing adaptive native theme
 colors:
   base-dark: "#0C1420"
-  base-light: "#F1F4F8"
+  base-light: "#FAF7F1"
   surface-dark: "#172231"
   surface-light: "#FFFFFF"
   elevated-dark: "#202E40"
-  elevated-light: "#E8EEF5"
+  elevated-light: "#EDE7F2"
   borderFaint-dark: "#2C394B"
-  borderFaint-light: "#DFE5ED"
+  borderFaint-light: "#E4DCD2"
   borderDefault-dark: "#3B4B60"
-  borderDefault-light: "#CAD5E2"
+  borderDefault-light: "#D6C9DE"
   borderStrong-dark: "#60738C"
-  borderStrong-light: "#94A5BB"
+  borderStrong-light: "#96849F"
   textBright-dark: "#F3F5F8"
-  textBright-light: "#182C46"
+  textBright-light: "#352144"
   textBody-dark: "#B4C0D0"
-  textBody-light: "#4B5E75"
+  textBody-light: "#665A6F"
   textFaint-dark: "#8999AE"
-  textFaint-light: "#60718A"
+  textFaint-light: "#73677A"
   gold-dark: "#E2BB76"
-  gold-light: "#285A8C"
+  gold-light: "#5C4476"
   accentFill-dark: "#E2BB76"
-  accentFill-light: "#203E61"
+  accentFill-light: "#5C4476"
   accentFillPressed-dark: "#C49C58"
-  accentFillPressed-light: "#172F4C"
+  accentFillPressed-light: "#49325F"
   textOnAccent-dark: "#0C1420"
   textOnAccent-light: "#FFFFFF"
   warning-dark: "#FFC94A"
@@ -179,3 +179,12 @@ The session editor uses the approved summary-first A direction and the heading *
 Session-local header values are #233D44 with a 34% patient-color gradient and a 4.5% white plane; the toolbar is #285454. Identity uses a 42 pt initials circle; date/type controls have 9 pt corners and 44 pt minimum height. Recording uses 12 pt corners, 10% patient-accent fill and 40% outline. AI uses native purple at 8% fill/30% outline, 12 pt corners and 14 pt padding. Summary and AI help use Theme.textBody following contrast review. These observed values do not replace patient-header styling or the existing frontmatter tokens. Build, creation and dark/light summary/edit/discard checks passed, including the final contrast-corrected build and dark/light edit/discard rerun. Final captures are complete; reviewer contrast verification passed in both appearances; the finding is resolved. Live microphone/backend behavior was not tested.
 
 The summary interaction refinement separates full-text reading from writing, preserves the draft across modes, and shares recording/recovery controls between overview and summary. See the session surface brief for the current interaction contract and verification limits.
+
+
+## Approved iOS light redesign — 22 October 2026
+
+The user approved concept B (personal notebook) as the entire iOS light visual direction, superseding the cool-neutral/blue light appearance described above. Paper #FAF7F1, lilac #EDE7F2, plum ink #352144 and plum actions #5C4476 are authoritative in Theme.swift. Headers, shared cards/buttons, settings preview and questionnaire-history fills follow this direction. Dark tokens and clinical semantics remain unchanged. Patient Mode uses concept C’s composition on both platforms, with B’s visual treatment in iOS light appearance. See .impeccable/surfaces/patient-home-c-and-ios-paper.md for scope and verification.
+
+
+### Approved Android paper appearance (2026-10-22)
+Extend Concept B's approved iOS light direction to Android with native Material controls. Warm paper, lilac sections, plum ink/actions; retain dark mode and clinical status semantics. Secondary ink is #6C6073 for contrast on lilac. Patient Mode uses approved Concept C information hierarchy on both platforms.

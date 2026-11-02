@@ -4,6 +4,40 @@ import XCTest
 final class SmokeTests: XCTestCase {
 
     @MainActor
+    func testAuthenticationRequiresTherapistChoice() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-UITestingAuthRole"]
+        app.launch()
+        XCTAssertTrue(app.buttons["auth.role.patient"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["auth.chooseEmail"].exists)
+        XCTAssertFalse(app.buttons["auth.apple"].exists)
+        captureAuth(app, name: "role-choice")
+        app.buttons["auth.role.patient"].tap()
+        XCTAssertTrue(app.staticTexts["auth.patient.instructions"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["auth.chooseEmail"].exists)
+        XCTAssertFalse(app.buttons["auth.submit"].exists)
+        XCTAssertFalse(app.buttons["auth.apple"].exists)
+        captureAuth(app, name: "patient-invitation-guidance")
+        app.buttons["auth.entryBack"].tap()
+        app.buttons["auth.role.therapist"].tap()
+        XCTAssertTrue(app.staticTexts["auth.therapistOnly"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["auth.chooseEmail"].exists)
+        captureAuth(app, name: "therapist-authentication")
+        app.buttons["auth.chooseEmail"].tap()
+        XCTAssertTrue(app.textFields["auth.email"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["auth.therapistOnly"].exists)
+        app.buttons["auth.entryBack"].tap()
+        app.buttons["auth.entryBack"].tap()
+        XCTAssertTrue(app.buttons["auth.role.patient"].exists)
+        XCTAssertFalse(app.buttons["auth.chooseEmail"].exists)
+    }
+
+    @MainActor private func captureAuth(_ app: XCUIApplication, name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name; shot.lifetime = .keepAlways; add(shot)
+    }
+
+    @MainActor
     func testPatientStatusCanBeChangedFromHeader() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting"]
@@ -358,7 +392,7 @@ final class SmokeTests: XCTestCase {
         app.launchArguments = ["-UITesting"]
         app.launch()
 
-        let authEmail = app.descendants(matching: .any)["auth.email"]
+        let authEmail = app.descendants(matching: .any)["auth.role.therapist"]
         XCTAssertTrue(
             authEmail.waitForExistence(timeout: 10),
             "Auth screen should appear before UITesting bypass"

@@ -103,8 +103,8 @@ final class AuthManager {
     static let uiTestingEmail = "uitesting@cbtipul.local"
     static let uiTestingUserId = "ui-testing-user"
 
-    init() {
-        let client = SupabaseClient(
+    init(clientOverride: SupabaseClient? = nil) {
+        let client = clientOverride ?? SupabaseClient(
             supabaseURL: SupabaseConfig.url,
             supabaseKey: SupabaseConfig.anonKey
         )
@@ -175,7 +175,7 @@ final class AuthManager {
                 try await client.auth.signIn(email: Self.normalized(email: email), password: password)
                 AppLog.auth.info("Sign-in succeeded")
             } catch {
-                AppLog.auth.error("Sign-in failed: \(error.localizedDescription, privacy: .public)")
+                AppLog.auth.error("Sign-in failed")
                 // Unverified accounts get a clear Hebrew explanation instead of
                 // the raw server error, mapped by error code.
                 if let authError = error as? Auth.AuthError, authError.errorCode == .emailNotConfirmed {
@@ -344,7 +344,7 @@ final class AuthManager {
             AppLog.auth.info("Sign-up succeeded, needs email confirmation: \(response.session == nil)")
             return response.session == nil
         } catch {
-            AppLog.auth.error("Sign-up failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.auth.error("Sign-up failed")
             throw error
         }
     }
@@ -360,7 +360,7 @@ final class AuthManager {
             )
             AppLog.auth.info("Sign-up confirmation email re-sent")
         } catch {
-            AppLog.auth.error("Resend confirmation failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.auth.error("Resend confirmation failed")
             if let authError = error as? Auth.AuthError, authError.errorCode == .overEmailSendRateLimit {
                 throw AuthError.tooManyRequests
             }
@@ -382,7 +382,7 @@ final class AuthManager {
             }
             AppLog.auth.info("Auth callback handled, session established")
         } catch {
-            AppLog.auth.error("Auth callback failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.auth.error("Auth callback failed")
             #if DEBUG
             print("Auth callback error: \(error)")
             #endif
@@ -410,7 +410,7 @@ final class AuthManager {
             isRecoveringPassword = false
             AppLog.auth.info("Password updated")
         } catch {
-            AppLog.auth.error("Password update failed: \(error.localizedDescription, privacy: .public)")
+            AppLog.auth.error("Password update failed")
             throw error
         }
     }
@@ -453,7 +453,7 @@ final class AuthManager {
             AppLog.auth.info("Patient Mode session ended")
         } catch {
             AppLog.auth.error(
-                "Patient Mode sign-out failed: \(error.localizedDescription, privacy: .public)"
+                "Patient Mode sign-out failed"
             )
             throw error
         }

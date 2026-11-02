@@ -64,6 +64,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cbtipul.app.ui.patients.InitialsAvatar
+import androidx.compose.material3.MaterialTheme
 import com.cbtipul.app.R
 import com.cbtipul.app.data.AppNotification
 import com.cbtipul.app.data.InboxCopyKind
@@ -155,13 +157,13 @@ fun NotificationsInboxScreen(
                     if (unread.isNotEmpty()) {
                         item(key = "unread-header") { InboxSectionHeader(stringResource(R.string.notifications_unread_section), unread.size, true) }
                         items(unread, key = { it.id }) { item ->
-                            InboxRow(item, resolveName(item.patientId, patients, unnamed), workspaceState.items.firstOrNull { it.id == item.resourceId }?.reference_label, { onOpen(item) })
+                            InboxRow(item, patients.firstOrNull { it.id.matches(item.patientId.orEmpty()) }, resolveName(item.patientId, patients, unnamed), workspaceState.items.firstOrNull { it.id == item.resourceId }?.reference_label, { onOpen(item) })
                         }
                     }
                     if (read.isNotEmpty()) {
                         item(key = "read-header") { InboxSectionHeader(stringResource(R.string.notifications_read_section), read.size, false) }
                         items(read, key = { it.id }) { item ->
-                            InboxRow(item, resolveName(item.patientId, patients, unnamed), workspaceState.items.firstOrNull { it.id == item.resourceId }?.reference_label, { onOpen(item) })
+                            InboxRow(item, patients.firstOrNull { it.id.matches(item.patientId.orEmpty()) }, resolveName(item.patientId, patients, unnamed), workspaceState.items.firstOrNull { it.id == item.resourceId }?.reference_label, { onOpen(item) })
                         }
                     }
                 }
@@ -182,7 +184,7 @@ private fun InboxSectionHeader(title: String, count: Int, highlighted: Boolean) 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun InboxRow(item: AppNotification, patientName: String, workspaceTag: String?, onClick: () -> Unit) {
+private fun InboxRow(item: AppNotification, patient: Patient?, patientName: String, workspaceTag: String?, onClick: () -> Unit) {
     val colors = Theme.colors
     val kind = NotificationRouting.inboxCopy(item.type)
     val eventColor = when (kind) {
@@ -205,13 +207,14 @@ private fun InboxRow(item: AppNotification, patientName: String, workspaceTag: S
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = colors.surface),
         border = BorderStroke(1.dp, if (item.isUnread) colors.gold.copy(alpha = 0.4f) else colors.borderFaint)) {
-        Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(34.dp).background(eventColor.copy(alpha = 0.12f), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+        Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (patient != null && kind != InboxCopyKind.WebWorkspaceReady) InitialsAvatar(name = patientName, patientId = patient.id)
+            else Box(Modifier.size(44.dp).background(eventColor.copy(alpha = 0.12f), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, tint = eventColor, modifier = Modifier.size(20.dp))
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(if (item.type == com.cbtipul.app.data.AppNotificationTypes.WEB_WORKSPACE_READY) workspaceTag?.trim()?.takeIf { it.isNotEmpty() } ?: stringResource(R.string.ww_untitled) else patientName, color = colors.textBright, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(if (item.type == com.cbtipul.app.data.AppNotificationTypes.WEB_WORKSPACE_READY) workspaceTag?.trim()?.takeIf { it.isNotEmpty() } ?: stringResource(R.string.ww_untitled) else patientName, color = colors.textBright, style = MaterialTheme.typography.titleMedium, fontWeight = if (item.isUnread) FontWeight.SemiBold else FontWeight.Normal, modifier = Modifier.weight(1f))
                     if (item.isUnread) {
                         val unreadLabel = stringResource(R.string.notification_unread_accessibility)
                         Box(Modifier.size(7.dp).background(colors.gold, CircleShape).semantics { contentDescription = unreadLabel })

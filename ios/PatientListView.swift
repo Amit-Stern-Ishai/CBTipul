@@ -13,6 +13,8 @@ struct PatientListView: View {
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(TherapistNotificationCoordinator.self) private var notificationCoordinator
 
+    @Environment(\.scenePhase) private var nameSyncScenePhase
+    @State private var showingNameSetup = false
     @State private var isAddingPatient = false
     @State private var isLoading = false
     @State private var hasFinishedInitialLoad = false
@@ -50,7 +52,20 @@ struct PatientListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("patients.root")
+            .sheet(isPresented: $showingNameSetup) { PatientNameSetupView(sync: store.nameSync, logout: { store.nameSync.setAccount(nil); auth.signOut() }) }
+            .onChange(of: nameSyncScenePhase) { _, phase in
+                if phase == .active && !store.isDemoMode { Task { await store.nameSync.refresh() } }
+            }
             .safeAreaInset(edge: .top, spacing: 0) {
+                if !store.isDemoMode && (!store.nameSync.accepted || store.nameSync.failed || store.nameSync.hasPending) {
+                    Button {
+                        if store.nameSync.accepted { Task { await store.nameSync.refresh(force: true) } }
+                        else { showingNameSetup = true }
+                    } label: {
+                        Label(store.nameSync.accepted ? "סנכרון שמות ממתין — ניסיון נוסף" : "הגדרת סנכרון שמות", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.footnote).frame(minHeight: 44)
+                    }.disabled(store.nameSync.busy)
+                }
                 if !store.isDemoMode && workspaces.associationCount > 0 {
                     NavigationLink(value: WebWorkspaceInboxRoute()) {
                         Label(L10n.wwPendingCount(workspaces.associationCount), systemImage: "tray.full")

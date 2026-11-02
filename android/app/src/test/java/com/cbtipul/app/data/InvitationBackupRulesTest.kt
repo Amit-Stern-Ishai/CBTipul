@@ -8,7 +8,7 @@ import org.junit.Test
 class InvitationBackupRulesTest {
     private fun source(path: String): File = listOf(File("src/main/$path"), File("app/src/main/$path"))
         .first { it.isFile }
-    @Test fun cloudAndDeviceTransferExcludeOnlyAuthenticationPreferences() {
+    @Test fun cloudAndDeviceTransferExcludeAuthenticationAndProtectedDrafts() {
         val manifest = source("AndroidManifest.xml").readText()
         assertTrue(manifest.contains("android:allowBackup=\"false\""))
         assertTrue(manifest.contains("android:dataExtractionRules=\"@xml/auth_data_extraction_rules\""))
@@ -26,7 +26,7 @@ class InvitationBackupRulesTest {
                     assertEquals("sharedpref", entry.attributes.getNamedItem("domain").nodeValue)
                     paths += entry.attributes.getNamedItem("path").nodeValue
                 }
-                assertEquals(setOf("com.CBTipul.app_preferences.xml", "browser_auth.xml"), paths)
+                assertEquals(setOf("com.CBTipul.app_preferences.xml", "browser_auth.xml", "CBTipul.form-drafts.xml"), paths)
                 // No patient-name store, clinical cache, app settings, or wildcard exclusion.
             }
         }

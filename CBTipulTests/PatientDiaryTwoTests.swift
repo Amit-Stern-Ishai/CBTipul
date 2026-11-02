@@ -40,8 +40,8 @@ struct PatientDiaryTwoTests {
         #expect(draft.persistedFeelings()?.first?.intensity == 80)
         #expect(DiaryFeelingDraft(persisted: .init(name: "עצוב", intensity: 0)).intensity == 0)
         let feeling = DiaryThreeFeelingDraft(name: "עצוב")
-        #expect(feeling.intensityBefore == 80)
-        #expect(feeling.intensityAfter == 80)
+        #expect(feeling.intensityBefore == nil)
+        #expect(feeling.intensityAfter == nil)
     }
     @Test func submissionUsesOnlyEdgeFunctionAndExactClinicalBody() async throws {
         await EntitlementTestIsolation.acquire()
@@ -73,17 +73,17 @@ struct PatientDiaryTwoTests {
         let rows = "[\(row(id: 1, createdBy: "patient", date: "2026-01-01")),\(row(id: 2, createdBy: "therapist", date: "2026-01-03")),\(row(id: 3, createdBy: "patient", date: "2026-01-02")),\(row(id: 4, createdBy: "patient", date: "2026-01-04", patientId: UUID()))]"
         DiaryTwoHTTPStub.reset(body: Data(rows.utf8))
         let entries = try await makeService().loadPatientCreatedEntries(patientId: patient)
-        #expect(entries.map(\.event) == ["3", "1"])
-        #expect(entries.allSatisfy { $0.createdBy == .patient && $0.patientId.uuidValue == patient })
+        #expect(entries.map(\.event) == ["2", "3", "1"])
+        #expect(entries.allSatisfy { $0.patientId.uuidValue == patient })
         #expect(entries.first?.automaticThoughts == ["one", "two"])
         #expect(entries.first?.thinkingErrors.first?.title == "קריאת מחשבות")
         let request = try #require(DiaryTwoHTTPStub.recorded().first)
         #expect(request.method == "GET")
         #expect(request.url.path == "/rest/v1/diary_two_entries")
         let query = URLComponents(url: request.url, resolvingAgainstBaseURL: false)!.queryItems!
-        #expect(query.contains { $0.name == "created_by" && $0.value == "eq.patient" })
+        #expect(!query.contains { $0.name == "created_by" })
         #expect(query.contains { $0.name == "patient_id" && $0.value?.lowercased() == "eq.\(patient.uuidString.lowercased())" })
-        #expect(query.contains { $0.name == "order" && $0.value?.split(separator: ".").prefix(2).joined(separator: ".") == "created_at.desc" })
+        #expect(query.contains { $0.name == "order" && $0.value?.hasPrefix("created_at.desc") == true })
     }
     @Test func inactiveResponseIsTypedAndLocalized() async throws {
         await EntitlementTestIsolation.acquire()

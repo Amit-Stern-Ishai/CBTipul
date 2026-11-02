@@ -116,7 +116,7 @@ struct PatientDiaryThreeTests {
         defer { EntitlementTestIsolation.release() }
         PatientThreeHTTPStub.reset(body: Data("[\(row(1, "patient", "2026-01-01")),\(row(2, "therapist", "2026-01-03")),\(row(3, "patient", "2026-01-02")),\(row(4, "patient", "2026-01-04", patientId: UUID()))]".utf8))
         let entries = try await service().loadPatientCreatedEntries(patientId: patient)
-        #expect(entries.map(\.situation) == ["3", "1"])
+        #expect(entries.map(\.situation) == ["2", "3", "1"])
         let entry = try #require(entries.first)
         #expect(entry.automaticThoughts.map(\.beliefBefore) == [100, 0]); #expect(entry.automaticThoughts.map(\.beliefAfter) == [0, 100])
         #expect(entry.feelings[0].intensityBefore == 85); #expect(entry.feelings[0].intensityAfter == 40)
@@ -124,7 +124,7 @@ struct PatientDiaryThreeTests {
         let request = try #require(PatientThreeHTTPStub.recorded().first)
         #expect(request.method == "GET"); #expect(request.url.path == "/rest/v1/diary_three_entries")
         let query = URLComponents(url: request.url, resolvingAgainstBaseURL: false)!.queryItems!
-        #expect(query.contains { $0.name == "created_by" && $0.value == "eq.patient" })
+        #expect(!query.contains { $0.name == "created_by" })
         #expect(query.contains { $0.name == "patient_id" && $0.value?.lowercased() == "eq.\(patient.uuidString.lowercased())" })
         #expect(query.contains { $0.name == "order" && $0.value?.hasPrefix("created_at.desc") == true })
     }

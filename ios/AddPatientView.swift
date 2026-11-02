@@ -100,8 +100,8 @@ struct AddPatientView: View {
         Task {
             do {
                 try await store.addPatient(
-                    firstName: trimmedFirstName,
-                    lastName: trimmedLastName,
+                    firstName: firstName,
+                    lastName: lastName,
                     status: status
                 )
                 dismiss()

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpen, CalendarDays, ExternalLink, Plus, Search, ChevronLeft, UserRound, AlertCircle } from 'lucide-react';
@@ -64,6 +64,19 @@ export function PatientWorkspace({shared=false}:{shared?:boolean}) {
     </>)}
   </main>;
 }
+function EditorDialog({title,closeLabel,busy,onClose,children}:{title:string;closeLabel:string;busy:boolean;onClose:()=>void;children:ReactNode}) {
+  const ref=useRef<HTMLDialogElement>(null), heading=useRef<HTMLHeadingElement>(null), id=useId();
+  useEffect(()=>{
+    const dialog=ref.current!, trigger=document.activeElement as HTMLElement|null;
+    dialog.showModal();heading.current?.focus();
+    const overflow=document.body.style.overflow;document.body.style.overflow='hidden';
+    return()=>{dialog.close();document.body.style.overflow=overflow;if(trigger?.isConnected)trigger.focus();};
+  },[]);
+  return <dialog ref={ref} className="pw-modal" aria-labelledby={id} aria-busy={busy} dir="rtl" onCancel={e=>{e.preventDefault();if(!busy)onClose();}}>
+    <header className="pw-modal-heading"><h2 id={id} ref={heading} tabIndex={-1}>{title}</h2><button className="secondary" disabled={busy} onClick={onClose}>{closeLabel}</button></header>
+    <div className="pw-modal-body">{children}</div>
+  </dialog>;
+}
 function ProcessingConsent({children}:{children:ReactNode}) {
   const {session}=useAuth();
   return <ConsentBoundary account={session!.user.id} type="clinical_text_processing" title={ww.consentTitle} description={ww.consentDescription} accept={ww.consentAction} decline={async()=>{}}>{children}</ConsentBoundary>;
@@ -91,6 +104,7 @@ function Records({patient,type,shared}:{patient:string;type:WorksheetType;shared
   const [edit,setEdit]=useState<{item:Worksheet;id:string|null;original:RecordRow|null}|null>(null);
   const [baseline,setBaseline]=useState(''),[notes,setNotes]=useState<unknown>(undefined),[target,setTarget]=useState<string>('');
   const [showHistory,setShowHistory]=useState(false);
+  const HistoryContainer=type==='questionnaire'?'section':'details';
   const state=useSaveState(patient);
   const sessions=useQuery({queryKey:[account,'session-choices',patient],queryFn:()=>api.sessions(patient),enabled:!shared&&type==='questionnaire'});
   const fingerprint=edit?JSON.stringify([edit.item,notes,target]):'';
@@ -102,7 +116,7 @@ function Records({patient,type,shared}:{patient:string;type:WorksheetType;shared
     if(type==='questionnaire')delete item.data.notes;
     const value=!shared&&row?row.combined_notes:undefined;
     const link=String(row?.session_id??'');
-    setNotes(value);setTarget(link);setEdit({item,id:row?String(row.id):null,original:row??null});setBaseline(JSON.stringify([item,value,link]));state.reset();
+    setShowHistory(false);setNotes(value);setTarget(link);setEdit({item,id:row?String(row.id):null,original:row??null});setBaseline(JSON.stringify([item,value,link]));state.reset();
   }
   async function save() {
     if(!edit)return;
@@ -113,15 +127,19 @@ function Records({patient,type,shared}:{patient:string;type:WorksheetType;shared
     });
   }
   return <><DirtyGuard dirty={dirty||state.busy} busy={state.busy}/><div className="pw-section-heading"><div><h2>{labels[type]}</h2><p>{type==='questionnaire'?'שאלונים בתיק המטופל/ת ובמפגשים':'כל הרשומות, כולל רשומות שמולאו באפליקציה ובמפגש'}</p></div><button disabled={!write||state.busy||state.uncertain} onClick={()=>open()}><Plus size={18}/>{type==='questionnaire'?'שאלון חדש':'רשומה חדשה'}</button></div>
-    {history.isPending?<Loading/>:history.isError?<ErrorBox error={history.error} retry={()=>void history.refetch()}/>:<details open={!edit||showHistory} className="pw-history"><summary onClick={e=>{e.preventDefault();setShowHistory(v=>!v);}}>היסטוריה · {history.data.length} רשומות</summary><ul className="pw-record-list">{history.data.length===0?<li className="pw-list-empty">אין עדיין רשומות.</li>:history.data.map(row=><li key={String(row.id)}><button className={`pw-list-row ${type==='questionnaire'?'pw-questionnaire-row':'pw-diary-row'}`} aria-current={edit?.id===String(row.id)?'true':undefined} disabled={state.busy} onClick={()=>open(row)}><RecordSummary row={row} type={type}/><ChevronLeft size={18} aria-hidden="true"/></button></li>)}</ul></details>}
-    {edit&&<section className="pw-editor">{edit.id && history.data?.some(row=>String(row.id)===edit.id&&JSON.stringify(row)!==JSON.stringify(edit.original))&&<p className="notice">קיימים נתונים עדכניים בהיסטוריה. <button className="text-button" disabled={state.busy} onClick={()=>open(history.data?.find(row=>String(row.id)===edit.id))}>טעינת הרשומה מחדש</button></p>}<div className="pw-section-heading"><h3>{edit.id?'עריכת הרשומה':'רשומה חדשה'}</h3><span>{edit.original?date(String(edit.original.created_at??edit.original.answered_date??'')):''}</span></div>
+    {history.isPending?<Loading/>:history.isError?<ErrorBox error={history.error} retry={()=>void history.refetch()}/>:<HistoryContainer {...(type==='questionnaire'?{}:{open:!edit||showHistory})} className="pw-history">{type==='questionnaire'?<h3 className="pw-history-title">היסטוריה · {history.data.length} רשומות</h3>:<summary onClick={e=>{e.preventDefault();setShowHistory(v=>!v);}}>היסטוריה · {history.data.length} רשומות</summary>}<ul className="pw-record-list">{history.data.length===0?<li className="pw-list-empty">אין עדיין רשומות.</li>:history.data.map(row=><li key={String(row.id)}><button className={`pw-list-row ${type==='questionnaire'?'pw-questionnaire-row':'pw-diary-row'}`} aria-current={edit?.id===String(row.id)?'true':undefined} disabled={state.busy} onClick={()=>open(row)}><RecordSummary row={row} type={type}/><ChevronLeft size={18} aria-hidden="true"/></button></li>)}</ul></HistoryContainer>}
+    {edit&&type==='questionnaire'&&showHistory&&<button className="secondary" onClick={()=>setShowHistory(false)}>חזרה לשאלון הפתוח</button>}
+    {edit&&(type!=='questionnaire'||!showHistory)&&<RecordEditorFrame type={type} isNew={!edit.id} busy={state.busy} onClose={()=>{if(canReplace()){setEdit(null);state.reset();}}}><section className="pw-editor">{edit.id && history.data?.some(row=>String(row.id)===edit.id&&JSON.stringify(row)!==JSON.stringify(edit.original))&&<p className="notice">קיימים נתונים עדכניים בהיסטוריה. <button className="text-button" disabled={state.busy} onClick={()=>open(history.data?.find(row=>String(row.id)===edit.id))}>טעינת הרשומה מחדש</button></p>}<div className="pw-section-heading"><h3>{type==='questionnaire'?'תשובות וציונים':edit.id?'עריכת הרשומה':'רשומה חדשה'}</h3><span>{edit.original?date(String(edit.original.created_at??edit.original.answered_date??'')):''}</span></div>
       {type==='questionnaire'&&!shared&&<label>שיוך למפגש{edit.id?<p>{target?date(sessions.data?.find(s=>String(s.id)===target)?.session_date):'ללא מפגש'}</p>:<select value={target} disabled={state.busy} onChange={e=>{setTarget(e.target.value);state.changed();}}><option value="">ללא מפגש</option>{sessions.data?.map(s=><option value={String(s.id)} key={s.id}>{date(s.session_date)}</option>)}</select>}</label>}
       <WorksheetEditor item={edit.item} shared onChange={item=>{setEdit({...edit,item});state.changed();}} disabled={!write||state.busy}/>
       {type==='questionnaire'&&!shared&&<details className="pw-private-notes"><summary>הערות פרטיות למטפל/ת — אינן מוצגות בחלון השיתוף</summary><QuestionnaireNotes value={notes} disabled={!write||state.busy} onChange={value=>{setNotes(value);state.changed();}}/></details>}
       <SaveFeedback state={state} onInspect={()=>{setShowHistory(true);void history.refetch();}}/>
       {type==='questionnaire'&&!shared&&notes!==undefined&&notes!==edit.original?.combined_notes?<ProcessingConsent><SaveButton state={state} valid={write&&isFormComplete(edit.item)} save={save}/></ProcessingConsent>:<SaveButton state={state} valid={write&&isFormComplete(edit.item)} save={save}/>}
       {!isFormComplete(edit.item)&&<p className="pw-hint">יש להשלים את השדות הנדרשים לפני השמירה.</p>}
-    </section>}</>;
+    </section></RecordEditorFrame>}</>;
+}
+function RecordEditorFrame({type,isNew,busy,onClose,children}:{type:WorksheetType;isNew:boolean;busy:boolean;onClose:()=>void;children:ReactNode}) {
+  return type==='questionnaire'?<EditorDialog title={isNew?'שאלון חדש':'עריכת שאלון'} closeLabel={isNew?'ביטול':'חזרה לשאלונים'} busy={busy} onClose={onClose}>{children}</EditorDialog>:<>{children}</>;
 }
 function RecordSummary({row,type}:{row:RecordRow;type:WorksheetType}) {
   const author=row.created_by==='patient'?'מולא על ידי המטופל/ת':'מולא על ידי המטפל/ת';
@@ -147,11 +165,12 @@ function PatientSessions({patient}:{patient:string}) {
   const history=useQuery({queryKey:[session!.user.id,'record-sessions',patient],queryFn:()=>api.sessions(patient)});
   const [draft,setDraft]=useState<{id:string|null;day:string;type:string;notes:string;original?:string}|null>(null),[baseline,setBaseline]=useState(''),[inspect,setInspect]=useState(false);
   const state=useSaveState(patient),dirty=!!draft&&JSON.stringify(draft)!==baseline;
-  function open(d:NonNullable<typeof draft>) {if(state.busy||(dirty&&!window.confirm('יש שינויים שלא נשמרו. לוותר עליהם?')))return;setDraft(d);setBaseline(JSON.stringify(d));state.reset();}
+  function open(d:NonNullable<typeof draft>) {if(state.busy||(dirty&&!window.confirm('יש שינויים שלא נשמרו. לוותר עליהם?')))return;setInspect(false);setDraft(d);setBaseline(JSON.stringify(d));state.reset();}
   async function save(){if(!draft)return;const snapshot=draft;await state.run(()=>savePatientSession(patient,snapshot.id,snapshot.day,snapshot.type,snapshot.notes,snapshot.original),row=>{const next={...snapshot,id:String(row.id),original:String(row.notes??'')};setDraft(next);setBaseline(JSON.stringify(next));});}
   return <><DirtyGuard dirty={dirty||state.busy} busy={state.busy}/><div className="pw-section-heading"><h2>מפגשים וסיכומים</h2><button disabled={!write||state.busy||state.uncertain} onClick={()=>open({id:null,day:today(),type:'',notes:''})}><Plus size={18}/>מפגש חדש</button></div>
-    {history.isPending?<Loading/>:history.isError?<ErrorBox error={history.error} retry={()=>void history.refetch()}/>:<ul className="pw-session-list pw-record-list" aria-label="רשימת מפגשים">{history.data.length===0&&<li className="pw-list-empty">אין עדיין מפגשים.</li>}{(!draft||inspect)&&history.data.map(s=><li key={s.id}><button className="pw-list-row pw-session-row" aria-current={draft?.id===String(s.id)?'true':undefined} disabled={state.busy} onClick={()=>open({id:String(s.id),day:s.session_date.slice(0,10),type:s.type??'',notes:s.notes??'',original:s.notes??''})}><span className="pw-record-date"><strong>{date(s.session_date)}</strong><small>{s.type==='core_belief_challenge'?copy.coreBeliefChallenge:(mobile as Record<string,unknown>)[`session_type_${s.type}`] as string??'מפגש'}</small></span><span className={`pw-record-preview ${s.notes?'':'pw-record-meta'}`}>{s.notes||'עדיין אין סיכום למפגש'}</span><span className="pw-record-action">פתיחת המפגש</span><ChevronLeft size={18} aria-hidden="true"/></button></li>)}</ul>}
+    {history.isPending?<Loading/>:history.isError?<ErrorBox error={history.error} retry={()=>void history.refetch()}/>:<ul className="pw-session-list pw-record-list" aria-label="רשימת מפגשים">{history.data.length===0&&<li className="pw-list-empty">אין עדיין מפגשים.</li>}{history.data.map(s=><li key={s.id}><button className="pw-list-row pw-session-row" aria-current={draft?.id===String(s.id)?'true':undefined} disabled={state.busy} onClick={()=>open({id:String(s.id),day:s.session_date.slice(0,10),type:s.type??'',notes:s.notes??'',original:s.notes??''})}><span className="pw-record-date"><strong>{date(s.session_date)}</strong><small>{s.type==='core_belief_challenge'?copy.coreBeliefChallenge:(mobile as Record<string,unknown>)[`session_type_${s.type}`] as string??'מפגש'}</small></span><span className={`pw-record-preview ${s.notes?'':'pw-record-meta'}`}>{s.notes||'עדיין אין סיכום למפגש'}</span><span className="pw-record-action">פתיחת המפגש</span><ChevronLeft size={18} aria-hidden="true"/></button></li>)}</ul>}
 
-    {draft&&<section className="pw-session-editor"><div className="form-row"><label>תאריך המפגש<input type="date" required value={draft.day} disabled={!write||state.busy} onChange={e=>{setDraft({...draft,day:e.target.value});state.changed();}}/></label><label>סוג המפגש<select disabled={!write||state.busy} value={draft.type} onChange={e=>{setDraft({...draft,type:e.target.value});state.changed();}}><option value="">ללא סוג</option><option value="core_belief_challenge">{copy.coreBeliefChallenge}</option>{Object.entries(mobile).filter(([key,v])=>key.startsWith('session_type_')&&!['session_type_label','session_type_none'].includes(key)&&typeof v==='string').map(([key,v])=><option key={key} value={key.replace('session_type_','')}>{v as string}</option>)}</select></label></div><label htmlFor="patient-session-summary">סיכום הפגישה<textarea id="patient-session-summary" aria-label="סיכום הפגישה" rows={12} maxLength={50000} value={draft.notes} disabled={!write||state.busy} onChange={e=>{setDraft({...draft,notes:e.target.value});state.changed();}}/></label><p className="pw-hint">הסיכום עובר הסרת פרטים מזהים לפני שמירה. שינוי הסיכום מחייב יצירה מחדש של הניתוח המובנה באפליקציה.</p><SaveFeedback state={state} onInspect={()=>{setInspect(true);void history.refetch();}}/><ProcessingConsent><SaveButton state={state} valid={write&&!!draft.day} save={save}/></ProcessingConsent><button className="text-button" disabled={state.busy} onClick={()=>setInspect(v=>!v)}>הצגת רשימת המפגשים</button></section>}
+    {draft&&inspect&&<button className="secondary" onClick={()=>setInspect(false)}>חזרה למפגש הפתוח</button>}
+    {draft&&!inspect&&<EditorDialog title={draft.id?'עריכת מפגש':'מפגש חדש'} closeLabel={draft.id?'חזרה למפגשים':'ביטול'} busy={state.busy} onClose={()=>{if(!state.busy&&(!dirty||window.confirm('יש שינויים שלא נשמרו. לוותר עליהם?'))){setDraft(null);state.reset();}}}><section className="pw-session-editor"><div className="form-row"><label>תאריך המפגש<input type="date" required value={draft.day} disabled={!write||state.busy} onChange={e=>{setDraft({...draft,day:e.target.value});state.changed();}}/></label><label>סוג המפגש<select disabled={!write||state.busy} value={draft.type} onChange={e=>{setDraft({...draft,type:e.target.value});state.changed();}}><option value="">ללא סוג</option><option value="core_belief_challenge">{copy.coreBeliefChallenge}</option>{Object.entries(mobile).filter(([key,v])=>key.startsWith('session_type_')&&!['session_type_label','session_type_none'].includes(key)&&typeof v==='string').map(([key,v])=><option key={key} value={key.replace('session_type_','')}>{v as string}</option>)}</select></label></div><label htmlFor="patient-session-summary">סיכום הפגישה<textarea id="patient-session-summary" aria-label="סיכום הפגישה" rows={8} maxLength={50000} value={draft.notes} disabled={!write||state.busy} onChange={e=>{setDraft({...draft,notes:e.target.value});state.changed();}}/></label><p className="pw-hint">הסיכום עובר הסרת פרטים מזהים לפני שמירה. שינוי הסיכום מחייב יצירה מחדש של הניתוח המובנה באפליקציה.</p><SaveFeedback state={state} onInspect={()=>{setInspect(true);void history.refetch();}}/><ProcessingConsent><SaveButton state={state} valid={write&&!!draft.day} save={save}/></ProcessingConsent></section></EditorDialog>}
   </>;
 }

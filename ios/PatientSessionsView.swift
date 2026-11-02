@@ -6,6 +6,7 @@ struct PatientSessionsView: View {
     let patient: Patient
     /// Applied once on appear when opened from Getting Started.
     var initialAction: SessionsInitialAction? = nil
+    var allowsNewSession = true
 
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
@@ -56,11 +57,6 @@ struct PatientSessionsView: View {
             .map { month, items in
                 (month: month, items: items.map { (index: $0.offset, session: $0.element) })
             }
-    }
-
-    /// This screen's group outlines, in the patient's identity color.
-    private func groupBorderedRow(_ position: GroupRowPosition) -> some View {
-        CBTipul.groupBorderedRow(position, accent: PatientAvatarColor.background(for: patient.id))
     }
 
     private var addSessionCTA: some View {
@@ -116,7 +112,8 @@ struct PatientSessionsView: View {
                                     SessionRow(
                                         number: sortedSessions.count - item.index,
                                         session: item.session,
-                                        scores: scorePreview(for: item.session, at: item.index)
+                                        scores: scorePreview(for: item.session, at: item.index),
+                                        accent: PatientAvatarColor.background(for: patient.id)
                                     )
                                     .tutorialPulse(
                                         gettingStartedRouter.shouldPulse(.latestSession)
@@ -125,27 +122,25 @@ struct PatientSessionsView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
-                            // A month's items carry consecutive global
-                            // indices, so the offset from the group's first
-                            // item is the row's place in its section.
-                            .listRowBackground(groupBorderedRow(.at(
-                                item.index - (group.items.first?.index ?? 0),
-                                of: group.items.count)))
-                            .listRowSeparatorTint(Theme.borderFaint)
+                            .listRowBackground(SessionListSurface(accent: PatientAvatarColor.background(for: patient.id)))
+                            .listRowInsets(EdgeInsets(top: 16, leading: 24, bottom: 16, trailing: 24))
+                            .listRowSeparator(.hidden)
                         }
                     }
                 }
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            addSessionCTA
+            if allowsNewSession { addSessionCTA }
         }
         .patientAtmosphere(PatientAvatarColor.background(for: patient.id))
         .themedScreen()
         .demoModeChrome()
         .navigationTitleWithSubtitle(L10n.sessionsTitle, subtitle: patient.displayName, patient: patient)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            if allowsNewSession { ToolbarItem(placement: .primaryAction) {
                 Button {
                     gettingStartedRouter.clearHighlightIfMatching(.addSession)
                     if EntitlementState.shared.allowMutation() { route = .new(Session()) }
@@ -153,7 +148,7 @@ struct PatientSessionsView: View {
                     Label(L10n.addSessionAction, systemImage: "plus")
                 }.entitlementCreateControl()
                 .tutorialPulse(shouldPulseAddSession, style: .toolbar)
-            }
+            } }
         }
         .sheet(item: $route, onDismiss: {
             // Sheet dismiss does not re-run onAppear — reclaim coach for this screen.
@@ -262,45 +257,49 @@ private struct SessionRow: View {
     let session: Session
     let scores: ScorePreview?
 
+    let accent: Color
+
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(spacing: 4) {
-                Image(systemName: "calendar")
-                    .font(.title3)
-                    .accessibilityHidden(true)
-                Text("\(number)")
-                    .font(.caption.weight(.bold))
-            }
-            .foregroundStyle(Theme.gold)
-            .frame(minWidth: 34)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 5) {
-                    Text(L10n.hebrewDate(session.date))
-                        .font(.headline)
+        HStack(alignment: .top, spacing: 12) {
+            SessionDateTile(date: session.date, accent: accent)
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 6) {
+                    Text(L10n.session(number))
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Theme.textBright)
                     if session.structuredNotes != nil {
                         Image(systemName: "doc.text")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textBody)
                             .accessibilityLabel(L10n.hasStructuredSummaryLabel)
                     }
                 }
                 if let type = session.type {
                     Text(L10n.label(for: type))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .foregroundStyle(Theme.textBody)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let scores {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) { scoreLabels(scores) }
+                        VStack(alignment: .leading, spacing: 6) { scoreLabels(scores) }
+                    }
                 }
             }
-            Spacer()
-            if let scores {
-                VStack(alignment: .trailing, spacing: 4) {
-                    ScoreCapsule.gad7(scores.questionnaire, previous: scores.previous)
-                    ScoreCapsule.phq9(scores.questionnaire, previous: scores.previous)
-                }
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.forward")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .padding(.top, 7)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 2)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder private func scoreLabels(_ scores: ScorePreview) -> some View {
+        ScoreCapsule.gad7(scores.questionnaire, previous: scores.previous)
+        ScoreCapsule.phq9(scores.questionnaire, previous: scores.previous)
     }
 }
 

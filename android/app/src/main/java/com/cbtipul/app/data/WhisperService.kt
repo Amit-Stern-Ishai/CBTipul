@@ -26,11 +26,11 @@ class WhisperService(
         val audioData = try {
             file.readBytes()
         } catch (error: Exception) {
-            throw WhisperException(error.message ?: error.toString(), readFailed = true)
+            throw SummaryFailure(SummaryFailure.Kind.Local)
         }
         return@measure try {
             val http = client.functions.invoke("whisper-transcribe") {
-                contentType(ContentType.parse("audio/m4a"))
+                contentType(ContentType.parse(if (file.extension == "aac") "audio/aac" else "audio/m4a"))
                 header("x-language", language)
                 setBody(audioData)
             }
@@ -40,7 +40,7 @@ class WhisperService(
         } catch (error: WhisperException) {
             throw error
         } catch (error: Exception) {
-            throw WhisperException(error.message ?: error.toString())
+            throw SummaryFailure.from(error)
         }
 
         }

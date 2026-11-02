@@ -155,7 +155,7 @@ struct PatientDetailView: View {
                     .padding(.horizontal, 10)
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
                     .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.borderDefault, lineWidth: 1) }
-                    .padding(.top, 10).padding(.bottom, 10)
+                    .padding(.top, Theme.isPaper ? 2 : 10).padding(.bottom, Theme.isPaper ? 2 : 10)
                 PatientRecentActivityView(patient: patient)
                 VStack(spacing: 8) {
                     sessionActions
@@ -214,7 +214,7 @@ struct PatientDetailView: View {
                         }
                     }.buttonStyle(.plain)
                 }
-                if let errorMessage { Text(errorMessage).font(.footnote).foregroundStyle(Theme.error) }
+                if let errorMessage { AIUsageNotice(message: errorMessage) }
             }
             .padding(.horizontal, 12).padding(.bottom, 16)
         }
@@ -249,7 +249,7 @@ struct PatientDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarColorScheme(Theme.isPaper ? .light : .dark, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
         .background(EnablesSwipeBack(isEnabled: !hasUnsavedChanges && !isSaving))
         .toolbar {
@@ -652,10 +652,10 @@ struct PatientDetailView: View {
                 .overlay { Circle().strokeBorder(.white.opacity(0.24), lineWidth: 1) }
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(patient.displayName).font(.system(size: patientNameSize, weight: .bold)).foregroundStyle(.white)
+                Text(patient.displayName).font(.system(size: patientNameSize, weight: .bold)).foregroundStyle(Theme.headerInk)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text(L10n.patientStatus(patient.status)).font(.caption).foregroundStyle(.white)
+                Text(L10n.patientStatus(patient.status)).font(.caption).foregroundStyle(Theme.headerInk)
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(.black.opacity(0.22), in: Capsule())
             }
@@ -674,9 +674,9 @@ struct PatientDetailView: View {
                         if !dynamicTypeSize.isAccessibilitySize {
                             Image(systemName: isGoalExpanded ? "chevron.up" : "chevron.down").font(.caption2)
                         }
-                    }.foregroundStyle(.white.opacity(0.85))
+                    }.foregroundStyle(Theme.headerInk.opacity(0.85))
                     Text(treatmentGoal.wrappedValue.isEmpty ? L10n.noTreatmentGoalPlaceholder : treatmentGoal.wrappedValue)
-                        .font(.subheadline.weight(.medium)).foregroundStyle(.white)
+                        .font(.subheadline.weight(.medium)).foregroundStyle(Theme.headerInk)
                         .lineLimit(isGoalExpanded || dynamicTypeSize.isAccessibilitySize ? nil : 2)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("patient.treatmentGoal")
@@ -690,15 +690,15 @@ struct PatientDetailView: View {
                 goalDraft = treatmentGoal.wrappedValue
                 isEditingGoal = true
             } label: { Image(systemName: "pencil").frame(width: 44, height: 44) }
-                .buttonStyle(.plain).foregroundStyle(.white)
+                .buttonStyle(.plain).foregroundStyle(Theme.headerInk)
                 .accessibilityLabel(L10n.editTreatmentGoalAction)
         }
         .padding(.leading, 10).padding(.vertical, 4)
         .background {
             RoundedRectangle(cornerRadius: 10).fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark).opacity(0.25)
+                .environment(\.colorScheme, Theme.isPaper ? .light : .dark).opacity(0.25)
         }
-        .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.22), lineWidth: 1) }
+        .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.headerLine, lineWidth: 1) }
     }
 
     private var latestRecordedSession: Session? {
@@ -780,15 +780,45 @@ struct PatientDetailView: View {
 
     private var diaryDirectory: some View {
         List {
-            NavigationLink(L10n.diaryOneTitle) { PatientDiaryOneView(patient: patient) }
+            Section {
+                NavigationLink { PatientDiaryOneView(patient: patient) } label: {
+                    diaryDirectoryLabel(L10n.diaryOneTitle)
+                }
                 .accessibilityIdentifier("patient.diaryOne")
-            NavigationLink(L10n.diaryTwoTitle) { PatientDiaryTwoView(patient: patient) }
+                NavigationLink { PatientDiaryTwoView(patient: patient) } label: {
+                    diaryDirectoryLabel(L10n.diaryTwoTitle)
+                }
                 .accessibilityIdentifier("patient.diaryTwo")
-            NavigationLink(L10n.diaryThreeTitle) { PatientDiaryThreeView(patient: patient) }
+                NavigationLink { PatientDiaryThreeView(patient: patient) } label: {
+                    diaryDirectoryLabel(L10n.diaryThreeTitle)
+                }
                 .accessibilityIdentifier("patient.diaryThree")
+            }
+            .listRowBackground(Theme.surface)
+            .listRowSeparatorTint(Theme.borderFaint)
         }
+        .listStyle(.insetGrouped)
         .themedScreen()
         .navigationTitle(L10n.patientDiariesTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.visible, for: .navigationBar)
+    }
+
+    private func diaryDirectoryLabel(_ title: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "book.closed")
+                .font(.title3)
+                .foregroundStyle(Theme.gold)
+                .frame(width: 40, height: 40)
+                .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.textBright)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(minHeight: 48)
+        .padding(.vertical, 4)
     }
 
     private var connectionStatusTitle: String {
@@ -1336,7 +1366,7 @@ struct PatientDetailView: View {
                     try await store.updatePatientNotes(patient)
                     initialNotes = patient.notes
                 } catch {
-                    errorMessage = error.localizedDescription
+                    errorMessage = error.userFacingMessage
                 }
                 isSaving = false
             } catch {
@@ -1455,7 +1485,7 @@ struct PatientDetailView: View {
                 try await store.deletePatient(patient)
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
             isSaving = false
         }
@@ -1625,6 +1655,10 @@ private struct PatientHeaderBackdrop: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
+                if Theme.isPaper {
+                    Theme.patientHomeHeader
+                    accent.opacity(0.08)
+                } else {
                 // A tinted native material lets the underlying surface show through.
                 // Keep the material dark for the white header labels in both appearances.
                 if reduceTransparency {
@@ -1657,6 +1691,7 @@ private struct PatientHeaderBackdrop: View {
                     }
                 }
                 LinearGradient(colors: [.clear, .black.opacity(0.09)], startPoint: .top, endPoint: .bottom)
+                }
             }
         }
         .accessibilityHidden(true)

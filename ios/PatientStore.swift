@@ -307,6 +307,7 @@ final class PatientStore {
     /// Local patientID → name store, populated whenever the patient list
     /// loads (Phase 1 of moving patient names off the backend).
     private let identityStore = PatientIdentityStore()
+    let nameSync: PatientNameSync
 
     /// Cache of each patient's saved questionnaires (newest first), keyed by
     /// the patient's database ID. Filled by `loadQuestionnaires` and kept in
@@ -321,15 +322,38 @@ final class PatientStore {
 
     /// `anonymizeText` overrides the anonymization call, for tests only;
     /// the app always uses `ClinicalTextAnonymizer` on the shared client.
+    private let persistPatientCache: Bool
+
     init(client: SupabaseClient,
+         persistPatientCache: Bool = true,
          anonymizeText: (@Sendable (String) async throws -> String)? = nil) {
         self.client = client
+        self.nameSync = PatientNameSync(client: client)
+        self.persistPatientCache = persistPatientCache
         let anonymizer = ClinicalTextAnonymizer(client: client)
         textGate = ClinicalTextGate(
             anonymize: anonymizeText ?? { try await anonymizer.anonymize($0) }
         )
-        identityStore.mirrorExistingNamesToAppGroup()
+        nameSync.changed = { [weak self] in self?.applySynchronizedNames() }
+        nameSync.readLegacy = { [weak self] id in self?.identityStore.name(for: .text(id)) }
     }
+
+    private func applySynchronizedNames() {
+        guard !isDemoMode else { return }
+        for patient in patients {
+            patient.localName = nameSync.displayed(patient.id.queryValue, legacy: identityStore.name(for: patient.id))
+            if let name = patient.localName { PatientNameResolver.setDisplayName(name, forPatientId: patient.id.queryValue) }
+        }
+    }
+
+    private func scheduleNameSync() {
+        guard !isDemoMode else { return }
+        nameSync.register(Dictionary(uniqueKeysWithValues: patients.map { ($0.id.queryValue, identityStore.name(for: $0.id)) }))
+        applySynchronizedNames()
+        Task { await nameSync.refresh(force: true) }
+    }
+
+    func clearSummaryProcessingCache() { textGate.resetForAccountChange() }
 
     var resetDemoContent: () -> Void = {}
 
@@ -567,6 +591,13 @@ final class PatientStore {
     /// Anonymizes text on behalf of a view flow (e.g. a fresh voice
     /// transcription) through the same gate every save uses, so the result
     /// can be shown in a field and saved afterwards without a second call.
+    /// Only restored from the authenticated account's protected recovery receipt.
+    func registerRecoveredAnonymizedSummary(original: String, anonymized: String) {
+        textGate.restorePrepared(original: original, anonymized: anonymized)
+    }
+
+    func summaryRequiresAnonymization(_ text: String) -> Bool { textGate.requiresProcessing(text) }
+
     func anonymizedText(_ text: String) async throws -> String {
         try await textGate.prepare(text) ?? ""
     }
@@ -662,6 +693,7 @@ final class PatientStore {
         if isDemoMode { return }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
+        let nameOwner = nameSync.account
         let patientRows: [PatientRow] = try await client.from("Patients")
             .select("id, active, notes, formulation")
             .execute()
@@ -673,7 +705,7 @@ final class PatientStore {
 
         // Entering sample mode while a real-clinic refresh is in flight must
         // not replace the sample records with the eventual network response.
-        guard !isDemoMode else { return }
+        guard !isDemoMode, nameOwner == nameSync.account else { return }
 
         var sessionRowsByPatient: [DatabaseID: [SessionRow]] = [:]
         for row in sessionRows {
@@ -717,13 +749,12 @@ final class PatientStore {
                 .sorted { $0.date < $1.date }
             return patient
         }
-        // Names are never loaded from the backend — the identity store is
-        // their only source.
+        // Readable server names arrive only through the separately consented sync coordinator.
         for patient in loadedPatients {
-            patient.localName = identityStore.name(for: patient.id)
+            patient.localName = nameSync.displayed(patient.id.queryValue, legacy: identityStore.name(for: patient.id))
         }
-        identityStore.mirrorExistingNamesToAppGroup()
         patients = loadedPatients
+        scheduleNameSync()
         AppLog.store.info("Patients loaded from server: \(patientRows.count), sessions: \(sessionRows.count)")
         saveCachedPatients()
     }
@@ -761,9 +792,8 @@ final class PatientStore {
                 }
             )
             patient.formulation = cachedPatient.formulation
-            // Cache loads only read names, never write them: the identity
-            // store is filled exclusively from fresh server data.
-            patient.localName = identityStore.name(for: patient.id)
+            // Cache loads only resolve names; migration waits for authoritative ownership.
+            patient.localName = nameSync.displayed(patient.id.queryValue, legacy: identityStore.name(for: patient.id))
             return patient
         }
         AppLog.store.info("Patients restored from disk cache: \(self.patients.count)")
@@ -772,7 +802,7 @@ final class PatientStore {
     /// Writes the current patient list to the cache file. Patient data is
     /// sensitive, so the file is written with complete file protection.
     private func saveCachedPatients() {
-        if isDemoMode { return }
+        if isDemoMode || !persistPatientCache { return }
         let snapshot = patients.map { patient in
             CachedPatient(
                 databaseID: patient.id,
@@ -872,6 +902,9 @@ final class PatientStore {
         }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
+        let enteredName = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+        guard PatientNameRules.valid(enteredName) else { throw NameSyncFailure(code: "invalid_name") }
+        let nameOwner = nameSync.account
         let record = NewPatientRecord(active: status == .active)
         let inserted: InsertedRow = try await client.from("Patients")
             .insert(record)
@@ -880,19 +913,21 @@ final class PatientStore {
             .execute()
             .value
 
+        guard nameOwner == nameSync.account, !isDemoMode else { return }
         let patient = Patient(id: inserted.id, firstName: firstName, lastName: lastName, status: status)
-        // The local store will eventually be the only place the name exists
-        // (it is being removed from the backend), so it must be written the
-        // moment the patient is created — before the name is read back.
-        identityStore.upsertIdentities(for: [patient])
-        patient.localName = identityStore.name(for: patient.id)
+        // Preserve the entered name locally before consent-gated synchronization.
+        // A failed name-cache write must never make creation appear to have failed after the ID exists.
+        try? identityStore.save(patientID: patient.id, name: enteredName)
+        nameSync.rememberCreated(patient.id.queryValue, name: enteredName)
+        patient.localName = nameSync.displayed(patient.id.queryValue, legacy: identityStore.name(for: patient.id))
         patients.append(patient)
+        scheduleNameSync()
         AppLog.store.info("Patient added: \(inserted.id.queryValue, privacy: .public)")
         saveCachedPatients()
     }
 
     /// Renames a patient. Demo names live in `DemoClinicStore`; real names
-    /// live in the Keychain identity store — never sent to the backend.
+    /// become durable account-scoped intents, uploaded only after current consent.
     func renamePatient(_ patient: Patient, firstName: String, lastName: String) throws {
         try EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id))
         let name = [firstName, lastName]
@@ -908,8 +943,10 @@ final class PatientStore {
             persistDemoClinic()
             return
         }
-        try identityStore.save(patientID: patient.id, name: name)
-        patient.localName = name
+        let exactName = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+        try nameSync.edit(patient.id.queryValue, name: exactName)
+        patient.localName = exactName
+        PatientNameResolver.setDisplayName(exactName, forPatientId: patient.id.queryValue)
     }
 
     /// Formatter for Postgres `date` columns (no time component).
@@ -922,7 +959,7 @@ final class PatientStore {
 
     /// Inserts the session into the `Sessions` table and, on success, attaches
     /// it to the patient with the database ID returned by Supabase.
-    func addSession(_ session: Session, for patient: Patient) async throws {
+    func addSession(_ session: Session, for patient: Patient, beforeInsert: (() throws -> Void)? = nil) async throws {
         try await EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id))
         if DemoData.isDemoID(patient.id) {
             textGate.markSafe(session.notes)
@@ -948,6 +985,7 @@ final class PatientStore {
             sessionType: session.type,
             structuredNotes: anonymizedAnalysis
         )
+        try beforeInsert?()
         let inserted: InsertedRow = try await client.from("Sessions")
             .insert(record)
             .select("id")
@@ -1042,7 +1080,7 @@ final class PatientStore {
     }
 
     /// Persists date and notes changes of an already-saved session.
-    func updateSession(_ session: Session) async throws {
+    func updateSession(_ session: Session, beforeUpdate: (() throws -> Void)? = nil) async throws {
         try await EntitlementState.shared.requireWrite(localDemo: isDemoMode || session.databaseID.map(DemoData.isDemoID) == true)
         if let id = session.databaseID, DemoData.isDemoID(id) {
             textGate.markSafe(session.notes)
@@ -1074,6 +1112,7 @@ final class PatientStore {
         )
         // Select the updated rows back: with row-level security a blocked
         // update "succeeds" with zero rows, which must not pass as saved.
+        try beforeUpdate?()
         let updated: [InsertedRow] = try await client.from("Sessions")
             .update(record)
             .eq("id", value: sessionID.queryValue)
@@ -1148,8 +1187,11 @@ final class PatientStore {
         }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
-        // Select the deleted rows back: with row-level security a blocked
-        // delete "succeeds" with zero rows, which must not pass as deleted.
+        let nameOwner = nameSync.account
+        nameSync.beginDeletion(patient.id.queryValue)
+        var deletionConfirmed = false
+        defer { if !deletionConfirmed && nameOwner == nameSync.account { nameSync.cancelDeletion(patient.id.queryValue) } }
+        // Select rows back to verify the deletion under RLS.
         let deleted: [InsertedRow] = try await client.from("Patients")
             .delete()
             .eq("id", value: patient.id.queryValue)
@@ -1161,6 +1203,9 @@ final class PatientStore {
             throw PatientStoreError.updateRejected
         }
 
+        guard nameOwner == nameSync.account else { return }
+        deletionConfirmed = true
+        nameSync.remove(patient.id.queryValue)
         questionnairesByPatient[patient.id] = nil
         try? identityStore.delete(patientID: patient.id)
         patients.removeAll { $0.id == patient.id }

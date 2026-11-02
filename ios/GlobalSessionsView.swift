@@ -126,6 +126,8 @@ struct GlobalSessionsView: View {
                 }
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .patientAtmosphere(Theme.gold)
         .themedScreen()
     }
@@ -139,10 +141,10 @@ struct GlobalSessionsView: View {
                 GlobalSessionRow(item: item, scores: scorePreview(for: item))
             }
             .buttonStyle(.plain)
-            .listRowBackground(groupBorderedRow(
-                .at(items.firstIndex(of: item) ?? 0, of: items.count),
-                accent: Theme.gold))
-            .listRowSeparatorTint(Theme.borderFaint)
+            .accessibilityIdentifier("sessions.entry")
+            .listRowBackground(SessionListSurface(accent: PatientAvatarColor.background(for: item.patient.id)))
+            .listRowInsets(EdgeInsets(top: 16, leading: 24, bottom: 16, trailing: 24))
+            .listRowSeparator(.hidden)
         }
     }
 
@@ -283,35 +285,38 @@ private struct GlobalSessionRow: View {
     let scores: ScorePreview?
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "calendar")
-                .font(.title3)
-                .foregroundStyle(Theme.gold)
-                .frame(width: 34, height: 34)
-                .background(Theme.goldGhost, in: Circle())
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .top, spacing: 12) {
+            SessionDateTile(date: item.session.date, accent: PatientAvatarColor.background(for: item.patient.id))
+            VStack(alignment: .leading, spacing: 7) {
                 Text(item.patient.displayName)
-                    .font(.headline)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Theme.textBright)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(sessionSummary)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Text(L10n.hebrewDate(item.session.date))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            if let scores {
-                VStack(alignment: .trailing, spacing: 4) {
-                    ScoreCapsule.gad7(scores.questionnaire, previous: scores.previous)
-                    ScoreCapsule.phq9(scores.questionnaire, previous: scores.previous)
+                    .foregroundStyle(Theme.textBody)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let scores {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) { scoreLabels(scores) }
+                        VStack(alignment: .leading, spacing: 6) { scoreLabels(scores) }
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.forward")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .padding(.top, 7)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder private func scoreLabels(_ scores: ScorePreview) -> some View {
+        ScoreCapsule.gad7(scores.questionnaire, previous: scores.previous)
+        ScoreCapsule.phq9(scores.questionnaire, previous: scores.previous)
     }
 
     private var sessionSummary: String {
@@ -319,5 +324,38 @@ private struct GlobalSessionRow: View {
             return "\(L10n.session(item.number)) · \(L10n.label(for: type))"
         }
         return L10n.session(item.number)
+    }
+}
+
+/// Shared visual language for the clinic directory and a patient's session history.
+struct SessionListSurface: View {
+    let accent: Color
+    var body: some View {
+        RoundedRectangle(cornerRadius: 14)
+            .fill(Theme.surface)
+            .overlay { RoundedRectangle(cornerRadius: 14).fill(accent.opacity(0.055)) }
+            .overlay { RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.30), lineWidth: 1) }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+    }
+}
+
+struct SessionDateTile: View {
+    let date: Date
+    let accent: Color
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(date.formatted(.dateTime.day().locale(Locale(identifier: "he_IL"))))
+                .font(.title2.weight(.bold)).monospacedDigit()
+            Text(date.formatted(.dateTime.weekday(.abbreviated).locale(Locale(identifier: "he_IL"))))
+                .font(.caption.weight(.medium))
+        }
+        .foregroundStyle(Theme.textBright)
+        .frame(minWidth: 48)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(accent.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L10n.hebrewDate(date))
     }
 }

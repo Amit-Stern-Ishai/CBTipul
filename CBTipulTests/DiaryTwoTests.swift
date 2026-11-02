@@ -67,9 +67,9 @@ struct DiaryTwoTests {
         #expect(created["automatic_thoughts"] as? [String] == entry.automaticThoughts)
         #expect(created["alternative_thoughts"] as? [String] == entry.alternativeThoughts)
         let update = DiaryTwoEntryClinicalUpdate(event: entry.event, automaticThoughts: entry.automaticThoughts,
-            feelings: entry.feelings, thinkingErrors: entry.thinkingErrors, alternativeThoughts: entry.alternativeThoughts, updatedAt: "2026-09-02T12:00:00Z")
+            feelings: entry.feelings, thinkingErrors: entry.thinkingErrors, alternativeThoughts: entry.alternativeThoughts)
         let edited = try JSONSerialization.jsonObject(with: JSONEncoder().encode(update)) as! [String: Any]
-        #expect(Set(edited.keys) == ["event", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts", "updated_at"])
+        #expect(Set(edited.keys) == ["event", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts"])
     }
     @Test func activationContractAndIdempotence() throws {
         #expect(PatientDiaryTwoActivation.functionName == "request-patient-diary-two")

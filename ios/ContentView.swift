@@ -48,7 +48,7 @@ struct MyApp: App {
         let appContext = AppContextService(client: auth.client)
         let webWorkspaces = WebWorkspaceStore(client: auth.client)
         _webWorkspaces = State(initialValue: webWorkspaces)
-        auth.onIdentityChanged = { appContext.clear(); webWorkspaces.clear() }
+        auth.onIdentityChanged = { appContext.clear(); webWorkspaces.clear(); store.clearSummaryProcessingCache() }
         webWorkspaces.refreshRecords = { patientID in
             var succeeded = true
             do { try await store.loadPatients() } catch { succeeded = false }
@@ -71,7 +71,16 @@ struct MyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppVersionGateView { ContentView() }
+            AppVersionGateView {
+                #if DEBUG
+                if ProcessInfo.processInfo.environment["CBTIPUL_NAME_SYNC_TESTS"] == "1" { Color.clear }
+                else if ProcessInfo.processInfo.arguments.contains("-PatientHomeDesignReview") { PatientModeView() }
+                else if SummaryRecoveryFixture.enabled { SummaryRecoveryFixture() }
+                else { ContentView() }
+                #else
+                ContentView()
+                #endif
+            }
                 .safeAreaInset(edge: .top, spacing: 0) { AccountActionNotices() }
                 .demoModeReminder()
                 .environment(auth)
@@ -180,6 +189,7 @@ struct ContentView: View {
             Text(entitlement.role == .patient ? L10n.entitlementPatientUnavailable : entitlement.isLocalDemo ? L10n.entitlementDemoOnlineUnavailable : L10n.entitlementReadOnlyExplanation)
         }
         .onChange(of: entitlementScenePhase) { _, phase in
+            if phase == .active && !store.isDemoMode { Task { await store.nameSync.refresh() } }
             if phase == .active && !invitationFlow.isActive && !AuthManager.isUITesting { Task { await appContext.refreshOnForeground() } }
         }
         .safeAreaInset(edge: .bottom) {
@@ -205,6 +215,7 @@ struct ContentView: View {
             AIDataSharingConsentStore.shared.setActiveUser(email: email)
         }
         .onChange(of: auth.currentUserId, initial: true) { _, userId in
+            store.nameSync.setAccount(auth.isAnonymous ? nil : userId)
             entitlement.setIdentity(userId)
             if AuthManager.isUITesting && userId != nil {
                 entitlement.apply(AppContext(version: 1, role: .therapist, activation: nil, patientId: nil, entitlement: AppEntitlement(access: .full)))
@@ -298,6 +309,14 @@ struct ContentView: View {
             )
         } else if isResolvingDisplayNameGate && !store.isDemoMode {
             Theme.base.ignoresSafeArea()
+        } else if !store.isDemoMode && !entitlement.isLocalDemo && (store.nameSync.account != auth.currentUserId?.lowercased() || store.nameSync.shouldGate(therapist: true, demo: false)) {
+            PatientNameSetupView(sync: store.nameSync, blocking: true, retry: {
+                if entitlement.role == nil { _ = try? await appContext.getCurrentAppContext() }
+                await store.nameSync.retryMigration()
+            }, logout: { store.nameSync.setAccount(nil); auth.signOut() })
+            .task(id: "\(auth.currentUserId ?? "")-\(String(describing: entitlement.role))") {
+                await store.nameSync.refresh(force: true)
+            }
         } else {
             TherapistRootView()
         }

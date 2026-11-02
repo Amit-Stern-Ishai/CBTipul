@@ -33,23 +33,23 @@ object DarkPalette {
 }
 
 object LightPalette {
-    val base = Color(0xFFF1F4F8)
+    val base = Color(0xFFFAF7F1)
     val surface = Color(0xFFFFFFFF)
-    val elevated = Color(0xFFE8EEF5)
-    val hover = Color(0xFFDCE6F1)
-    val surfaceWarm = Color(0xFFEBF2FA)
-    val borderFaint = Color(0xFFDFE5ED)
-    val borderDefault = Color(0xFFCAD5E2)
-    val borderStrong = Color(0xFF94A5BB)
-    val textBright = Color(0xFF182C46)
-    val textBody = Color(0xFF4B5E75)
-    val textFaint = Color(0xFF60718A)
-    val gold = Color(0xFF285A8C)
-    val goldVivid = Color(0xFF356DAB)
-    val goldDim = Color(0xFF1B446E)
-    val goldGhost = Color(0x1A285A8C)
-    val accentFill = Color(0xFF203E61)
-    val accentFillPressed = Color(0xFF172F4C)
+    val elevated = Color(0xFFEDE7F2)
+    val hover = Color(0xFFE3D8EC)
+    val surfaceWarm = Color(0xFFEDE7F2)
+    val borderFaint = Color(0xFFE4DCD2)
+    val borderDefault = Color(0xFFD6C9DE)
+    val borderStrong = Color(0xFF96849F)
+    val textBright = Color(0xFF352144)
+    val textBody = Color(0xFF665A6F)
+    val textFaint = Color(0xFF6C6073)
+    val gold = Color(0xFF5C4476)
+    val goldVivid = Color(0xFF6D508A)
+    val goldDim = Color(0xFF49325F)
+    val goldGhost = Color(0x1A5C4476)
+    val accentFill = Color(0xFF5C4476)
+    val accentFillPressed = Color(0xFF49325F)
     val textOnAccent = Color(0xFFFFFFFF)
     val success = Color(0xFF18724D)
     val warning = Color(0xFF946000)
@@ -59,7 +59,7 @@ object LightPalette {
     val negativeSoft = Color(0x1FBC3346)
     val neutral = Color(0xFF66768B)
     val neutralMedium = Color(0xFF718095)
-    val neutralSoft = Color(0xFFE8EEF5)
+    val neutralSoft = Color(0xFFEDE7F2)
     val critical = Color(0xFFBC3346)
     val criticalSoft = Color(0x2EBC3346)
 }
@@ -97,6 +97,8 @@ data class CbTipulColors(
     val critical: Color,
     val criticalSoft: Color,
 ) {
+    val isPaper get() = base == LightPalette.base
+    val headerInk get() = if (isPaper) textBright else Color.White
     val brandPrimary get() = accentFill
     val brandAccent get() = gold
     val prestige get() = gold
@@ -173,4 +175,14 @@ fun cbTipulColors(dark: Boolean): CbTipulColors {
         critical = p.critical,
         criticalSoft = p.criticalSoft,
     )
+}
+
+/** History stays ocean in dark mode and uses the approved paper palette in light mode. */
+object QuestionnaireHistoryColors {
+    fun background(paper: Boolean) = if (paper) Color(0xFFF3EEF6) else background
+    fun foreground(paper: Boolean) = if (paper) Color(0xFF352144) else foreground
+    fun bands(paper: Boolean) = if (paper) listOf(Color(0xFFE5DBED), Color(0xFFCFBCDE), Color(0xFFB99DCC)) else bands
+    val background = Color(0xFF213143)
+    val foreground = Color(0xFFF3F7FA)
+    val bands = listOf(Color(0xFF263F56), Color(0xFF355C78), Color(0xFF46728F))
 }

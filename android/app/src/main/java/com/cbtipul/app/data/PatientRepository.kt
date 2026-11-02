@@ -1,5 +1,7 @@
 package com.cbtipul.app.data
 
+import io.github.jan.supabase.postgrest.postgrest
+
 import com.cbtipul.app.model.AiException
 import com.cbtipul.app.model.CBTSessionAnalysis
 import com.cbtipul.app.model.ChatTurn
@@ -21,6 +23,7 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +49,8 @@ import java.util.UUID
 class PatientRepository(
     private val client: SupabaseClient,
     private val identityStore: PatientIdentityStore,
+    val nameSync: PatientNameSync,
+    private val nameScope: kotlinx.coroutines.CoroutineScope,
     private val cache: PatientCache,
     private val textGate: ClinicalTextGate,
     private val whisper: WhisperService,
@@ -63,6 +68,18 @@ class PatientRepository(
     private val _showcaseDataLoaded = MutableStateFlow(false)
     val showcaseDataLoaded: StateFlow<Boolean> = _showcaseDataLoaded.asStateFlow()
     private val cacheLock = Mutex()
+
+    init {
+        nameSync.changed = {
+            if (!_isDemoMode.value) _patients.update { list -> list.map { it.copy(localName = identityStore.name(it.id)) } }
+        }
+    }
+    private fun scheduleNameSync() {
+        if (_isDemoMode.value) return
+        nameSync.register(_patients.value.associate { it.id.queryValue to identityStore.legacyName(it.id) })
+        nameSync.changed?.invoke()
+        nameScope.launch { nameSync.refresh(true) }
+    }
 
     fun loadCachedPatients() {
         if (_isDemoMode.value) return
@@ -222,13 +239,14 @@ class PatientRepository(
     }
 
     private suspend fun loadPatientsLocked() {
+        val nameOwner = nameSync.account
         val patientRows = client.from("Patients")
             .select(Columns.raw("id, active, notes, formulation"))
             .decodeList<PatientRow>()
         val sessionRows = client.from("Sessions")
             .select(Columns.raw("id, patient_id, session_date, notes, type, structured_notes"))
             .decodeList<SessionRow>()
-        if (_isDemoMode.value) return
+        if (_isDemoMode.value || nameOwner != nameSync.account) return
 
         val sessionsByPatient = sessionRows.groupBy { it.patientId.queryValue }
         val existing = _patients.value
@@ -264,9 +282,9 @@ class PatientRepository(
             )
             patient.copy(localName = identityStore.name(patient.id))
         }
-        // Names are local-only. Cached first/last names may predate a rename;
-        // a server refresh must never write them back over the identity store.
+        // Pending edits and confirmed account-scoped names take precedence over legacy values.
         _patients.value = loaded.map { it.copy(localName = identityStore.name(it.id)) }
+        scheduleNameSync()
         persistCache()
     }
 
@@ -288,20 +306,26 @@ class PatientRepository(
             return
         }
         ensureConfigured()
+        val enteredName = listOf(firstName, lastName).filter { it.isNotEmpty() }.joinToString(" ")
+        if (!PatientNameRules.valid(enteredName)) throw NameSyncFailure("invalid_name")
+        val nameOwner = nameSync.account
         val inserted = client.from("Patients")
             .insert(NewPatientRecord(active = status == PatientStatus.Active)) {
                 select(Columns.raw("id"))
             }
             .decodeSingle<InsertedRow>()
+        if (nameOwner != nameSync.account || _isDemoMode.value) return
         val patient = Patient(
             id = inserted.id,
             firstName = firstName,
             lastName = lastName,
             status = status,
         )
-        identityStore.upsertIdentities(mapOf(patient.id to patient.backendName))
+        runCatching { identityStore.save(patient.id, enteredName) }
+        nameSync.rememberCreated(patient.id.queryValue, enteredName)
         val named = patient.copy(localName = identityStore.name(patient.id))
         _patients.update { it + named }
+        scheduleNameSync()
         persistCache()
     }
 
@@ -323,11 +347,12 @@ class PatientRepository(
             persistDemoClinic()
             return
         }
-        identityStore.save(patientId, name)
+        val exactName = listOf(firstName, lastName).filter { it.isNotEmpty() }.joinToString(" ")
+        nameSync.edit(patientId.queryValue, exactName)
         _patients.update { list ->
             list.map { patient ->
                 if (patient.id.queryValue == patientId.queryValue) {
-                    patient.copy(firstName = firstName, lastName = lastName, localName = name)
+                    patient.copy(firstName = firstName, lastName = lastName, localName = exactName)
                 } else {
                     patient
                 }
@@ -347,21 +372,29 @@ class PatientRepository(
             return
         }
         ensureConfigured()
+        val nameOwner = nameSync.account
+        nameSync.beginDeletion(patientId.queryValue)
+        var deletionConfirmed = false
+        try {
         cacheLock.withLock {
             val deleted = client.from("Patients").delete {
                 filter { eq("id", patientId.queryValue) }
                 select(Columns.raw("id"))
             }.decodeList<InsertedRow>()
             if (deleted.isEmpty()) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
+            if (nameOwner != nameSync.account) return@withLock
+            deletionConfirmed = true
+            nameSync.remove(patientId.queryValue)
             runCatching { identityStore.delete(patientId) }
             _patients.update { it.filterNot { patient -> patient.id.queryValue == patientId.queryValue } }
             _questionnaires.update { it - patientId.queryValue }
             cache.deletePreparation(patientId.queryValue)
             persistCache()
         }
+        } finally { if (!deletionConfirmed && nameOwner == nameSync.account) nameSync.cancelDeletion(patientId.queryValue) }
     }
 
-    suspend fun addSession(patientId: DatabaseId, session: Session) {
+    suspend fun addSession(patientId: DatabaseId, session: Session, preparedNotes: String? = null, beforeInsert: (String) -> Unit = {}) {
         Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
         if (DemoData.isDemoId(patientId) || _isDemoMode.value) {
             // Sample edits stay local, just like updateSession in sample mode.
@@ -383,8 +416,9 @@ class PatientRepository(
             return
         }
         ensureConfigured()
-        val notes = textGate.prepare(session.notes)
+        val notes = preparedNotes ?: textGate.prepare(session.notes)
         val analysis = anonymizedAnalysis(session.structuredNotes)
+        beforeInsert(notes.orEmpty())
         val inserted = client.from("Sessions")
             .insert(sessionWriteBody(session.date, notes, session.type, patientId, analysis)) {
                 select(Columns.raw("id"))
@@ -403,7 +437,7 @@ class PatientRepository(
         persistCache()
     }
 
-    suspend fun updateSession(session: Session) {
+    suspend fun updateSession(session: Session, preparedNotes: String? = null) {
         Entitlements.requireWrite(localDemo = _isDemoMode.value || session.databaseId?.let { DemoData.isDemoId(it) } == true)
         if (_isDemoMode.value || session.databaseId?.let { DemoData.isDemoId(it) } == true) {
             textGate.markSafe(session.notes)
@@ -432,7 +466,7 @@ class PatientRepository(
         ensureConfigured()
         val sessionId = session.databaseId
             ?: throw PatientStoreException(PatientStoreException.Kind.SessionNotSaved)
-        val notes = textGate.prepare(session.notes)
+        val notes = preparedNotes ?: textGate.prepare(session.notes)
         val analysis = anonymizedAnalysis(session.structuredNotes)
         val updated = client.from("Sessions")
             .update(sessionWriteBody(session.date, notes, session.type, analysis = analysis)) {
@@ -507,6 +541,13 @@ class PatientRepository(
             }
             persistCache()
         }
+    }
+
+    suspend fun summaryAllowance(): SummaryAllowance {
+        try {
+            return client.postgrest.rpc("get_my_ai_allowance").decodeAs<SummaryAllowance>().also { it.validate() }
+        } catch (error: kotlinx.coroutines.CancellationException) { throw error }
+        catch (_: Exception) { throw SummaryFailure(SummaryFailure.Kind.Lookup) }
     }
 
     suspend fun anonymizedText(text: String): String = textGate.prepare(text).orEmpty()

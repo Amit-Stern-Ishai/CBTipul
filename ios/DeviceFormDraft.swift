@@ -4,7 +4,14 @@ import SwiftUI
 
 /// Real drafts stay in this device's Keychain; demo drafts live only in memory.
 /// The account, form kind and target all participate in the key.
-struct DeviceDraftStorage {
+@MainActor
+protocol DraftPersistence {
+    func load<Value: Decodable>(_ type: Value.Type, key: String) throws -> Value?
+    func save<Value: Encodable>(_ value: Value, key: String) throws
+    func remove(key: String) throws
+}
+
+struct DeviceDraftStorage: DraftPersistence {
     var service = "CBTipul.device-form-drafts.v1"
     private static var demoGeneration = UUID().uuidString
     private static var demoDrafts: [String: Data] = [:]
@@ -113,13 +120,14 @@ struct DeviceDraftStorage {
 @Observable
 @MainActor
 final class DeviceFormDraft<Value: Codable> {
-    private let storage: DeviceDraftStorage
+    private let storage: any DraftPersistence
     private var key: String?
+    private var unreadKey: String?
     private(set) var hasLoaded = false
     private(set) var feedback: String?
     private(set) var hasError = false
 
-    init(storage: DeviceDraftStorage = DeviceDraftStorage()) { self.storage = storage }
+    init(storage: (any DraftPersistence)? = nil) { self.storage = storage ?? DeviceDraftStorage() }
 
     // No actor-bound teardown is needed. Avoid Swift 6.3's optimized generic
     // isolated-deinit crash when back-deploying to iOS 18 (swiftlang/swift#90625).
@@ -134,8 +142,10 @@ final class DeviceFormDraft<Value: Codable> {
         }
         do {
             let resolvedKey = try DeviceDraftStorage.key(userID: userID, kind: kind, target: target)
-            key = resolvedKey
+            unreadKey = resolvedKey
             let value = try storage.load(Value.self, key: resolvedKey)
+            key = resolvedKey
+            unreadKey = nil
             if value != nil { feedback = L10n.deviceDraftRestored }
             return value
         } catch {
@@ -146,6 +156,18 @@ final class DeviceFormDraft<Value: Codable> {
 
     @discardableResult
     func save(_ value: Value, isEmpty: Bool) -> Bool {
+        if key == nil, let unreadKey {
+            do {
+                // A failed initial read must never authorize overwriting an
+                // existing recovery record that the editor has not seen.
+                guard try storage.load(Value.self, key: unreadKey) == nil else {
+                    fail("קיימת טיוטה קודמת שלא שוחזרה. היא נשמרה ללא שינוי. יש לשחזר אותה בפתיחה מחדש לפני החלפתה; השינויים שעל המסך עדיין לא נשמרו.")
+                    return false
+                }
+                key = unreadKey
+                self.unreadKey = nil
+            } catch { fail(L10n.deviceDraftSaveFailed); return false }
+        }
         guard let key else { fail(L10n.deviceDraftSaveFailed); return false }
         do {
             if isEmpty { try storage.remove(key: key) }

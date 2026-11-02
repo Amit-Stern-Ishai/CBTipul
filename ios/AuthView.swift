@@ -17,6 +17,9 @@ struct AuthView: View {
 
     @Environment(AuthManager.self) private var auth
 
+    // A deliberate, transient choice; never infers or changes the server account role.
+    private enum EntryStage { case chooseRole, patientGuidance, therapist }
+    @State private var entryStage: EntryStage = .chooseRole
     @State private var mode: Mode = .signIn
     @State private var showingEmailForm = false
     @State private var email = ""
@@ -44,10 +47,11 @@ struct AuthView: View {
                 ScrollView {
                     VStack(spacing: 28) {
                         header
-                        if verificationEmail != nil {
-                            verificationCard
-                        } else {
-                            card
+                        switch entryStage {
+                        case .chooseRole: roleChoice
+                        case .patientGuidance: patientGuidance
+                        case .therapist:
+                            if verificationEmail != nil { verificationCard } else { card }
                         }
                     }
                     .padding(24)
@@ -61,23 +65,30 @@ struct AuthView: View {
             .contentShape(Rectangle())
             .dismissesKeyboardOnTap()
             .toolbar {
-                if showingEmailForm && verificationEmail == nil {
+                if entryStage != .chooseRole && verificationEmail == nil {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
-                            showingEmailForm = false
+                            if showingEmailForm {
+                                showingEmailForm = false
+                            } else {
+                                entryStage = .chooseRole
+                                password = ""
+                                confirmPassword = ""
+                            }
                             errorMessage = nil
                             infoMessage = nil
                         } label: {
-                            Label(L10n.authBackToMethods, systemImage: "chevron.backward")
+                            Label(showingEmailForm ? L10n.authBackToMethods : L10n.authChangeRole, systemImage: "chevron.backward")
                         }
                         .disabled(isWorking || auth.isProviderSignInInProgress)
+                        .accessibilityIdentifier("auth.entryBack")
                     }
                 }
             }
             .subtleAnimation(value: verificationEmail)
             .task {
                 // Hold Auth long enough for smoke to assert IDs, then inject demo.
-                guard AuthManager.isUITesting else { return }
+                guard AuthManager.isUITesting, !ProcessInfo.processInfo.arguments.contains("-UITestingAuthRole") else { return }
                 try? await Task.sleep(for: .seconds(3))
                 auth.enterUITestingSession()
             }
@@ -102,7 +113,11 @@ struct AuthView: View {
                 .font(.largeTitle.bold())
                 .foregroundStyle(Theme.textBright)
 
-            if verificationEmail == nil {
+            if entryStage == .therapist && verificationEmail == nil {
+                Text(L10n.authTherapistOnly)
+                    .font(.title3.bold())
+                    .foregroundStyle(Theme.textBright)
+                    .accessibilityIdentifier("auth.therapistOnly")
                 Text(mode == .signIn
                      ? L10n.authWelcomeSignIn
                      : L10n.authWelcomeSignUp)
@@ -110,6 +125,56 @@ struct AuthView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var roleChoice: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text(L10n.authRoleTitle).font(.title2.bold()).foregroundStyle(Theme.textBright)
+                .accessibilityAddTraits(.isHeader)
+            Text(L10n.authRoleExplanation).foregroundStyle(Theme.textBody)
+            roleButton(title: L10n.authRoleTherapist, detail: L10n.authRoleTherapistDetail,
+                       icon: "person.badge.key", identifier: "auth.role.therapist") { entryStage = .therapist }
+            roleButton(title: L10n.authRolePatient, detail: L10n.authRolePatientDetail,
+                       icon: "link", identifier: "auth.role.patient") { entryStage = .patientGuidance }
+        }
+        .frame(maxWidth: 520)
+    }
+
+    private func roleButton(title: String, detail: String, icon: String, identifier: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: icon).font(.title2).foregroundStyle(Theme.gold)
+                    .frame(width: 32).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(.title3.bold()).foregroundStyle(Theme.textBright)
+                    Text(detail).font(.subheadline).foregroundStyle(Theme.textBody)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.forward").foregroundStyle(Theme.textBody).accessibilityHidden(true)
+            }
+            .padding(18)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.gold.opacity(0.45), lineWidth: 1) }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+
+    private var patientGuidance: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Image(systemName: "link").font(.largeTitle).foregroundStyle(Theme.gold).accessibilityHidden(true)
+            Text(L10n.authPatientLinkTitle).font(.title2.bold()).foregroundStyle(Theme.textBright)
+                .accessibilityAddTraits(.isHeader)
+            Text(L10n.authPatientLinkBody).foregroundStyle(Theme.textBright)
+                .accessibilityIdentifier("auth.patient.instructions")
+            Divider()
+            Text(L10n.authPatientNoLink).font(.subheadline).foregroundStyle(Theme.textBody)
+        }
+        .frame(maxWidth: 520, alignment: .leading)
+        .padding(20)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
     }
 
     /// The post-sign-up "check your email" state: where the link was sent,
@@ -435,7 +500,7 @@ struct AuthView: View {
             do {
                 infoMessage = try await action()
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
         }
     }
@@ -586,7 +651,7 @@ struct NewPasswordView: View {
                 try await auth.updatePassword(password)
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
             isWorking = false
         }

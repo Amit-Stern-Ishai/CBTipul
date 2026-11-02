@@ -46,9 +46,9 @@ struct DiaryThreeTests {
         #expect(Set((json["feelings"] as! [[String: Any]])[0].keys) == ["name", "intensityBefore", "intensityAfter"])
         #expect(Set((json["alternative_thoughts"] as! [[String: Any]])[0].keys) == ["text", "belief"])
         #expect(json["thinking_errors"] as? [String] == ["mind_reading", "fortune_telling"])
-        let update = DiaryThreeEntryClinicalUpdate(situation: e.situation, automaticThoughts: e.automaticThoughts, feelings: e.feelings, thinkingErrors: e.thinkingErrors, alternativeThoughts: e.alternativeThoughts, updatedAt: "2026-09-02T12:00:00Z")
+        let update = DiaryThreeEntryClinicalUpdate(situation: e.situation, automaticThoughts: e.automaticThoughts, feelings: e.feelings, thinkingErrors: e.thinkingErrors, alternativeThoughts: e.alternativeThoughts)
         let edited = try JSONSerialization.jsonObject(with: JSONEncoder().encode(update)) as! [String: Any]
-        #expect(Set(edited.keys) == ["situation", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts", "updated_at"])
+        #expect(Set(edited.keys) == ["situation", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts"])
     }
     @Test func validatesAllFieldsBoundariesMissingRatingsAndDuplicates() throws {
         let valid = DiaryThreeEntryDraft.from(try entry())
@@ -175,13 +175,12 @@ struct DiaryThreeTests {
         #expect(cancellation.method == "PATCH" && cancellation.url.path == "/rest/v1/patient_assignments")
         #expect(Set((try JSONSerialization.jsonObject(with: cancellation.body) as! [String: Any]).keys) == ["cancelled_at"])
         let patientEntry = loaded[0]
+        DiaryThreeHTTPStub.reset(body: Data(raw.utf8))
+        let patientEdited = try await store.updateEntry(id: id, patientId: owner, situation: patientEntry.situation,
+            automaticThoughts: patientEntry.automaticThoughts, feelings: patientEntry.feelings,
+            thinkingErrors: patientEntry.thinkingErrors, alternativeThoughts: patientEntry.alternativeThoughts)
+        #expect(patientEdited.createdBy == .patient)
         DiaryThreeHTTPStub.reset(body: Data())
-        do {
-            _ = try await store.updateEntry(id: id, patientId: owner, situation: patientEntry.situation,
-                automaticThoughts: patientEntry.automaticThoughts, feelings: patientEntry.feelings,
-                thinkingErrors: patientEntry.thinkingErrors, alternativeThoughts: patientEntry.alternativeThoughts)
-            Issue.record("Patient submissions must remain read-only")
-        } catch PatientStoreError.updateRejected {}
         do {
             try await store.deleteEntry(id: id, patientId: owner)
             Issue.record("Patient submissions must not be deleted")
@@ -201,7 +200,7 @@ struct DiaryThreeTests {
         let update = try #require(DiaryThreeHTTPStub.recorded().first)
         #expect(DiaryThreeHTTPStub.recorded().count == 1)
         #expect(update.method == "PATCH" && update.url.path == "/rest/v1/diary_three_entries")
-        #expect(Set((try JSONSerialization.jsonObject(with: update.body) as! [String: Any]).keys) == ["situation", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts", "updated_at"])
+        #expect(Set((try JSONSerialization.jsonObject(with: update.body) as! [String: Any]).keys) == ["situation", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts"])
         DiaryThreeHTTPStub.reset(body: Data("[{\"id\":\"\(id)\"}]".utf8))
         try await store.deleteEntry(id: id, patientId: owner)
         #expect(store.entries(for: owner).isEmpty)

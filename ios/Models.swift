@@ -180,6 +180,7 @@ nonisolated enum SessionType: String, Codable, CaseIterable {
     case diaryTwo = "diary_two"
     case diaryThree = "diary_three"
     case caseFormulation = "case_formulation"
+    case coreBeliefChallenge = "core_belief_challenge"
     case behavioralInterventions = "behavioral_interventions"
     case relapsePreventionAndTermination = "relapse_prevention_and_termination"
 }

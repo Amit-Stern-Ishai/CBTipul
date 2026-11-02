@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-/// Patient Mode Diary 1 hub: history of patient-created entries, plus new entry.
+/// Patient Mode Diary 1 hub: history of all patient-linked entries, plus new entry.
 struct PatientDiaryOneHubView: View {
     var isActive: Bool
     var cachedEntries: [DiaryOneEntry] = []
@@ -58,7 +58,7 @@ struct PatientDiaryOneHubView: View {
                         } else {
                             ForEach(entries) { entry in
                                 NavigationLink {
-                                    PatientDiaryOneDetailView(entry: entry)
+                                    PatientDiaryOneDetailView(entry: entry, onUpdated: { await loadEntries() })
                                 } label: {
                                     patientHistoryRow(entry)
                                 }
@@ -146,15 +146,16 @@ struct PatientDiaryOneHubView: View {
     }
 }
 
-/// Read-only submitted Diary 1 entry in Patient Mode.
+/// Saved Diary 1 entry with authenticated in-place editing.
 struct PatientDiaryOneDetailView: View {
-    let entry: DiaryOneEntry
+    @State var entry: DiaryOneEntry
+    var onUpdated: () async -> Void = { }
     var therapistViewing = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                if therapistViewing { Label(L10n.patientSubmissionReadOnly, systemImage: "eye").font(.subheadline).foregroundStyle(Theme.textBody) }
+
                 Text(L10n.hebrewDateTime(entry.createdAt))
                     .font(.headline)
                     .foregroundStyle(Theme.textBright)
@@ -169,6 +170,14 @@ struct PatientDiaryOneDetailView: View {
         .themedScreen()
         .navigationTitle(L10n.diaryOneTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    PatientDiaryOneEntryView(existing: entry, onEdited: { entry = $0 },
+                        onSubmitted: onUpdated, onDiaryInactive: { })
+                } label: { Label(L10n.diaryEntryEdit, systemImage: "pencil") }
+            }
+        }
     }
 }
 
@@ -213,8 +222,10 @@ struct DiaryOneEntryContent: View {
     }
 }
 
-/// Patient Mode create-only Diary 1. No history, edit, or delete.
+/// Patient diary form: creation uses the submission function; editing updates the original row.
 struct PatientDiaryOneEntryView: View {
+    var existing: DiaryOneEntry? = nil
+    var onEdited: (DiaryOneEntry) -> Void = { _ in }
     var onSubmitted: () async -> Void
     var onDiaryInactive: () async -> Void
 
@@ -347,8 +358,9 @@ struct PatientDiaryOneEntryView: View {
         }
         .interactiveDismissDisabled(hasUnsavedChanges || isBusy || didSubmit)
         .onAppear {
-            guard let patientID = appContext.current?.patientId else { return }
-            if let saved = deviceDraft.restore(userID: auth.currentUserId, kind: "patient-diary", target: patientID.uuidString) {
+            guard !deviceDraft.hasLoaded, let patientID = appContext.current?.patientId else { return }
+            if let existing { draft = .from(existing); initialSnapshot = draft.comparableSnapshot }
+            if let saved = deviceDraft.restore(userID: auth.currentUserId, kind: "patient-diary", target: existing.map { patientID.uuidString + "-edit-" + $0.id.uuidString } ?? patientID.uuidString) {
                 draft = saved
             }
         }
@@ -406,6 +418,19 @@ struct PatientDiaryOneEntryView: View {
         errorMessage = nil
         let symptoms = draft.physicalSymptoms.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
+            if let existing {
+                guard existing.patientId.uuidValue == appContext.current?.patientId else { throw PatientStoreError.updateRejected }
+                let saved = try await DiaryOneStore(client: auth.client).updateEntry(
+                    id: existing.id, patientId: existing.patientId,
+                event: draft.event.trimmingCharacters(in: .whitespacesAndNewlines),
+                automaticThoughts: draft.persistedAutomaticThoughts,
+                feelings: feelings,
+                behaviour: draft.behaviour.trimmingCharacters(in: .whitespacesAndNewlines),
+                physicalSymptoms: symptoms.isEmpty ? nil : symptoms
+
+                )
+                onEdited(saved)
+            } else {
             try await PatientDiaryOneService(client: auth.client).submitEntry(
                 event: draft.event.trimmingCharacters(in: .whitespacesAndNewlines),
                 automaticThoughts: draft.persistedAutomaticThoughts,
@@ -413,6 +438,7 @@ struct PatientDiaryOneEntryView: View {
                 behaviour: draft.behaviour.trimmingCharacters(in: .whitespacesAndNewlines),
                 physicalSymptoms: symptoms.isEmpty ? nil : symptoms
             )
+            }
             await finishSuccessfully()
         } catch let PatientDiaryOneSubmitError.notActive(message) {
             isSaving = false
@@ -429,7 +455,7 @@ struct PatientDiaryOneEntryView: View {
             errorMessage = error.errorDescription ?? L10n.patientDiaryOneSubmitError
             isSaving = false
         } catch {
-            errorMessage = L10n.patientDiaryOneSubmitError
+            errorMessage = error.userFacingMessage(fallback: L10n.patientDiaryOneSubmitError)
             isSaving = false
         }
     }

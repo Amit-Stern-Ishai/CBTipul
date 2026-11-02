@@ -4,11 +4,16 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.WarningAmber
@@ -24,15 +29,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MarkEmailUnread
@@ -48,8 +54,14 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -93,52 +105,95 @@ fun AuthScreen(
     onCancelGoogleSignIn: () -> Unit,
 ) {
     DisposableEffect(Unit) { onDispose { onCancelGoogleSignIn() } }
+    // UI intent only. Never creates or changes the authenticated account role.
+    var entryStage by rememberSaveable { mutableStateOf("choose") }
+    val backToRoles = {
+        entryStage = "choose"
+        onPasswordChange("")
+        onConfirmPasswordChange("")
+    }
+    BackHandler(enabled = entryStage != "choose") {
+        if (!state.isWorking) backToRoles()
+    }
     val colors = Theme.colors
-    Box(Modifier.fillMaxSize()) {
-    Column(
-        modifier = Modifier
-            .themedScreen(colors.gold)
-            .dismissKeyboardOnTap()
-            .editorScroll()
-            .padding(24.dp)
-            .padding(top = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(28.dp),
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Image(
-                painter = painterResource(R.drawable.splash_icon),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(RoundedCornerShape(26.dp)),
-            )
-            Text(
-                text = stringResource(R.string.app_title),
-                color = colors.textBright,
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            if (state.verificationEmail == null) {
-                Text(
-                    text = stringResource(
-                        if (state.mode == AuthMode.SignIn) {
-                            R.string.auth_welcome_sign_in
-                        } else {
-                            R.string.auth_welcome_sign_up
-                        },
-                    ),
-                    color = colors.textBody,
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                )
+    Box(Modifier.themedScreen(colors.gold), contentAlignment = Alignment.TopCenter) {
+    if (entryStage == "choose") {
+        Layout(
+            modifier = Modifier.widthIn(max = 520.dp).fillMaxSize().editorScroll()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            content = {
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Image(painterResource(R.drawable.splash_icon), contentDescription = null,
+                    modifier = Modifier.size(88.dp).clip(RoundedCornerShape(26.dp)))
+                Text(stringResource(R.string.app_title), color = colors.textBright,
+                    style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(stringResource(R.string.auth_role_title), style = MaterialTheme.typography.headlineSmall,
+                    color = colors.textBright, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.auth_role_explanation), color = colors.textBody)
+                RoleChoice(R.string.auth_role_therapist, R.string.auth_role_therapist_detail, patient = false) { entryStage = "therapist" }
+                RoleChoice(R.string.auth_role_patient, R.string.auth_role_patient_detail, patient = true) { entryStage = "patient" }
+            }
+            },
+        ) { measurables, constraints ->
+            val childConstraints = constraints.copy(minHeight = 0)
+            val header = measurables[0].measure(childConstraints)
+            val choices = measurables[1].measure(childConstraints)
+            val gap = 32.dp.roundToPx()
+            val height = constraints.constrainHeight(header.height + gap + choices.height)
+            // Center the decision block in the entire safe viewport. The brand sits
+            // just above it; compact screens scroll without overlap or clipped text.
+            val choicesY = maxOf(header.height + gap, (height - choices.height) / 2)
+            layout(constraints.maxWidth, height) {
+                header.placeRelative(0, choicesY - gap - header.height)
+                choices.placeRelative(0, choicesY)
             }
         }
-
-        if (state.verificationEmail != null) {
+    } else {
+    Column(
+        modifier = Modifier
+            .widthIn(max = 520.dp)
+            .fillMaxSize()
+            .dismissKeyboardOnTap()
+            .editorScroll()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        AuthBrandHeader()
+        if (entryStage != "choose") {
+            TextButton(onClick = backToRoles, enabled = !state.isWorking,
+                modifier = Modifier.align(Alignment.Start)) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp))
+                Text(stringResource(R.string.auth_change_role))
+            }
+        }
+        if (entryStage == "therapist" && state.verificationEmail == null) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.auth_therapist_only), color = colors.textBright,
+                    style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(if (state.mode == AuthMode.SignIn) R.string.auth_welcome_sign_in
+                    else R.string.auth_welcome_sign_up), color = colors.textBody,
+                    style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        if (entryStage == "patient") {
+            Column(Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(16.dp)).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                Icon(Icons.Outlined.Link, contentDescription = null, tint = colors.gold, modifier = Modifier.size(32.dp))
+                Text(stringResource(R.string.auth_patient_link_title), style = MaterialTheme.typography.headlineSmall,
+                    color = colors.textBright, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.auth_patient_link_body), color = colors.textBright)
+                HorizontalDivider()
+                Text(stringResource(R.string.auth_patient_no_link), color = colors.textBody)
+            }
+        } else if (state.verificationEmail != null) {
             VerificationCard(
                 state = state,
                 onResend = onResend,
@@ -159,10 +214,45 @@ fun AuthScreen(
             )
         }
     }
+    }
         BusyOverlay(state.isWorking)
     }
 }
 
+@Composable
+private fun AuthBrandHeader() {
+    val colors = Theme.colors
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Image(painterResource(R.drawable.splash_icon), contentDescription = null,
+                modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)))
+            Text(stringResource(R.string.app_title), color = colors.textBright,
+                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f))
+        }
+ }
+
+@Composable
+private fun RoleChoice(title: Int, detail: Int, patient: Boolean, onClick: () -> Unit) {
+    val colors = Theme.colors
+    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
+        shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, colors.gold.copy(alpha = .45f)),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = colors.surface, contentColor = colors.textBright),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (patient) Icons.Outlined.Link else Icons.Outlined.Person, contentDescription = null,
+                tint = colors.gold, modifier = Modifier.size(28.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(detail), style = MaterialTheme.typography.bodyMedium, color = colors.textBody)
+            }
+            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null,
+                tint = colors.textBody, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun AuthCard(
     state: AuthUiState,
@@ -190,11 +280,11 @@ private fun AuthCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(colors.surface)
-            .border(1.dp, colors.gold.copy(alpha = 0.35f), RoundedCornerShape(28.dp))
+            .border(1.dp, colors.borderDefault, RoundedCornerShape(16.dp))
             .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (showingEmailForm) 12.dp else 16.dp),
     ) {
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             AuthMode.entries.forEachIndexed { index, mode ->
@@ -202,9 +292,10 @@ private fun AuthCard(
                     selected = state.mode == mode,
                     enabled = !state.isWorking,
                     onClick = { onModeChange(mode) },
-                    shape = SegmentedButtonDefaults.itemShape(index, AuthMode.entries.size),
+                    shape = SegmentedButtonDefaults.itemShape(index, AuthMode.entries.size, RoundedCornerShape(12.dp)),
+                    icon = {},
                     colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = colors.gold,
+                        activeContainerColor = colors.accentFill,
                         activeContentColor = colors.textOnAccent,
                         inactiveContainerColor = colors.elevated,
                         inactiveContentColor = colors.textBright,
@@ -232,7 +323,7 @@ private fun AuthCard(
             Button(
                 onClick = { showingEmailForm = true },
                 enabled = !state.isWorking,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.accentFill,
                     contentColor = colors.textOnAccent,
@@ -248,7 +339,7 @@ private fun AuthCard(
             OutlinedButton(
                 onClick = onGoogleSignIn,
                 enabled = !state.isWorking,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color(0xFF747775)),
                 colors = ButtonDefaults.outlinedButtonColors(
@@ -270,7 +361,7 @@ private fun AuthCard(
             androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = onAppleSignIn, enabled = !state.isWorking,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     shape = RoundedCornerShape(12.dp),
                     border = null,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = maxWidth * 0.08f, vertical = 0.dp),
@@ -304,19 +395,16 @@ private fun AuthCard(
                 color = colors.textBody, fontSize = 12.sp)
 
         } else {
-            TextButton(
-                onClick = { showingEmailForm = false },
-                enabled = !state.isWorking,
-            ) {
-                IconLabel(stringResource(R.string.auth_back_to_methods),
-                    Icons.AutoMirrored.Outlined.ArrowBack, color = colors.gold)
-            }
+            Text(stringResource(if (state.mode == AuthMode.SignIn) R.string.auth_email_sign_in
+                else R.string.auth_email_sign_up), color = colors.textBright,
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             AuthField(
                 value = state.email,
                 onValueChange = onEmailChange,
                 placeholder = stringResource(R.string.email_placeholder),
                 leading = { Icon(Icons.Outlined.Email, contentDescription = null, tint = colors.textBody) },
                 keyboardType = KeyboardType.Email,
+                enabled = !state.isWorking,
             )
             AuthField(
                 value = state.password,
@@ -324,6 +412,9 @@ private fun AuthCard(
                 placeholder = stringResource(R.string.password_placeholder),
                 leading = { Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textBody) },
                 isPassword = true,
+                enabled = !state.isWorking,
+                imeAction = if (state.mode == AuthMode.SignIn) ImeAction.Done else ImeAction.Next,
+                onDone = { if (canSubmit) onSubmit() },
             )
             if (state.mode == AuthMode.SignUp) {
                 AuthField(
@@ -332,8 +423,11 @@ private fun AuthCard(
                     placeholder = stringResource(R.string.confirm_password_placeholder),
                     leading = { Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textBody) },
                     isPassword = true,
+                    enabled = !state.isWorking,
+                    imeAction = ImeAction.Done,
+                    onDone = { if (canSubmit) onSubmit() },
                 )
-                PasswordRulesChecklist(password = state.password)
+                PasswordRulesChecklist(password = state.password, neutralUnmet = true)
                 if (state.confirmPassword.isNotEmpty() &&
                     state.confirmPassword.length >= state.password.length &&
                     state.password != state.confirmPassword
@@ -345,11 +439,12 @@ private fun AuthCard(
             Button(
                 onClick = onSubmit,
                 enabled = canSubmit,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.accentFill,
                     contentColor = colors.textOnAccent,
-                    disabledContainerColor = colors.goldDim,
+                    disabledContainerColor = colors.elevated,
+                    disabledContentColor = colors.textBody,
                 ),
                 shape = RoundedCornerShape(14.dp),
             ) {
@@ -365,9 +460,17 @@ private fun AuthCard(
                 }
             }
 
-            if (state.mode == AuthMode.SignIn) {
-                TextButton(onClick = onForgotPassword, enabled = !state.isWorking, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                    Text(stringResource(R.string.forgot_password_action), color = colors.gold)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                if (state.mode == AuthMode.SignIn) {
+                    TextButton(onClick = onForgotPassword, enabled = !state.isWorking) {
+                        Text(stringResource(R.string.forgot_password_action), color = colors.gold)
+                    }
+                }
+                TextButton(onClick = { showingEmailForm = false }, enabled = !state.isWorking) {
+                    Text(stringResource(R.string.auth_other_methods), color = colors.gold)
                 }
             }
         }
@@ -384,9 +487,9 @@ private fun VerificationCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(colors.surface)
-            .border(1.dp, colors.gold.copy(alpha = 0.35f), RoundedCornerShape(28.dp))
+            .border(1.dp, colors.borderDefault, RoundedCornerShape(16.dp))
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -411,7 +514,7 @@ private fun VerificationCard(
         Button(
             onClick = onResend,
             enabled = !state.isWorking && !state.isResendBlocked,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),
             shape = RoundedCornerShape(14.dp),
         ) {
@@ -435,17 +538,23 @@ private fun AuthField(
     leading: @Composable () -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text,
     isPassword: Boolean = false,
+    enabled: Boolean = true,
+    imeAction: ImeAction = ImeAction.Next,
+    onDone: () -> Unit = {},
 ) {
     val colors = Theme.colors
     var passwordVisible by remember { mutableStateOf(false) }
-    TextField(
+    val focusManager = LocalFocusManager.current
+    OutlinedTextField(
         value = value,
+        enabled = enabled,
+        label = { Text(placeholder) },
+        textStyle = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr),
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = colors.textFaint) },
         leadingIcon = leading,
         trailingIcon = if (isPassword) {
             {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = enabled) {
                     Icon(
                         imageVector = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                         contentDescription = stringResource(
@@ -463,25 +572,30 @@ private fun AuthField(
             isPassword && !passwordVisible -> PasswordVisualTransformation()
             else -> VisualTransformation.None
         },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        modifier = Modifier.editorFocus()
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .border(1.dp, colors.gold.copy(alpha = 0.35f), RoundedCornerShape(14.dp)),
-        colors = TextFieldDefaults.colors(
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (isPassword) KeyboardType.Password else keyboardType,
+            autoCorrectEnabled = false, imeAction = imeAction),
+        keyboardActions = KeyboardActions(
+            onNext = { focusManager.moveFocus(FocusDirection.Next) },
+            onDone = { onDone() }),
+        modifier = Modifier.editorFocus().fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = colors.elevated,
             unfocusedContainerColor = colors.elevated,
             focusedTextColor = colors.textBright,
             unfocusedTextColor = colors.textBright,
             cursorColor = colors.gold,
-            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            focusedBorderColor = colors.gold,
+            unfocusedBorderColor = colors.borderStrong,
+            focusedLabelColor = colors.gold,
+            unfocusedLabelColor = colors.textBody,
         ),
     )
 }
 
 @Composable
-fun PasswordRulesChecklist(password: String) {
+fun PasswordRulesChecklist(password: String, neutralUnmet: Boolean = false) {
     val colors = Theme.colors
     Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
         PasswordRule.entries.forEach { rule ->
@@ -496,8 +610,8 @@ fun PasswordRulesChecklist(password: String) {
                 },
             )
             IconLabel(
-                text = title, icon = if (met) Icons.Filled.CheckCircle else Icons.Outlined.Cancel,
-                color = if (met) colors.success else colors.error,
+                text = title, icon = if (met) Icons.Filled.CheckCircle else if (neutralUnmet) Icons.Outlined.RadioButtonUnchecked else Icons.Outlined.Cancel,
+                color = if (met) colors.success else if (neutralUnmet) colors.textBody else colors.error,
                 fontSize = 13.sp,
             )
         }

@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-/// Patient Mode Diary 3 hub: history of patient-created entries, plus new entry.
+/// Patient Mode Diary 3 hub: history of all patient-linked entries, plus new entry.
 struct PatientDiaryThreeHubView: View {
     var isActive: Bool
     var cachedEntries: [DiaryThreeEntry] = []
@@ -69,7 +69,7 @@ struct PatientDiaryThreeHubView: View {
                         } else {
                             ForEach(entries) { entry in
                                 NavigationLink {
-                                    PatientDiaryThreeDetailView(entry: entry)
+                                    PatientDiaryThreeDetailView(entry: entry, onUpdated: { await loadEntries() })
                                 } label: {
                                     patientHistoryRow(entry)
                                 }
@@ -170,9 +170,10 @@ struct PatientDiaryThreeHubView: View {
     }
 }
 
-/// Read-only submitted Diary 3 entry in Patient Mode.
+/// Saved Diary 3 entry with authenticated in-place editing.
 struct PatientDiaryThreeDetailView: View {
-    let entry: DiaryThreeEntry
+    @State var entry: DiaryThreeEntry
+    var onUpdated: () async -> Void = { }
 
     var body: some View {
         ScrollView {
@@ -190,6 +191,14 @@ struct PatientDiaryThreeDetailView: View {
         .themedScreen()
         .navigationTitle(L10n.diaryThreeTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    PatientDiaryThreeEntryView(existing: entry, onEdited: { entry = $0 },
+                        onSubmitted: onUpdated, onDiaryInactive: { })
+                } label: { Label(L10n.diaryEntryEdit, systemImage: "pencil") }
+            }
+        }
     }
 
 }

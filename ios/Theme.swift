@@ -3,11 +3,21 @@ import SwiftUI
 /// The app's design system, resolved per the appearance setting:
 ///
 /// - **Dark** (default): Navy-Midnight surfaces with a single gold accent.
-/// - **Light**: crisp white surfaces, navy actions and blue accents.
+/// - **Light**: approved B notebook direction: paper, lilac, plum ink and actions.
 ///
 /// Semantic colors are used full-opacity for icons/text with soft tints for
 /// fills, never through color alone.
 enum Theme {
+    static var isPaper: Bool { storedAppearance == .light }
+    static let historyBase = dynamic(dark: 0x213143, light: UIColor(hex: 0xF3EEF6))
+    static let historyInk = dynamic(dark: 0xF3F7FA, light: UIColor(hex: 0x352144))
+    static let historyLow = dynamic(dark: 0x263F56, light: UIColor(hex: 0xE5DBED))
+    static let historyMedium = dynamic(dark: 0x355C78, light: UIColor(hex: 0xCFBCDE))
+    static let historyHigh = dynamic(dark: 0x46728F, light: UIColor(hex: 0xB99DCC))
+    static let patientHomeHeader = dynamic(dark: 0x203C50, light: UIColor(hex: 0xEDE7F2))
+    static let headerInk = dynamic(dark: 0xFFFFFF, light: UIColor(hex: 0x352144))
+    static let headerLine = dynamic(dark: 0xFFFFFF, darkAlpha: 0.22, light: UIColor(hex: 0xB9A6C7))
+
 
     // MARK: - Background stack
     // Navy family in dark, cool neutral surfaces in light.
@@ -15,7 +25,7 @@ enum Theme {
     /// Page / screen background.
     static let base = dynamic(
         dark: 0x0C1420,
-        light: UIColor(hex: 0xF1F4F8)
+        light: UIColor(hex: 0xFAF7F1)
     )
 
     /// Cards, sheets, side panels.
@@ -27,19 +37,19 @@ enum Theme {
     /// Inputs, modals, secondary grouped areas.
     static let elevated = dynamic(
         dark: 0x202E40,
-        light: UIColor(hex: 0xE8EEF5)
+        light: UIColor(hex: 0xEDE7F2)
     )
 
     /// Row hover / selected states.
     static let hover = dynamic(
         dark: 0x29394D,
-        light: UIColor(hex: 0xDCE6F1)
+        light: UIColor(hex: 0xE3D8EC)
     )
 
     /// Featured / highlighted cards.
     static let surfaceWarm = dynamic(
         dark: 0x29394D,
-        light: UIColor(hex: 0xEBF2FA)
+        light: UIColor(hex: 0xEDE7F2)
     )
 
 
@@ -48,17 +58,17 @@ enum Theme {
 
     static let borderFaint = dynamic(
         dark: 0x2C394B,
-        light: UIColor(hex: 0xDFE5ED)
+        light: UIColor(hex: 0xE4DCD2)
     )
 
     static let borderDefault = dynamic(
         dark: 0x3B4B60,
-        light: UIColor(hex: 0xCAD5E2)
+        light: UIColor(hex: 0xD6C9DE)
     )
 
     static let borderStrong = dynamic(
         dark: 0x60738C,
-        light: UIColor(hex: 0x94A5BB)
+        light: UIColor(hex: 0x96849F)
     )
 
 
@@ -70,7 +80,7 @@ enum Theme {
     /// Secondary text and captions.
     static let textBody = dynamic(
         dark: 0xB4C0D0,
-        light: UIColor(hex: 0x4B5E75)
+        light: UIColor(hex: 0x665A6F)
     )
 
     /// Tertiary text, placeholder and disabled states.
@@ -84,38 +94,38 @@ enum Theme {
     /// Active labels, tinted icons and links.
     static let gold = dynamic(
         dark: 0xE2BB76,
-        light: UIColor(hex: 0x285A8C)
+        light: UIColor(hex: 0x5C4476)
     )
 
     /// Hover / focus state on accent elements.
     static let goldVivid = dynamic(
         dark: 0xF1D29A,
-        light: UIColor(hex: 0x356DAB)
+        light: UIColor(hex: 0x6D508A)
     )
 
     /// Pressed state of accent elements.
     static let goldDim = dynamic(
         dark: 0xC49C58,
-        light: UIColor(hex: 0x1B446E)
+        light: UIColor(hex: 0x49325F)
     )
 
     /// Soft accent fills: secondary buttons, pills and highlighted icon chips.
     static let goldGhost = dynamic(
         dark: 0xE2BB76,
         darkAlpha: 0.12,
-        light: UIColor(hex: 0x285A8C).withAlphaComponent(0.10)
+        light: UIColor(hex: 0x5C4476).withAlphaComponent(0.10)
     )
 
     /// Solid brand fills: primary buttons, avatars and selected fills.
     static let accentFill = dynamic(
         dark: 0xE2BB76,
-        light: UIColor(hex: 0x203E61)
+        light: UIColor(hex: 0x5C4476)
     )
 
     /// Pressed state of `accentFill`.
     static let accentFillPressed = dynamic(
         dark: 0xC49C58,
-        light: UIColor(hex: 0x172F4C)
+        light: UIColor(hex: 0x49325F)
     )
 
     /// Text and icons sitting on `accentFill`.
@@ -130,13 +140,13 @@ enum Theme {
     /// Accent used sparingly for emphasis and AI-insight markers.
     static let prestige = dynamic(
         dark: 0xE2BB76,
-        light: UIColor(hex: 0x285A8C)
+        light: UIColor(hex: 0x5C4476)
     )
 
     static let prestigeGhost = dynamic(
         dark: 0xE2BB76,
         darkAlpha: 0.12,
-        light: UIColor(hex: 0x285A8C).withAlphaComponent(0.10)
+        light: UIColor(hex: 0x5C4476).withAlphaComponent(0.10)
     )
 
 
@@ -150,7 +160,7 @@ enum Theme {
     /// Pressed / secondary brand states.
     static let brandSecondary = dynamic(
         dark: 0xF1D29A,
-        light: UIColor(hex: 0x285A8C)
+        light: UIColor(hex: 0x5C4476)
     )
 
     /// Main interactive accent.
@@ -159,7 +169,7 @@ enum Theme {
     /// Subtle highlighted backgrounds and secondary buttons.
     static let brandAccentSoft = dynamic(
         dark: 0x29394D,
-        light: .systemFill
+        light: UIColor(hex: 0xEDE7F2)
     )
 
     /// Sparing emphasis.
@@ -168,7 +178,7 @@ enum Theme {
     /// Soft brand tint for selected / branded fills.
     static let brandSoft = dynamic(
         dark: 0x29394D,
-        light: .systemFill
+        light: UIColor(hex: 0xEDE7F2)
     )
 
 
@@ -280,18 +290,18 @@ enum Theme {
     /// No meaningful change, unavailable comparison or plain information.
     static let neutral = dynamic(
         dark: 0xA7A7BE,
-        light: .systemGray
+        light: UIColor(hex: 0x665A6F)
     )
 
     static let neutralMedium = dynamic(
         dark: 0x77778F,
-        light: .systemGray2
+        light: UIColor(hex: 0x6C6073)
     )
 
     static let neutralSoft = dynamic(
         dark: 0xA7A7BE,
         darkAlpha: 0.10,
-        light: .tertiarySystemFill
+        light: UIColor(hex: 0xEDE7F2)
     )
 
 
@@ -320,17 +330,17 @@ enum Theme {
 
     static let uiTextBright = dynamicUIColor(
         dark: 0xF3F5F8,
-        light: UIColor(hex: 0x182C46)
+        light: UIColor(hex: 0x352144)
     )
 
     static let uiTextFaint = dynamicUIColor(
         dark: 0x8999AE,
-        light: UIColor(hex: 0x60718A)
+        light: UIColor(hex: 0x6C6073)
     )
 
     static let uiAccentFill = dynamicUIColor(
         dark: 0xE2BB76,
-        light: UIColor(hex: 0x203E61)
+        light: UIColor(hex: 0x5C4476)
     )
 
     static let uiTextOnAccent = dynamicUIColor(
@@ -340,7 +350,7 @@ enum Theme {
 
     static let uiElevated = dynamicUIColor(
         dark: 0x202E40,
-        light: UIColor(hex: 0xE8EEF5)
+        light: UIColor(hex: 0xEDE7F2)
     )
 
 
@@ -456,10 +466,12 @@ extension View {
     func themedScreen() -> some View {
         scrollContentBackground(.hidden)
             .background(Theme.base.ignoresSafeArea())
+            .tint(Theme.gold)
+            .toolbarBackground(Theme.patientHomeHeader, for: .navigationBar)
     }
 
     /// Shared card surface; neutral outlines keep content and actions prominent.
-    func themedCard(cornerRadius: CGFloat = 20, accent: Color = Theme.gold) -> some View {
+    func themedCard(cornerRadius: CGFloat = 14, accent: Color = Theme.gold) -> some View {
         background(
             Theme.surface,
             in: RoundedRectangle(cornerRadius: cornerRadius)

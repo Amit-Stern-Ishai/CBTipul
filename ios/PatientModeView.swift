@@ -53,6 +53,29 @@ struct PatientModeView: View {
     @State private var isShowingDiaryTwoEntry = false
     @State private var didSubmitDiaryTwo = false
 
+    private var designReview: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-PatientHomeDesignReview")
+        #else
+        return false
+        #endif
+    }
+
+    init() {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-PatientHomeDesignReview") {
+            EntitlementState.shared.setIdentity(AuthManager.uiTestingUserId)
+            EntitlementState.shared.apply(.init(version: 1, role: .therapist, activation: nil, patientId: nil, entitlement: .init(access: .full)))
+            let patient = UUID()
+            _assignments = State(initialValue: [PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo].map {
+                PatientAssignment(id: UUID(), patientId: patient, therapistId: nil, sessionId: nil,
+                    typeValue: $0.rawValue, createdAt: Date(), completedAt: nil, cancelledAt: nil)
+            })
+            _loadState = State(initialValue: .loaded)
+        }
+        #endif
+    }
+
     private var openAssignments: [PatientAssignment] {
         assignments.filter { ($0.type == .diaryTwo || $0.type == .diaryThree) ? $0.cancelledAt == nil : $0.isOpen }
     }
@@ -69,7 +92,8 @@ struct PatientModeView: View {
         NavigationStack {
             taskList
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .patientAtmosphere(Theme.gold)
+            .toolbarBackground(Theme.patientHomeHeader, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .background(Theme.base.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: $isShowingQuestionnaireHub) {
@@ -208,6 +232,7 @@ struct PatientModeView: View {
                 .appTextSize()
             }
             .task {
+                guard !designReview else { return }
                 showPatientIntroduction = !patientIntroductionCompleted
                 messageCoordinator.markReady()
                 inbox.isDemoInbox = false
@@ -220,6 +245,7 @@ struct PatientModeView: View {
                 Task { await applyPendingMessageRoute() }
             }
             .task(id: scenePhase) {
+                guard !designReview else { return }
                 inbox.patientModeActive = scenePhase == .active
                 guard scenePhase == .active else { return }
                 await ApplicationIconBadge.sync(count: 0)
@@ -295,7 +321,17 @@ struct PatientModeView: View {
 
     private var taskList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("טוב שחזרת.").font(.largeTitle.bold()).foregroundStyle(Theme.textBright)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("המרחב שלך בין המפגשים.").font(.body).foregroundStyle(Theme.textBody)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(22)
+                .background(Theme.patientHomeHeader)
+                .padding(.horizontal, -20)
+                .padding(.top, -12)
                 if let assignment = nextAssignment {
                     nextAction(assignment)
                 }
@@ -318,7 +354,7 @@ struct PatientModeView: View {
                 }
                 ForEach([PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo, .diaryThree], id: \.self) { type in
                     let active = openAssignments.contains { $0.type == type } && (type != .diaryThree || PatientAssignmentType.diaryThreeSendingEnabled)
-                    if homeSnapshot.isVisible(type, active: active) {
+                    if type != .questionnaire || homeSnapshot.isVisible(type, active: active) {
                         compactToolRow(type, active: active)
                     }
                 }
@@ -371,8 +407,8 @@ struct PatientModeView: View {
     private func nextAction(_ assignment: PatientAssignment) -> some View {
         if let type = assignment.type, resumableTypes.contains(type) {
             VStack(alignment: .leading, spacing: 14) {
-                Text(L10n.patientContinueDraftTitle)
-                    .font(.title2.weight(.semibold))
+                Text(type == .questionnaire ? "ממשיכים מאיפה שעצרת." : "חוזרים למחשבה שהתחלנו.")
+                    .font(.largeTitle.weight(.bold))
                     .foregroundStyle(Theme.textBright)
                     .accessibilityAddTraits(.isHeader)
                 VStack(alignment: .leading, spacing: 4) {
@@ -393,8 +429,8 @@ struct PatientModeView: View {
                 .entitlementCreateControl()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 12)
-            .padding(.bottom, 8)
+            .padding(22)
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.borderStrong, lineWidth: 1))
         }
     }
 
@@ -414,7 +450,7 @@ struct PatientModeView: View {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: type == .questionnaire ? "list.clipboard" : "book.closed")
-                        .font(.title3).foregroundStyle(active ? Theme.success : Theme.textBody).frame(width: 26)
+                        .font(.title3).foregroundStyle(active ? Theme.gold : Theme.textBody).frame(width: 26)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(toolTitle(type))
                             .font(.headline).foregroundStyle(Theme.textBright)
@@ -445,7 +481,8 @@ struct PatientModeView: View {
                     .buttonStyle(.bordered)
                     .entitlementCreateControl()
             }
-        }.padding(14).themedCard()
+        }.padding(.vertical, 16)
+            .overlay(alignment: .bottom) { Rectangle().fill(Theme.borderFaint).frame(height: 1) }
     }
 
     private var messagesSection: some View {
@@ -657,6 +694,7 @@ struct PatientModeView: View {
     }
 
     private func refreshDrafts() {
+        guard !designReview else { return }
         guard let userID = auth.currentUserId, let patientID = appContext.current?.patientId else {
             resumableTypes = []; return
         }
@@ -754,6 +792,7 @@ struct PatientModeView: View {
     }
 
     private func refreshPatientHome(lightweight: Bool = false) async {
+        guard !designReview else { return }
         guard !refreshingHome else { refreshHomeAgain = true; return }
         refreshingHome = true
         defer {
@@ -918,7 +957,8 @@ struct PatientQuestionnaireView: View {
                     requiresInterferenceAnswer: true
                 )
             }
-            .patientAtmosphere(Theme.gold)
+            .toolbarBackground(Theme.patientHomeHeader, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .themedScreen()
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -1017,7 +1057,7 @@ struct PatientQuestionnaireView: View {
             errorMessage = error.errorDescription ?? L10n.patientQuestionnaireSubmitError
             isSubmitting = false
         } catch {
-            errorMessage = L10n.patientQuestionnaireSubmitError
+            errorMessage = error.userFacingMessage(fallback: L10n.patientQuestionnaireSubmitError)
             isSubmitting = false
         }
     }

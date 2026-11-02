@@ -1,8 +1,10 @@
 import SwiftUI
 import OSLog
 
-/// Patient Mode create-only Diary 2. No history, edit, or delete.
+/// Patient diary form: creation uses the submission function; editing updates the original row.
 struct PatientDiaryTwoEntryView: View {
+    var existing: DiaryTwoEntry? = nil
+    var onEdited: (DiaryTwoEntry) -> Void = { _ in }
     var onSubmitted: () async -> Void
     var onDiaryInactive: () async -> Void
 
@@ -136,8 +138,9 @@ struct PatientDiaryTwoEntryView: View {
         }
         .interactiveDismissDisabled(hasUnsavedChanges || isBusy || didSubmit)
         .onAppear {
-            guard let patientID = appContext.current?.patientId else { return }
-            if let saved = deviceDraft.restore(userID: auth.currentUserId, kind: "patient-diary-two", target: patientID.uuidString) {
+            guard !deviceDraft.hasLoaded, let patientID = appContext.current?.patientId else { return }
+            if let existing { draft = .from(existing); initialSnapshot = draft.comparableSnapshot }
+            if let saved = deviceDraft.restore(userID: auth.currentUserId, kind: "patient-diary-two", target: existing.map { patientID.uuidString + "-edit-" + $0.id.uuidString } ?? patientID.uuidString) {
                 draft = saved
             }
         }
@@ -195,6 +198,19 @@ struct PatientDiaryTwoEntryView: View {
         isSaving = true
         errorMessage = nil
         do {
+            if let existing {
+                guard existing.patientId.uuidValue == appContext.current?.patientId else { throw PatientStoreError.updateRejected }
+                let saved = try await DiaryTwoStore(client: auth.client).updateEntry(
+                    id: existing.id, patientId: existing.patientId,
+                event: draft.event.trimmingCharacters(in: .whitespacesAndNewlines),
+                automaticThoughts: draft.persistedAutomaticThoughts,
+                feelings: feelings,
+                thinkingErrors: draft.thinkingErrors,
+                alternativeThoughts: draft.persistedAlternativeThoughts
+
+                )
+                onEdited(saved)
+            } else {
             _ = try await PatientDiaryTwoService(client: auth.client).submitEntry(
                 event: draft.event.trimmingCharacters(in: .whitespacesAndNewlines),
                 automaticThoughts: draft.persistedAutomaticThoughts,
@@ -202,6 +218,7 @@ struct PatientDiaryTwoEntryView: View {
                 thinkingErrors: draft.thinkingErrors,
                 alternativeThoughts: draft.persistedAlternativeThoughts
             )
+            }
             await finishSuccessfully()
         } catch let PatientDiaryTwoSubmitError.notActive(message) {
             isSaving = false
@@ -218,7 +235,7 @@ struct PatientDiaryTwoEntryView: View {
             errorMessage = error.errorDescription ?? L10n.patientDiaryOneSubmitError
             isSaving = false
         } catch {
-            errorMessage = L10n.patientDiaryOneSubmitError
+            errorMessage = error.userFacingMessage(fallback: L10n.patientDiaryOneSubmitError)
             isSaving = false
         }
     }

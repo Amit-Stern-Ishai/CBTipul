@@ -472,7 +472,7 @@
     <string name="welcome_primary_action">המשך למצב הדגמה</string>
     <string name="welcome_secondary_action">אפשר לעבור על זה אחר כך</string>
     <string name="welcome_info_link">איך נשמר המידע?</string>
-    <string name="welcome_info_body">שמות המטופלים נשמרים באופן מוצפן במכשיר בלבד ואינם מועלים לשרת. מידע אחר נשמר ומעובד בהתאם למדיניות הפרטיות ולהסכמות שניתנו באפליקציה.</string>
+    <string name="welcome_info_body">לאחר אישור מפורש ונפרד, שמות המטופלים מועלים לשרתי CBTipul ומסונכרנים בין מכשירים מורשים. השמות מוצפנים בתעבורה ובאחסון באמצעות מפתחות שרת; תהליכים מורשים יכולים לפענחם. זו אינה הצפנה מקצה לקצה. עותקים מקומיים נשארים לתצוגה ולשימוש ללא רשת; מיפויי iOS קיימים עשויים להסתנכרן גם דרך iCloud Keychain, בהתאם להגדרות Apple. שדה השם אינו נשלח אוטומטית לכלי בינה מלאכותית; טקסט חופשי מטופל בנפרד לפי מדיניות הפרטיות וההסכמות. המנגנון החדש חל על אחסון שמות בלבד.</string>
     <string name="welcome_info_done_action">סגירה</string>
     <string name="getting_started_progress">שלב %1$d מתוך %2$d</string>
     <string name="getting_started_step_add_patient">יצירת מטופל/ת</string>

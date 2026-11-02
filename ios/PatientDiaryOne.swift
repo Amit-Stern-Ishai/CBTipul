@@ -50,12 +50,11 @@ private struct SubmitDiaryOneEntryResponse: Decodable, Sendable {
 enum PatientDiaryOneHistory {
     static func visible(_ entries: [DiaryOneEntry]) -> [DiaryOneEntry] {
         entries
-            .filter { $0.createdBy == .patient }
             .sorted { $0.createdAt > $1.createdAt }
     }
 }
 
-/// Patient Mode history (patient-created rows only) and Edge Function submit.
+/// Full patient-linked history and Edge Function creation. Editing uses the shared authenticated diary store.
 @MainActor
 final class PatientDiaryOneService {
     private let client: SupabaseClient
@@ -67,17 +66,22 @@ final class PatientDiaryOneService {
     func loadPatientCreatedEntries(patientId: UUID) async throws -> [DiaryOneEntry] {
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
         do {
-            let rows: [DiaryOneEntry] = try await client.from("diary_one_entries")
-                .select(diaryOneSelectColumns)
-                .eq("patient_id", value: patientId)
-                .eq("created_by", value: DiaryOneEntryCreator.patient.rawValue)
-                .order("created_at", ascending: false)
-                .execute()
-                .value
-            return PatientDiaryOneHistory.visible(rows)
+            var rows: [DiaryOneEntry] = []
+            var offset = 0
+            while true {
+                let page: [DiaryOneEntry] = try await client.from("diary_one_entries")
+                    .select(diaryOneSelectColumns)
+                    .eq("patient_id", value: patientId)
+                    .order("created_at", ascending: false).order("id", ascending: false)
+                    .range(from: offset, to: offset + 249).execute().value
+                rows.append(contentsOf: page)
+                if page.count < 250 { break }
+                offset += page.count
+            }
+            return PatientDiaryOneHistory.visible(rows.filter { $0.patientId.uuidValue == patientId })
         } catch {
             AppLog.store.error(
-                "Patient Diary 1 history load failed: \(error.localizedDescription, privacy: .public)"
+                "Patient Diary 1 history load failed"
             )
             throw error
         }
@@ -115,10 +119,8 @@ final class PatientDiaryOneService {
             } catch let FunctionsError.httpError(code, data) {
                 throw Self.submitError(from: data, statusCode: code)
             } catch {
-                AppLog.store.error(
-                    "Patient Diary 1 submit failed: \(error.localizedDescription, privacy: .public)"
-                )
-                throw PatientDiaryOneSubmitError.failed(L10n.patientDiaryOneSubmitError)
+                // Preserve transport errors; the screen supplies safe, contextual copy.
+                throw error
             }
 
         }
@@ -141,6 +143,10 @@ final class PatientDiaryOneService {
              "invalid_feelings", "duplicate_feeling", "invalid_request":
             return .invalid(message)
         default:
+            let classified = ClientFailure.from(FunctionsError.httpError(code: statusCode, data: data))
+            if classified != .unknown && classified != .validation && statusCode != 401 && statusCode != 403 {
+                return .failed(classified.localizedDescription)
+            }
             if statusCode == 401 || statusCode == 403 {
                 return .accessDenied(message)
             }

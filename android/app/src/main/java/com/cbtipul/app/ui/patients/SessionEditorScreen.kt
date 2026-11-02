@@ -1,5 +1,15 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.material3.AlertDialog
+
+import androidx.compose.material3.MaterialTheme
+
+import androidx.compose.material3.Surface
+
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.text.selection.SelectionContainer
+
+
 import kotlinx.coroutines.flow.collectLatest
 
 import androidx.compose.material.icons.outlined.HourglassEmpty
@@ -10,7 +20,6 @@ import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.filled.StopCircle
 import com.cbtipul.app.ui.theme.IconLabel
 import com.cbtipul.app.ui.theme.editorScroll
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.style.TextOverflow
@@ -130,6 +139,7 @@ fun SessionEditorScreen(
     isAnalyzing: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
+    onCheckSessions: () -> Unit = {},
     onSave: (Session, Boolean) -> Unit,
     onDelete: (Session) -> Unit,
     onTranscribe: (File, String, Session, (String) -> Unit, () -> Unit) -> Unit,
@@ -151,6 +161,7 @@ fun SessionEditorScreen(
     onRefreshQuestionnaire: () -> Unit = {},
     questionnaireLoading: Boolean = false,
     questionnaireLoadError: String? = null,
+    allowanceLookup: (suspend () -> com.cbtipul.app.data.SummaryAllowance)? = null,
 ) {
     val colors = Theme.colors
 
@@ -174,6 +185,7 @@ fun SessionEditorScreen(
     var type by editorDraft::type
     var structuredNotes by editorDraft::structuredNotes
     var showingNotesEditor by remember { mutableStateOf(false) }
+    var editingSummaryText by remember { mutableStateOf(false) }
     var summarySaveRevision by remember(editorDraft) { mutableStateOf<Int?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var typeExpanded by remember { mutableStateOf(false) }
@@ -196,12 +208,49 @@ fun SessionEditorScreen(
     }
     val processing = isSaving || isTranscribing || isAnonymizingTranscription || isAnalyzing
     val context = LocalContext.current
+    val recoveryApp = context.applicationContext as com.cbtipul.app.CbTipulApp
+    val owner = remember(editorDraft) { recoveryApp.authRepository.currentUserId() }
+    val scope = rememberCoroutineScope()
+    var allowanceMessage by remember { mutableStateOf<String?>(null) }
+    var tokensExhausted by remember { mutableStateOf(false) }
+    var allowanceRequest by remember { mutableIntStateOf(0) }
+    var localError by remember { mutableStateOf<String?>(null) }
+    var confirmRetry by remember { mutableStateOf(false) }
+    var confirmDraftDelete by remember { mutableStateOf(false) }
+    val blocksNewSummary = tokensExhausted && !editorDraft.hasSummaryDraft && editorDraft.audioName == null
+    suspend fun checkAllowance(seconds: Double? = null, needsTokens: Boolean = true): Boolean {
+        if (isDemo) return true
+        val request = ++allowanceRequest
+        return try {
+            val snapshot = allowanceLookup?.invoke() ?: recoveryApp.patientRepository.summaryAllowance()
+            if (owner != recoveryApp.authRepository.currentUserId() || request != allowanceRequest) return false
+            tokensExhausted = snapshot.tokens.exhausted
+            val low = snapshot.assess(needsTokens, seconds)
+            allowanceMessage = if (low) "המכסה החודשית מתקרבת לסיום\nנותרו עד 10%. ייתכן שהמכסה תסתיים במהלך העיבוד." else null
+            true
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            if (owner == recoveryApp.authRepository.currentUserId() && request == allowanceRequest) allowanceMessage = com.cbtipul.app.data.SummaryFailure.from(error).message
+            false
+        }
+    }
+    LaunchedEffect(editorDraft) { checkAllowance(seconds = 0.0) }
     var recorderTick by remember { mutableIntStateOf(0) }
     val recorder = remember {
-        VoiceNoteRecorder(context.applicationContext).also { it.onChange = { recorderTick++ } }
+        VoiceNoteRecorder(context.applicationContext, preserveOnRelease = true).also { voice ->
+            voice.onChange = {
+                recorderTick++
+                if (owner == recoveryApp.authRepository.currentUserId() && editorDraft.audioName != null) {
+                    editorDraft.audioSeconds = voice.durationSeconds
+                    if (!voice.isRecording) editorDraft.persistRecovery()
+                }
+            }
+            runCatching { editorDraft.audioFile(context)?.let { check(it.exists()); voice.restore(it, editorDraft.audioSeconds) } }
+                .onFailure { localError = com.cbtipul.app.data.SummaryFailure.Kind.Local.message }
+        }
     }
     DisposableEffect(recorder) {
-        onDispose { recorder.release() }
+        onDispose { recorder.release(); editorDraft.persistRecovery() }
     }
     val permissionDenied = stringResource(R.string.mic_permission_denied)
     var requestingRecording by remember { mutableStateOf(false) }
@@ -210,7 +259,10 @@ fun SessionEditorScreen(
     ) { granted ->
         requestingRecording = false
         if (granted) {
-            recorder.startRecording()
+            scope.launch {
+                if (checkAllowance(seconds = 0.0)) runCatching { recorder.startRecording(editorDraft.beginAudio(context)) }
+                    .onFailure { localError = com.cbtipul.app.data.SummaryFailure.Kind.Local.message }
+            }
         } else {
             recorder.errorMessage = permissionDenied
             recorderTick++
@@ -228,12 +280,14 @@ fun SessionEditorScreen(
 
     LaunchedEffect(editorDraft) {
         androidx.compose.runtime.snapshotFlow { listOf(date, notes, type, structuredNotes, editorDraft.selectedPatientId) }
-            .collectLatest { kotlinx.coroutines.delay(350); editorDraft.persistRecovery() }
+            .collectLatest { if (owner == recoveryApp.authRepository.currentUserId()) editorDraft.persistRecovery() }
     }
     DisposableEffect(editorDraft) { onDispose { editorDraft.persistRecovery() } }
-    val canSave = canWrite && patient != null && !busy && recorder.recordingFile == null && (isNew || hasUnsavedChanges)
+    val canSave = canWrite && patient != null && !busy && !editorDraft.pendingCreation && (editorDraft.audioName == null || editorDraft.transcriptReady) && (isNew || hasUnsavedChanges)
     fun persist(leave: Boolean) {
         if (!canSave) return
+        if (owner != recoveryApp.authRepository.currentUserId()) return
+        if (!editorDraft.persistRecovery()) return
         onSave(currentSession(), leave)
     }
 
@@ -287,17 +341,71 @@ fun SessionEditorScreen(
 
     fun transcribePending() {
         val file = recorder.recordingFile ?: return
-        onTranscribe(file, notes, currentSession(), { notes = it }, { recorder.discard() })
+        onTranscribe(file, notes, currentSession(), { notes = it }, { /* Recovery owns the recording until server acknowledgement. */ })
     }
 
     fun startMic() {
         if (!com.cbtipul.app.data.Entitlements.allowMutation(allowLocalDemo = false)) return
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
-        if (granted) recorder.startRecording() else {
-            requestingRecording = true
-            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        requestingRecording = true
+        scope.launch {
+            try {
+                if (!checkAllowance(seconds = 0.0)) return@launch
+                if (granted) {
+                    try { recorder.startRecording(editorDraft.beginAudio(context)) }
+                    catch (_: Exception) { localError = com.cbtipul.app.data.SummaryFailure.Kind.Local.message }
+                } else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            } finally { requestingRecording = false }
         }
+    }
+
+    val safeguardControls: @Composable () -> Unit = {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            allowanceMessage?.let {
+                AIUsageNotice(it, title = "מכסת AI")
+                TextButton(onClick = { scope.launch { checkAllowance(seconds = 0.0) } }, enabled = !busy) { Text("בדיקת מכסה מחדש") }
+            }
+            if (editorDraft.recoveryFailed) {
+                Text(com.cbtipul.app.data.SummaryFailure.Kind.Local.message, color = colors.error)
+                TextButton(onClick = { editorDraft.persistRecovery() }) { Text("שמירת הטיוטה מחדש") }
+            } // Successful local draft persistence is silent.
+            localError?.let { Text(it, color = colors.error) }
+            if (editorDraft.pendingCreation) {
+                Text(if (editorDraft.recoverySaved && !editorDraft.recoveryFailed)
+                    "לא ניתן לוודא אם הסיכום נשמר. הטיוטה נשמרה במכשיר. יש לבדוק ברשימת המפגשים לפני ניסיון נוסף."
+                    else "לא ניתן לוודא אם הסיכום נשמר. לא ניתן לאשר שהטיוטה נשמרה במכשיר. יש לנסות לשמור את הטיוטה שוב לפני יציאה.", color = colors.textBody)
+                TextButton(onClick = onCheckSessions, enabled = !busy && patient != null) { Text("בדיקה ברשימת המפגשים") }
+                TextButton(onClick = { confirmRetry = true }, enabled = !busy) { Text("בדקתי ברשימה — ניסיון שמירה נוסף") }
+            }
+            if (editorDraft.hasSummaryDraft || editorDraft.audioName != null) {
+                Row {
+                    TextButton(onClick = {
+                        val clip = android.content.ClipData.newPlainText("טיוטה", notes)
+                        if (android.os.Build.VERSION.SDK_INT >= 33) clip.description.extras = android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+                        (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(clip)
+                    }, enabled = notes.isNotBlank()) { Text("העתקת הטיוטה") }
+                    TextButton(onClick = { confirmDraftDelete = true }, enabled = !busy) { Text("מחיקת הטיוטה") }
+                }
+                TextButton(onClick = { if (editorDraft.persistRecovery()) onBack() }, enabled = !busy) { Text("שמירת טיוטה ויציאה") }
+            }
+        }
+        if (confirmRetry) AlertDialog(onDismissRequest = { confirmRetry = false }, title = { Text("ניסיון שמירה נוסף") },
+            text = { Text("ייתכן שהשמירה הקודמת הצליחה. ניסיון נוסף עלול ליצור מפגש כפול. יש להמשיך רק לאחר בדיקה ברשימת המפגשים.") },
+            confirmButton = { TextButton(onClick = {
+                confirmRetry = false
+                if (editorDraft.persistRecovery()) {
+                    editorDraft.pendingCreation = false
+                    if (editorDraft.persistRecovery()) {
+                        if (!busy && patient != null && owner == recoveryApp.authRepository.currentUserId()) onSave(currentSession(), isNew)
+                    } else editorDraft.pendingCreation = true
+                }
+            }) { Text("בדקתי — לשמור שוב") } }, dismissButton = { TextButton(onClick = { confirmRetry = false }) { Text("ביטול") } })
+        if (confirmDraftDelete) AlertDialog(onDismissRequest = { confirmDraftDelete = false }, title = { Text("מחיקת הטיוטה מהמכשיר?") },
+            text = { Text("הטקסט וההקלטה המקומיים יימחקו. מפגש שכבר נשמר בשרת לא יימחק.") },
+            confirmButton = { TextButton(onClick = {
+                if (editorDraft.clearAudio(context) && editorDraft.clearRecovery(close = true)) { recorder.discard(); onBack() }
+            }) { Text("מחיקת הטיוטה") } }, dismissButton = { TextButton(onClick = { confirmDraftDelete = false }) { Text("ביטול") } })
     }
 
     if (showingNotesEditor) {
@@ -322,8 +430,36 @@ fun SessionEditorScreen(
         BackHandler { leaveNotes() }
         run {
             val editorFocus = remember { FocusRequester() }
-            LaunchedEffect(Unit) { if (canWrite) editorFocus.requestFocus() }
-            Scaffold(modifier = Modifier.fillMaxSize().dismissKeyboardOnTap(), containerColor = colors.surface,
+            LaunchedEffect(editingSummaryText) { if (canWrite && editingSummaryText) editorFocus.requestFocus() }
+            Scaffold(modifier = Modifier.fillMaxSize().imePadding(), containerColor = colors.surface,
+                bottomBar = {
+                    Surface(color = colors.surface, tonalElevation = 3.dp) {
+                        Column {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(if (notes != baselineNotes) R.string.session_summary_unsaved else R.string.session_summary_section),
+                                modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = colors.textBody)
+                            if (notes != baselineNotes && canWrite) TextButton(onClick = { saveSummary() }, enabled = canSave) { Text(stringResource(R.string.save_summary_action)) }
+                        }
+                        if (canWrite) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (recorder.isRecording) TextButton(onClick = { recorder.stopRecording(); transcribePending() }) {
+                                IconLabel(stringResource(R.string.stop_and_transcribe_action), Icons.Filled.StopCircle, color = colors.error)
+                                Text(formatDuration(recorder.durationSeconds), color = colors.error)
+                            } else if (recorder.recordingFile != null) {
+                                TextButton(onClick = { transcribePending() }, enabled = !busy) { Text(if (editorDraft.transcriptReady) "ניסיון עיבוד נוסף" else stringResource(R.string.transcribe_action)) }
+                                IconButton(onClick = { recorder.togglePlayback() }, enabled = !busy) {
+                                    Icon(if (recorder.isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow, stringResource(R.string.play_recording_action))
+                                }
+                                IconButton(onClick = { recorder.discard(); editorDraft.clearAudio(context) }, enabled = !busy) {
+                                    Icon(Icons.Filled.Delete, stringResource(R.string.discard_recording_action))
+                                }
+                            } else TextButton(onClick = { startMic() }, enabled = !busy) {
+                                IconLabel(stringResource(R.string.record_session_notes_action), Icons.Filled.Mic)
+                            }
+                        }
+                        recorder.errorMessage?.let { Text(it, color = colors.error, modifier = Modifier.padding(horizontal = 16.dp)) }
+                        }
+                    }
+                },
                 topBar = {
                     TopAppBar(title = { Text(stringResource(R.string.session_summary_section), color = colors.textBright) },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.surface),
@@ -353,10 +489,13 @@ fun SessionEditorScreen(
                         Text(hebrewDate(date), color = colors.textBody, fontSize = 12.sp)
                     }
                     HorizontalDivider(color = colors.borderFaint)
-                    BasicTextField(value = notes, onValueChange = { notes = it },
+                    if (!editingSummaryText && notes.isNotBlank()) {
+                        Text(notes, style = MaterialTheme.typography.bodyLarge, color = colors.textBright,
+                            modifier = Modifier.fillMaxWidth().clickable(enabled = canWrite && !busy && !blocksNewSummary) { editingSummaryText = true }.padding(24.dp))
+                    } else BasicTextField(value = notes, onValueChange = { notes = it },
                         textStyle = TextStyle(color = colors.textBright, fontSize = 18.sp, lineHeight = 28.sp, textAlign = TextAlign.Start),
                         cursorBrush = SolidColor(colors.gold),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 240.dp)
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp)
                             .padding(horizontal = 24.dp, vertical = 20.dp)
                             .focusRequester(editorFocus),
                         decorationBox = { input ->
@@ -365,13 +504,14 @@ fun SessionEditorScreen(
                                     color = colors.textFaint, fontSize = 18.sp, lineHeight = 28.sp)
                                 input()
                             }
-                        }, readOnly = !canWrite || busy)
+                        }, readOnly = !canWrite || busy || blocksNewSummary)
                     if (!isSaving && notes != baselineNotes) Text(stringResource(R.string.session_summary_unsaved),
                         color = colors.textBody, fontSize = 12.sp,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp))
                     if (isSaving) Text(stringResource(R.string.session_saving), color = colors.textBody,
                         fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
-                    errorMessage?.let { Text(it, color = colors.error, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
+                    safeguardControls()
+                    errorMessage?.let { AIUsageNotice(it, Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
                 }
             }
         }
@@ -416,7 +556,7 @@ fun SessionEditorScreen(
                 },
                 actions = {
                     if (!isNew) {
-                        IconButton(onClick = { overflow = true }, enabled = canWrite && !busy) {
+                        IconButton(onClick = { overflow = true }, enabled = canWrite && !busy && !blocksNewSummary) {
                             Icon(Icons.Filled.MoreVert, contentDescription = null, tint = colors.gold)
                         }
                         DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
@@ -436,7 +576,7 @@ fun SessionEditorScreen(
         bottomBar = {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 if (editorDraft.recoveryFailed) Text(stringResource(R.string.draft_save_failed), color = colors.error)
-                if (hasUnsavedChanges && !busy && recorder.recordingFile == null) TextButton(onClick = { if (editorDraft.persistRecovery()) onBack() }) { Text(stringResource(R.string.keep_draft_and_leave)) }
+                if (hasUnsavedChanges && !busy) TextButton(onClick = { if (editorDraft.persistRecovery()) onBack() }) { Text(stringResource(R.string.keep_draft_and_leave)) }
                 val status = when {
                     recorder.isRecording -> R.string.session_recording_in_progress
                     isTranscribing -> R.string.transcribing_label
@@ -478,9 +618,10 @@ fun SessionEditorScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .editorScroll()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            safeguardControls()
             if (choosePatient) {
                 var expanded by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(expanded, onExpandedChange = { if (!busy) expanded = it }) {
@@ -495,10 +636,13 @@ fun SessionEditorScreen(
                     }
                 }
                 if (patient == null) Text(stringResource(R.string.session_choose_patient_help), color = colors.textBody)
-            } else Text(displayName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.textBright, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            } else Surface(color = (atmosphere ?: colors.gold).copy(alpha = .14f), shape = MaterialTheme.shapes.large) {
+                Text(displayName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+                    color = colors.textBright, modifier = Modifier.fillMaxWidth().padding(16.dp))
+            }
             if (isNew) Text(stringResource(R.string.session_creation_help), color = colors.textBody, fontSize = 14.sp)
             Text(stringResource(R.string.session_date_title), color = colors.textBright)
-            TextButton(onClick = { showDatePicker = true }, enabled = canWrite && !busy) { Text(hebrewDate(date), color = colors.gold) }
+            TextButton(onClick = { showDatePicker = true }, enabled = canWrite && !busy && !blocksNewSummary) { Text(hebrewDate(date), color = colors.gold) }
             ExposedDropdownMenuBox(typeExpanded, onExpandedChange = { if (canWrite && !busy) typeExpanded = it }) {
                 OutlinedTextField(value = type?.let { stringResource(it.labelRes()) } ?: stringResource(R.string.session_type_none),
                     onValueChange = {}, readOnly = true, singleLine = true,
@@ -514,18 +658,20 @@ fun SessionEditorScreen(
             }
             val accent = atmosphere ?: colors.gold
             if (showSummaryTools) {
-                Text(stringResource(R.string.session_your_summary_section), color = colors.textBright,
+                Text(stringResource(R.string.ui_session_summary), color = colors.textBright,
                     fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start)
                 GroupedListCard(accent = accent) {
                     val pending = recorder.recordingFile != null && !busy
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            if (hasText) notes else stringResource(R.string.session_summary_empty),
+                            if (hasText) notes else stringResource(R.string.session_summary_field_placeholder),
                             color = if (hasText) colors.textBright else colors.textBody,
                             maxLines = 6, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(enabled = !busy && (hasText || canWrite)) {
+                                editingSummaryText = !hasText; showingNotesEditor = true
+                            },
                         )
-                        TextButton(onClick = { showingNotesEditor = true }, enabled = !busy && (hasText || canWrite)) {
+                        TextButton(onClick = { editingSummaryText = !hasText; showingNotesEditor = true }, enabled = !busy && (hasText || canWrite)) {
                             IconLabel(stringResource(when {
                                 !canWrite && hasText -> R.string.session_open_summary
                                 hasText -> R.string.session_read_notes
@@ -533,7 +679,6 @@ fun SessionEditorScreen(
                             }), Icons.Outlined.EditNote)
                         }
                         GroupedListDivider()
-                        Text(stringResource(R.string.session_recording_help), color = colors.textBody, fontSize = 12.sp)
                         if (recorder.isRecording) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(formatDuration(recorder.durationSeconds), color = colors.error, fontWeight = FontWeight.SemiBold)
@@ -545,7 +690,7 @@ fun SessionEditorScreen(
                                 }
                             }
                         } else {
-                            TextButton(onClick = { startMic() }, enabled = canWrite && !busy && recorder.recordingFile == null) {
+                            TextButton(onClick = { startMic() }, enabled = canWrite && !busy && recorder.recordingFile == null && !tokensExhausted) {
                                 IconLabel(stringResource(R.string.record_session_notes_action), Icons.Filled.Mic, color = colors.gold)
                             }
                         }
@@ -562,7 +707,7 @@ fun SessionEditorScreen(
                                     contentDescription = null, tint = colors.gold)
                                 Text(stringResource(if (recorder.isPlaying) R.string.stop_playback_action else R.string.play_recording_action), color = colors.gold)
                             }
-                            TextButton(onClick = { recorder.discard() }) {
+                            TextButton(onClick = { recorder.discard(); editorDraft.clearAudio(context) }) {
                                 Icon(Icons.Filled.Delete, contentDescription = null, tint = colors.error)
                                 Text(stringResource(R.string.discard_recording_action), color = colors.error)
                             }
@@ -614,7 +759,6 @@ fun SessionEditorScreen(
             }
 
             if (initial.databaseId != null) {
-                Text(stringResource(R.string.questionnaire_local_entry_help), color = colors.textBody)
                 Text(stringResource(R.string.questionnaire_section_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                 if (questionnaireLoadError != null) {
                     Text(questionnaireLoadError, color = colors.error)
@@ -677,7 +821,7 @@ fun SessionEditorScreen(
                 }
             }
 
-            errorMessage?.let { Text(it, color = colors.error) }
+            errorMessage?.let { AIUsageNotice(it) }
 
 
         }
@@ -740,6 +884,7 @@ fun SessionEditorScreen(
             if (!editorDraft.clearRecovery(close = true)) return@DiscardChangesDialog
             showDiscard = false
             recorder.discard()
+            editorDraft.clearAudio(context)
             date = baselineDate
             notes = baselineNotes
             type = baselineType

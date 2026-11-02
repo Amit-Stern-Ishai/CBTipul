@@ -212,6 +212,11 @@ fun PatientsNavHost(
                 },
                 isSavingGoal = ui.isSavingFormulation,
                 onOpenSessions = { navController.navigate("patient/$id/sessions") },
+                onOpenLatestSession = {
+                    patient?.let { com.cbtipul.app.data.patientJourney(it.sessions).lastOrNull()?.sessions?.lastOrNull() }?.let { latest ->
+                        navController.navigate("patient/$id/session/${latest.databaseId?.queryValue ?: latest.id}")
+                    }
+                },
                 onNewSession = { if (com.cbtipul.app.data.Entitlements.allowMutation()) navController.navigate("patient/$id/session/new") },
                 onOpenQuestionnaires = { navController.navigate("patient/$id/questionnaires") },
                 onOpenGraphs = { navController.navigate("patient/$id/questionnaires?graphs=true") },
@@ -567,6 +572,12 @@ fun PatientsNavHost(
                 availablePatients = patients,
                 onSelectPatient = { draft.selectedPatientId = it.id.queryValue },
                 editorDraft = draft,
+                onCheckSessions = {
+                    if (draft.persistRecovery() && patient != null) {
+                        viewModel.refresh()
+                        navController.navigate("patient/${patient.id.queryValue}/sessions")
+                    }
+                },
                 onRefreshQuestionnaire = { patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) } },
                 questionnaireLoading = ui.isLoadingQuestionnaires,
                 questionnaireLoadError = ui.questionnairesError,
@@ -594,7 +605,9 @@ fun PatientsNavHost(
                         rejected,
                         sessionNotSaved,
                         anonymizationFailed,
-                        onSaved = { draft.markSaved(edited) },
+                        onSaved = { if (draft.clearAudio(recoveryApp)) draft.markSaved(edited) },
+                        recovery = draft,
+                        accountActive = { recoveryAccount == recoveryApp.authRepository.currentUserId() },
                     ) {
                         viewModel.clearSessionError()
                         // A completed save is not a repeated Back tap. Only close its own editor.
@@ -631,6 +644,8 @@ fun PatientsNavHost(
                         },
                         onNotes = onNotes,
                         onTranscribed = onDone,
+                        recovery = draft,
+                        accountActive = { recoveryAccount == recoveryApp.authRepository.currentUserId() },
                     )
                 },
                 onAnalyze = { edited, onNotes, onAnalysis ->
@@ -814,6 +829,8 @@ fun PatientsNavHost(
                 patientSubmitted = records.firstOrNull { it.sessionId?.queryValue == sessionId }?.createdBy == "patient",
                 allowRecordEditing = records.firstOrNull { it.sessionId?.queryValue == sessionId }?.let { it.createdBy == "therapist" } ?: true,
                 previous = previousQuestionnaire(records, session),
+                history = records.filter { it.sessionId?.queryValue != sessionId && it.answeredDate <= (session?.date ?: java.util.Date()) }
+                    .sortedWith(compareByDescending<CompletedQuestionnaire> { it.answeredDate }.thenBy { it.databaseId.queryValue }),
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 isSaving = ui.isSavingQuestionnaire,
                 errorMessage = ui.sessionError,
@@ -890,6 +907,8 @@ fun PatientsNavHost(
                 patientSubmitted = record?.createdBy == "patient",
                 allowRecordEditing = record == null || record.createdBy == "therapist",
                 previous = previousQuestionnaire(records, session),
+                history = records.filter { it.databaseId != record?.databaseId && it.answeredDate <= (session?.date ?: java.util.Date()) }
+                    .sortedWith(compareByDescending<CompletedQuestionnaire> { it.answeredDate }.thenBy { it.databaseId.queryValue }),
                 atmosphere = patient?.id?.let(PatientAvatarColor::background),
                 isSaving = ui.isSavingQuestionnaire,
                 errorMessage = ui.sessionError,

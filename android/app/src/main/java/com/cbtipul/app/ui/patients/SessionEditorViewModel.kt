@@ -21,12 +21,50 @@ private data class SessionRecovery(
     val type: com.cbtipul.app.model.SessionType?,
     val structuredNotes: com.cbtipul.app.model.CBTSessionAnalysis?,
     val selectedPatientId: String?,
+    val audioName: String? = null,
+    val audioSeconds: Double = 0.0,
+    val transcriptReady: Boolean = false,
+    val preparedSource: String? = null,
+    val preparedText: String? = null,
+    val pendingCreation: Boolean = false,
+    val started: Boolean = false,
 )
 
 class SessionEditorDraft(val initial: Session) {
     private var recoveryStore: com.cbtipul.app.data.DeviceDraftStorage? = null
     private var recoveryKey: String? = null
     private var recoveryClosed = false
+    private var unreadRecovery = false
+    var audioName by mutableStateOf<String?>(null)
+    var audioSeconds by mutableStateOf(0.0)
+    var transcriptReady by mutableStateOf(false)
+    var preparedSource by mutableStateOf<String?>(null)
+    var preparedText by mutableStateOf<String?>(null)
+    var pendingCreation by mutableStateOf(false)
+    val prepared: String? get() = preparedText?.takeIf { preparedSource == notes }
+    fun audioFile(context: android.content.Context): java.io.File? {
+        val name = audioName ?: return null
+        require(Regex("[a-fA-F0-9-]+\\.(m4a|aac)").matches(name))
+        return java.io.File(audioDirectory(context), name)
+    }
+    private fun audioDirectory(context: android.content.Context): java.io.File {
+        val key = requireNotNull(recoveryKey)
+        val owner = java.security.MessageDigest.getInstance("SHA-256").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }
+        return java.io.File(context.noBackupFilesDir, "session-audio/$owner").also { check(it.mkdirs() || it.isDirectory) }
+    }
+    fun beginAudio(context: android.content.Context): java.io.File {
+        check(audioName == null)
+        audioName = "${java.util.UUID.randomUUID()}.aac"
+        transcriptReady = false
+        check(persistRecovery()) { "Local draft unavailable" }
+        return requireNotNull(audioFile(context))
+    }
+    fun clearAudio(context: android.content.Context): Boolean = try {
+        audioFile(context)?.let { check(!it.exists() || it.delete()) }
+        audioName = null; audioSeconds = 0.0; transcriptReady = false
+        persistRecovery()
+    } catch (_: Exception) { recoveryFailed = true; false }
+
     var recoveryFailed by mutableStateOf(false)
         private set
     var recoverySaved by mutableStateOf(false)
@@ -36,9 +74,13 @@ class SessionEditorDraft(val initial: Session) {
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     fun configureRecovery(store: com.cbtipul.app.data.DeviceDraftStorage, key: String) {
-        if (recoveryKey != null) return
+        if (recoveryKey != null) {
+            check(recoveryKey == key) { "Draft account changed" }
+            return
+        }
         recoveryStore = store
         recoveryKey = key
+        unreadRecovery = true
         try {
             store.read(key)?.let {
                 val saved = json.decodeFromString(SessionRecovery.serializer(), it)
@@ -47,24 +89,33 @@ class SessionEditorDraft(val initial: Session) {
                 type = saved.type
                 structuredNotes = saved.structuredNotes
                 selectedPatientId = saved.selectedPatientId
+                audioName = saved.audioName
+                audioSeconds = saved.audioSeconds
+                transcriptReady = saved.transcriptReady
+                preparedSource = saved.preparedSource
+                preparedText = saved.preparedText
+                pendingCreation = saved.pendingCreation
+                hasSummaryDraft = saved.started || notes.isNotBlank() || audioName != null
                 recoverySaved = true
                 recoveryRestored = true
             }
-        } catch (_: Exception) { recoveryFailed = true }
+            unreadRecovery = false
+        } catch (_: Exception) { recoveryFailed = true; unreadRecovery = true }
     }
 
     fun persistRecovery(): Boolean {
         if (recoveryClosed || recoveryKey == null) return false
         return try {
-            val unchanged = date == baselineDate && notes == baselineNotes && type == baselineType && structuredNotes == baselineStructured
-            if (unchanged && recoveryFailed && !recoverySaved) return false
-            if (unchanged || (initial.databaseId == null && notes.isBlank() && type == null && structuredNotes == null)) {
-                recoveryStore!!.clear(recoveryKey!!)
-                recoverySaved = false
-            } else {
-                recoveryStore!!.write(recoveryKey!!, json.encodeToString(SessionRecovery.serializer(), SessionRecovery(date.time, notes, type, structuredNotes, selectedPatientId)))
-                recoverySaved = true
+            if (!unreadRecovery && !recoverySaved && !pendingCreation && audioName == null && date == baselineDate && notes == baselineNotes && type == baselineType && structuredNotes == baselineStructured) return true
+            // Never overwrite a draft whose initial read failed.
+            if (unreadRecovery) {
+                check(recoveryStore!!.read(recoveryKey!!) == null)
+                unreadRecovery = false
             }
+            recoveryStore!!.write(recoveryKey!!, json.encodeToString(SessionRecovery.serializer(),
+                SessionRecovery(date.time, notes, type, structuredNotes, selectedPatientId,
+                    audioName, audioSeconds, transcriptReady, preparedSource, preparedText, pendingCreation, hasSummaryDraft)))
+            recoverySaved = true
             recoveryFailed = false
             true
         } catch (_: Exception) { recoveryFailed = true; false }
@@ -90,6 +141,7 @@ class SessionEditorDraft(val initial: Session) {
         set(value) {
             draftNotes = value
             if (value.isNotBlank()) hasSummaryDraft = true
+            if (recoveryKey != null && !unreadRecovery) persistRecovery()
         }
     var type by mutableStateOf(initial.type)
     private var draftStructuredNotes by mutableStateOf(initial.structuredNotes)
@@ -110,7 +162,12 @@ class SessionEditorDraft(val initial: Session) {
         private set
 
     fun markSaved(saved: Session) {
-        clearRecovery(close = initial.databaseId == null)
+        val wasPending = pendingCreation
+        pendingCreation = false
+        if (!clearRecovery(close = initial.databaseId == null)) {
+            pendingCreation = wasPending
+            recoveryClosed = true // Do not overwrite the retained receipt-uncertain manifest on dispose.
+        }
         baselineDate = saved.date
         baselineNotes = saved.notes
         baselineType = saved.type

@@ -200,6 +200,7 @@ fun PatientDiaryOneDetailScreen(
     entry: DiaryOneEntry,
     therapistViewing: Boolean = false,
     onBack: () -> Unit,
+    onEdit: (() -> Unit)? = null,
 ) {
     val colors = Theme.colors
     Scaffold(
@@ -217,6 +218,7 @@ fun PatientDiaryOneDetailScreen(
                         )
                     }
                 },
+                actions = { if (onEdit != null) TextButton(onClick = onEdit) { Text(stringResource(R.string.diary_entry_edit)) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },

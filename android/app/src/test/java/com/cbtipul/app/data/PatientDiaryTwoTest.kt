@@ -71,7 +71,7 @@ class PatientDiaryTwoTest {
         val entries = listOf(row("old", "p1", DiaryOneEntryCreator.Patient, 1), row("therapist", "p1", DiaryOneEntryCreator.Therapist, 4),
             row("new", "p1", DiaryOneEntryCreator.Patient, 3), row("other", "p2", DiaryOneEntryCreator.Patient, 5))
         val shown = PatientDiaryTwoHistory.visible(entries, "p1")
-        assertEquals(listOf("new", "old"), shown.map { it.id })
+        assertEquals(listOf("therapist", "new", "old"), shown.map { it.id })
         val selected = shown.first { it.id == "old" }
         assertEquals(listOf("first", "second"), selected.automaticThoughts)
         assertEquals(ThinkingError.MindReading, selected.thinkingErrors.single())

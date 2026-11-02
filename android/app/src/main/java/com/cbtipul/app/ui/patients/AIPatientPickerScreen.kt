@@ -1,6 +1,7 @@
 package com.cbtipul.app.ui.patients
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -58,12 +59,12 @@ fun AIPatientPickerScreen(viewModel: PatientListViewModel, unnamed: String, onSe
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Column(
-                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                Modifier.padding(16.dp).fillMaxWidth().background(colors.goldGhost, MaterialTheme.shapes.large).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = colors.gold, modifier = Modifier.size(20.dp))
-                    Text(stringResource(R.string.ai_patient_picker_prompt), style = MaterialTheme.typography.titleMedium, color = colors.textBright)
+                    Text(stringResource(R.string.ai_patient_picker_prompt), style = MaterialTheme.typography.headlineSmall, color = colors.textBright)
                 }
                 Text(stringResource(R.string.ai_patient_picker_explanation), style = MaterialTheme.typography.bodyMedium, color = colors.textBody)
             }

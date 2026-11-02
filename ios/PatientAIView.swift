@@ -64,10 +64,7 @@ struct PatientAIView: View {
                 }
 
                 if let errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.circle")
-                        .font(.footnote)
-                        .foregroundStyle(Theme.error)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    AIUsageNotice(message: errorMessage)
                 }
             }
             .padding()

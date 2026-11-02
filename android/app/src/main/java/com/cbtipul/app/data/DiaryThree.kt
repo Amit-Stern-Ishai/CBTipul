@@ -85,13 +85,22 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
         val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
             ?: throw IllegalStateException("not_configured")
-        val rows = client.from("diary_three_entries")
+        val rows = mutableListOf<DiaryThreeEntryRow>()
+        var offset = 0
+        while (true) {
+            val page = client.from("diary_three_entries")
             .select(columns) {
                 filter { eq("patient_id", patientUuid) }
                 order("created_at", Order.DESCENDING)
+                order("id", Order.DESCENDING)
+                range(offset.toLong(), (offset + 249).toLong())
             }
             .decodeList<DiaryThreeEntryRow>()
-        val loaded = rows.map { it.toDomain(patientId) }
+            rows.addAll(page)
+            if (page.size < 250) break
+            offset += page.size
+        }
+        val loaded = rows.filter { it.patientId.equals(patientId.queryValue, true) }.map { it.toDomain(patientId) }
         _entries.update { it + (patientId.queryValue to loaded) }
         return loaded
     }
@@ -164,7 +173,6 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
     ): DiaryThreeEntry {
         return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form=com.cbtipul.app.telemetry.Form.diaryThree) {
             Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
-            if (_entries.value[patientId.queryValue].orEmpty().any { it.id == id && it.createdBy == DiaryOneEntryCreator.Patient }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
             if (DemoData.isDemoId(patientId)) {
                 val existing = demoEntries[patientId.queryValue].orEmpty().first { it.id == id }
                 val updated = existing.copy(
@@ -179,13 +187,14 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
                 return@measure updated
             }
             if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
-            val body = updatePayload(situation, automaticThoughts, feelings, thinkingErrors, alternativeThoughts, timestampNow())
+            val body = updatePayload(situation, automaticThoughts, feelings, thinkingErrors, alternativeThoughts)
             val saved = client.from("diary_three_entries")
                 .update(body) {
-                    filter { eq("created_by", "therapist"); eq("id", id); eq("patient_id", patientId.queryValue) }
+                    filter { eq("id", id); eq("patient_id", patientId.queryValue) }
                     select(columns)
                 }
                 .decodeSingle<DiaryThreeEntryRow>()
+                .also { require(it.id.equals(id, true) && it.patientId.equals(patientId.queryValue, true)) { "Diary update target mismatch" } }
                 .toDomain(patientId)
             upsert(saved)
             return@measure saved
@@ -267,9 +276,8 @@ class DiaryThreeRepository(private val client: SupabaseClient) {
             clinicalPayload(situation, automaticThoughts, feelings, thinkingErrors, alternativeThoughts).forEach { (key, value) -> put(key, value) }
         }
         internal fun updatePayload(situation: String, automaticThoughts: List<DiaryThreeAutomaticThought>, feelings: List<DiaryThreeFeeling>,
-            thinkingErrors: List<ThinkingError>, alternativeThoughts: List<DiaryThreeAlternativeThought>, updatedAt: String) = buildJsonObject {
+            thinkingErrors: List<ThinkingError>, alternativeThoughts: List<DiaryThreeAlternativeThought>) = buildJsonObject {
             clinicalPayload(situation, automaticThoughts, feelings, thinkingErrors, alternativeThoughts).forEach { (key, value) -> put(key, value) }
-            put("updated_at", updatedAt)
         }
         private fun clinicalPayload(situation: String, automaticThoughts: List<DiaryThreeAutomaticThought>, feelings: List<DiaryThreeFeeling>,
             thinkingErrors: List<ThinkingError>, alternativeThoughts: List<DiaryThreeAlternativeThought>) = buildJsonObject {

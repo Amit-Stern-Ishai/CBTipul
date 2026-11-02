@@ -75,7 +75,7 @@ struct DiaryTwoEntryDetailView: View {
             if let entry {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(entry.createdAt.formatted(date: .numeric, time: .shortened)).font(.subheadline)
-                    Text(entry.createdBy == .patient ? L10n.patientSubmissionReadOnly : L10n.diaryEntryTherapistSource)
+                    Text(entry.createdBy == .patient ? L10n.diaryEntryPatientSource : L10n.diaryEntryTherapistSource)
                         .font(.caption).foregroundStyle(.secondary)
                     DiaryTwoEntryContent(event: entry.event, automaticThoughts: entry.automaticThoughts,
                         feelings: entry.feelings, thinkingErrors: entry.thinkingErrors, alternativeThoughts: entry.alternativeThoughts)
@@ -85,7 +85,7 @@ struct DiaryTwoEntryDetailView: View {
         .themedScreen().demoModeChrome()
         .navigationTitle(L10n.diaryTwoTitle)
         .toolbar {
-            if let entry, entry.createdBy == .therapist {
+            if let entry {
                 ToolbarItem(placement: .primaryAction) {
                     NavigationLink {
                         DiaryTwoEntryFormView(patient: patient, mode: .edit(entry)).id(entry.updatedAt)

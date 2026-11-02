@@ -120,7 +120,7 @@ extension WebWorkspaceShortcutUITests {
         XCTAssertTrue(sessions.waitForExistence(timeout: 5))
         for _ in 0..<4 { if sessions.isHittable { break }; app.swipeUp() }
         sessions.tap()
-        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "7,")).firstMatch
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "פגישה 7,")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5)); row.tap()
         let edit = app.buttons["session.notes"]
         XCTAssertTrue(edit.waitForExistence(timeout: 5))
@@ -171,7 +171,7 @@ extension WebWorkspaceShortcutUITests {
         XCTAssertTrue(sessions.waitForExistence(timeout: 5))
         for _ in 0..<4 { if sessions.isHittable { break }; app.swipeUp() }
         sessions.tap()
-        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", number + ",")).firstMatch
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "פגישה " + number + ",")).firstMatch
         for _ in 0..<5 { if row.isHittable { break }; app.swipeUp() }
         XCTAssertTrue(row.waitForExistence(timeout: 5)); row.tap()
         let entry = app.buttons["session.questionnaireEntry"]
@@ -325,5 +325,31 @@ extension WebWorkspaceShortcutUITests {
         for _ in 0..<5 { if row.isHittable { break }; app.swipeUp() }
         XCTAssertTrue(row.isHittable); row.tap()
         XCTAssertTrue(app.buttons["patient.ai.send"].waitForExistence(timeout: 5))
+    }
+}
+
+extension WebWorkspaceShortcutUITests {
+    @MainActor func testDiaryDirectoryBrandDark() throws { try reviewDiaryDirectory(appearance: "dark") }
+    @MainActor func testDiaryDirectoryBrandLight() throws { try reviewDiaryDirectory(appearance: "light") }
+
+    @MainActor private func reviewDiaryDirectory(appearance: String) throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-appAppearance", appearance]
+        app.launch()
+        let search = app.searchFields["חיפוש מטופלים"]
+        XCTAssertTrue(search.waitForExistence(timeout: 20))
+        search.tap(); search.typeText("ישראלית\n")
+        let patient = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "ישראלה ישראלית")).firstMatch
+        XCTAssertTrue(patient.waitForExistence(timeout: 5)); patient.tap()
+        let diaries = app.buttons["patient.diaries"]
+        XCTAssertTrue(diaries.waitForExistence(timeout: 5))
+        for _ in 0..<5 { if diaries.isHittable { break }; app.swipeUp() }
+        diaries.tap()
+        for id in ["patient.diaryOne", "patient.diaryTwo", "patient.diaryThree"] {
+            let row = app.descendants(matching: .any)[id].firstMatch
+            XCTAssertTrue(row.waitForExistence(timeout: 5)); XCTAssertTrue(row.isHittable)
+        }
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "diary-directory-\(appearance)"; shot.lifetime = .keepAlways; add(shot)
     }
 }

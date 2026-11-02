@@ -35,15 +35,22 @@ struct TherapistAIView: View {
                     }
                 } else {
                     List {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label(L10n.aiPatientPickerPrompt, systemImage: "sparkles")
-                                .font(.headline)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Image(systemName: "bubble.left.and.text.bubble.right")
+                                .font(.system(size: 30, weight: .medium))
+                                .foregroundStyle(Theme.gold)
+                                .accessibilityHidden(true)
+                            Text(L10n.aiPatientPickerPrompt)
+                                .font(.title2.weight(.bold))
                                 .foregroundStyle(Theme.textBright)
+                                .fixedSize(horizontal: false, vertical: true)
                             Text(L10n.aiPatientPickerExplanation)
                                 .font(.subheadline)
                                 .foregroundStyle(Theme.textBody)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 12)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 16, trailing: 20))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                         if patients.isEmpty {
@@ -57,13 +64,15 @@ struct TherapistAIView: View {
                             patientSection(patients.filter { $0.status != .active }, title: L10n.inactivePatientsSectionTitle)
                         }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                     .themedScreen()
                     .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: L10n.patientsSearchPrompt)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle(L10n.aiPatientPickerTitle)
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .patientAtmosphere(Theme.gold)
             .background(Theme.base.ignoresSafeArea())
             .subtleAnimation(value: isLoading)
@@ -86,11 +95,26 @@ struct TherapistAIView: View {
                     NavigationLink {
                         PatientAIView(patient: patient)
                     } label: {
-                        PatientListRow(patient: patient, actionSubtitle: L10n.aiPatientPickerAction)
+                        HStack(spacing: 14) {
+                            InitialsAvatar(name: patient.displayName, size: 52, patientID: patient.id)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(patient.displayName)
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(Theme.textBright)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Label(L10n.aiPatientPickerAction, systemImage: "bubble.left")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.gold)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.vertical, 6)
+                        .contentShape(Rectangle())
                     }
-                    .listRowBackground(groupBorderedRow(
-                        .at(patients.firstIndex(of: patient) ?? 0, of: patients.count),
-                        accent: Theme.gold))
+                    .accessibilityIdentifier("ai.picker.patient")
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
                     .listRowSeparatorTint(Theme.borderFaint)
                 }
             }

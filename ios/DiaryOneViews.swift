@@ -438,9 +438,7 @@ struct DiaryOneEntryFormView: View {
     }
 
     var body: some View {
-        if let existing, existing.createdBy == .patient {
-            PatientDiaryOneDetailView(entry: existing, therapistViewing: true)
-        } else { editorBody }
+        editorBody
     }
 
     private var editorBody: some View {
@@ -491,7 +489,7 @@ struct DiaryOneEntryFormView: View {
                 }
                 .disabled(isBusy)
             }
-            if existing != nil {
+            if existing?.createdBy == .therapist {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .destructive) {
                         isShowingDeleteConfirmation = true
@@ -519,7 +517,7 @@ struct DiaryOneEntryFormView: View {
         } message: {
             Text(L10n.diaryOneDeleteConfirmMessage)
         }
-        .interactiveDismissDisabled(hasUnsavedChanges)
+        .interactiveDismissDisabled(hasUnsavedChanges || isBusy)
     }
 
     private func save() async {
@@ -567,7 +565,7 @@ struct DiaryOneEntryFormView: View {
             initialSnapshot = draft.comparableSnapshot
             dismiss()
         } catch {
-            errorMessage = L10n.diaryOneSaveFailed
+            errorMessage = error.userFacingMessage(fallback: L10n.diaryOneSaveFailed)
             isSaving = false
         }
     }
@@ -582,7 +580,7 @@ struct DiaryOneEntryFormView: View {
             initialSnapshot = draft.comparableSnapshot
             dismiss()
         } catch {
-            errorMessage = L10n.diaryOneDeleteFailed
+            errorMessage = error.userFacingMessage(fallback: L10n.diaryOneDeleteFailed)
             isDeleting = false
         }
     }

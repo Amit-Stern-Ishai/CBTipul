@@ -382,6 +382,7 @@
     <string name="session_type_diary_two">יומן מחשבות 2</string>
     <string name="session_type_diary_three">יומן מחשבות 3</string>
     <string name="session_type_case_formulation">המשגה</string>
+    <string name="session_type_core_belief_challenge">ערעור אמונת יסוד</string>
     <string name="session_type_behavioral_interventions">חשיפות</string>
     <string name="session_type_relapse_prevention_and_termination">סיכום טיפול והישנות</string>
     <string name="gad7_severity_minimal">ללא חרדה משמעותית</string>
@@ -487,7 +488,7 @@
     <string name="welcome_primary_action">המשך למצב הדגמה</string>
     <string name="welcome_secondary_action">אפשר לעבור על זה אחר כך</string>
     <string name="welcome_info_link">איך נשמר המידע?</string>
-    <string name="welcome_info_body">שמות המטופלים נשמרים באופן מוצפן במכשיר בלבד ואינם מועלים לשרת. מידע אחר נשמר ומעובד בהתאם למדיניות הפרטיות ולהסכמות שניתנו באפליקציה.</string>
+    <string name="welcome_info_body">לאחר אישור מפורש ונפרד, שמות המטופלים מועלים לשרתי CBTipul ומסונכרנים בין מכשירים מורשים. השמות מוצפנים בתעבורה ובאחסון באמצעות מפתחות שרת; תהליכים מורשים יכולים לפענחם. זו אינה הצפנה מקצה לקצה. עותקים מקומיים נשארים לתצוגה ולשימוש ללא רשת; מיפויי iOS קיימים עשויים להסתנכרן גם דרך iCloud Keychain, בהתאם להגדרות Apple. שדה השם אינו נשלח אוטומטית לכלי בינה מלאכותית; טקסט חופשי מטופל בנפרד לפי מדיניות הפרטיות וההסכמות. המנגנון החדש חל על אחסון שמות בלבד.</string>
     <string name="welcome_info_done_action">סגירה</string>
     <string name="getting_started_progress">שלב %1$d מתוך %2$d</string>
     <string name="getting_started_step_add_patient">יצירת מטופל/ת</string>
@@ -1248,4 +1249,33 @@
     <string name="recent_show_less">הצגת פחות מילויים</string>
     <string name="recent_show_all">הצגת כל %1$d המילויים</string>
     <string name="patient_ai_assistance_description">שיחה עם עוזר בינה מלאכותית</string>
+    <string name="patient_journey_title">רצף הטיפול</string>
+    <string name="patient_journey_empty">רצף הטיפול יופיע לאחר המפגש הראשון</string>
+    <string name="patient_journey_count">%1$d מפגשים</string>
+    <string name="patient_latest_session">למפגש האחרון</string>
+    <string name="patient_record_heading">התיק הטיפולי</string>
+    <string name="questionnaire_history_hint">יותר מילוי = יותר פעמים · בהיר יותר = יותר לאחרונה</string>
+    <string name="questionnaire_history_help" formatted="false">גובה המילוי מציג שכיחות. צבע בהיר יותר מציין משקל עדכני גבוה יותר. לשאלון האחרון משקל 100%, לקודם 50%, ואחריו 25% וכן הלאה. מסגרת זהב מסמנת את התשובה האחרונה; זהב מלא מסמן את הבחירה עכשיו.</string>
+    <string name="questionnaire_history_value">נבחרה %1$d מתוך %2$d תשובות קודמות; משקל עדכני %3$d אחוז</string>
+    <string name="ui_history_help_title">התשובות הקודמות</string>
+    <string name="ui_got_it">הבנתי</string>
+    <string name="ui_session_summary">סיכום הפגישה</string>
+    <string name="ui_summary_read_hint">לפתיחה ועריכה</string>
+    <string name="ui_ai_context">חשיבה משותפת על התיק הטיפולי</string>
+    <string name="ui_notifications_context">עדכונים מהמטופלים וממרחב העבודה</string>
+    <string name="ui_journey_latest">האחרון</string>
+    <string name="ui_patient_directory">כל התיקים, במקום אחד</string>
+
+    <string name="auth_role_title">איך נכנסים ל־CBTipul?</string>
+    <string name="auth_role_explanation">למטפלים ולמטופלים יש דרכי כניסה שונות.</string>
+    <string name="auth_role_therapist">אני מטפל/ת</string>
+    <string name="auth_role_therapist_detail">כניסה או יצירת חשבון למרחב המטפלים</string>
+    <string name="auth_role_patient">אני מטופל/ת</string>
+    <string name="auth_role_patient_detail">כניסה דרך קישור ההזמנה מהמטפל/ת</string>
+    <string name="auth_therapist_only">כניסה למטפלים בלבד</string>
+    <string name="auth_change_role">בחירת סוג כניסה</string>
+    <string name="auth_patient_link_title">מטופלים נכנסים דרך ההזמנה</string>
+    <string name="auth_patient_link_body">אין צורך להירשם כמטפל/ת. חזרו להודעה שקיבלתם מהמטפל/ת ולחצו שוב על קישור ההזמנה — גם אם כבר התקנתם את האפליקציה.</string>
+    <string name="auth_patient_no_link">אין לכם קישור? בקשו מהמטפל/ת לשלוח לכם קישור הזמנה.</string>
+    <string name="auth_other_methods">אפשרויות כניסה נוספות</string>
 </resources>

@@ -69,7 +69,7 @@ class PatientDiaryThreeServiceTest {
             val otherPatient = row.replace(patient, "55555555-5555-5555-5555-555555555555")
             response.set("[$older,$therapist,$row,$otherPatient]"); requests.clear()
             val entries = service.loadPatientCreatedEntries(patient)
-            assertEquals(listOf(id, "44444444-4444-4444-4444-444444444444"), entries.map { it.id })
+            assertEquals(listOf(id, id, "44444444-4444-4444-4444-444444444444"), entries.map { it.id })
             assertEquals(100, entries[0].automaticThoughts[0].beliefBefore)
             assertEquals(0, entries[0].automaticThoughts[0].beliefAfter)
             assertEquals(100, entries[0].feelings[0].intensityBefore)
@@ -78,7 +78,7 @@ class PatientDiaryThreeServiceTest {
             assertEquals(100, entries[0].alternativeThoughts[0].belief)
             assertEquals("GET", requests.single().method)
             assertEquals("/rest/v1/diary_three_entries", requests.single().path)
-            assertTrue(requests.single().query.contains("created_by=eq.patient"))
+            assertFalse(requests.single().query.contains("created_by="))
             assertTrue(requests.single().query.contains("patient_id=eq.$patient"))
             assertTrue(requests.single().query.contains("order=created_at.desc"))
         } finally { client.close(); server.stop(0); Dispatchers.resetMain() }

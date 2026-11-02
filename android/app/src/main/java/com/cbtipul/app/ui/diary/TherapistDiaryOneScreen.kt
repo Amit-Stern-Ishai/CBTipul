@@ -186,14 +186,6 @@ fun TherapistDiaryOneScreen(
         return
     }
 
-    val patientEntry = editor?.takeIf { it.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Patient }
-    if (patientEntry != null) {
-        val close = { if (returnDirectly && patientEntry.id == focusEntryId) onBack() else { editor = null } }
-        androidx.activity.compose.BackHandler(onBack = close)
-        com.cbtipul.app.ui.patient.PatientDiaryOneDetailScreen(entry = patientEntry, onBack = close, therapistViewing = true)
-        return
-    }
-
     if (isCreating || editor != null) {
         val existing = editor
         DiaryOneEditorScreen(
@@ -241,7 +233,7 @@ fun TherapistDiaryOneScreen(
                     isSaving = false
                 }
             },
-            onDelete = if (existing != null) {
+            onDelete = if (existing != null && existing.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Therapist) {
                 {
                     scope.launch {
                         isSaving = true

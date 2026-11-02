@@ -3,7 +3,7 @@ import Testing
 @testable import CBTipul
 
 struct AppRootRoutingTests {
-    @Test func noSessionShowsTherapistLogin() {
+    @Test func noSessionShowsAuthenticationEntry() {
         #expect(
             AppRootRouting.destination(
                 invitationActive: false,
@@ -14,6 +14,8 @@ struct AppRootRoutingTests {
     }
 
     @Test func invitationOverridesSession() {
+        #expect(AppRootRouting.destination(invitationActive: true, hasSession: false,
+                                          isAnonymous: false) == .invitation)
         #expect(
             AppRootRouting.destination(
                 invitationActive: true,

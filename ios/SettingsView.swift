@@ -89,7 +89,7 @@ private struct AppTextSizeModifier: ViewModifier {
             .environment(\.layoutDirection, .rightToLeft)
             .environment(\.colorScheme, resolvedScheme)
             .preferredColorScheme(resolvedScheme)
-            .toolbarBackground(Theme.base, for: .navigationBar, .tabBar)
+            .toolbarBackground(Theme.isPaper ? Theme.patientHomeHeader : Theme.base, for: .navigationBar, .tabBar)
             .toolbarColorScheme(resolvedScheme, for: .navigationBar, .tabBar)
             .foregroundStyle(Theme.textBright, Theme.textBody, Theme.textFaint)
             .tint(Theme.gold)
@@ -756,14 +756,14 @@ struct AppearancePickerView: View {
 
     private func appearancePreview(_ option: AppAppearance) -> some View {
         let dark = option == .dark
-        let base = Color(uiColor: UIColor(hex: dark ? 0x0C1420 : 0xF1F4F8))
+        let base = Color(uiColor: UIColor(hex: dark ? 0x0C1420 : 0xFAF7F1))
         let surface = Color(uiColor: UIColor(hex: dark ? 0x172231 : 0xFFFFFF))
-        let ink = Color(uiColor: UIColor(hex: dark ? 0xB4C0D0 : 0x4B5E75))
+        let ink = Color(uiColor: UIColor(hex: dark ? 0xB4C0D0 : 0x665A6F))
         return VStack(alignment: .leading, spacing: 12) {
             Capsule().fill(ink).frame(width: 52, height: 6)
             ForEach(0..<2) { _ in
                 HStack(spacing: 8) {
-                    Circle().fill(Color(uiColor: UIColor(hex: dark ? 0xE2BB76 : 0x203E61))).frame(width: 20, height: 20)
+                    Circle().fill(Color(uiColor: UIColor(hex: dark ? 0xE2BB76 : 0x5C4476))).frame(width: 20, height: 20)
                     VStack(alignment: .leading, spacing: 5) {
                         Capsule().fill(ink.opacity(0.7)).frame(height: 4)
                         Capsule().fill(ink.opacity(0.25)).frame(width: 32, height: 4)
@@ -773,7 +773,7 @@ struct AppearancePickerView: View {
                 .background(surface, in: RoundedRectangle(cornerRadius: 10))
             }
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(uiColor: UIColor(hex: dark ? 0xE2BB76 : 0x203E61))).frame(height: 24)
+                .fill(Color(uiColor: UIColor(hex: dark ? 0xE2BB76 : 0x5C4476))).frame(height: 24)
         }
         .padding(12)
         .frame(maxWidth: .infinity)

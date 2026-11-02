@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
 
-class VoiceNoteRecorder(private val context: Context) {
+class VoiceNoteRecorder(private val context: Context, private val preserveOnRelease: Boolean = false) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var recorder: MediaRecorder? = null
     private var player: MediaPlayer? = null
@@ -35,16 +35,17 @@ class VoiceNoteRecorder(private val context: Context) {
 
     var onChange: () -> Unit = {}
 
-    fun startRecording() {
+    fun startRecording(destination: File? = null) {
         if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         errorMessage = null
         stopPlayback()
         discardFile()
-        val file = File(context.cacheDir, "voice-note-${UUID.randomUUID()}.m4a")
+        val file = destination ?: File(context.cacheDir, "voice-note-${UUID.randomUUID()}.m4a")
         val mediaRecorder = createRecorder()
         try {
             mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            // ADTS frames remain recoverable after process death; MP4 requires a final index.
+            mediaRecorder.setOutputFormat(if (file.extension == "aac") MediaRecorder.OutputFormat.AAC_ADTS else MediaRecorder.OutputFormat.MPEG_4)
             mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             mediaRecorder.setAudioSamplingRate(44_100)
             mediaRecorder.setAudioChannels(1)
@@ -72,7 +73,7 @@ class VoiceNoteRecorder(private val context: Context) {
             recorder = null
             file.delete()
             outputFile = null
-            errorMessage = error.message
+            errorMessage = "לא ניתן להשלים את פעולת ההקלטה. יש לנסות שוב."
             onChange()
         }
     }
@@ -113,7 +114,7 @@ class VoiceNoteRecorder(private val context: Context) {
             isPlaying = true
             onChange()
         } catch (error: Exception) {
-            errorMessage = error.message
+            errorMessage = "לא ניתן להשלים את פעולת ההקלטה. יש לנסות שוב."
             onChange()
         }
     }
@@ -132,8 +133,25 @@ class VoiceNoteRecorder(private val context: Context) {
         onChange()
     }
 
+    fun restore(file: File, seconds: Double) {
+        if (file.exists()) {
+            recordingFile = file
+            outputFile = file
+            durationSeconds = seconds
+            if (file.extension == "aac") {
+                durationSeconds = file.inputStream().buffered().use { com.cbtipul.app.data.SessionAudioMetadata.duration(it) }
+                check(durationSeconds > 0) { "No completed audio frames" }
+            } else if (seconds <= 0) runCatching {
+                val metadata = android.media.MediaMetadataRetriever()
+                try { metadata.setDataSource(file.absolutePath); durationSeconds = (metadata.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toDoubleOrNull() ?: 0.0) / 1000.0 }
+                finally { metadata.release() }
+            }
+            onChange()
+        }
+    }
+
     fun release() {
-        discard()
+        if (preserveOnRelease) { stopRecording(); stopPlayback() } else discard()
         scope.cancel()
     }
 

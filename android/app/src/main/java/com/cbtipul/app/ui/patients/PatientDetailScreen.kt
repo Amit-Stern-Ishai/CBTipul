@@ -26,6 +26,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -89,6 +94,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -119,7 +129,7 @@ import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PatientDetailScreen(
     patient: Patient?,
@@ -134,6 +144,7 @@ fun PatientDetailScreen(
     isSavingGoal: Boolean,
     onOpenSessions: () -> Unit,
     onNewSession: () -> Unit = {},
+    onOpenLatestSession: () -> Unit = {},
     onOpenQuestionnaires: () -> Unit,
     onOpenGraphs: () -> Unit = {},
     onOpenRecent: (String) -> Unit = {},
@@ -185,6 +196,7 @@ fun PatientDetailScreen(
     )
     var closeNotesAfterSave by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
+    var goalExpanded by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
     var goalDraft by remember { mutableStateOf("") }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -267,7 +279,7 @@ fun PatientDetailScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(if (showNotes) stringResource(R.string.patient_notes_title) else name, color = colors.textBright) },
+                title = { Text(if (showNotes) stringResource(R.string.patient_notes_title) else stringResource(R.string.patient_record_heading), color = colors.textBright) },
                 navigationIcon = {
                     IconButton(onClick = { requestBack() }) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back), tint = colors.gold)
@@ -311,25 +323,39 @@ fun PatientDetailScreen(
         ) {
             val accent = PatientAvatarColor.background(patient.id)
             if (!showNotes) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                    Text(name, color = colors.textBright, fontWeight = FontWeight.Bold, fontSize = 26.sp,
-                        textAlign = TextAlign.Start, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { showRename = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_patient_name_action), tint = colors.gold)
+            // One patient-colored identity region, matching the iOS material hierarchy.
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(
+                Brush.linearGradient(if (colors.isPaper) listOf(lerp(colors.elevated, accent, .08f), colors.elevated) else listOf(lerp(Color(0xFF0C1420), accent, .42f), lerp(Color(0xFF0C1420), accent, .18f))),
+                RoundedCornerShape(20.dp)).drawBehind {
+                    // Translucent planes preserve the approved layered material without blurring text.
+                    val plane = Path().apply {
+                        moveTo(size.width * .12f, 0f); lineTo(size.width * .43f, 0f)
+                        lineTo(size.width * .76f, size.height); lineTo(size.width * .36f, size.height); close()
                     }
-                }
-
-            }
-
+                    drawPath(plane, Color.White.copy(alpha = .045f))
+                    val second = Path().apply {
+                        moveTo(size.width * .62f, 0f); lineTo(size.width, 0f)
+                        lineTo(size.width * .46f, size.height); lineTo(size.width * .19f, size.height); close()
+                    }
+                    drawPath(second, Color.White.copy(alpha = .035f))
+                }.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             val statusLabel = stringResource(if (patient.status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive)
             val statusTitle = stringResource(R.string.status_label)
-            val statusColor = if (patient.status == PatientStatus.Active) colors.success else colors.textBody
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+            val statusColor = if (patient.status == PatientStatus.Active) (if (colors.isPaper) colors.success else Color(0xFF8CE4B7)) else colors.headerInk
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(),
+                maxItemsInEachRow = if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f) 1 else 2,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = { showRename = true },
+                    enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    Text(name, color = colors.headerInk, fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start,
+                        modifier = Modifier.weight(1f))
+                    Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_patient_name_action),
+                        tint = colors.headerInk, modifier = Modifier.size(16.dp))
+                }
+            Box(contentAlignment = Alignment.CenterStart) {
                 // Anchor the menu to the badge itself, not the full screen width.
                 Box {
                     TextButton(onClick = {
@@ -363,57 +389,90 @@ fun PatientDetailScreen(
                     }
                 }
             }
-            PatientConnectionActions(patient, name, assignmentRepository, isDemo, busy || isCreatingInvitation, onInvitePatient, onSendMessage, onNewSession)
-            PatientRecentActivity(patient, isDemo, onOpenRecent)
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(R.string.treatment_goal_section), style = MaterialTheme.typography.labelMedium, color = colors.textBody)
+            }
+                Row(Modifier.fillMaxWidth().background(Color.White.copy(alpha = .03f), RoundedCornerShape(12.dp)).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).clickable { goalExpanded = !goalExpanded }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.treatment_goal_section), style = MaterialTheme.typography.labelMedium, color = colors.headerInk.copy(alpha = .95f))
                         Text(treatmentGoal.ifEmpty { stringResource(R.string.no_treatment_goal_placeholder) },
-                            color = if (treatmentGoal.isEmpty()) colors.textBody else colors.textBright)
+                            color = colors.headerInk,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = if (goalExpanded || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f) Int.MAX_VALUE else 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                     IconButton(onClick = { goalDraft = treatmentGoal; showGoal = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_treatment_goal_action), tint = colors.gold)
+                        Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_treatment_goal_action), tint = colors.headerInk)
                     }
                 }
-            Text(stringResource(R.string.patient_session_workspace_title), color = colors.textBody)
-            GroupedListCard(accent = accent) {
-                IconChipRow(Icons.Outlined.DateRange, stringResource(R.string.sessions_title),
-                    detail = if (patient.sessions.isEmpty()) stringResource(R.string.patient_sessions_description) else patientSubtitle(patient), onClick = onOpenSessions)
-                GroupedListDivider()
-                IconChipRow(Icons.AutoMirrored.Outlined.Notes, stringResource(R.string.patient_notes_title),
-                    detail = patient.notes.takeIf { it.isNotBlank() } ?: stringResource(R.string.patient_notes_description), onClick = { showNotes = true })
-
+            PatientJourneySection(patient, inHeader = true)
             }
-            Text(stringResource(R.string.patient_records_title), color = colors.textBody)
-            GroupedListCard(accent = accent) {
-                IconChipRow(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title),
-                    trailing = { Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = colors.gold, modifier = Modifier.rotate(diariesArrowRotation)) },
-                    onClick = { diariesExpanded = !diariesExpanded })
-                AnimatedVisibility(
-                    visible = diariesExpanded,
-                    enter = expandVertically(tween(180), expandFrom = Alignment.Top) + fadeIn(tween(180)),
-                    exit = shrinkVertically(tween(180), shrinkTowards = Alignment.Top) + fadeOut(tween(120)),
-                ) {
-                    Column {
-                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_one_title), detail = stringResource(R.string.patient_diary_one_purpose),
-                            onClick = onOpenDiaryOne)
-                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_two_title), detail = stringResource(R.string.patient_diary_two_purpose),
-                            onClick = onOpenDiaryTwo)
-                        IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_three_title), detail = stringResource(R.string.patient_diary_three_purpose_title),
-                            onClick = onOpenDiaryThree)
+            PatientConnectionActions(patient, name, assignmentRepository, isDemo, busy || isCreatingInvitation, onInvitePatient, onSendMessage, onNewSession)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onNewSession, enabled = !busy, modifier = Modifier.weight(1f).entitlementCreateControl(),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
+                    Text(stringResource(R.string.ww_new_session))
+                }
+                OutlinedButton(onClick = onPrepare, enabled = !isPreparing && !busy, modifier = Modifier.weight(1f).entitlementCreateControl()) {
+                    Text(stringResource(R.string.prepare_next_session_action))
+                }
+            }
+            PatientRecentActivity(patient, isDemo, onOpenRecent)
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(R.string.patient_record_heading), style = MaterialTheme.typography.titleMedium,
+                    color = colors.textBright, modifier = Modifier.padding(vertical = 12.dp))
+                if (com.cbtipul.app.data.patientJourney(patient.sessions).isNotEmpty()) TextButton(onClick = onOpenLatestSession) {
+                    Text(stringResource(R.string.patient_latest_session))
+                }
+            }
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val singleColumn = maxWidth < 340.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
+                val actions = listOf(
+                    Triple(Icons.Outlined.DateRange, stringResource(R.string.sessions_title), onOpenSessions),
+                    Triple(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), onOpenGraphs),
+                    Triple(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title), { diariesExpanded = true }),
+                    Triple(Icons.Outlined.Assignment, stringResource(R.string.questionnaire_history_title), onOpenQuestionnaires),
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    actions.chunked(if (singleColumn) 1 else 2).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { (icon, title, action) ->
+                                OutlinedButton(onClick = action, modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                    shape = MaterialTheme.shapes.medium,
+                                    colors = ButtonDefaults.outlinedButtonColors(containerColor = accent.copy(alpha = .10f), contentColor = colors.textBright),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = .45f)),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp)) {
+                                    Icon(icon, null, tint = lerp(accent, colors.textBright, .35f), modifier = Modifier.size(22.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+                    }
+                    androidx.compose.material3.FilledTonalButton(onClick = onOpenChat, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFF9B59CE).copy(alpha = .16f), contentColor = colors.textBright)) {
+                        Icon(Icons.Outlined.AutoAwesome, null); Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.patient_ai_assistance_title))
                     }
                 }
+            }
+            if (diariesExpanded) androidx.compose.material3.ModalBottomSheet(
+                onDismissRequest = { diariesExpanded = false },
+                containerColor = colors.surface,
+                contentColor = colors.textBright,
+                tonalElevation = 0.dp,
+            ) {
+                Text(stringResource(R.string.patient_diaries_title), color = colors.textBright, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
+                IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_one_title), onClick = { diariesExpanded = false; onOpenDiaryOne() })
                 GroupedListDivider()
-                IconChipRow(Icons.Outlined.Assignment, stringResource(R.string.questionnaire_history_title), detail = stringResource(R.string.patient_questionnaires_description), onClick = onOpenQuestionnaires)
+                IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_two_title), onClick = { diariesExpanded = false; onOpenDiaryTwo() })
                 GroupedListDivider()
-                IconChipRow(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), detail = stringResource(R.string.patient_graphs_description), onClick = onOpenGraphs)
+                IconChipRow(Icons.Outlined.Book, stringResource(R.string.diary_three_title), onClick = { diariesExpanded = false; onOpenDiaryThree() })
+                Spacer(Modifier.height(24.dp))
+            }
+            GroupedListCard(accent = accent) {
+                IconChipRow(Icons.AutoMirrored.Outlined.Notes, stringResource(R.string.patient_notes_title), onClick = { showNotes = true })
                 GroupedListDivider()
                 IconChipRow(Icons.Outlined.MailOutline, stringResource(R.string.messages_title), onClick = onOpenMessages)
             }
-            Text(stringResource(R.string.patient_assistance_section_title), color = colors.textBody)
-            GroupedListCard(accent = accent) {
-                IconChipRow(Icons.Outlined.AutoFixHigh, stringResource(R.string.prepare_next_session_action), enabled = !isPreparing,
-                    trailing = { if (isPreparing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) }, onClick = onPrepare)
+            if (savedPreparationDate != null) GroupedListCard(accent = accent) {
                 if (savedPreparationDate != null) {
                     GroupedListDivider()
                     IconChipRow(Icons.Outlined.FindInPage, stringResource(R.string.last_preparation_action), trailing = {
@@ -423,11 +482,8 @@ fun PatientDetailScreen(
                         }
                     }, onClick = onOpenLastPreparation)
                 }
-                GroupedListDivider()
-                IconChipRow(Icons.Outlined.AutoAwesome, stringResource(R.string.patient_ai_assistance_title),
-                    detail = stringResource(R.string.patient_ai_assistance_description), onClick = onOpenChat)
             }
-            prepareError?.let { Text(it, color = colors.error) }
+            prepareError?.let { AIUsageNotice(it) }
             }
             if (showNotes) {
             Text(stringResource(R.string.notes_section), color = colors.textBright, fontWeight = FontWeight.SemiBold)
@@ -513,7 +569,7 @@ fun PatientDetailScreen(
                 }
             }
 
-            notesError?.let { Text(it, color = colors.error) }
+            notesError?.let { AIUsageNotice(it) }
             }
         }
     }

@@ -436,6 +436,20 @@ fun RootScreen() {
                             onContinue = { scope.launch { app.onboardingStore.completeIntroduction() } },
                         )
                     }
+                    !app.patientRepository.isDemoMode.collectAsStateWithLifecycle().value &&
+                        !com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle().value.localDemo &&
+                        (app.patientRepository.nameSync.account != app.authRepository.currentUserId()?.lowercase() ||
+                        !app.patientRepository.nameSync.state.collectAsStateWithLifecycle().value.migrationComplete) -> {
+                        com.cbtipul.app.ui.patients.PatientNameMigrationScreen(
+                            sync=app.patientRepository.nameSync,
+                            contextKey="${app.authRepository.currentUserId()}-${com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle().value.role}",
+                            retry={
+                                if(com.cbtipul.app.data.Entitlements.state.value.role==null)runCatching {app.appContext.getCurrentAppContext()}
+                                app.patientRepository.nameSync.retryMigration()
+                            },
+                            logout={app.patientRepository.nameSync.setAccount(null);authViewModel.signOut()},
+                        )
+                    }
                     else -> {
                         TherapistRootScreen(
                             viewModel = listVm,

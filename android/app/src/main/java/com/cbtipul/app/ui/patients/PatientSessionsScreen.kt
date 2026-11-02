@@ -266,6 +266,7 @@ internal fun PatientContextTitle(title: String, name: String, onOpenPatient: () 
 }
 
 /** Shared session row for both the global tab and the patient's history. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 internal fun SessionListRow(
     session: Session,
@@ -273,6 +274,7 @@ internal fun SessionListRow(
     scores: Pair<CombinedMoodQuestionnaire, CombinedMoodQuestionnaire?>?,
     modifier: Modifier = Modifier,
     patientName: String? = null,
+    patientColor: androidx.compose.ui.graphics.Color? = null,
     onClick: () -> Unit,
 ) {
     val colors = Theme.colors
@@ -288,13 +290,19 @@ internal fun SessionListRow(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Icon(Icons.Outlined.CalendarMonth, contentDescription = null,
-                tint = colors.gold, modifier = Modifier.size(24.dp))
-            Text("$number", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            androidx.compose.material3.Surface(color = (patientColor ?: colors.gold).copy(alpha = .12f), shape = androidx.compose.material3.MaterialTheme.shapes.medium) {
+                Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(java.text.SimpleDateFormat("dd", java.util.Locale("he", "IL")).format(session.date),
+                        style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = colors.textBright, fontWeight = FontWeight.Bold)
+                    Text(java.text.SimpleDateFormat("MMM", java.util.Locale("he", "IL")).format(session.date),
+                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall, color = colors.textBody)
+                }
+            }
+            Text("$number", color = colors.textBody, style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             patientName?.let {
-                Text(it, color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                Text(it, color = colors.textBright, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -313,12 +321,13 @@ internal fun SessionListRow(
             session.type?.let {
                 Text(stringResource(it.labelRes()), color = colors.textBody, fontSize = 14.sp)
             }
-        }
-        scores?.let { preview ->
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
-                GAD7ScoreCapsule(preview.first, preview.second)
-                PHQ9ScoreCapsule(preview.first, preview.second)
+            scores?.let { preview ->
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GAD7ScoreCapsule(preview.first, preview.second)
+                    PHQ9ScoreCapsule(preview.first, preview.second)
+                }
             }
         }
+
     }
 }

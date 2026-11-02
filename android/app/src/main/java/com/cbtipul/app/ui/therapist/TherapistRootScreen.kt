@@ -192,7 +192,37 @@ fun TherapistRootScreen(
         navigateInboxDestination(inboxNav, destination)
     }
 
-    Column(Modifier.fillMaxSize()) {
+    val useRail = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
+    androidx.compose.foundation.layout.Row(Modifier.fillMaxSize()) {
+        if (useRail) androidx.compose.material3.NavigationRail(containerColor = colors.base) {
+            TherapistRootTab.ordered.forEach { item ->
+                androidx.compose.material3.NavigationRailItem(selected = tab == item,
+                    onClick = {
+                            if (tab != item) {
+                                tab = item
+                            } else if (item == TherapistRootTab.AI && aiEntry?.destination?.route != "list") {
+                                backDispatcher?.onBackPressed()
+                            } else if (item == TherapistRootTab.Notifications && inboxEntry?.destination?.route != "list") {
+                                backDispatcher?.onBackPressed()
+                            } else if (item == TherapistRootTab.Patients && currentEntry?.destination?.route != "list") {
+                                // Ignore taps during transitions, and let editing screens handle
+                                // Back themselves (save/discard, recording and in-flight work).
+                                if (currentEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                                    if (canResetPatientsTab(currentEntry?.destination?.route)) {
+                                        patientsNav.popBackStack("list", inclusive = false)
+                                    } else {
+                                        backDispatcher?.onBackPressed()
+                                    }
+                                }
+                            } else {
+                                reselections.getValue(item).tryEmit(Unit)
+                            }
+                        },
+                    icon = { Icon(item.icon(), contentDescription = null) },
+                    label = { Text(stringResource(item.labelRes())) })
+            }
+        }
+    Column(Modifier.weight(1f).fillMaxSize()) {
         if (isDemoMode) DemoModeBanner(onExit = { viewModel.exitDemoMode() })
         Box(Modifier.weight(1f).fillMaxSize()) {
             Box(Modifier.fillMaxSize().then(if (tab == TherapistRootTab.Patients) Modifier else Modifier.clearAndSetSemantics {})) {
@@ -263,7 +293,7 @@ fun TherapistRootScreen(
             }
         }
         // Keep the full editor viewport available while typing.
-        if (WindowInsets.ime.getBottom(LocalDensity.current) == 0) {
+        if (!useRail && WindowInsets.ime.getBottom(LocalDensity.current) == 0) {
             NavigationBar(containerColor = colors.base, tonalElevation = 0.dp) {
                 TherapistRootTab.ordered.forEach { item ->
                     NavigationBarItem(
@@ -317,6 +347,7 @@ fun TherapistRootScreen(
             }
         }
     }
+}
 }
 
 private fun TherapistRootTab.icon() = when (this) {

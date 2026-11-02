@@ -1,8 +1,10 @@
 import SwiftUI
 import OSLog
 
-/// Patient Mode create-only Diary 3. No history, edit, or delete.
+/// Patient diary form: creation uses the submission function; editing updates the original row.
 struct PatientDiaryThreeEntryView: View {
+    var existing: DiaryThreeEntry? = nil
+    var onEdited: (DiaryThreeEntry) -> Void = { _ in }
     var onSubmitted: () async -> Void
     var onDiaryInactive: () async -> Void
     var onVisibilityChange: (Bool) -> Void = { _ in }
@@ -12,6 +14,7 @@ struct PatientDiaryThreeEntryView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var draft = PatientDiaryThreeDraft()
+    @State private var initialSnapshot = DiaryThreeEntryDraft.empty.comparableSnapshot
     @State private var deviceDraft = DeviceFormDraft<PatientDiaryThreeDraft>()
     @State private var editSection = 1
     @State private var isShowingReview = false
@@ -28,7 +31,7 @@ struct PatientDiaryThreeEntryView: View {
     private var isBusy: Bool { isSaving || sendAfterReview }
 
     private var hasUnsavedChanges: Bool {
-        draft.hasMeaningfulContent
+        draft.entry.comparableSnapshot != initialSnapshot
     }
 
     var body: some View {
@@ -157,8 +160,9 @@ struct PatientDiaryThreeEntryView: View {
         .onDisappear { onVisibilityChange(false) }
         .onAppear {
             onVisibilityChange(true)
-            guard let patientID = appContext.current?.patientId else { return }
-            if let saved = deviceDraft.restore(userID: auth.currentUserId, kind: "patient-diary-three", target: patientID.uuidString) {
+            guard !deviceDraft.hasLoaded, let patientID = appContext.current?.patientId else { return }
+            if let existing { draft.entry = .from(existing); initialSnapshot = draft.entry.comparableSnapshot }
+            if let saved = deviceDraft.restore(userID: auth.currentUserId, kind: "patient-diary-three", target: existing.map { patientID.uuidString + "-edit-" + $0.id.uuidString } ?? patientID.uuidString) {
                 draft = saved
                 draft.currentStep = min(7, max(1, saved.currentStep))
             }
@@ -227,6 +231,19 @@ struct PatientDiaryThreeEntryView: View {
         isSaving = true
         errorMessage = nil
         do {
+            if let existing {
+                guard existing.patientId.uuidValue == appContext.current?.patientId else { throw PatientStoreError.updateRejected }
+                let saved = try await DiaryThreeStore(client: auth.client).updateEntry(
+                    id: existing.id, patientId: existing.patientId,
+                situation: draft.entry.situation.trimmingCharacters(in: .whitespacesAndNewlines),
+                automaticThoughts: draft.entry.persistedAutomaticThoughts,
+                feelings: feelings,
+                thinkingErrors: draft.entry.thinkingErrors,
+                alternativeThoughts: draft.entry.persistedAlternativeThoughts
+
+                )
+                onEdited(saved)
+            } else {
             _ = try await PatientDiaryThreeService(client: auth.client).submitEntry(
                 situation: draft.entry.situation.trimmingCharacters(in: .whitespacesAndNewlines),
                 automaticThoughts: draft.entry.persistedAutomaticThoughts,
@@ -234,6 +251,7 @@ struct PatientDiaryThreeEntryView: View {
                 thinkingErrors: draft.entry.thinkingErrors,
                 alternativeThoughts: draft.entry.persistedAlternativeThoughts
             )
+            }
             await finishSuccessfully()
         } catch let PatientDiaryThreeSubmitError.notActive(message) {
             isSaving = false
@@ -254,8 +272,8 @@ struct PatientDiaryThreeEntryView: View {
             isShowingValidationAlert = true
             isSaving = false
         } catch {
-            validationMessage = L10n.patientDiaryOneSubmitError
-            isShowingValidationAlert = true
+            validationMessage = error.userFacingMessage(fallback: L10n.patientDiaryOneSubmitError) ?? ""
+            isShowingValidationAlert = validationMessage?.isEmpty == false
             isSaving = false
         }
     }

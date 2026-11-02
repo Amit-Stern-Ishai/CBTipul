@@ -20,7 +20,9 @@ class PatientIdentityStore(context: Context) {
         prefs.edit().putString(patientId.queryValue, name).apply()
     }
 
-    fun name(patientId: DatabaseId): String? = prefs.getString(patientId.queryValue, null)
+    var resolvedName: ((DatabaseId) -> String?)? = null
+    fun legacyName(patientId: DatabaseId): String? = prefs.getString(patientId.queryValue, null)
+    fun name(patientId: DatabaseId): String? = resolvedName?.invoke(patientId) ?: legacyName(patientId)
 
     fun delete(patientId: DatabaseId) {
         prefs.edit().remove(patientId.queryValue).apply()

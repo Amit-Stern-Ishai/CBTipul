@@ -31,8 +31,8 @@ class ClinicalTextAnonymizer(
             json.decodeFromString<Response>(http.bodyAsText())
         } catch (error: ConsentDeclinedException) {
             throw error
-        } catch (_: Exception) {
-            throw ClinicalTextAnonymizerError()
+        } catch (error: Exception) {
+            throw SummaryFailure.from(error)
         }
         val anonymized = response.anonymizedText.trim()
         if (anonymized.isEmpty()) throw ClinicalTextAnonymizerError()

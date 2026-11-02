@@ -88,13 +88,22 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
         val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
             ?: throw IllegalStateException("not_configured")
-        val rows = client.from("diary_one_entries")
+        val rows = mutableListOf<DiaryOneEntryRow>()
+        var offset = 0
+        while (true) {
+            val page = client.from("diary_one_entries")
             .select(columns) {
                 filter { eq("patient_id", patientUuid) }
                 order("created_at", Order.DESCENDING)
+                order("id", Order.DESCENDING)
+                range(offset.toLong(), (offset + 249).toLong())
             }
             .decodeList<DiaryOneEntryRow>()
-        val loaded = rows.map { it.toDomain(patientId) }
+            rows.addAll(page)
+            if (page.size < 250) break
+            offset += page.size
+        }
+        val loaded = rows.filter { it.patientId.equals(patientId.queryValue, true) }.map { it.toDomain(patientId) }
         _entries.update { it + (patientId.queryValue to loaded) }
         return loaded
     }
@@ -103,16 +112,24 @@ class DiaryOneRepository(private val client: SupabaseClient) {
         if (!SupabaseConfig.isConfigured) throw IllegalStateException("not_configured")
         val patientUuid = PatientAssignmentRepository.uuidOrNull(patientId)
             ?: throw IllegalStateException("not_configured")
-        val rows = client.from("diary_one_entries")
+        val rows = mutableListOf<DiaryOneEntryRow>()
+        var offset = 0
+        while (true) {
+            val page = client.from("diary_one_entries")
             .select(columns) {
                 filter {
                     eq("patient_id", patientUuid)
-                    eq("created_by", DiaryOneEntryCreator.Patient.raw)
                 }
                 order("created_at", Order.DESCENDING)
+                order("id", Order.DESCENDING)
+                range(offset.toLong(), (offset + 249).toLong())
             }
             .decodeList<DiaryOneEntryRow>()
-        return PatientDiaryOneHistory.visible(rows.map { it.toDomain(patientId) })
+            rows.addAll(page)
+            if (page.size < 250) break
+            offset += page.size
+        }
+        return PatientDiaryOneHistory.visible(rows.filter { it.patientId.equals(patientId.queryValue, true) }.map { it.toDomain(patientId) })
     }
 
     suspend fun loadEntry(id: String, patientId: DatabaseId): DiaryOneEntry? {
@@ -206,7 +223,6 @@ class DiaryOneRepository(private val client: SupabaseClient) {
     ): DiaryOneEntry {
         return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.submission, form=com.cbtipul.app.telemetry.Form.diaryOne) {
             Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId))
-            if (_entries.value[patientId.queryValue].orEmpty().any { it.id == id && it.createdBy == DiaryOneEntryCreator.Patient }) throw PatientStoreException(PatientStoreException.Kind.UpdateRejected)
             val symptoms = physicalSymptoms?.trim()?.ifEmpty { null }
             if (DemoData.isDemoId(patientId)) {
                 val existing = demoEntries[patientId.queryValue].orEmpty().first { it.id == id }
@@ -228,14 +244,14 @@ class DiaryOneRepository(private val client: SupabaseClient) {
                 put("feelings", feelingsJson(feelings))
                 put("behaviour", behaviour)
                 if (symptoms == null) put("physical_symptoms", JsonNull) else put("physical_symptoms", symptoms)
-                put("updated_at", timestampNow())
             }
             val saved = client.from("diary_one_entries")
                 .update(body) {
-                    filter { eq("created_by", "therapist"); eq("id", id) }
+                    filter { eq("id", id); eq("patient_id", patientId.queryValue) }
                     select(columns)
                 }
                 .decodeSingle<DiaryOneEntryRow>()
+                .also { require(it.id.equals(id, true) && it.patientId.equals(patientId.queryValue, true)) { "Diary update target mismatch" } }
                 .toDomain(patientId)
             upsert(saved)
             return@measure saved
@@ -328,12 +344,6 @@ class DiaryOneRepository(private val client: SupabaseClient) {
             "id, patient_id, therapist_id, created_by, event, automatic_thoughts, feelings, behaviour, physical_symptoms, created_at, updated_at",
         )
 
-        private fun parseIso(raw: String): Date {
-            listOf(
-                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US),
-                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),
-            ).forEach { it.parse(raw)?.let { date -> return date } }
-            return Date()
-        }
+        private fun parseIso(raw: String): Date = PatientAssignmentRepository.parseAssignmentTimestamp(raw)
     }
 }

@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.patient
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.material.icons.outlined.MenuBook
 
 import androidx.compose.material.icons.outlined.Assignment
@@ -109,7 +111,7 @@ import androidx.compose.runtime.SideEffect
 import com.cbtipul.app.ui.theme.hebrewDate
 import java.util.Date
 
-private enum class TasksLoadState { Loading, Loaded, Failed }
+internal enum class TasksLoadState { Loading, Loaded, Failed }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -445,7 +447,11 @@ fun PatientModeScreen(
             }
             val current = detail
             if (current != null) {
-                PatientDiaryOneDetailScreen(entry = current, onBack = { nav.popScreen() })
+                var editing by remember(entryId) { mutableStateOf(false) }
+                if (editing) PatientDiaryOneEditScreen(current, onSaved = { saved ->
+                    detail = saved; diaryEntries = diaryEntries.map { if (it.id == saved.id) saved else it }; editing = false
+                }, onBack = { editing = false })
+                else PatientDiaryOneDetailScreen(entry = current, onBack = { nav.popScreen() }, onEdit = { editing = true })
             } else {
                 Column(Modifier.fillMaxSize().themedScreen(Theme.colors.gold).safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     TextButton(onClick = { nav.popScreen() }) { Text(stringResource(R.string.back)) }
@@ -505,7 +511,13 @@ fun PatientModeScreen(
                 }
             }
             val current = detail
-            if (current != null) PatientDiaryTwoDetailScreen(current) { nav.popScreen() }
+            if (current != null) {
+                var editing by remember(id) { mutableStateOf(false) }
+                if (editing) PatientDiaryTwoEditScreen(current, onSaved = { saved ->
+                    detail = saved; diaryTwoEntries = diaryTwoEntries.map { if (it.id == saved.id) saved else it }; editing = false
+                }, onBack = { editing = false })
+                else PatientDiaryTwoDetailScreen(current, onBack = { nav.popScreen() }, onEdit = { editing = true })
+            }
             else Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 TextButton(onClick = { nav.popScreen() }) { Text(stringResource(R.string.back)) }
                 if (loading) CircularProgressIndicator(color = Theme.colors.gold)
@@ -575,7 +587,13 @@ fun PatientModeScreen(
                 }
             }
             val current = detail
-            if (current != null) PatientDiaryThreeDetailScreen(current) { nav.popScreen() }
+            if (current != null) {
+                var editing by remember(id) { mutableStateOf(false) }
+                if (editing) PatientDiaryThreeEditScreen(current, onSaved = { saved ->
+                    detail = saved; diaryThreeEntries = diaryThreeEntries.map { if (it.id == saved.id) saved else it }; editing = false
+                }, onBack = { editing = false })
+                else PatientDiaryThreeDetailScreen(current, onBack = { nav.popScreen() }, onEdit = { editing = true })
+            }
             else Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 TextButton(onClick = { nav.popScreen() }) { Text(stringResource(R.string.back)) }
                 if (loading) CircularProgressIndicator(color = Theme.colors.gold)
@@ -644,7 +662,7 @@ fun PatientModeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PatientHomeContent(
+internal fun PatientHomeContent(
     loadState: TasksLoadState,
     assignments: List<PatientAssignment>,
     messages: List<PatientMessage>,
@@ -723,11 +741,16 @@ private fun PatientHomeContent(
             ) {
                 Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
+                    Column(Modifier.fillMaxWidth().background(colors.elevated, RoundedCornerShape(16.dp)).padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("טוב שחזרת.", style = androidx.compose.material3.MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold, color = colors.textBright, modifier = Modifier.semantics { heading() })
+                        Text("המרחב שלך בין המפגשים.", color = colors.textBody, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
+                    }
                     nextDraft?.let { draft ->
-                        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(stringResource(R.string.patient_continue_draft_title), style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                        Column(Modifier.fillMaxWidth().border(1.dp, colors.borderStrong, RoundedCornerShape(16.dp)).padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Text(if (draft.type == PatientAssignmentType.Questionnaire) "ממשיכים מאיפה שעצרת." else "חוזרים למחשבה שהתחלנו.", style = androidx.compose.material3.MaterialTheme.typography.headlineLarge,
                                 color = colors.textBright, modifier = Modifier.semantics { heading() })
                             Text(stringResource(patientToolTitle(requireNotNull(draft.type))), fontWeight = FontWeight.SemiBold, color = colors.textBright)
                             if (draft.type != PatientAssignmentType.Questionnaire) Text(stringResource(patientToolPurpose(requireNotNull(draft.type))), color = colors.textBody)
@@ -757,7 +780,7 @@ private fun PatientHomeContent(
                     }
                     PatientAssignmentType.entries.forEach { type ->
                         val active = openAssignments.any { it.type == type } && (type != PatientAssignmentType.DiaryThree || PatientAssignmentType.diaryThreeSendingEnabled)
-                        if (active || type in historyTypes) {
+                        if (type != PatientAssignmentType.Questionnaire || active || type in historyTypes) {
                             val title = when (type) {
                                 PatientAssignmentType.Questionnaire -> R.string.questionnaires_title
                                 PatientAssignmentType.DiaryOne -> R.string.diary_one_title
@@ -765,8 +788,9 @@ private fun PatientHomeContent(
                                 PatientAssignmentType.DiaryThree -> R.string.diary_three_title
                             }
                             val draft = resumable.firstOrNull { it.type == type }
-                            GroupedListCard(accent = colors.gold) {
-                                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column {
+                                androidx.compose.material3.HorizontalDivider(color = colors.borderFaint)
+                                Row(Modifier.padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Row(Modifier.weight(1f).clickable {
                                         when (type) {
                                             PatientAssignmentType.Questionnaire -> onOpenQuestionnaire("")
@@ -775,7 +799,7 @@ private fun PatientHomeContent(
                                             PatientAssignmentType.DiaryThree -> onOpenDiaryThree()
                                         }
                                     }.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        Icon(if (type == PatientAssignmentType.Questionnaire) Icons.Outlined.Assignment else Icons.Outlined.MenuBook, contentDescription = null, tint = if (active) colors.success else colors.textBody)
+                                        Icon(if (type == PatientAssignmentType.Questionnaire) Icons.Outlined.Assignment else Icons.Outlined.MenuBook, contentDescription = null, tint = if (active) colors.gold else colors.textBody)
                                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(stringResource(title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
                                             Text(stringResource(patientToolPurpose(type)), color = colors.textBody, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)

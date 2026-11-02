@@ -122,7 +122,7 @@ fun DiaryOneEditorScreen(
         if (hasUnsavedChanges) showDiscard = true else onBack()
     }
 
-    BackHandler(enabled = !isSaving) { requestBack() }
+    BackHandler { requestBack() }
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(

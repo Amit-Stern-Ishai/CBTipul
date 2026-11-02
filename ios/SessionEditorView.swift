@@ -1,4 +1,5 @@
 import SwiftUI
+import Supabase
 
 /// Editor for a session's date and notes.
 ///
@@ -30,6 +31,25 @@ struct SessionEditorView: View {
 
     @State private var recovery = DeviceFormDraft<SessionRecovery>()
     @State private var recoveryClosed = false
+    @State private var recoveryAccount: String?
+    @State private var audioFileName: String?
+    @State private var transcriptReady = false
+    @State private var safeSummarySource: String?
+    @State private var safeSummary: String?
+    @State private var pendingCreation = false
+    @State private var showingRecoverySessions = false
+    @State private var confirmingManualRetry = false
+    @State private var confirmingDraftDiscard = false
+    @State private var recoveryListError: String?
+    @State private var copiedDraft = false
+    @State private var locallyPreserved = false
+    @State private var summaryWorkStarted = false
+    @State private var allowanceMessage: String?
+    @State private var allowanceChecking = false
+    @State private var tokensExhausted = false
+    @State private var allowanceCheckID = UUID()
+    @State private var lastAllowanceNeedsTokens = true
+    @State private var lastAllowanceSeconds: TimeInterval?
     @State private var isSaving = false
     @State private var selectedPatientID: DatabaseID?
     /// Status line under the busy spinner; the anonymization notice during
@@ -49,8 +69,7 @@ struct SessionEditorView: View {
     @State private var questionnaireRefreshFailed = false
     @State private var voiceRecorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
-    /// True while a fresh transcript is being anonymized, before it may
-    /// appear in the notes field.
+    /// True while the protected local transcript is being anonymized for server saving.
     @State private var isAnonymizingTranscription = false
     @State private var isAnalyzing = false
     @State private var analysisResult: SessionAnalysisResult?
@@ -79,14 +98,168 @@ struct SessionEditorView: View {
     }
 
     private var recoveryValue: SessionRecovery {
-        SessionRecovery(date: session.date, notes: session.notes, type: session.type, structuredNotes: session.structuredNotes, selectedPatientID: selectedPatientID)
+        SessionRecovery(date: session.date, notes: session.notes, type: session.type, structuredNotes: session.structuredNotes, selectedPatientID: selectedPatientID, audioFileName: audioFileName, transcriptReady: transcriptReady, safeSummary: safeSummary, safeSummarySource: safeSummarySource, pendingCreation: pendingCreation, summaryWorkStarted: hasSummaryWork)
     }
 
-    private func persistRecovery() {
-        guard recovery.hasLoaded, !recoveryClosed else { return }
-        // A failed read must never clear the previous recoverable text.
-        guard !recovery.hasError || hasUnsavedChanges else { return }
-        recovery.save(recoveryValue, isEmpty: !hasUnsavedChanges && !isNew || (isNew && session.notes.isEmpty && session.type == nil && session.structuredNotes == nil))
+    @discardableResult
+    private func persistRecovery() -> Bool {
+        guard recovery.hasLoaded, !recoveryClosed, recoveryAccount == auth.currentUserId else { return false }
+        // Never interpret empty text as permission to delete recovery material.
+        if !hasUnsavedChanges && audioFileName == nil && !pendingCreation { return true }
+        let saved = recovery.save(recoveryValue, isEmpty: false)
+        locallyPreserved = saved
+        return saved
+    }
+
+    private func clearRecoveryAfterSave() {
+        // Confirmed server receipt only. Keep the manifest if cleanup fails.
+        guard voiceRecorder.discard() else { return }
+        guard recovery.discard() else { return }
+        audioFileName = nil
+        transcriptReady = false
+        safeSummary = nil
+        pendingCreation = false
+        locallyPreserved = false
+    }
+
+    // Exhaustion blocks starting, never editing work already entrusted to recovery.
+    private var hasSummaryWork: Bool {
+        !session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || audioFileName != nil || summaryWorkStarted
+    }
+    private var blocksNewSummary: Bool { tokensExhausted && !hasSummaryWork }
+    private var uncertainSaveMessage: String {
+        locallyPreserved && !recovery.hasError
+            ? "לא ניתן לוודא אם הסיכום נשמר. הטיוטה נשמרה במכשיר. יש לבדוק ברשימת המפגשים לפני ניסיון נוסף."
+            : "לא ניתן לוודא אם הסיכום נשמר. לא ניתן לאשר שהטיוטה נשמרה במכשיר. יש לנסות לשמור את הטיוטה שוב לפני יציאה."
+    }
+
+    @ViewBuilder private var recoveryActions: some View {
+        if pendingCreation || hasSummaryWork {
+            VStack(alignment: .leading, spacing: 8) {
+                if pendingCreation {
+                    Button("בדיקה ברשימת המפגשים") {
+                        guard persistRecovery() else { return }
+                        showingRecoverySessions = true
+                    }.disabled(storePatient == nil).accessibilityIdentifier("summary.checkSessions")
+                    Button("בדקתי ברשימה — ניסיון שמירה נוסף") {
+                        confirmingManualRetry = true
+                    }.accessibilityIdentifier("summary.manualRetry")
+                }
+                if !session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button(copiedDraft ? "הטיוטה הועתקה" : "העתקת הטיוטה") {
+                        UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: session.notes]],
+                            options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(120)])
+                        copiedDraft = true
+                    }.accessibilityIdentifier("summary.copyDraft")
+                }
+                Button("מחיקת הטיוטה מהמכשיר", role: .destructive) {
+                    confirmingDraftDiscard = true
+                }.accessibilityIdentifier("summary.discardDraft")
+            }
+            .font(.footnote)
+            .disabled(isWorking)
+            .alert("ניסיון שמירה נוסף", isPresented: $confirmingManualRetry) {
+                Button("בדקתי — לשמור שוב") {
+                    guard persistRecovery() else { return }
+                    pendingCreation = false
+                    guard persistRecovery() else { pendingCreation = true; return }
+                    errorMessage = nil
+                    save()
+                }
+                Button("ביטול", role: .cancel) {}
+            } message: {
+                Text("ייתכן שהשמירה הקודמת הצליחה. ניסיון נוסף עלול ליצור מפגש כפול. יש להמשיך רק לאחר בדיקה ברשימת המפגשים.")
+            }
+            .alert("מחיקת הטיוטה מהמכשיר?", isPresented: $confirmingDraftDiscard) {
+                Button("מחיקת הטיוטה", role: .destructive) {
+                    guard voiceRecorder.discard(), recovery.discard() else { return }
+                    recoveryClosed = true
+                    session.notes = initialNotes ?? ""
+                    session.structuredNotes = initialStructuredNotes
+                    showingNotesEditor = false
+                    dismiss()
+                }
+                Button("ביטול", role: .cancel) {}
+            } message: {
+                Text("הטקסט וההקלטה המקומיים יימחקו. מפגש שכבר נשמר בשרת לא יימחק.")
+            }
+            .sheet(isPresented: $showingRecoverySessions) {
+                if let patient = storePatient {
+                    NavigationStack {
+                        PatientSessionsView(patient: patient, allowsNewSession: false)
+                            .safeAreaInset(edge: .top) {
+                                if let recoveryListError {
+                                    VStack {
+                                        Text(recoveryListError)
+                                        Button("ניסיון טעינה נוסף") { Task { await refreshRecoverySessions() } }
+                                    }.font(.footnote).padding()
+                                }
+                            }
+                            .toolbar { ToolbarItem(placement: .cancellationAction) {
+                                Button("חזרה לטיוטה") { showingRecoverySessions = false }
+                            } }
+                            .task { await refreshRecoverySessions() }
+                    }.environment(\.layoutDirection, .rightToLeft)
+                }
+            }
+        }
+    }
+
+    private func refreshRecoverySessions() async {
+        recoveryListError = nil
+        do { try await store.loadPatients() }
+        catch { recoveryListError = error.userFacingMessage }
+    }
+
+    // Successful local persistence is silent; only failures need attention.
+    private var draftStatus: String? {
+        recovery.hasError ? recovery.feedback : nil
+    }
+
+    /// The lookup is advisory. Processing failures still use the protected recovery path.
+    private func checkAllowance(needsTokens: Bool, recordingSeconds: TimeInterval? = nil, silently: Bool = false) async throws {
+        guard needsTokens || recordingSeconds != nil, !store.isDemoMode else { return }
+        guard let owner = auth.currentUserId else { throw ClientFailure.expiredLogin }
+        let request = UUID()
+        allowanceCheckID = request
+        allowanceChecking = !silently
+        lastAllowanceNeedsTokens = needsTokens
+        lastAllowanceSeconds = recordingSeconds
+        defer { if allowanceCheckID == request { allowanceChecking = false } }
+        do {
+            let snapshot = try await SummaryAIAllowance.fetch(client: auth.client)
+            guard owner == auth.currentUserId, request == allowanceCheckID else { throw CancellationError() }
+            // Only a validated balance may block local writing as exhausted.
+            guard snapshot.chatTokens.valid else { throw SummaryAllowanceError.couldNotCheck }
+            tokensExhausted = snapshot.chatTokens.exhausted
+            if blocksNewSummary {
+                isEditingSummary = false
+                notesEditorFocused = false
+            }
+            let low = try snapshot.assess(needsTokens: needsTokens, recordingSeconds: recordingSeconds)
+            allowanceMessage = low ? "המכסה החודשית מתקרבת לסיום\nנותרו עד 10%. ייתכן שהמכסה תסתיים במהלך העיבוד." : nil
+        } catch {
+            guard owner == auth.currentUserId, request == allowanceCheckID else { throw CancellationError() }
+            if !(error is CancellationError) { allowanceMessage = error.userFacingMessage }
+            throw error
+        }
+    }
+
+    @ViewBuilder private var allowanceFeedback: some View {
+        if allowanceChecking {
+            HStack { ProgressView(); Text("בודק/ת מכסה…").font(.caption) }
+                .accessibilityElement(children: .combine)
+        } else if let allowanceMessage {
+            VStack(alignment: .leading, spacing: 6) {
+                AIUsageNotice(message: allowanceMessage, title: "מכסת AI")
+                Button("בדיקת מכסה מחדש") {
+                    Task { try? await checkAllowance(needsTokens: lastAllowanceNeedsTokens, recordingSeconds: lastAllowanceSeconds) }
+                }.disabled(isWorking)
+            }
+            .foregroundStyle(Theme.textBody)
+            .accessibilityIdentifier("session.allowanceStatus")
+        }
     }
 
     private var isWorking: Bool {
@@ -96,7 +269,7 @@ struct SessionEditorView: View {
 
     private var canSave: Bool {
         EntitlementState.shared.canWrite &&
-        storePatient != nil && !isWorking && voiceRecorder.recordingURL == nil && (isNew || hasUnsavedChanges)
+        storePatient != nil && !isWorking && !pendingCreation && (voiceRecorder.recordingURL == nil || transcriptReady) && (isNew || hasUnsavedChanges)
     }
 
     private var saveStatus: String? {
@@ -106,7 +279,8 @@ struct SessionEditorView: View {
         if isSaving { return L10n.sessionSaving }
         if isAnalyzing { return L10n.analyzingLabel }
         if isWorking { return L10n.sessionProcessing }
-        if voiceRecorder.recordingURL != nil { return L10n.sessionRecordingNeedsTranscription }
+        if pendingCreation { return uncertainSaveMessage }
+        if voiceRecorder.recordingURL != nil && !transcriptReady { return L10n.sessionRecordingNeedsTranscription }
         if storePatient == nil { return L10n.sessionChoosePatientHelp }
         if isNew { return L10n.sessionNotCreated }
         if hasUnsavedChanges { return L10n.sessionNotSaved }
@@ -182,8 +356,13 @@ struct SessionEditorView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                if recovery.hasError, let feedback = recovery.feedback {
-                    Section { DeviceDraftFeedback(message: feedback, isError: true) }
+                allowanceFeedback
+                if !showingNotesEditor { recoveryActions }
+                if let feedback = draftStatus {
+                    Section {
+                        Text(feedback).font(.footnote).foregroundStyle(recovery.hasError ? Theme.error : Theme.textBody)
+                        if recovery.hasError { Button("שמירת הטיוטה מחדש") { persistRecovery() } }
+                    }
                 }
                 if isNew && patient == nil {
                     Section {
@@ -252,9 +431,7 @@ struct SessionEditorView: View {
 
                 if let errorMessage {
                     Section {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(Theme.error)
+                        AIUsageNotice(message: errorMessage)
                     }
                     .listRowBackground(groupBorderedRow(.only))
                 }
@@ -269,9 +446,9 @@ struct SessionEditorView: View {
                              ? L10n.newSessionTitle
                              : L10n.sessionEditorTitle(sessionNumber))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(patientHeaderColor, for: .navigationBar)
+            .toolbarBackground(Theme.isPaper ? Theme.patientHomeHeader : patientHeaderColor, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(Theme.isPaper ? .light : .dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
@@ -344,10 +521,9 @@ struct SessionEditorView: View {
                 if canSave {
                     Button(L10n.saveChangesAction) { save(thenDismiss: true) }
                 }
-                if voiceRecorder.recordingURL == nil {
+                if !voiceRecorder.isRecording {
                     Button(L10n.keepDraftAndLeave) {
-                        persistRecovery()
-                        guard !recovery.hasError else { return }
+                        guard persistRecovery() else { return }
                         recoveryClosed = true
                         if let initialDate { session.date = initialDate }
                         if let initialNotes { session.notes = initialNotes }
@@ -357,7 +533,7 @@ struct SessionEditorView: View {
                     }
                 }
                 Button(L10n.discardChangesAction, role: .destructive) {
-                    guard recovery.discard() else { return }
+                    guard voiceRecorder.discard(), recovery.discard() else { return }
                     recoveryClosed = true
                     // Reset the editor-owned draft before dismissing it.
                     if let initialDate { session.date = initialDate }
@@ -368,6 +544,10 @@ struct SessionEditorView: View {
                     dismiss()
                 }
                 Button(L10n.keepEditingAction, role: .cancel) {}
+            }
+            .task(id: showingNotesEditor) {
+                guard showingNotesEditor else { return }
+                try? await checkAllowance(needsTokens: true)
             }
             .onChange(of: isEditingSummary) { _, editing in
                 notesEditorFocused = editing
@@ -398,8 +578,8 @@ struct SessionEditorView: View {
                                         .foregroundStyle(Theme.textBright)
                                         .tint(Theme.gold)
                                         .focused($notesEditorFocused)
-                                        .onAppear { notesEditorFocused = EntitlementState.shared.canWrite }
-                                        .disabled(isWorking || !EntitlementState.shared.canWrite)
+                                        .onAppear { notesEditorFocused = EntitlementState.shared.canWrite && !blocksNewSummary }
+                                        .disabled(isWorking || !EntitlementState.shared.canWrite || blocksNewSummary)
                                         .padding(16)
                                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
                                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(patientAccent.opacity(0.4), lineWidth: 1))
@@ -423,7 +603,7 @@ struct SessionEditorView: View {
                                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(patientAccent.opacity(0.35), lineWidth: 1))
                                 }
                                 .buttonStyle(.plain)
-                                .disabled(isWorking || !EntitlementState.shared.canWrite)
+                                .disabled(isWorking || !EntitlementState.shared.canWrite || blocksNewSummary)
                                 .accessibilityHint(L10n.reviewEdit)
                                 .accessibilityIdentifier("session.editSummaryText")
                                 .padding(16)
@@ -472,11 +652,17 @@ struct SessionEditorView: View {
                                 .frame(maxHeight: voiceRecorder.recordingURL != nil && !isWorking ? 230 : 126)
                                 .fixedSize(horizontal: false, vertical: true)
                             }
+                            allowanceFeedback
+                            if let draftStatus {
+                                Text(draftStatus).font(.caption).foregroundStyle(recovery.hasError ? Theme.error : Theme.textBody)
+                                if recovery.hasError { Button("שמירת הטיוטה מחדש") { persistRecovery() } }
+                            }
                             if let saveStatus {
                                 Text(saveStatus).font(.caption).foregroundStyle(Theme.textBody)
                             }
+                            recoveryActions
                             if let errorMessage {
-                                Text(errorMessage).font(.callout).foregroundStyle(Theme.error)
+                                AIUsageNotice(message: errorMessage)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -486,6 +672,11 @@ struct SessionEditorView: View {
                     .busyOverlay(isSaving, label: busyLabel)
                     .alert(L10n.saveSummaryPrompt, isPresented: $confirmLeavingNotes) {
                         Button(L10n.saveSummaryAction) { save(closeNotesEditor: true) }.disabled(!canSave)
+                        Button("שמירת טיוטה וחזרה") {
+                            guard persistRecovery() else { return }
+                            notesAtEditorOpen = session.notes
+                            showingNotesEditor = false
+                        }
                         Button(L10n.discardChangesAction, role: .destructive) {
                             session.notes = notesAtEditorOpen
                             showingNotesEditor = false
@@ -505,6 +696,7 @@ struct SessionEditorView: View {
             .subtleAnimation(value: isAnonymizingTranscription)
             .onAppear {
                 if initialDate == nil {
+                    recoveryAccount = auth.currentUserId
                     initialDate = session.date
                     initialNotes = session.notes
                     initialType = session.type
@@ -516,6 +708,20 @@ struct SessionEditorView: View {
                         session.type = saved.type
                         session.structuredNotes = saved.structuredNotes
                         selectedPatientID = saved.selectedPatientID
+                        audioFileName = saved.audioFileName
+                        transcriptReady = saved.transcriptReady ?? false
+                        safeSummary = saved.safeSummary
+                        pendingCreation = saved.pendingCreation ?? false
+                        summaryWorkStarted = saved.summaryWorkStarted ?? !saved.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        locallyPreserved = true
+                        safeSummarySource = saved.safeSummarySource
+                        if let safe = saved.safeSummary, let original = saved.safeSummarySource {
+                            store.registerRecoveredAnonymizedSummary(original: original, anonymized: safe)
+                        }
+                        if let name = saved.audioFileName, let owner = recoveryAccount {
+                            do { voiceRecorder.restoreRecording(at: try SessionAudioRecovery.resolve(name: name, account: owner)) }
+                            catch { errorMessage = ClientFailure.localDraft.localizedDescription }
+                        }
                         if !saved.notes.isEmpty || saved.structuredNotes != nil {
                             showsSummaryEditor = true
                         }
@@ -524,15 +730,40 @@ struct SessionEditorView: View {
                 gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: storePatient?.id)
                 gettingStartedRouter.refresh(using: store)
             }
-            .task(id: recoveryValue) {
-                do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
+            .onChange(of: session.notes) { _, text in
+                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { summaryWorkStarted = true }
+                copiedDraft = false
+            }
+            .onChange(of: recoveryValue) { _, _ in
+                // Save on each edit, without a termination-loss debounce window.
                 persistRecovery()
             }
-            .onDisappear { persistRecovery() }
+            .onChange(of: auth.currentUserId) { _, _ in
+                // Keep the old owner's protected draft; never expose it to the next account.
+                allowanceCheckID = UUID()
+                allowanceChecking = false
+                allowanceMessage = nil
+                tokensExhausted = false
+                voiceRecorder.detach()
+                recoveryClosed = true
+                session.notes = ""
+                session.structuredNotes = nil
+                safeSummary = nil
+                safeSummarySource = nil
+                showingNotesEditor = false
+                dismiss()
+            }
+            .onDisappear { voiceRecorder.stopRecording(); persistRecovery() }
             .task { await refreshQuestionnaireState() }
+            .task(id: auth.currentUserId) {
+                // Quiet advisory preflight on entry, before the therapist records.
+                // Record and processing still perform their own fresh checks.
+                guard auth.currentUserId != nil else { return }
+                try? await checkAllowance(needsTokens: true, recordingSeconds: 0, silently: true)
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await refreshQuestionnaireState() } }
-                else { persistRecovery() }
+                else { voiceRecorder.stopRecording(); persistRecovery() }
             }
             .sheet(isPresented: $isShowingAllFollowUps) {
                 NavigationStack {
@@ -579,7 +810,9 @@ struct SessionEditorView: View {
                         // transcription — the recording survives for a retry.
                         if voiceRecorder.recordingURL != nil, !isWorking {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text(L10n.sessionPendingRecording)
+                                Text(transcriptReady
+                                     ? "התמלול נשמר במכשיר. אפשר לנסות שוב את עיבוד הסיכום בלי לתמלל מחדש."
+                                     : L10n.sessionPendingRecording)
                                     .foregroundStyle(.secondary)
                                 Button {
                                     voiceRecorder.togglePlayback()
@@ -594,12 +827,15 @@ struct SessionEditorView: View {
                                         .contentShape(Rectangle())
                                 }
                                 Button { transcribe() } label: {
-                                    Text(L10n.transcribeAction).fontWeight(.semibold)
+                                    Text(transcriptReady ? "ניסיון עיבוד נוסף" : L10n.transcribeAction).fontWeight(.semibold)
                                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                                         .contentShape(Rectangle())
                                 }
                                 Button(role: .destructive) {
-                                    voiceRecorder.discard()
+                                    guard voiceRecorder.discard() else { return }
+                                    audioFileName = nil
+                                    transcriptReady = false
+                                    persistRecovery()
                                 } label: {
                                     Label(L10n.discardRecordingAction, systemImage: "trash")
                                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
@@ -632,7 +868,7 @@ struct SessionEditorView: View {
     }
 
     private func openSummary(editing: Bool) {
-        isEditingSummary = editing && EntitlementState.shared.canWrite
+        isEditingSummary = editing && EntitlementState.shared.canWrite && !blocksNewSummary
         notesAtEditorOpen = session.notes
         showingNotesEditor = true
     }
@@ -679,15 +915,15 @@ struct SessionEditorView: View {
                 Text(L10n.newSessionDetailsHelp).font(.footnote)
             }
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(Theme.headerInk)
         .padding(.horizontal, 18)
         .padding(.top, 10)
         .padding(.bottom, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             ZStack {
-                patientHeaderColor
-                LinearGradient(colors: [patientAccent.opacity(0.34), .clear], startPoint: .topTrailing, endPoint: .bottomLeading)
+                Theme.isPaper ? Theme.patientHomeHeader : patientHeaderColor
+                LinearGradient(colors: [patientAccent.opacity(Theme.isPaper ? 0.08 : 0.34), .clear], startPoint: .topTrailing, endPoint: .bottomLeading)
                 Canvas { context, size in
                     var path = Path()
                     path.addLines([CGPoint(x: 0, y: 0), CGPoint(x: size.width * 0.35, y: 0), CGPoint(x: size.width * 0.65, y: size.height), CGPoint(x: size.width * 0.30, y: size.height)])
@@ -704,12 +940,12 @@ struct SessionEditorView: View {
         DatePicker(L10n.sessionDateTitle, selection: $session.date, displayedComponents: [.date])
             .labelsHidden()
             .environment(\.locale, Locale(identifier: "he_IL"))
-            .environment(\.colorScheme, .dark)
+            .environment(\.colorScheme, Theme.isPaper ? .light : .dark)
             .disabled(isWorking || !EntitlementState.shared.canWrite)
             .accessibilityIdentifier("session.date")
             .frame(maxWidth: .infinity, minHeight: 44)
-            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).stroke(.white.opacity(0.2), lineWidth: 1))
+            .background(Theme.isPaper ? Theme.surface : Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.headerLine, lineWidth: 1))
     }
 
     private var compactTypeControl: some View {
@@ -728,8 +964,8 @@ struct SessionEditorView: View {
             .font(.subheadline)
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 8)
-            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).stroke(.white.opacity(0.2), lineWidth: 1))
+            .background(Theme.isPaper ? Theme.surface : Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.headerLine, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .disabled(isWorking || !EntitlementState.shared.canWrite)
@@ -879,7 +1115,17 @@ struct SessionEditorView: View {
                 isEditingSummary = false
                 isRequestingRecording = true
                 Task {
-                    await voiceRecorder.startRecording()
+                    do {
+                        guard let owner = recoveryAccount, owner == auth.currentUserId else { throw ClientFailure.expiredLogin }
+                        try await checkAllowance(needsTokens: true, recordingSeconds: 0)
+                        guard owner == auth.currentUserId else { throw CancellationError() }
+                        let url = try SessionAudioRecovery.create(account: owner)
+                        audioFileName = url.lastPathComponent
+                        transcriptReady = false
+                        guard persistRecovery() else { throw ClientFailure.localDraft }
+                        await voiceRecorder.startRecording(destination: url)
+                        guard owner == auth.currentUserId else { voiceRecorder.detach(); return }
+                    } catch { voiceRecorder.errorMessage = error.userFacingMessage }
                     isRequestingRecording = false
                 }
             } label: {
@@ -898,7 +1144,7 @@ struct SessionEditorView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(L10n.recordSessionNotesAction)
-            .disabled(isWorking || voiceRecorder.recordingURL != nil)
+            .disabled(isWorking || voiceRecorder.recordingURL != nil || tokensExhausted)
             .tutorialPulse(gettingStartedRouter.shouldPulse(.recordNotes))
         }
     }
@@ -918,23 +1164,36 @@ struct SessionEditorView: View {
         isTranscribing = true
         Task {
             do {
-                let text = try await whisperService.transcribe(fileURL: fileURL)
+                guard let owner = recoveryAccount, owner == auth.currentUserId else { throw ClientFailure.expiredLogin }
+                guard persistRecovery() else { throw ClientFailure.localDraft }
+                if !transcriptReady {
+                    try await checkAllowance(needsTokens: true, recordingSeconds: voiceRecorder.duration)
+                    let text = try await whisperService.transcribe(fileURL: fileURL)
+                    guard owner == auth.currentUserId else { throw CancellationError() }
+                    session.notes = session.notes.isEmpty ? text : session.notes + "\n\n" + text
+                    transcriptReady = true
+                    // Preserve the completed transcript BEFORE anonymization can fail.
+                    guard persistRecovery() else { throw ClientFailure.localDraft }
+                }
                 isTranscribing = false
-                // The raw transcript never reaches the notes field: the whole
-                // notes value — existing text plus the transcript, with no
-                // header line — is anonymized first and only then shown.
                 isAnonymizingTranscription = true
-                let existing = session.notes.trimmingCharacters(in: .whitespacesAndNewlines)
-                let combined = existing.isEmpty ? text : session.notes + "\n\n" + text
-                let anonymized = try await store.anonymizedText(combined)
-                session.notes = anonymized
-                voiceRecorder.discard()
+                try await checkAllowance(needsTokens: store.summaryRequiresAnonymization(session.notes))
+                let anonymized = try await store.anonymizedText(session.notes)
+                guard owner == auth.currentUserId else { throw CancellationError() }
+                safeSummarySource = session.notes
+                safeSummary = anonymized
+                guard persistRecovery() else { throw ClientFailure.localDraft }
+                // Audio remains protected until the server acknowledges the summary.
                 isAnonymizingTranscription = false
                 if session.databaseID != nil {
                     isSaving = true
                     await autosaveSession()
                 }
             } catch {
+                if isAnonymizingTranscription && ClientFailure.from(error) == .monthlyAllowance {
+                    tokensExhausted = true
+                    allowanceMessage = SummaryAllowanceError.tokensExhausted.localizedDescription
+                }
                 voiceRecorder.errorMessage = error.userFacingMessage
                 isTranscribing = false
                 isAnonymizingTranscription = false
@@ -960,6 +1219,7 @@ struct SessionEditorView: View {
                 // previously gated) skips the extra call, and the field
                 // shows the anonymized version from here on.
                 isAnonymizingTranscription = true
+                try await checkAllowance(needsTokens: true)
                 let anonymizedNotes = try await store.anonymizedText(session.notes)
                 session.notes = anonymizedNotes
                 isAnonymizingTranscription = false
@@ -990,8 +1250,12 @@ struct SessionEditorView: View {
         errorMessage = nil
         busyLabel = L10n.anonymizingStatusLabel
         do {
-            try await store.updateSession(session)
-            recovery.discard()
+            guard persistRecovery() else { throw ClientFailure.localDraft }
+            try await store.updateSession(session, beforeUpdate: {
+                guard recoveryAccount == auth.currentUserId else { throw ClientFailure.expiredLogin }
+            })
+            guard recoveryAccount == auth.currentUserId else { return }
+            clearRecoveryAfterSave()
             // The silent save is the new baseline, so backing out without
             // further edits no longer warns about unsaved changes.
             initialDate = session.date
@@ -1017,7 +1281,7 @@ struct SessionEditorView: View {
                 recovery.discard()
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
             }
             isSaving = false
         }
@@ -1243,16 +1507,33 @@ struct SessionEditorView: View {
         isSaving = true
         Task {
             do {
+                guard let owner = recoveryAccount, owner == auth.currentUserId else { throw ClientFailure.expiredLogin }
+                guard persistRecovery() else { throw ClientFailure.localDraft }
+                try await checkAllowance(needsTokens: store.summaryRequiresAnonymization(session.notes) || session.structuredNotes != initialStructuredNotes)
+                let anonymized = try await store.anonymizedText(session.notes)
+                guard owner == auth.currentUserId else { throw CancellationError() }
+                safeSummarySource = session.notes
+                safeSummary = anonymized
+                guard persistRecovery() else { throw ClientFailure.localDraft }
                 if isNew {
-                    try await store.addSession(session, for: patient)
+                    try await store.addSession(session, for: patient, beforeInsert: {
+                        guard owner == auth.currentUserId else { throw ClientFailure.expiredLogin }
+                        // Written before dispatch: a killed process cannot issue a second insert.
+                        pendingCreation = true
+                        guard persistRecovery() else { pendingCreation = false; throw ClientFailure.localDraft }
+                    })
+                    guard owner == auth.currentUserId else { throw CancellationError() }
+                    clearRecoveryAfterSave()
                     recoveryClosed = true
-                    recovery.discard()
                     showingNotesEditor = false
                     gettingStartedRouter.refresh(using: store)
                     dismiss()
                 } else {
-                    try await store.updateSession(session)
-                    recovery.discard()
+                    try await store.updateSession(session, beforeUpdate: {
+                        guard owner == auth.currentUserId else { throw ClientFailure.expiredLogin }
+                    })
+                    guard owner == auth.currentUserId else { throw CancellationError() }
+                    clearRecoveryAfterSave()
                     // The save is the new baseline, so backing out without
                     // further edits no longer warns about unsaved changes.
                     initialDate = session.date
@@ -1264,7 +1545,15 @@ struct SessionEditorView: View {
                     if thenDismiss { dismiss() }
                 }
             } catch {
-                errorMessage = error.userFacingMessage
+                if ClientFailure.from(error) == .monthlyAllowance {
+                    tokensExhausted = true
+                    allowanceMessage = SummaryAllowanceError.tokensExhausted.localizedDescription
+                }
+                if pendingCreation && error is PostgrestError {
+                    pendingCreation = false
+                    persistRecovery()
+                }
+                errorMessage = pendingCreation ? uncertainSaveMessage : error.userFacingMessage
             }
             isSaving = false
         }
@@ -1288,4 +1577,10 @@ struct SessionRecovery: Codable, Equatable {
     var type: SessionType?
     var structuredNotes: WhisperService.CBTSessionAnalysis?
     var selectedPatientID: DatabaseID?
+    var audioFileName: String? = nil
+    var transcriptReady: Bool? = nil
+    var safeSummary: String? = nil
+    var safeSummarySource: String? = nil
+    var pendingCreation: Bool? = nil
+    var summaryWorkStarted: Bool? = nil
 }

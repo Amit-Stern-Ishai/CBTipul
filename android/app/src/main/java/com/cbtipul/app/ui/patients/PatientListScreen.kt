@@ -156,6 +156,7 @@ fun PatientListScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            if (!isDemoMode) PatientNameSyncControl(workspaceApp.patientRepository.nameSync)
             if (!isDemoMode && (workspaceState.items.isNotEmpty() || workspaceState.requests.isNotEmpty())) {
                 OutlinedButton(onClick = onOpenWorkspaces, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     Text(stringResource(R.string.ww_pending_count, (workspaceState.items.map { it.id } + workspaceState.requests.keys).toSet().size))
@@ -301,17 +302,17 @@ internal fun PatientRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .groupedListCard(colors.gold)
+            .groupedListCard(PatientAvatarColor.background(patient.id))
             .tutorialPulse(pulse)
             .semantics { stateDescription = status }
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         InitialsAvatar(name = patient.displayName(unnamed), patientId = patient.id)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (actionSubtitle == null) 3.dp else 7.dp)) {
-            Text(patient.displayName(unnamed), color = colors.textBright, fontWeight = FontWeight.SemiBold)
+            Text(patient.displayName(unnamed), color = colors.textBright, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             if (actionSubtitle != null) {
                 Row(
                     modifier = Modifier.background(colors.gold.copy(alpha = 0.10f), RoundedCornerShape(50))
@@ -325,7 +326,8 @@ internal fun PatientRow(
             } else {
                 Text(patientSubtitle(patient), color = colors.textBody, fontSize = 13.sp)
                 if (recentSubmissionCount > 0) Text(stringResource(R.string.recent_submission_count, recentSubmissionCount),
-                    color = colors.gold, style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
+                    color = colors.gold, style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.background(colors.goldGhost, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 5.dp))
             }
         }
         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textFaint)
@@ -356,6 +358,7 @@ fun SessionType.labelRes(): Int = when (this) {
     SessionType.DiaryTwo -> R.string.session_type_diary_two
     SessionType.DiaryThree -> R.string.session_type_diary_three
     SessionType.CaseFormulation -> R.string.session_type_case_formulation
+    SessionType.CoreBeliefChallenge -> R.string.session_type_core_belief_challenge
     SessionType.BehavioralInterventions -> R.string.session_type_behavioral_interventions
     SessionType.RelapsePreventionAndTermination -> R.string.session_type_relapse_prevention_and_termination
 }

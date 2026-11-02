@@ -121,17 +121,17 @@ fun TherapistDiaryTwoScreen(
             fun closeDetail() { if (returnDirectly && id == focusEntryId) onBack() else nav.popBackStack() }
             var delete by rememberSaveable { mutableStateOf(false) }
             DiaryTwoFrame(patientName, atmosphere, { if (!state.busy) closeDetail() }, actions = {
-                if (entry != null && entry.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Therapist) {
+                if (entry != null) {
                     IconButton(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) { vm.openEditor(entry.id); nav.navigate("edit/${entry.id}") } }, enabled = !state.busy) {
                         Icon(Icons.Outlined.Edit, stringResource(R.string.diary_entry_edit))
                     }
-                    IconButton(onClick = { delete = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !state.busy) {
+                    if (entry.createdBy == DiaryOneEntryCreator.Therapist) IconButton(onClick = { delete = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !state.busy) {
                         Icon(Icons.Outlined.Delete, stringResource(R.string.diary_one_delete_action))
                     }
                 }
             }) {
                 if (entry != null) {
-                    Text(entryDate(entry)); Text(if (entry.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Patient) stringResource(R.string.patient_submission_read_only) else source(entry), color = Theme.colors.textBody)
+                    Text(entryDate(entry)); Text(source(entry), color = Theme.colors.textBody)
                     DiaryTwoEntryContent(entry.event, entry.automaticThoughts, entry.feelings, entry.thinkingErrors, entry.alternativeThoughts)
                 } else if (state.loading || (id == focusEntryId && !consumedFocus)) {
                     CircularProgressIndicator()

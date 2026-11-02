@@ -234,25 +234,57 @@ class PatientListViewModel(
         sessionNotSaved: String,
         anonymizationFailed: String,
         onSaved: () -> Unit = {},
+        recovery: SessionEditorDraft? = null,
+        accountActive: () -> Boolean = { true },
         onDone: () -> Unit,
     ) {
         if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
+        if (_ui.value.isSavingSession || recovery?.pendingCreation == true) return
+        _ui.update { it.copy(isSavingSession = true, sessionError = null) }
         viewModelScope.launch {
-            _ui.update { it.copy(isSavingSession = true, sessionError = null) }
             try {
-                if (isNew) repository.addSession(patientId, session)
-                else repository.updateSession(session)
+                check(accountActive())
+                if (recovery != null) {
+                    if (!recovery.persistRecovery()) throw com.cbtipul.app.data.SummaryFailure(com.cbtipul.app.data.SummaryFailure.Kind.Local)
+                    if (recovery.prepared == null && session.notes.isNotBlank() || session.structuredNotes != recovery.baselineStructured) {
+                        if (!repository.isDemoMode.value) repository.summaryAllowance().assess()
+                    }
+                }
+                if (recovery != null && recovery.prepared == null) {
+                    val prepared = repository.anonymizedText(session.notes)
+                    check(accountActive())
+                    recovery.preparedSource = session.notes; recovery.preparedText = prepared
+                    if (!recovery.persistRecovery()) throw com.cbtipul.app.data.SummaryFailure(com.cbtipul.app.data.SummaryFailure.Kind.Local)
+                }
+                if (isNew) repository.addSession(patientId, session, recovery?.prepared) { prepared ->
+                    check(accountActive())
+                    recovery?.let {
+                        it.preparedSource = session.notes; it.preparedText = prepared
+                        it.pendingCreation = true
+                        if (!it.persistRecovery()) { it.pendingCreation = false; throw com.cbtipul.app.data.SummaryFailure(com.cbtipul.app.data.SummaryFailure.Kind.Local) }
+                    }
+                }
+                else repository.updateSession(session, recovery?.prepared)
+                if (!accountActive()) return@launch
                 refreshGettingStartedProgress()
                 _ui.update { it.copy(isSavingSession = false) }
                 onSaved()
                 if (leaveAfterSave) onDone()
             } catch (error: Exception) {
+                if (!accountActive()) return@launch
+                if (recovery?.pendingCreation == true && com.cbtipul.app.data.EdgePayload.httpStatus(error)?.let { it in 400..499 && it != 408 } == true) {
+                    recovery.pendingCreation = false
+                    recovery.persistRecovery()
+                }
+                val safeError = com.cbtipul.app.data.SummaryFailure.from(error)
                 _ui.update {
                     it.copy(
                         isSavingSession = false,
-                        sessionError = mapSessionError(error, notConfigured, rejected, sessionNotSaved, anonymizationFailed),
+                        sessionError = safeError.message,
                     )
                 }
+            } finally {
+                _ui.update { it.copy(isSavingSession = false) }
             }
         }
     }
@@ -325,15 +357,26 @@ class PatientListViewModel(
         onNotes: (String) -> Unit,
         onTranscribed: () -> Unit,
         patientIdForNotes: DatabaseId? = null,
+        recovery: SessionEditorDraft? = null,
+        accountActive: () -> Boolean = { true },
     ) {
         if (!com.cbtipul.app.data.Entitlements.allowMutation(allowLocalDemo = false)) return
+        if (_ui.value.isTranscribing || _ui.value.isAnonymizingTranscription) return
+        _ui.update { it.copy(isTranscribing = true) }
         viewModelScope.launch {
             _ui.update { it.copy(isTranscribing = true, sessionError = null) }
             try {
+                if (recovery != null) {
+                    processSummaryVoice(recovery, { repository.summaryAllowance() },
+                        { repository.transcribeAudio(file) }, { repository.anonymizedText(it) },
+                        onNotes, accountActive) {
+                        _ui.update { it.copy(isTranscribing=false, isAnonymizingTranscription=true) }
+                    }
+                    return@launch // Server persistence remains an explicit action.
+                }
                 val text = repository.transcribeAudio(file)
-                _ui.update { it.copy(isTranscribing = false, isAnonymizingTranscription = true) }
-                val existing = existingNotes.trim()
-                val combined = if (existing.isEmpty()) text else existingNotes + "\n\n" + text
+                _ui.update { it.copy(isTranscribing=false, isAnonymizingTranscription=true) }
+                val combined = if(existingNotes.isBlank()) text else existingNotes+"\n\n"+text
                 val notes = repository.anonymizedText(combined)
                 onNotes(notes)
                 onTranscribed()
@@ -345,21 +388,17 @@ class PatientListViewModel(
                 }
                 _ui.update { it.copy(isAnonymizingTranscription = false) }
             } catch (error: Exception) {
+                if (!accountActive()) return@launch
+                val safeError = com.cbtipul.app.data.SummaryFailure.from(error)
                 _ui.update {
                     it.copy(
                         isTranscribing = false,
                         isAnonymizingTranscription = false,
-                        sessionError = mapVoiceError(
-                            error,
-                            notConfigured,
-                            rejected,
-                            sessionNotSaved,
-                            anonymizationFailed,
-                            transcriptionFailed,
-                            couldNotReadAudio,
-                        ),
+                        sessionError = safeError.message,
                     )
                 }
+            } finally {
+                _ui.update { it.copy(isTranscribing = false, isAnonymizingTranscription = false) }
             }
         }
     }
@@ -832,7 +871,8 @@ class PatientListViewModel(
             PatientStoreException.Kind.SessionNotSaved -> sessionNotSaved
             PatientStoreException.Kind.AnonymizationFailed -> anonymizationFailed
         }
-        else -> error.message ?: error.toString()
+        error is com.cbtipul.app.data.SummaryFailure -> error.message
+        else -> com.cbtipul.app.data.SummaryFailure.Kind.Unknown.message
     }
 
     private fun mapAiError(
@@ -850,7 +890,7 @@ class PatientListViewModel(
                 "invalid_input" -> invalidInput
                 "empty_ai_response" -> emptyAi
                 "session_analysis_failed", "invalid_response" -> analysisFailed
-                else -> error.message ?: analysisFailed
+                else -> analysisFailed
             }
         }
         return mapSessionError(error, notConfigured, rejected, sessionNotSaved, anonymizationFailed)

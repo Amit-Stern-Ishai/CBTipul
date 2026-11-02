@@ -36,8 +36,8 @@ class DiaryThreeTest {
         val row = Json.decodeFromJsonElement<DiaryThreeEntryRow>(JsonObject(body + mapOf("id" to JsonPrimitive("e"), "created_at" to JsonPrimitive("2026-09-01T12:00:00Z"), "updated_at" to JsonPrimitive("2026-09-02T12:00:00Z"))))
         assertEquals(thoughts, row.automaticThoughts); assertEquals(feelings, row.feelings)
         assertEquals(alternatives, row.alternativeThoughts); assertEquals(errors, row.thinkingErrors)
-        val update = DiaryThreeRepository.updatePayload("s", thoughts, feelings, errors, alternatives, "now")
-        assertEquals(setOf("situation", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts", "updated_at"), update.keys)
+        val update = DiaryThreeRepository.updatePayload("s", thoughts, feelings, errors, alternatives)
+        assertEquals(setOf("situation", "automatic_thoughts", "feelings", "thinking_errors", "alternative_thoughts"), update.keys)
     }
     @Test fun everyRequiredFieldAndEveryRatingIsValidated() {
         val draft = DiaryThreeEntryDraft.from(entry)

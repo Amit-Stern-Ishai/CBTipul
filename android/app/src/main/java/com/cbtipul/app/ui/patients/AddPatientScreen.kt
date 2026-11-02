@@ -167,7 +167,7 @@ fun AddPatientScreen(
                 }
                 errorMessage?.let { Text(it, color = colors.error) }
                 Button(
-                    onClick = { onSave(first.trim(), last.trim(), status) },
+                    onClick = { onSave(first, last, status) },
                     enabled = canSave,
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent),

@@ -7,11 +7,24 @@ import SwiftUI
 nonisolated struct AIDataSharingConsentDeclinedError: Error {}
 
 extension Error {
+    /// Known transport failures retain their recovery guidance; unknown failures
+    /// keep the screen's existing, context-specific copy.
+    nonisolated func userFacingMessage(fallback: String) -> String? {
+        if self is AIDataSharingConsentDeclinedError || self is CancellationError { return nil }
+        let failure = ClientFailure.from(self)
+        return failure == .unknown ? fallback : failure.localizedDescription
+    }
+
     /// The message a screen should surface for a failed action, or `nil`
     /// when the failure is the user's own "not now" on the AI consent
     /// sheet, which must cancel silently.
     nonisolated var userFacingMessage: String? {
-        self is AIDataSharingConsentDeclinedError ? nil : localizedDescription
+        if self is AIDataSharingConsentDeclinedError || self is CancellationError { return nil }
+        let failure = ClientFailure.from(self)
+        if failure != .unknown { return failure.localizedDescription }
+        // Domain errors supply curated copy; never display raw transport bodies.
+        if self is EntitlementDenied || self is AuthError || self is PatientStoreError || self is SummaryAllowanceError { return localizedDescription }
+        return ClientFailure.unknown.localizedDescription
     }
 }
 

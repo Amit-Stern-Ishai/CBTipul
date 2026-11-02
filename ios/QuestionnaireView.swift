@@ -61,8 +61,8 @@ struct CombinedMoodQuestionnaireView: View {
 
     /// The patient's most recent questionnaire from another session on or
     /// before this session's date — used to show previous answers.
-    private var previousQuestionnaire: CompletedQuestionnaire? {
-        guard let cached = store.cachedQuestionnaires(for: patient) else { return nil }
+    private var questionnaireHistory: [CompletedQuestionnaire] {
+        guard let cached = store.cachedQuestionnaires(for: patient) else { return [] }
         return cached
             .filter { record in
                 if let currentID = session.databaseID {
@@ -71,7 +71,7 @@ struct CombinedMoodQuestionnaireView: View {
                 return true
             }
             .filter { $0.answeredDate <= session.date }
-            .max { $0.answeredDate < $1.answeredDate }
+            .sorted { $0.answeredDate == $1.answeredDate ? String(describing: $0.databaseID) < String(describing: $1.databaseID) : $0.answeredDate > $1.answeredDate }
     }
 
     var body: some View {
@@ -79,7 +79,8 @@ struct CombinedMoodQuestionnaireView: View {
             QuestionnaireSections(
                 questionnaire: $session.questionnaire,
                 isEditable: isEditing,
-                previous: previousQuestionnaire,
+                previous: questionnaireHistory.first,
+                history: questionnaireHistory,
                 accent: PatientAvatarColor.background(for: patient.id),
                 marksUnanswered: marksUnanswered
             )
@@ -238,7 +239,7 @@ struct CombinedMoodQuestionnaireView: View {
                 session.questionnaire = CombinedMoodQuestionnaire()
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
                 isSaving = false
             }
         }
@@ -313,12 +314,12 @@ struct PatientQuestionnaireEditorView: View {
         return nil
     }
 
-    private var previousQuestionnaire: CompletedQuestionnaire? {
-        guard let cached = store.cachedQuestionnaires(for: patient) else { return nil }
+    private var questionnaireHistory: [CompletedQuestionnaire] {
+        guard let cached = store.cachedQuestionnaires(for: patient) else { return [] }
         return cached
             .filter { $0.databaseID != existing?.databaseID }
             .filter { $0.answeredDate <= answeredDate }
-            .max { $0.answeredDate < $1.answeredDate }
+            .sorted { $0.answeredDate == $1.answeredDate ? String(describing: $0.databaseID) < String(describing: $1.databaseID) : $0.answeredDate > $1.answeredDate }
     }
 
     private var selectableSessions: [Session] {
@@ -371,7 +372,8 @@ struct PatientQuestionnaireEditorView: View {
             QuestionnaireSections(
                 questionnaire: $questionnaire,
                 isEditable: isEditing && (existing == nil || existing?.createdBy == "therapist"),
-                previous: previousQuestionnaire,
+                previous: questionnaireHistory.first,
+                history: questionnaireHistory,
                 accent: patientColor,
                 marksUnanswered: marksUnanswered
             )
@@ -510,7 +512,7 @@ struct PatientQuestionnaireEditorView: View {
                 try await store.deleteQuestionnaire(existing, for: patient)
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = error.userFacingMessage
                 isSaving = false
             }
         }
@@ -526,6 +528,7 @@ struct CompletedQuestionnaireView: View {
     var patientName: String? = nil
     /// The questionnaire preceding this one, for the previous-answer marks.
     var previous: CompletedQuestionnaire? = nil
+    var history: [CompletedQuestionnaire] = []
     /// The patient's identity color for the group outlines, when known.
     var accent: Color? = nil
 
@@ -537,6 +540,19 @@ struct CompletedQuestionnaireView: View {
         guard let patient else { return record }
         return store.cachedQuestionnaires(for: patient)?
             .first { $0.databaseID == record.databaseID } ?? record
+    }
+
+    /// Use the same history in saved, notification, and recent-activity views.
+    /// Exclude this record and later measurements, just as in the editor.
+    private var questionnaireHistory: [CompletedQuestionnaire] {
+        let records = patient.flatMap { store.cachedQuestionnaires(for: $0) }
+            ?? (history.isEmpty ? previous.map { [$0] } ?? [] : history)
+        return records
+            .filter { !$0.databaseID.isSameIdentity(as: displayed.databaseID)
+                && $0.answeredDate <= displayed.answeredDate }
+            .sorted { $0.answeredDate == $1.answeredDate
+                ? String(describing: $0.databaseID) < String(describing: $1.databaseID)
+                : $0.answeredDate > $1.answeredDate }
     }
 
     private var titleName: String {
@@ -553,7 +569,8 @@ struct CompletedQuestionnaireView: View {
             QuestionnaireSections(
                 questionnaire: .constant(displayed.questionnaire),
                 isEditable: false,
-                previous: previous,
+                previous: questionnaireHistory.first,
+                history: questionnaireHistory,
                 accent: accent,
                 compactPatientResult: displayed.isPatientSubmitted
             )
@@ -575,6 +592,11 @@ struct CompletedQuestionnaireView: View {
                 PatientQuestionnaireEditorView(patient: patient, existing: displayed)
             }
         }
+        .task(id: patient?.id) {
+            if let patient, store.cachedQuestionnaires(for: patient) == nil {
+                _ = try? await store.loadQuestionnaires(for: patient)
+            }
+        }
         .onChange(of: cacheContainsRecord) { _, stillThere in
             if stillThere == false {
                 dismiss()
@@ -590,6 +612,7 @@ struct QuestionnaireSections: View {
     @Binding var questionnaire: CombinedMoodQuestionnaire
     let isEditable: Bool
     var previous: CompletedQuestionnaire? = nil
+    var history: [CompletedQuestionnaire] = []
     /// The patient's identity color for the group outlines, when known.
     var accent: Color? = nil
     /// Therapist-only per-question notes. Patient Mode never shows these.
@@ -614,7 +637,7 @@ struct QuestionnaireSections: View {
 
     var body: some View {
         Section(L10n.gad7Title) {
-            AnswerKeyView(previousDate: previous?.answeredDate, patientSubmitted: compactPatientResult)
+            AnswerKeyView(previousDate: previous?.answeredDate, patientSubmitted: compactPatientResult, showsHistory: !history.isEmpty)
                 .listRowBackground(rowBackground(.first))
 
             ForEach(L10n.gad7Questions.indices, id: \.self) { index in
@@ -625,6 +648,7 @@ struct QuestionnaireSections: View {
                         note: $questionnaire.gad7Notes[index],
                         isEditable: isEditable && entitlement.canWrite,
                         previousAnswer: previousAnswer(previous?.questionnaire.gad7Answers, at: index),
+                        history: history.map { previousAnswer($0.questionnaire.gad7Answers, at: index) },
                         accent: accent,
                         showsTherapistNotes: showsTherapistNotes
                     )
@@ -663,6 +687,7 @@ struct QuestionnaireSections: View {
                         note: $questionnaire.phq9Notes[index],
                         isEditable: isEditable && entitlement.canWrite,
                         previousAnswer: previousAnswer(previous?.questionnaire.phq9Answers, at: index),
+                        history: history.map { previousAnswer($0.questionnaire.phq9Answers, at: index) },
                         accent: accent,
                         showsTherapistNotes: showsTherapistNotes
                     )
@@ -717,6 +742,8 @@ struct QuestionnaireSections: View {
 private struct AnswerKeyView: View {
     var previousDate: Date? = nil
     var patientSubmitted = false
+    var showsHistory = false
+    @State private var showsHistoryHelp = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -740,7 +767,20 @@ private struct AnswerKeyView: View {
                     .accessibilityElement(children: .combine)
                 }
             }
-            if let previousDate {
+            if showsHistory {
+                Button("יותר מילוי = יותר פעמים · בהיר יותר = יותר לאחרונה") {
+                    showsHistoryHelp = true
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+                .accessibilityHint("הסבר על היסטוריית התשובות")
+                .alert("התשובות הקודמות", isPresented: $showsHistoryHelp) {
+                    Button("הבנתי", role: .cancel) { }
+                } message: {
+                    Text("גובה המילוי מציג את שכיחות התשובה. הצבע מציג עדכניות בשלוש דרגות: לשאלון האחרון המשקל הגבוה ביותר, ולכל שאלון קודם חצי מהמשקל. מסגרת זהב מסמנת את התשובה האחרונה; זהב מלא מסמן את הבחירה עכשיו.")
+                }
+            } else if let previousDate {
                 Text(L10n.previousAnswerLegend(dateText: L10n.hebrewDate(previousDate)))
                     .font(.caption)
                     .lineSpacing(0)
@@ -856,6 +896,7 @@ private struct QuestionRow: View {
     @Binding var note: String
     let isEditable: Bool
     var previousAnswer: Int? = nil
+    var history: [Int?] = []
     /// The patient's identity color outlining each answer, when known.
     var accent: Color? = nil
     var showsTherapistNotes: Bool = true
@@ -882,7 +923,7 @@ private struct QuestionRow: View {
                 NoteBox(note: note, onTap: isEditable ? { isEditingNote = true } : nil)
             }
 
-            AnswerScaleView(selection: $selection, previousValue: previousAnswer, accent: accent)
+            AnswerScaleView(selection: $selection, previousValue: previousAnswer, history: history, accent: accent)
                 .disabled(!isEditable)
         }
         .padding(.vertical, 4)
@@ -980,6 +1021,7 @@ private extension Text {
 struct AnswerScaleView: View {
     @Binding var selection: Int?
     var previousValue: Int? = nil
+    var history: [Int?] = []
     /// The patient's identity color outlining each answer, when known.
     var accent: Color? = nil
 
@@ -988,6 +1030,7 @@ struct AnswerScaleView: View {
             // Highest value first so 0 ends up on the right.
             ForEach(CombinedMoodQuestionnaire.answerValues, id: \.self) { value in
                 let isSelected = selection == value
+                let distribution = QuestionnaireAnswerHistory(answers: history, value: value)
                 Button {
                     selection = value
                 } label: {
@@ -995,8 +1038,20 @@ struct AnswerScaleView: View {
                         .font(.body.weight(.medium))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(isSelected ? Theme.accentFill : Theme.elevated)
-                        .foregroundStyle(isSelected ? Theme.textOnAccent : Color.primary)
+                        .background {
+                            ZStack(alignment: .bottom) {
+                                isSelected ? Theme.accentFill : (distribution.total > 0 ? Theme.historyBase : Theme.elevated)
+                                if !isSelected, distribution.count > 0 {
+                                    GeometryReader { proxy in
+                                        Rectangle()
+                                            .fill(distribution.color)
+                                            .frame(height: proxy.size.height * distribution.frequency)
+                                            .frame(maxHeight: .infinity, alignment: .bottom)
+                                    }
+                                }
+                            }
+                        }
+                        .foregroundStyle(isSelected ? Theme.textOnAccent : (distribution.total > 0 ? Theme.historyInk : Color.primary))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay {
                             if previousValue == value {
@@ -1009,7 +1064,40 @@ struct AnswerScaleView: View {
                         }
                 }
                 .buttonStyle(.plain)
+                .accessibilityValue(distribution.total > 0 ? "נבחרה \(distribution.count) מתוך \(distribution.total) תשובות קודמות; משקל עדכני \(Int((distribution.weight * 100).rounded())) אחוז" : "")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
+        }
+    }
+}
+
+/// Newest first. Missing answers retain their questionnaire's age but do not
+/// contribute to either denominator. The current draft is never an input.
+struct QuestionnaireAnswerHistory {
+    let count: Int
+    let total: Int
+    let weight: Double
+    var frequency: Double { total == 0 ? 0 : Double(count) / Double(total) }
+    var band: Int { weight <= 0.1 ? 0 : weight <= 0.4 ? 1 : 2 }
+    init(answers: [Int?], value: Int) {
+        var count = 0, total = 0
+        var numerator = 0.0, denominator = 0.0
+        for (index, answer) in answers.enumerated() {
+            guard let answer, (0...3).contains(answer) else { continue }
+            let contribution = pow(0.5, Double(index))
+            total += 1
+            denominator += contribution
+            if answer == value { count += 1; numerator += contribution }
+        }
+        self.count = count
+        self.total = total
+        self.weight = denominator > 0 ? numerator / denominator : 0
+    }
+    var color: Color {
+        switch band {
+        case 0: Theme.historyLow
+        case 1: Theme.historyMedium
+        default: Theme.historyHigh
         }
     }
 }
