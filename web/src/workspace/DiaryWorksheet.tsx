@@ -12,6 +12,7 @@ import mobile from "../mobile-he.json";
 import { he } from "../he";
 import { ww } from "./he";
 import { thinkingErrors, updateItem, type Worksheet } from "./model";
+import { DiaryFlow } from "./DiaryFlow";
 import vocabulary from "./feeling-vocabulary.json";
 
 type Row = Record<string, unknown>;
@@ -29,14 +30,16 @@ function GrowingText(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
       area.style.height = `${area.scrollHeight + 2}px`;
     };
     grow();
+    let frame = 0;
     const observer = new ResizeObserver(() => {
       if (area.clientWidth !== width) {
         width = area.clientWidth;
-        grow();
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(grow);
       }
     });
     observer.observe(area);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, [props.value]);
   return <textarea {...props} ref={ref} rows={props.rows ?? 3} maxLength={50000} />;
 }
@@ -379,7 +382,9 @@ export function DiaryWorksheet({
   item,
   onChange,
   disabled,
+  presentation = false,
 }: {
+  presentation?: boolean;
   item: Worksheet;
   onChange: (next: Worksheet) => void;
   disabled: boolean;
@@ -485,11 +490,9 @@ export function DiaryWorksheet({
     );
   };
   return (
-    <>
-    {third && <nav className="ww-stage-links" aria-label="שלבי היומן">{[ww.diaryThreeBefore, ww.diaryThreeExamine, ww.diaryThreeAfter].map((title, index) => <a key={title} href={`#${item.id}-stage-${index}`}>{title}</a>)}</nav>}
-    <div className={`ww-diary-grid ww-diary-${item.type}`}>
+    <DiaryFlow presentation={presentation} key={`${item.type}:${item.id}`}>
       {third && <div id={`${item.id}-stage-0`} className="ww-diary-stage" tabIndex={-1}><h2>{ww.diaryThreeBefore}</h2><details><summary>הנחיה</summary><p>{ww.diaryThreeBeforeHelp}</p></details></div>}
-      <Section title={third ? ww.situation : ww.event}>
+      <Section title={third ? ww.situation : ww.event} hint={third ? ww.diaryThreeBeforeHelp : undefined}>
         <label className="ww-sr" htmlFor={`${item.id}-event`}>
           {third ? ww.situation : ww.event}
         </label>
@@ -575,7 +578,7 @@ export function DiaryWorksheet({
       ) : (
         <>
           {third && <div id={`${item.id}-stage-1`} className="ww-diary-stage" tabIndex={-1}><h2>{ww.diaryThreeExamine}</h2><details><summary>הנחיה</summary><p>{ww.diaryThreeExamineHelp}</p></details></div>}
-          <Section kind="examine" title={he.Diaries020}>
+          <Section kind="examine" title={he.Diaries020} hint={third ? ww.diaryThreeExamineHelp : undefined}>
             <ThinkingErrorPicker
               value={d.thinking_errors}
               disabled={disabled}
@@ -647,7 +650,6 @@ export function DiaryWorksheet({
           </Section>
         </>
       )}
-    </div>
-    </>
+    </DiaryFlow>
   );
 }
