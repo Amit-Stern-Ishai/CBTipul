@@ -110,7 +110,7 @@ export async function patientNames(account:string):Promise<Record<string,string>
 }
 export async function savePatientName(account:string,id:string,name:string) {
  const done=await guard();
- if(!name.trim() || [...name].length>200 || /[\x00-\x1f\x7f]/.test(name))throw new ApiError("invalid_request");
+ if(!name.trim() || [...name].length>200 || [...name].some(character=>character.charCodeAt(0)<32 || character.charCodeAt(0)===127))throw new ApiError("invalid_request");
  const rows=await patientNameRows(account);done();
  const row=rows[canonical(id)];if(!row)throw new ApiError("invalid_response");
  const {data,error}=await db.functions.invoke("patient-names",{body:{operation:"set",patient_id:id,name,expected_revision:row.revision}});
