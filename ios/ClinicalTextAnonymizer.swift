@@ -47,24 +47,24 @@ nonisolated struct ClinicalTextAnonymizer {
     ///
     /// The clinical text itself — original or anonymized — is never logged.
     func anonymize(_ text: String) async throws -> String {
+        let diagnostics = AIActionDiagnostics.current ?? AIActionDiagnostics()
         try await EntitlementState.shared.requireWrite()
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "" }
 
         // The text is about to be sent to OpenAI for anonymization — the
         // one-time AI data-sharing consent must be granted first.
-        try await AIDataSharingConsentStore.ensureGranted()
+        try await diagnostics.measure(.consent) { try await AIDataSharingConsentStore.ensureGranted() }
         try await EntitlementState.shared.requireWrite()
 
-        AppLog.ai.info("Anonymization requested, characters: \(trimmed.count)")
         let response: Response
         do {
-            response = try await client.functions.invoke(
-                "anonymize-clinical-text",
-                options: FunctionInvokeOptions(
-                    body: Request(text: trimmed, therapistIdentifiers: therapistIdentifiers)
-                )
-            )
+            let body = Request(text: trimmed, therapistIdentifiers: therapistIdentifiers)
+            response = try await diagnostics.measure(.anonymizerHTTP, bytes: diagnostics.payloadBytes(body)) {
+                try await client.functions.invoke("anonymize-clinical-text", options: FunctionInvokeOptions(body: body)) { data, response in
+                    try diagnostics.decode(Response.self, data: data, status: response.statusCode, decoder: client.functions.decoder)
+                }
+            }
         } catch {
             AppLog.ai.error("Anonymization failed")
             throw error
@@ -75,7 +75,6 @@ nonisolated struct ClinicalTextAnonymizer {
             AppLog.ai.error("Anonymization returned an empty result")
             throw ClinicalTextAnonymizerError.anonymizationFailed
         }
-        AppLog.ai.info("Anonymization succeeded, tokens: \(response.usage?.totalTokens ?? 0)")
         return anonymized
     }
 }

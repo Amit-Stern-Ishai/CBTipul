@@ -184,6 +184,11 @@ struct DiaryThreeEntryDetailView: View {
                     Text(entry.createdBy == .patient ? L10n.diaryEntryPatientSource : L10n.diaryEntryTherapistSource).font(.caption).foregroundStyle(.secondary)
                     DiaryThreeEntryContent(entry: entry)
                 }.padding(20)
+                .task(id: entry.id) {
+                    guard entry.createdBy == .patient, entry.patientId == patient.id,
+                          let key = DiaryNotificationKey(patientID: patient.id.queryValue, resourceType: "diary_three_entry", entryID: entry.id.uuidString) else { return }
+                    await NotificationStore.shared?.markDiaryEntryRead(key)
+                }
             }
         }.themedScreen().demoModeChrome().navigationTitle(L10n.diaryThreeTitle)
         .toolbar {

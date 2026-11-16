@@ -9,6 +9,16 @@ import org.junit.Test
 import java.util.Date
 
 class SessionEditorDraftTest {
+    @Test fun newSessionRequiresTypeBeforeSendingSave() {
+        assertTrue(com.cbtipul.app.ui.patients.requiresSessionTypeForSave(true, false, null))
+        assertFalse(com.cbtipul.app.ui.patients.requiresSessionTypeForSave(true, false, SessionType.Intake))
+        assertFalse(com.cbtipul.app.ui.patients.requiresSessionTypeForSave(false, false, null))
+        assertFalse(com.cbtipul.app.ui.patients.requiresSessionTypeForSave(true, true, null))
+        val draft = SessionEditorViewModel().getOrCreate(Session(notes = "Synthetic completed transcript"))
+        draft.type = SessionType.Intake
+        assertEquals("Synthetic completed transcript", draft.snapshot().notes)
+    }
+
     @Test fun clearedSummaryWritesExplicitNullInsteadOfOmittingTheUpdate() = kotlinx.coroutines.runBlocking {
         val draft = SessionEditorViewModel().getOrCreate(Session(notes = "Saved summary"))
         draft.notes = ""

@@ -16,7 +16,7 @@ class PatientInvitationFlowTest {
     private class Fixture(var session: InvitationSession? = null) {
         var initialize: suspend () -> Unit = {}
         var preview: suspend (String) -> PatientInvitationPreview = { PatientInvitationPreview(PatientInvitationPreviewStatus.Valid, "מטפל/ת") }
-        var existingContext = AppContext(role = AppRole.Patient, activation = PatientActivation.Incomplete)
+        var existingContext = if (session?.isAnonymous == false) AppContext(role = AppRole.Therapist) else AppContext(role = AppRole.Patient, activation = PatientActivation.Incomplete)
         var signOuts = 0; var signIns = 0; var claims = 0; var clears = 0
         var claimFailures = 0; var contextFailures = 0; var existingContextFailures = 0; var signInFailures = 0
         var claimed = false
@@ -54,6 +54,17 @@ class PatientInvitationFlowTest {
         ), scope)
     }
 
+    @Test fun emailPatientOpeningLegacyLinkKeepsAccountAndConnection() = runTest {
+        val original = InvitationSession("email-patient", false)
+        val f = Fixture(original)
+        f.existingContext = AppContext(role = AppRole.Patient, activation = PatientActivation.Active, patientId = "synthetic")
+        val flow = f.flow(this)
+        flow.start("mock-invitation"); runCurrent(); flow.continueToConsent(); flow.accept(); runCurrent()
+        assertEquals(InvitationPhase.ExistingPatient, flow.phase.value)
+        assertEquals(original, f.session)
+        assertEquals(0, f.signOuts); assertEquals(0, f.signIns); assertEquals(0, f.claims)
+    }
+
     @Test fun coldAndWarmStartReserveRootBeforeAsyncPreview() = runTest {
         for (warm in listOf(false, true)) {
             val f = Fixture(if (warm) therapist else null); val flow = f.flow(this)
@@ -70,7 +81,7 @@ class PatientInvitationFlowTest {
         assertEquals(InvitationPhase.ConfirmTherapistSwitch, flow.phase.value)
         assertEquals(0, f.signOuts); assertEquals(0, f.signIns); assertEquals(0, f.claims); assertEquals(0, f.clears)
         flow.dismiss(); assertEquals(therapist, f.session)
-        assertEquals(AppRootDestination.Therapist, AppRootRouting.destination(flow.isActive, true, false))
+        assertEquals(AppRootDestination.Therapist, AppRootRouting.destination(flow.isActive, true, false, AppContext(role = AppRole.Therapist)))
     }
 
     @Test fun confirmedSwitchSignsOutLocallyThenCreatesAnonymousSessionAndClaims() = runTest {
@@ -87,7 +98,7 @@ class PatientInvitationFlowTest {
         val flow = f.flow(this)
         flow.start("mock-invitation"); runCurrent(); flow.continueToConsent(); flow.accept(); runCurrent()
         assertEquals(InvitationPhase.Activating, flow.phase.value)
-        f.session = therapist; gate.complete(Unit); runCurrent()
+        f.session = therapist; f.existingContext = AppContext(role = AppRole.Therapist); gate.complete(Unit); runCurrent()
         assertEquals(InvitationPhase.ConfirmTherapistSwitch, flow.phase.value)
         assertEquals(0, f.claims); assertEquals(0, f.signIns)
     }

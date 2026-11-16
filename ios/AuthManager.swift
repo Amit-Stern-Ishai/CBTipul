@@ -54,6 +54,8 @@ final class AuthManager {
     let accountActions: AccountActions
 
     private(set) var currentUserEmail: String?
+    private(set) var authenticationEpoch = 0
+    var onSessionStarted: (() -> Void)?
     var onIdentityChanged: (() -> Void)?
     private var invitationSessionInitialized = false
     private var invitationInitializationWaiters: [CheckedContinuation<Void, Never>] = []
@@ -79,7 +81,7 @@ final class AuthManager {
 
     /// Therapist identity: a live non-anonymous session. Anonymous Patient
     /// Mode users are never therapists, even if Auth reports an email.
-    var isTherapistAuthenticated: Bool { hasSession && !isAnonymousUser }
+    var isTherapistAuthenticated: Bool { hasSession && EntitlementState.shared.identity == currentUserId && EntitlementState.shared.role == .therapist }
 
     /// Same as `isTherapistAuthenticated`. Kept as the historical name used
     /// by therapist UI.
@@ -140,6 +142,10 @@ final class AuthManager {
                 let observed = session.map { InvitationSession(userID: $0.user.id.uuidString, isAnonymous: $0.user.isAnonymous) }
                 guard AuthSessionObservation.isCurrent(observed, current: self?.invitationSession) else { continue }
                 AppLog.auth.info("Auth state changed: \(event.rawValue, privacy: .public), signed in: \(session != nil)")
+                if event == .signedIn || event == .initialSession {
+                    self?.onSessionStarted?()
+                    self?.authenticationEpoch += 1
+                }
                 self?.apply(
                     userId: session?.user.id,
                     email: session?.user.email,
@@ -383,9 +389,6 @@ final class AuthManager {
             AppLog.auth.info("Auth callback handled, session established")
         } catch {
             AppLog.auth.error("Auth callback failed")
-            #if DEBUG
-            print("Auth callback error: \(error)")
-            #endif
             callbackError = L10n.verificationFailedError
         }
     }
@@ -438,7 +441,7 @@ final class AuthManager {
     /// Ends this installation's anonymous Patient Mode session only.
     /// Does not delete server-side patient data or call `delete-account`.
     func signOutPatientMode() async throws {
-        guard isAnonymousUser else {
+        guard hasSession else {
             AppLog.auth.error("Patient Mode sign-out refused: not an anonymous session")
             throw AuthError.verificationFailed
         }
@@ -492,6 +495,19 @@ final class AuthManager {
         apply(userId: nil, email: nil, isAnonymous: false)
         isRecoveringPassword = false
     }
+
+    #if DEBUG
+    /// Called only after delete-patient-account acknowledged HTTP 200 / deleted:true.
+    func finishConfirmedPatientDeletion(expectedUserID: String?) async throws {
+        guard let expectedUserID, currentUserId == expectedUserID else { throw AccountActionError.identityChanged }
+        cancelPendingProviderSignIn()
+        try? await client.auth.signOut(scope: .local)
+        guard currentUserId == nil || currentUserId == expectedUserID else { throw AccountActionError.identityChanged }
+        apply(userId: nil, email: nil, isAnonymous: false)
+        isRecoveringPassword = false
+        PatientHomeCache.clear()
+    }
+    #endif
 
     func awaitInvitationSessionInitialization() async {
         if invitationSessionInitialized { return }

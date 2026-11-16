@@ -33,7 +33,7 @@ class AccessResolutionRecoveryTest {
         Entitlements.apply(readOnly)
         assertEquals(AccessResolutionPresentation.ReadOnly, accessResolutionPresentation("user", Entitlements.state.value, AppContextLoadState.Ready))
         assertFalse(Entitlements.canWrite)
-        assertEquals(AccessResolutionPresentation.Loading, accessResolutionPresentation("other", Entitlements.state.value, AppContextLoadState.Ready))
+        assertEquals(AccessResolutionPresentation.Retry, accessResolutionPresentation("other", Entitlements.state.value, AppContextLoadState.Ready))
     }
 
     @Test fun transientFailureRetriesAutomaticallyAndRecoversWithoutRestart() = runTest {
@@ -205,4 +205,52 @@ class AccessResolutionRecoveryTest {
         assertFalse(transientContextFailure(IllegalArgumentException("fixture bad contract")))
         assertFalse(transientContextFailure(kotlinx.coroutines.CancellationException()))
     }
+    @Test fun cancelledRestoredCheckIsRetryableAndRecoversWithoutSignOut() = runTest {
+        var available = false
+        val repo = AppContextRepository(AppContextDependencies({}, { "restored-user" }, {
+            if (!available) CompletableDeferred<AppContext>().await() else full
+        }, {}))
+        val task = launch { repo.getCurrentAppContext() }
+        runCurrent()
+        assertEquals(AccessResolutionPresentation.Loading, accessResolutionPresentation("restored-user", Entitlements.state.value, repo.loadState.value))
+        task.cancel(); task.join()
+        assertFalse(repo.isLoading.value)
+        assertEquals(AppContextLoadState.Unresolved, repo.loadState.value)
+        assertEquals(AccessResolutionPresentation.Retry, accessResolutionPresentation("restored-user", Entitlements.state.value, repo.loadState.value))
+        assertFalse(Entitlements.canWrite)
+        available = true
+        // Activities entry uses this same recovery, without replacing the auth session.
+        repo.refreshOnForeground()
+        assertTrue(Entitlements.canWrite)
+        assertEquals(AccessResolutionPresentation.Full, accessResolutionPresentation("restored-user", Entitlements.state.value, repo.loadState.value))
+    }
+
+    @Test fun idleInvalidatedAccessNeverDisplaysAnEndlessSpinner() = runTest {
+        val repo = AppContextRepository(AppContextDependencies({}, { "user" }, { full }, {}, nowMillis = {100_000}))
+        repo.getCurrentAppContext(); Entitlements.invalidate()
+        assertEquals(AccessResolutionPresentation.Retry, accessResolutionPresentation("user", Entitlements.state.value, repo.loadState.value))
+        repo.refreshOnForeground()
+        assertTrue(Entitlements.canWrite)
+    }
+
+    @Test fun therapistPatientLogoutAndReloginUseFreshServerRole() = runTest {
+        var identity: String? = "therapist"
+        val patient = AppContext(role = AppRole.Patient, activation = PatientActivation.Active,
+            patientId = "synthetic-patient", entitlement = AppEntitlement(EntitlementAccess.Full))
+        val repo = AppContextRepository(AppContextDependencies({}, { identity }, {
+            if (identity == "therapist") full else patient
+        }, {}))
+        val sessions = MutableStateFlow<AuthContextSession?>(AuthContextSession("therapist", 1))
+        repo.bindAuthentication(backgroundScope, sessions, MutableStateFlow(false))
+        runCurrent(); assertEquals(AppRole.Therapist, repo.current.value?.role)
+        identity = "patient"; sessions.value = AuthContextSession("patient", 2)
+        runCurrent(); assertTrue(repo.current.value?.isActivePatient == true)
+        identity = null; sessions.value = null
+        runCurrent(); assertNull(repo.current.value); assertNull(Entitlements.state.value.role)
+        identity = "patient"; sessions.value = AuthContextSession("patient", 3)
+        runCurrent(); assertTrue(repo.current.value?.isActivePatient == true)
+        identity = "therapist"; sessions.value = AuthContextSession("therapist", 4)
+        runCurrent(); assertEquals(AppRole.Therapist, repo.current.value?.role)
+    }
+
 }

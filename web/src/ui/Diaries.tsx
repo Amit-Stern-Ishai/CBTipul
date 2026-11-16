@@ -1,3 +1,4 @@
+import { DiaryFlow } from "../workspace/DiaryFlow";
 import { he } from "../he";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -97,7 +98,7 @@ export function DiaryDetail() {
             )}
           />
           <p className="small">{he.Diaries014}</p>
-          {[
+          <DiaryFlow key={entry.id}>{[
             [he.Diaries015, entry.event ?? entry.situation],
             [he.Diaries016, entry.automatic_thoughts],
             [he.Diaries017, entry.feelings],
@@ -108,12 +109,12 @@ export function DiaryDetail() {
           ].map(
             ([title, value]) =>
               value && (
-                <section className="panel" key={String(title)}>
+                <section className="panel ww-diary-section" title={String(title)} key={String(title)}>
                   <h2>{String(title)}</h2>
                   <ClinicalContent value={value} />
                 </section>
               ),
-          )}
+          )}</DiaryFlow>
         </>
       )}
     </>

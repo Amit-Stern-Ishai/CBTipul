@@ -1,7 +1,8 @@
+import { savePatientName } from "../data/patient-workspace";
 import { he } from "../he";
 import { useState, useRef, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useQuery, skipToken } from "@tanstack/react-query";
+import { useQuery, useQueryClient, skipToken } from "@tanstack/react-query";
 import {
   Plus,
   Search,
@@ -275,6 +276,7 @@ function EditForm({ patient: p }: { patient?: Patient }) {
       notes !== (p?.notes ?? "") ||
       active !== (p?.active ?? true));
   const created = useRef<Patient | undefined>(undefined);
+  const queryClient=useQueryClient();
   const save = useAction(async () => {
     let target = p ?? created.current;
     if (!target) {
@@ -289,7 +291,9 @@ function EditForm({ patient: p }: { patient?: Patient }) {
         active !== p.active)
     )
       await api.updatePatient(p, goal, notes, active);
+    await savePatientName(session!.user.id,String(target.id),name);
     names.set(localStorage, session!.user.id, target.id, name);
+    queryClient.setQueryData<Record<string,string>>([session!.user.id,"server-names"],old=>({...old,[String(target.id).toLowerCase()]:name}));
     setSaved(true);
     return target.id;
   });

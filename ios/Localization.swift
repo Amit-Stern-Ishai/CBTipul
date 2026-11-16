@@ -6,6 +6,17 @@ import Foundation
 /// values in this one file — the rest of the app only ever references these
 /// constants and never hard-codes user-facing wording.
 enum L10n {
+    static let emailInvitationCorrect = "תיקון כתובת מייל"
+    static let emailInvitationEmail = "כתובת אימייל (חובה)"
+    static let emailInvitationInvite = "הזמנת המטופל/ת"
+    static let emailInvitationSaving = "שומר…"
+    static let emailInvitationFailed = "לא ניתן לשמור את ההזמנה. אפשר לתקן את הכתובת או לנסות שוב."
+    static let emailInvitationWaitingSignIn = "ממתין להתחברות המטופל/ת"
+    static let emailInvitationWaitingConfirmation = "ממתין לאישור המטופל/ת"
+    static let emailInvitationConnected = "המטופל/ת כבר מחובר/ת"
+    static let emailInvitationProfileConnected = "המטופל/ת כבר מחובר/ת לפרופיל הזה."
+    static let emailInvitationUnavailable = "לא ניתן להשתמש בכתובת הזו להזמנה"
+
     static let authRoleTitle = "איך נכנסים ל־CBTipul?"
     static let authRoleExplanation = "למטפלים ולמטופלים יש דרכי כניסה שונות."
     static let authRoleTherapist = "אני מטפל/ת"
@@ -119,6 +130,14 @@ enum L10n {
     static let questionTrendWorse = "גרוע יותר מההתחלה"
     static let questionTrendBetterHelp = "הציון האחרון נמוך מהראשון, אך היו גם עליות בדרך."
     static let questionTrendBetter = "טוב יותר מההתחלה"
+    static let activitiesTitle = "פעילויות"
+    static let activityEnable = "הפעלה"
+    static let activityLoading = "טוען פעילות"
+    static func activityName(_ type: PatientAssignmentType) -> String {
+        switch type { case .questionnaire: "שאלונים"; case .diaryOne: "יומן 1"; case .diaryTwo: "יומן 2"; case .diaryThree: "יומן 3" }
+    }
+    static func activityActive(_ type: PatientAssignmentType) -> String { type == .questionnaire ? "פעילים" : "פעיל" }
+    static func activityInactive(_ type: PatientAssignmentType) -> String { type == .questionnaire ? "לא פעילים" : "לא פעיל" }
     static let accessToolsTitle = "גישה לשאלוני מצב רוח וליומני מחשבות"
     static let accessToolsExplanation = "כלים פעילים זמינים למילוי חוזר באפליקציית המטופל/ת."
     static let accessActive = "פעיל אצל המטופל/ת"
@@ -510,7 +529,7 @@ enum L10n {
     static let welcomeSecondaryAction = "אפשר לעבור על זה אחר כך"
     static let welcomeInfoLink = "איך נשמר המידע?"
     static let welcomeInfoBody =
-        "לאחר אישור מפורש ונפרד, שמות המטופלים מועלים לשרתי CBTipul ומסונכרנים בין מכשירים מורשים. השמות מוצפנים בתעבורה ובאחסון באמצעות מפתחות שרת; תהליכים מורשים יכולים לפענחם. זו אינה הצפנה מקצה לקצה. עותקים מקומיים נשארים לתצוגה ולשימוש ללא רשת; מיפויי iOS קיימים עשויים להסתנכרן גם דרך iCloud Keychain, בהתאם להגדרות Apple. שדה השם אינו נשלח אוטומטית לכלי בינה מלאכותית; טקסט חופשי מטופל בנפרד לפי מדיניות הפרטיות וההסכמות. המנגנון החדש חל על אחסון שמות בלבד."
+        "לאחר אישור מפורש ונפרד, שמות המטופלים מועלים לשרתי CBTipul ומסונכרנים בין מכשירים מורשים. השמות מוצפנים בתעבורה ובאחסון באמצעות מפתחות שרת; תהליכים מורשים יכולים לפענחם. זו אינה הצפנה מקצה לקצה. עותקים מקומיים נשארים לתצוגה ולשימוש ללא רשת; מיפויי iOS קיימים עשויים להסתנכרן גם דרך iCloud Keychain, בהתאם להגדרות Apple. שדה השם אינו נשלח אוטומטית לכלי בינה מלאכותית; טקסט חופשי מטופל בנפרד לפי מדיניות הפרטיות וההסכמות. בגרסאות החדשות גם הערות והמשגה בתיק, סיכומי פגישות והניתוחים המובנים שלהן, והערות וסיכומים משולבים של שאלוני מצב רוח נשמרים מוצפנים בשרת, בנוסח המקורי. ההצפנה אינה חלה על כל סוגי המידע או על כל הרשומות הישנות. עותקים מקומיים וטיוטות עשויים להישאר במכשיר. הכנת טקסט לבינה מלאכותית נפרדת משמירתו; שירות הסרת הפרטים המזהים עצמו מקבל טקסט מקורי ועשוי לעבד מידע מזהה."
     static let welcomeInfoDoneAction = "סגירה"
 
     static let gettingStartedTitle = "הצעדים הראשונים"
@@ -675,19 +694,19 @@ enum L10n {
     
     static let deleteCodeTitle = "אישור מחיקה נוסף"
     
-    /// Message of the second delete confirmation, showing the code the
+    /// Message of the second delete confirmation, showing the phrase the
     /// user must type back to complete the deletion.
     static func deleteCodeMessage(_ code: String) -> String {
-        "להשלמת המחיקה יש להקליד את הקוד:\n\(code)"
+        "להשלמת המחיקה יש להקליד את הביטוי:\n\(code)"
     }
     
-    static let deleteCodePlaceholder = "הקלדת הקוד"
+    static let deleteCodePlaceholder = "הקלדת הביטוי"
     
     static let deleteCodeConfirmAction = "מחיקה"
     
-    static let deleteCodeMismatchTitle = "הקוד שגוי"
+    static let deleteCodeMismatchTitle = "הביטוי אינו תואם"
     
-    static let deleteCodeMismatchMessage = "הקוד שהוקלד אינו תואם, ולכן המחיקה לא בוצעה."
+    static let deleteCodeMismatchMessage = "הביטוי שהוקלד אינו תואם, ולכן המחיקה לא בוצעה."
     
     static let ok = "אישור"
 
@@ -1324,7 +1343,7 @@ amitishai@gmail.com
     
     static let aiTitle = aiChatNavigationTitle
     
-    static let aiAction = "שיחת AI"
+    nonisolated static let aiAction = "שיחת AI"
     
     static let aiModePickerTitle = "מצב"
     
@@ -1679,7 +1698,7 @@ amitishai@gmail.com
     static let patientQuestionnaireAccessDeniedError =
         "לא ניתן לשלוח את שאלוני מצב הרוח כרגע."
 
-    static let patientLeaveModeAction = "יציאה ממצב מטופל/ת"
+    static let patientLeaveModeAction = "התנתקות"
 
     static let patientLeaveModeConfirmTitle = "יציאה ממצב מטופל/ת?"
 
@@ -2574,9 +2593,10 @@ amitishai@gmail.com
     
     // MARK: - Anonymization
     
-    static let anonymizationFailedError = "לא ניתן היה להסיר פרטים מזהים ולכן המידע לא נשמר. אפשר לנסות שוב."
+    static let anonymizationFailedError = "לא ניתן היה להכין את הטקסט בבטחה לעיבוד בינה מלאכותית. אפשר לנסות שוב."
     
-    static let anonymizingStatusLabel = "הסרת פרטים מזהים…"
+    static let anonymizingStatusLabel = "מכין טקסט ל־AI — הסרת פרטים מזהים…"
+    static let summaryPreparingStatusLabel = "מכין את הסיכום…"
 }
 
 extension L10n {
@@ -2732,4 +2752,34 @@ extension L10n {
     static let wwSummaryChanged = "בפגישה נוסף סיכום. התוכן שלך יתווסף אליו בשמירה."
     static let wwContentLoadingFailed = "לא ניתן לטעון את התוכן. נסו שוב."
     static let wwLoadingPatients = "טוען מטופלים…"
+    nonisolated static let aiActionConsentNotGranted = "הפעולה לא התחילה כי שיתוף הנתונים לא אושר. אפשר לנסות שוב ולאשר את השיתוף."
+    nonisolated static let aiActionCancelled = "הפעולה בוטלה. הטיוטה והתוצאות הקודמות לא שונו. אפשר לנסות שוב."
+    nonisolated static let aiActionTimedOut = "לא התקבלה תשובה בזמן. ייתכן שהשרת עדיין מעבד את הבקשה. הטיוטה והתוצאה הקודמת לא שונו; בדקו את החיבור לפני ניסיון נוסף."
+    nonisolated static let aiActionInvalidResponse = "השרת החזיר תשובה שלא ניתן להציג. הטיוטה והתוצאה הקודמת לא שונו. נסו שוב; אם הבעיה חוזרת, פנו לתמיכה."
+    nonisolated static let aiActionBackendFailure = "השרת לא הצליח להשלים את העיבוד. הטיוטה והתוצאה הקודמת לא שונו. נסו שוב מאוחר יותר."
+    nonisolated static let aiPreparationTemporaryDetails = "\n\nפרטי תקלה זמניים\nשלב: %@\nHTTP: %@\nקוד: %@\nזמן כולל: %d ms\nבקשה: %@"
+    static let discoveryInviteAction = "הזמנת המטופל/ת"
+    static let discoveryActivitiesAction = "פתיחת הגדרות הפעילות"
+    static let discoveryActivitiesTitle = "אפשר להמשיך גם בין הפגישות"
+    static func discoveryActivityBody(_ kind: FeatureDiscovery.Milestone) -> String {
+        switch kind {
+        case .secondSession: "אפשר להפעיל שאלוני GAD-7 ו־PHQ-9 למילוי עצמאי בין הפגישות."
+        case .diaryOne: "אפשר להפעיל את יומן 1 כדי שהמטופל/ת יוכל/תוכל למלא אותו באופן עצמאי."
+        case .diaryTwo: "אפשר להפעיל את יומן 2 כדי שהמטופל/ת יוכל/תוכל למלא אותו באופן עצמאי."
+        }
+    }
+    static let aiPreparationFailedTitle = "ההכנה לא הושלמה"
+    static let aiAnalysisFailedTitle = "הסיכום לא הושלם"
+    static let aiPreparationLoadingData = "טוען מידע להכנה…"
+    static let aiPreparationServerStatus = "מכין את הפגישה בשרת…"
+    static let aiAnalysisServerStatus = "מעבד את הסיכום בשרת…"
+    static let aiCheckingAllowanceStatus = "בודק מכסת AI…"
+    static let aiPreparationCacheFailed = "ההכנה מוכנה אך לא נשמרה במכשיר. השאירו את התוצאה פתוחה."
+    static let aiPreparationReady = "ההכנה מוכנה לצפייה."
+    static let aiOpenPreparationResult = "פתיחת ההכנה"
+    static let aiOpenAnalysisResult = "פתיחת הסיכום שהתקבל"
+    static let patientNameApprovalFailed = "לא ניתן לאשר כרגע. בדקו את החיבור ונסו שוב. השמות המקומיים נשמרו."
+    static let patientNameSaveFailed = "שמירת השם נכשלה. אפשר לנסות שוב."
+    static let patientNameConsentRequired = "השרת לא אישר את שמירת השם. אפשר לנסות שוב מאוחר יותר."
+    static let patientNameChanged = "השם השתנה במכשיר אחר. בדקו את השם ונסו שוב."
 }

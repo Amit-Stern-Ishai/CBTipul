@@ -71,7 +71,7 @@ struct TelemetryClientTests {
         flow.continueToConsent()
         var session: InvitationSession? = InvitationSession(userID:"therapist-local-only",isAnonymous:false)
         let patientID=UUID();var failures=1;var claims=0
-        let d=InvitationActivationDependencies(awaitInitialization:{},session:{session},signOutLocally:{_ in session=nil;c.setOwner(nil,role:.unknown)},signInAnonymously:{session=InvitationSession(userID:"private-patient",isAnonymous:true);c.setOwner("private-patient",role:.patient)},clearContext:{},context:{AppContext(version:1,role:.patient,activation:.active,patientId:patientID)},claim:{_ in claims+=1;if failures>0 {failures-=1;throw PatientInvitationClaimError.failed};return patientID})
+        let d=InvitationActivationDependencies(awaitInitialization:{},session:{session},signOutLocally:{_ in session=nil;c.setOwner(nil,role:.unknown)},signInAnonymously:{session=InvitationSession(userID:"private-patient",isAnonymous:true);c.setOwner("private-patient",role:.patient)},clearContext:{},context:{if session?.isAnonymous == false { return AppContext(version:1,role:.therapist,activation:nil,patientId:nil) }; return AppContext(version:1,role:.patient,activation:.active,patientId:patientID)},claim:{_ in claims+=1;if failures>0 {failures-=1;throw PatientInvitationClaimError.failed};return patientID})
         await flow.activate(using:d);#expect(flow.phase == .confirmTherapistSwitch)
         await flow.confirmTherapistSwitch(using:d);#expect(recorder.events.contains {$0.stage == .failed})
         #expect(recorder.events.contains {$0.stage == .roleSwitchConfirmed && $0.previousRole == .therapist})

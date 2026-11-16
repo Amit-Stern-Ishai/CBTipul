@@ -105,56 +105,8 @@ fun AuthScreen(
     onCancelGoogleSignIn: () -> Unit,
 ) {
     DisposableEffect(Unit) { onDispose { onCancelGoogleSignIn() } }
-    // UI intent only. Never creates or changes the authenticated account role.
-    var entryStage by rememberSaveable { mutableStateOf("choose") }
-    val backToRoles = {
-        entryStage = "choose"
-        onPasswordChange("")
-        onConfirmPasswordChange("")
-    }
-    BackHandler(enabled = entryStage != "choose") {
-        if (!state.isWorking) backToRoles()
-    }
     val colors = Theme.colors
     Box(Modifier.themedScreen(colors.gold), contentAlignment = Alignment.TopCenter) {
-    if (entryStage == "choose") {
-        Layout(
-            modifier = Modifier.widthIn(max = 520.dp).fillMaxSize().editorScroll()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            content = {
-            Column(
-                Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Image(painterResource(R.drawable.splash_icon), contentDescription = null,
-                    modifier = Modifier.size(88.dp).clip(RoundedCornerShape(26.dp)))
-                Text(stringResource(R.string.app_title), color = colors.textBright,
-                    style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            }
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(stringResource(R.string.auth_role_title), style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textBright, fontWeight = FontWeight.Bold)
-                Text(stringResource(R.string.auth_role_explanation), color = colors.textBody)
-                RoleChoice(R.string.auth_role_therapist, R.string.auth_role_therapist_detail, patient = false) { entryStage = "therapist" }
-                RoleChoice(R.string.auth_role_patient, R.string.auth_role_patient_detail, patient = true) { entryStage = "patient" }
-            }
-            },
-        ) { measurables, constraints ->
-            val childConstraints = constraints.copy(minHeight = 0)
-            val header = measurables[0].measure(childConstraints)
-            val choices = measurables[1].measure(childConstraints)
-            val gap = 32.dp.roundToPx()
-            val height = constraints.constrainHeight(header.height + gap + choices.height)
-            // Center the decision block in the entire safe viewport. The brand sits
-            // just above it; compact screens scroll without overlap or clipped text.
-            val choicesY = maxOf(header.height + gap, (height - choices.height) / 2)
-            layout(constraints.maxWidth, height) {
-                header.placeRelative(0, choicesY - gap - header.height)
-                choices.placeRelative(0, choicesY)
-            }
-        }
-    } else {
     Column(
         modifier = Modifier
             .widthIn(max = 520.dp)
@@ -166,34 +118,12 @@ fun AuthScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         AuthBrandHeader()
-        if (entryStage != "choose") {
-            TextButton(onClick = backToRoles, enabled = !state.isWorking,
-                modifier = Modifier.align(Alignment.Start)) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null,
-                    modifier = Modifier.padding(end = 8.dp))
-                Text(stringResource(R.string.auth_change_role))
-            }
+        if (state.verificationEmail == null) {
+            Text(stringResource(if (state.mode == AuthMode.SignIn) R.string.auth_welcome_sign_in
+                else R.string.auth_welcome_sign_up), color = colors.textBody,
+                style = MaterialTheme.typography.bodyMedium)
         }
-        if (entryStage == "therapist" && state.verificationEmail == null) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(R.string.auth_therapist_only), color = colors.textBright,
-                    style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(stringResource(if (state.mode == AuthMode.SignIn) R.string.auth_welcome_sign_in
-                    else R.string.auth_welcome_sign_up), color = colors.textBody,
-                    style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-        if (entryStage == "patient") {
-            Column(Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(16.dp)).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Icon(Icons.Outlined.Link, contentDescription = null, tint = colors.gold, modifier = Modifier.size(32.dp))
-                Text(stringResource(R.string.auth_patient_link_title), style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textBright, fontWeight = FontWeight.Bold)
-                Text(stringResource(R.string.auth_patient_link_body), color = colors.textBright)
-                HorizontalDivider()
-                Text(stringResource(R.string.auth_patient_no_link), color = colors.textBody)
-            }
-        } else if (state.verificationEmail != null) {
+        if (state.verificationEmail != null) {
             VerificationCard(
                 state = state,
                 onResend = onResend,
@@ -214,7 +144,6 @@ fun AuthScreen(
             )
         }
     }
-    }
         BusyOverlay(state.isWorking)
     }
 }
@@ -231,26 +160,6 @@ private fun AuthBrandHeader() {
                 modifier = Modifier.weight(1f))
         }
  }
-
-@Composable
-private fun RoleChoice(title: Int, detail: Int, patient: Boolean, onClick: () -> Unit) {
-    val colors = Theme.colors
-    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
-        shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, colors.gold.copy(alpha = .45f)),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = colors.surface, contentColor = colors.textBright),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (patient) Icons.Outlined.Link else Icons.Outlined.Person, contentDescription = null,
-                tint = colors.gold, modifier = Modifier.size(28.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(stringResource(detail), style = MaterialTheme.typography.bodyMedium, color = colors.textBody)
-            }
-            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null,
-                tint = colors.textBody, modifier = Modifier.size(20.dp))
-        }
-    }
-}
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable

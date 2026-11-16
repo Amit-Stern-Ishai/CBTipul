@@ -326,7 +326,7 @@ fun QuestionnaireScreen(
     }
         BusyOverlay(
             isBusy = isSaving,
-            label = stringResource(R.string.anonymizing_status_label),
+            label = stringResource(R.string.clinical_saving_status),
         )
     }
 
@@ -352,6 +352,7 @@ fun QuestionnaireScreen(
         )
     }
     DeleteCodeDialog(
+        phrase = com.cbtipul.app.ui.patients.DeletionPhrase.Questionnaire,
         visible = showDeleteCode,
         onConfirm = {
             showDeleteCode = false

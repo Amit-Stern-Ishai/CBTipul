@@ -359,6 +359,7 @@ fun SettingsScreen(
         )
     }
     DeleteCodeDialog(
+        phrase = com.cbtipul.app.ui.patients.DeletionPhrase.Account,
         visible = codeChallenge,
         onConfirm = {
             codeChallenge = false

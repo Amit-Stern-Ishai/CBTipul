@@ -115,7 +115,7 @@ object NotificationRouting {
 
     fun therapistRoutes(destination: AppDestination): List<String> = when (destination) {
         is AppDestination.WebWorkspace -> listOf("web-workspaces/${destination.id}")
-        is AppDestination.PatientDetail -> listOf("patient/${destination.patientId}")
+        is AppDestination.PatientDetail -> listOf("patient/${destination.patientId}?connection=send")
         is AppDestination.QuestionnaireResult -> buildList {
             add("patient/${destination.patientId}")
             add("patient/${destination.patientId}/questionnaires")
@@ -324,4 +324,26 @@ object PatientQuestionnaireNotificationRouting {
         } catch (_: Exception) { return null }
         return matchingAssignment(assignments, payload, patientId)
     }
+}
+
+/** Exact identity only: no timestamps, session IDs, or latest-entry guesses. */
+data class DiaryNotificationKey private constructor(val patientId:String,val resourceType:String,val entryId:String) {
+ companion object {
+  fun of(patientId:String,resourceType:String,entryId:String):DiaryNotificationKey? {
+   if(patientId.isBlank()||resourceType !in setOf("diary_one_entry","diary_two_entry","diary_three_entry"))return null
+   val id=runCatching {UUID.fromString(entryId).toString()}.getOrNull()?:return null
+   if(!id.equals(entryId,true))return null
+   return DiaryNotificationKey(patientId.lowercase(),resourceType,id)
+  }
+  fun from(item:AppNotification):DiaryNotificationKey? {
+   val resource=when(item.type){AppNotificationTypes.DIARY_ONE_ENTRY_ADDED->"diary_one_entry";AppNotificationTypes.DIARY_TWO_ENTRY_ADDED->"diary_two_entry";AppNotificationTypes.DIARY_THREE_ENTRY_ADDED->"diary_three_entry";else->return null}
+   if(item.resourceType!=resource)return null
+   return of(item.patientId?:return null,resource,item.resourceId?:return null)
+  }
+ }
+}
+object DiaryNotificationReadState {
+ fun isDiaryEvent(type:String)=type in setOf(AppNotificationTypes.DIARY_ONE_ENTRY_ADDED,AppNotificationTypes.DIARY_TWO_ENTRY_ADDED,AppNotificationTypes.DIARY_THREE_ENTRY_ADDED)
+ fun readKeys(items:List<AppNotification>)=items.filter {!it.isUnread}.mapNotNull(DiaryNotificationKey::from).toSet()
+ fun unreadKeys(items:List<AppNotification>)=items.filter {it.isUnread}.mapNotNull(DiaryNotificationKey::from).toSet()-readKeys(items)
 }

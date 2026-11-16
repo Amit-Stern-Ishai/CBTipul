@@ -438,7 +438,11 @@ struct DiaryOneEntryFormView: View {
     }
 
     var body: some View {
-        editorBody
+        editorBody.task(id: existing?.id) {
+            guard let entry = existing, entry.createdBy == .patient, entry.patientId == patient.id,
+                  let key = DiaryNotificationKey(patientID: patient.id.queryValue, resourceType: "diary_one_entry", entryID: entry.id.uuidString) else { return }
+            await NotificationStore.shared?.markDiaryEntryRead(key)
+        }
     }
 
     private var editorBody: some View {

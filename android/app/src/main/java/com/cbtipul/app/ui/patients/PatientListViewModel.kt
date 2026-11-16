@@ -79,10 +79,6 @@ class PatientListViewModel(
     val gettingStarted: GettingStartedRouter get() = gettingStartedRouter
     val gettingStartedState: StateFlow<GettingStartedRouterState> = gettingStartedRouter.state
 
-    init {
-        repository.loadCachedPatients()
-    }
-
     val patients: StateFlow<List<Patient>> = repository.patients
         .map { list -> sortPatients(list) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, sortPatients(repository.patients.value))
@@ -176,7 +172,11 @@ class PatientListViewModel(
         gettingStartedRouter.beginShowcaseCountdownIfNeeded(repository)
     }
 
-    fun setAdding(value: Boolean) = _ui.update { it.copy(isAdding = value, addError = null) }
+    private var patientCreationID = java.util.UUID.randomUUID().toString()
+    fun setAdding(value: Boolean) {
+        if(value && !_ui.value.isAdding)patientCreationID=java.util.UUID.randomUUID().toString()
+        _ui.update { it.copy(isAdding = value, addError = null) }
+    }
 
     fun addPatient(
         firstName: String,
@@ -184,16 +184,16 @@ class PatientListViewModel(
         status: PatientStatus,
         notConfigured: String,
         rejected: String,
-        onDone: () -> Unit,
+        onDone: (com.cbtipul.app.model.Patient?) -> Unit,
     ) {
         if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         viewModelScope.launch {
             _ui.update { it.copy(isSavingAdd = true, addError = null) }
             try {
-                repository.addPatient(firstName, lastName, status)
+                val created = repository.addPatient(firstName, lastName, status, patientCreationID)
                 refreshGettingStartedProgress()
                 _ui.update { it.copy(isSavingAdd = false, isAdding = false) }
-                onDone()
+                onDone(created)
             } catch (error: Exception) {
                 _ui.update {
                     it.copy(isSavingAdd = false, addError = mapError(error, notConfigured, rejected))
@@ -202,7 +202,7 @@ class PatientListViewModel(
         }
     }
 
-    fun rename(id: DatabaseId, firstName: String, lastName: String) {
+    suspend fun rename(id: DatabaseId, firstName: String, lastName: String) {
         if (!com.cbtipul.app.data.Entitlements.allowMutation()) return
         repository.renamePatient(id, firstName, lastName)
     }
@@ -527,7 +527,7 @@ class PatientListViewModel(
     ) {
         if (!com.cbtipul.app.data.Entitlements.allowMutation(allowLocalDemo = false)) return
         viewModelScope.launch {
-            _ui.update { it.copy(isAnonymizingTranscription = true, sessionError = null) }
+            _ui.update { it.copy(isAnonymizingTranscription = true, isAnalyzing = true, sessionError = null) }
             try {
                 val notes = repository.anonymizedText(session.notes)
                 _ui.update { it.copy(isAnonymizingTranscription = false, isAnalyzing = true) }
@@ -864,6 +864,7 @@ class PatientListViewModel(
         sessionNotSaved: String,
         anonymizationFailed: String,
     ): String? = when {
+        error is com.cbtipul.app.data.NameSyncFailure -> error.message
         error is ConsentDeclinedException -> null
         error is ClinicalTextAnonymizerError -> anonymizationFailed
         error is PatientStoreException -> when (error.kind) {

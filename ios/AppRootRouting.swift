@@ -1,7 +1,7 @@
 import Foundation
 
 /// Root identity for the signed-in installation. A session is never enough
-/// to mean "therapist" — anonymous Auth users are Patient Mode.
+/// to mean "therapist" — the server context owns the role.
 enum AppRootDestination: Equatable {
     case invitation
     case therapist
@@ -20,12 +20,13 @@ enum AppRootRouting {
     static func destination(
         invitationActive: Bool,
         hasSession: Bool,
-        isAnonymous: Bool
+        isAnonymous: Bool,
+        context: AppContext? = nil
     ) -> AppRootDestination {
         if invitationActive { return .invitation }
         guard hasSession else { return .unauthenticated }
-        if isAnonymous { return .anonymousPatient }
-        return .therapist
+        // Auth anonymity is not a role. Unresolved sessions use the existing retry/loading shell.
+        return context?.role == .therapist ? .therapist : .anonymousPatient
     }
 
     static func anonymousDestination(

@@ -26,6 +26,7 @@ object PatientNameRules {
  const val type = "patient_name_storage"
  fun valid(name: String) = name.isNotBlank() && name.codePointCount(0,name.length)<=200 && name.none { it.code<32 || it.code==127 }
  fun revision(value: String) = value.isNotEmpty() && value.all { it in '0'..'9' }
+ fun older(value:String,current:String):Boolean { val a=value.trimStart('0');val b=current.trimStart('0');return if(a.length==b.length)a<b else a.length<b.length }
  const val title = "שמירת שמות מטופלים וסנכרון בין מכשירים"
  val notice = """מעתה שמות המטופלים יישמרו בשרתי CBTipul בצורה מוצפנת, כדי לאפשר סנכרון בין מכשירים ובהמשך גם בחירת מטופל/ת בסביבת העבודה במחשב.
 
@@ -37,7 +38,7 @@ object PatientNameRules {
 
 בחירה באישור והמשך מאשרת את השמירה והסנכרון המתוארים כאן. בחירה בלא עכשיו לא תעלה שמות ותשאיר את תהליך ההגדרה ממתין."""
 }
-class NameSyncFailure(val code: String, val httpStatus: Int? = null): Exception(if(code=="invalid_name") "יש להזין שם שאינו ריק, עד 200 תווים וללא תווי בקרה." else "סנכרון השמות ממתין. אפשר לנסות שוב.")
+class NameSyncFailure(val code: String, val httpStatus: Int? = null): Exception(if(code=="invalid_name") "יש להזין שם שאינו ריק, עד 200 תווים וללא תווי בקרה." else when(code){"consent_required"->"השרת לא אישר את שמירת השם. אפשר לנסות שוב מאוחר יותר.";"revision_conflict"->"השם השתנה במכשיר אחר. בדקו את השם ונסו שוב.";else->"שמירת השם נכשלה. אפשר לנסות שוב."})
 @Serializable data class NameConsentReceipt(val therapist_id:String,val consent_type:String,val required_version:String,
  val accepted_version:String?,val accepted_at:String?,val revoked_at:String?,val status:String,val revision:Long) {
  fun validate(account:String) {
@@ -54,10 +55,10 @@ class NameSyncFailure(val code: String, val httpStatus: Int? = null): Exception(
 @Serializable data class PatientNameSetResult(val patient_id:String,val revision:String,val updated_at:String,val unchanged:Boolean)
 @Serializable data class PatientNameEdit(val id:String=UUID.randomUUID().toString(),val name:String,val initial:Boolean)
 @Serializable data class PatientNameEntry(val confirmed:String?=null,val revision:String="0",val pending:PatientNameEdit?=null,val initialized:Boolean=false)
-@Serializable data class PatientNameSyncSnapshot(val entries:Map<String,PatientNameEntry> = emptyMap(),val consentDecision:NameConsentDecision?=null,val migrationVersion:String?=null)
-data class NameSyncState(val accepted:Boolean=false,val busy:Boolean=false,val failed:Boolean=false,val pending:Boolean=false,val consentChecked:Boolean=false,val migrationComplete:Boolean=false,val account:String?=null)
+@Serializable data class PatientNameSyncSnapshot(val entries:Map<String,PatientNameEntry> = emptyMap(),val consentDecision:NameConsentDecision?=null,val migrationVersion:String?=null,val confirmedIDs:Set<String> = emptySet(),val approvalVersion:String?=null,val cleanedLegacyIDs:Set<String> = emptySet())
+data class NameSyncState(val accepted:Boolean=false,val busy:Boolean=false,val failed:Boolean=false,val pending:Boolean=false,val consentChecked:Boolean=false,val migrationComplete:Boolean=false,val account:String?=null,val needsApproval:Boolean=false,val approvalFailed:Boolean=false)
 
-/** All state mutations run on the owning main scope. Calls are serial; newer intents replace older ones. */
+/** Server names live in account-scoped memory; only unfinished legacy migration input is durable. */
 class PatientNameSync(
  private val call:suspend (String,JsonObject)->String,
  private val storage:DeviceDraftStorage,
@@ -71,85 +72,157 @@ class PatientNameSync(
   private set
  private var epoch=0
  private var snapshot=PatientNameSyncSnapshot(); private var owned=emptySet<String>(); private var legacy=emptyMap<String,String>()
+ private var rowNames=emptyMap<String,String?>(); private var rowLegacy=emptyMap<String,String>(); private var rowsReceived=false
+ var writeRevision=0
+  private set
+ var waitForPatientRows=false
+ fun receivePatientRows(records:List<JsonObject>) {
+  val names=mutableMapOf<String,String?>();val fallback=mutableMapOf<String,String>()
+  records.forEach { row ->
+   val id=row.getValue("id").jsonPrimitive.content.lowercase()
+   if(row.containsKey("decryptedName")) {
+    val value=row["decryptedName"]
+    names[id]=when { value==JsonNull -> null; value is JsonPrimitive && value.isString -> value.content; else -> throw NameSyncFailure("invalid_response") }
+   }
+   if(names[id]==null)runCatching {readLegacy?.invoke(id)}.getOrNull()?.takeIf {it.isNotEmpty()}?.let { fallback[id]=it }
+  }
+  rowNames=names;rowLegacy=fallback;rowsReceived=true
+  register(records.associate {it.getValue("id").jsonPrimitive.content to null})
+  snapshot=snapshot.copy(entries=snapshot.entries.mapValues {(id,entry)->if(names[id]!=null&&entry.pending?.initial==true)entry.copy(pending=null) else entry})
+ }
  private var deleting=emptySet<String>(); private var diskReady=false; private var busy=false; private var rerun=false; private var lastRefresh=0L; private var consentRevision:Long?=null
  var changed:(()->Unit)?=null
  var loadOwned:(suspend ()->Map<String,String?>)?=null
+ private var approvalFailed=false
  private var consentChecked=false
+ private var legacyChecked=false
+ var readLegacy:((String)->String?)?=null
+ var removeConfirmedLegacy:((String)->Boolean)?=null
  val migrationComplete get()=snapshot.migrationVersion==PatientNameRules.version
- fun shouldGate(therapist:Boolean,demo:Boolean)=therapist&&!demo&&!migrationComplete
- private fun publish(accepted:Boolean=mutable.value.accepted,failed:Boolean=mutable.value.failed) { mutable.value=NameSyncState(accepted,busy,failed,snapshot.entries.values.any { it.pending!=null },consentChecked,migrationComplete,account) }
+ private val hasOwnedLegacy get()=owned.any {snapshot.entries[it]?.pending!=null}
+ private val migrationApproved get()=snapshot.approvalVersion==PatientNameRules.version
+ fun shouldGate(therapist:Boolean,demo:Boolean)=therapist&&!demo&&legacyChecked&&hasOwnedLegacy&&!migrationApproved
+ private fun publish(accepted:Boolean=mutable.value.accepted,failed:Boolean=mutable.value.failed) { mutable.value=NameSyncState(accepted,busy,failed,snapshot.entries.values.any { it.pending!=null },consentChecked,migrationComplete,account,shouldGate(true,false),approvalFailed) }
+ /** Context refresh temporarily clears the role, not the authenticated account.
+  * Retain only the same owner's memory through that unresolved interval. */
+ fun updateAuthenticatedContext(authenticatedOwner:String?,context:EntitlementSnapshot) {
+  val owner=authenticatedOwner?.lowercase()
+  val matching=context.identity?.lowercase()==owner
+  val next=when {
+   owner==null -> null
+   matching && context.role==AppRole.Patient -> null
+   matching && context.role==AppRole.Therapist -> owner
+   account==owner -> owner
+   else -> null
+  }
+  setAccount(next)
+ }
  fun setAccount(value:String?) {
   val value=value?.lowercase(); if(value==account)return
-  epoch++;account=value;snapshot=PatientNameSyncSnapshot();owned=emptySet();deleting=emptySet();legacy=emptyMap();busy=false;rerun=false;diskReady=false;lastRefresh=0;consentRevision=null;consentChecked=false
-  mutable.value=NameSyncState()
-  if(value!=null) try { snapshot=storage.read(key())?.let { json.decodeFromString<PatientNameSyncSnapshot>(it) }?:PatientNameSyncSnapshot();diskReady=true;publish() } catch(_:Exception){publish(failed=true)}
+  rowNames=emptyMap();rowLegacy=emptyMap();rowsReceived=false;writeRevision=0
+  epoch++;approvalFailed=false;legacyChecked=false;account=value;snapshot=PatientNameSyncSnapshot();owned=emptySet();deleting=emptySet();legacy=emptyMap();busy=false;rerun=false;diskReady=false;lastRefresh=0;consentRevision=null;consentChecked=false
+  mutable.value=NameSyncState();changed?.invoke()
+  if(value!=null) try { snapshot=storage.read(key())?.let { json.decodeFromString<PatientNameSyncSnapshot>(it) }?:PatientNameSyncSnapshot();diskReady=true;discardConfirmedCache();publish() } catch(_:Exception){publish(failed=true)}
+ }
+ fun hasConfirmed(id:String)=rowNames[id.lowercase()]!=null || id.lowercase() in snapshot.confirmedIDs || snapshot.entries[id.lowercase()]?.confirmed!=null
+ private fun discardConfirmedCache(){
+  snapshot=snapshot.copy(confirmedIDs=snapshot.confirmedIDs+snapshot.entries.filterValues {it.confirmed!=null&&it.pending==null}.keys,entries=snapshot.entries.filterValues {it.pending!=null}.mapValues {it.value.copy(confirmed=null)})
+ }
+ private fun cleanConfirmedLegacy(){
+  val remove=removeConfirmedLegacy?:return
+  val cleaned=(snapshot.confirmedIDs-snapshot.cleanedLegacyIDs).filter {runCatching {remove(it)}.getOrDefault(false)}
+  if(cleaned.isNotEmpty()){snapshot=snapshot.copy(cleanedLegacyIDs=snapshot.cleanedLegacyIDs+cleaned);persist()}
  }
  private fun key()=DeviceFormDraftStore.key(account!!,"patient-name-sync","v1")
- private fun persist(){if(!diskReady||account==null)throw NameSyncFailure("local_storage");storage.write(key(),json.encodeToString(snapshot));publish()}
+ private fun persist(){if(!diskReady||account==null)throw NameSyncFailure("local_storage");val confirmed=snapshot.confirmedIDs+snapshot.entries.filterValues {it.confirmed!=null&&it.pending==null}.keys
+  snapshot=snapshot.copy(confirmedIDs=confirmed)
+  val durable=snapshot.copy(entries=snapshot.entries.filterValues {it.pending!=null}.mapValues {it.value.copy(confirmed=null)})
+  storage.write(key(),json.encodeToString(durable));publish()}
  fun register(values:Map<String,String?>) {
   if(account==null)return
   owned=values.keys.map(String::lowercase).filter(::uuid).toSet()-deleting
-  legacy=values.mapKeys { it.key.lowercase() }.filter { it.key in owned && it.value?.let(PatientNameRules::valid)==true }.mapValues { it.value!! }
+  legacy=values.mapKeys { it.key.lowercase() }.filter { it.key in owned && !hasConfirmed(it.key) && it.value?.let(PatientNameRules::valid)==true }.mapValues { it.value!! }
  }
- fun displayed(id:String,fallback:String?)=snapshot.entries[id.lowercase()]?.let { it.pending?.name?:it.confirmed }?:fallback
- fun edit(id:String,name:String) {
+ fun displayed(id:String,fallback:String?):String? {
+  val key=id.lowercase();val entry=snapshot.entries[key]
+  return if(rowNames.containsKey(key))rowNames[key]?:entry?.pending?.name?:rowLegacy[key]?:fallback
+   else entry?.pending?.name?:entry?.confirmed?:rowLegacy[key]?:fallback
+ }
+ suspend fun edit(id:String,name:String) {
   if(!PatientNameRules.valid(name)||!uuid(id))throw NameSyncFailure("invalid_name")
-  val id=id.lowercase();owned=owned+id;val old=snapshot
-  snapshot=snapshot.copy(entries=snapshot.entries+(id to (snapshot.entries[id]?:PatientNameEntry()).copy(pending=PatientNameEdit(name=name,initial=false))))
-  try {persist()}catch(e:Exception){snapshot=old;publish(failed=true);throw e}
-  changed?.invoke();scope.launch {refresh(true)}
+  val e=epoch;val id=id.lowercase()
+  val row=fetch(e)[id]?:throw NameSyncFailure("patient_not_found")
+  val result=request<PatientNameSetResult>("patient-names",buildJsonObject {put("operation","set");put("patient_id",id);put("name",name);put("expected_revision",row.revision)},e)
+  if(!result.patient_id.equals(id,true)||!PatientNameRules.revision(result.revision)||result.updated_at.isBlank())throw NameSyncFailure("invalid_response")
+  writeRevision++
+  owned=owned+id;snapshot=snapshot.copy(entries=snapshot.entries+(id to PatientNameEntry(confirmed=name,revision=result.revision,initialized=true)))
+  if(rowNames.containsKey(id))rowNames=rowNames+(id to name)
+  changed?.invoke();publish()
  }
- fun rememberCreated(id:String,name:String) {
-  if(account==null||!uuid(id)||!PatientNameRules.valid(name))return
-  val key=id.lowercase();owned=owned+key
-  snapshot=snapshot.copy(entries=snapshot.entries+(key to (snapshot.entries[key]?:PatientNameEntry()).copy(pending=PatientNameEdit(name=name,initial=true))))
-  runCatching {persist()}.onFailure {publish(failed=true)};changed?.invoke()
- }
+ suspend fun rememberCreated(id:String,name:String)=edit(id,name)
  fun beginDeletion(id:String){deleting=deleting+id.lowercase();owned=owned-id.lowercase()}
  fun cancelDeletion(id:String){deleting=deleting-id.lowercase();owned=owned+id.lowercase()}
  fun remove(id:String){val id=id.lowercase();owned=owned-id;legacy=legacy-id;snapshot=snapshot.copy(entries=snapshot.entries-id);runCatching {persist()}.onFailure {publish(failed=true)}}
  private fun check(e:Int){if(e!=epoch||account==null||!eligible())throw CancellationException()}
- private suspend inline fun <reified T> request(method:String,payload:JsonObject,e:Int):T {check(e);val data=call(method,payload);check(e);return json.decodeFromString<T>(data)}
+ private suspend inline fun <reified T> request(method:String,payload:JsonObject,e:Int):T {check(e);val data=call(method,payload);check(e);return try {json.decodeFromString<T>(data)}catch(_:kotlinx.serialization.SerializationException){throw NameSyncFailure("invalid_response")}}
  private suspend fun lookup(e:Int):NameConsentReceipt {
   val r=request<NameConsentReceipt>("get_my_consent",buildJsonObject {put("p_consent_type",PatientNameRules.type);put("p_required_version",PatientNameRules.version)},e)
   r.validate(account!!);if(consentRevision!=null&&r.revision<consentRevision!!)throw NameSyncFailure("invalid_response")
-  consentRevision=r.revision;consentChecked=true;publish(accepted=r.status=="accepted");return r
+  consentRevision=r.revision;consentChecked=true;snapshot=snapshot.copy(approvalVersion=if(r.status=="accepted")PatientNameRules.version else null);publish(accepted=r.status=="accepted");return r
  }
- private fun reopenStorage(){if(!diskReady&&account!=null)try {snapshot=storage.read(key())?.let {json.decodeFromString<PatientNameSyncSnapshot>(it)}?:PatientNameSyncSnapshot();diskReady=true}catch(_:Exception){publish(failed=true)}}
- suspend fun decide(decision:String="accepted") {
+ private fun reopenStorage(){if(!diskReady&&account!=null)try {snapshot=storage.read(key())?.let {json.decodeFromString<PatientNameSyncSnapshot>(it)}?:PatientNameSyncSnapshot();diskReady=true;discardConfirmedCache()}catch(_:Exception){publish(failed=true)}}
+ suspend fun decide(decision:String="accepted",userInitiated:Boolean=true) {
   reopenStorage()
-  if(busy||account==null||!eligible()||!diskReady)return
-  val e=epoch;busy=true;publish(accepted=false,failed=false);var decisionConfirmed=false
+  if(busy||account==null||!eligible())return
+  if(!diskReady){if(userInitiated)approvalFailed=true;publish();return}
+  val e=epoch;busy=true;if(userInitiated)approvalFailed=false;publish(accepted=false,failed=false);var decisionConfirmed=false
   try {
    val pending=snapshot.consentDecision
    if(pending!=null&&(pending.p_consent_type!=PatientNameRules.type||pending.p_required_version!=PatientNameRules.version)){snapshot=snapshot.copy(consentDecision=null);persist()}
    if(snapshot.consentDecision==null){val r=lookup(e);snapshot=snapshot.copy(consentDecision=NameConsentDecision(p_decision=decision,p_request_id=UUID.randomUUID().toString(),p_expected_revision=r.revision));persist()}
    val r=request<NameConsentReceipt>("record_my_consent",json.encodeToJsonElement(snapshot.consentDecision!!).jsonObject,e)
    r.validate(account!!);if(consentRevision!=null&&r.revision<consentRevision!!)throw NameSyncFailure("invalid_response")
-   consentRevision=r.revision;snapshot=snapshot.copy(consentDecision=null);persist();decisionConfirmed=true;consentChecked=true;publish(accepted=r.status=="accepted")
-   if(mutable.value.accepted)sync(e)
-  }catch(error:Exception){if(e!=epoch)return;publish(accepted=decisionConfirmed&&mutable.value.accepted,failed=true)
+   consentRevision=r.revision;snapshot=snapshot.copy(consentDecision=null,approvalVersion=if(r.status=="accepted")PatientNameRules.version else null);persist();decisionConfirmed=true;consentChecked=true;publish(accepted=r.status=="accepted")
+
+  }catch(error:CancellationException){throw error}
+  catch(error:Exception){if(e!=epoch)return;if(userInitiated)approvalFailed=true;publish(accepted=decisionConfirmed&&mutable.value.accepted,failed=true)
    if((error as? NameSyncFailure)?.code=="consent_required"){publish(accepted=false);runCatching {lookup(e)}}
    if((error as? NameSyncFailure)?.code in listOf("consent_revision_conflict","consent_request_superseded","consent_request_id_reused")){
     snapshot=snapshot.copy(consentDecision=null);runCatching {persist()};runCatching {lookup(e)}
    }
-  }finally{if(e==epoch){busy=false;publish()}}
+  }finally{if(e==epoch){busy=false;publish();if(mutable.value.accepted)scope.launch {refresh(true)}}}
  }
- suspend fun retryMigration() { if(snapshot.consentDecision!=null)decide() else refresh(true) }
+ suspend fun retryMigration() { if(snapshot.consentDecision!=null)decide(userInitiated=false) else refresh(true) }
  suspend fun refresh(force:Boolean=false) {
+  if(waitForPatientRows&&!rowsReceived)return
   reopenStorage()
   if(account==null||!eligible()||!diskReady)return
   if(busy){rerun=true;return}
   if(!force&&System.nanoTime()-lastRefresh<30_000_000_000L)return
   val e=epoch;busy=true;lastRefresh=System.nanoTime();publish()
   try {
-   if(snapshot.consentDecision!=null){publish(accepted=false,failed=true);return}
-   persist();lookup(e);if(!mutable.value.accepted)return
+   if(!legacyChecked){
+    if(!migrationComplete){
+     if(!rowsReceived)loadOwned?.let {val values=it();check(e);register(values)}
+     val confirmed=snapshot.confirmedIDs+snapshot.entries.filterValues {it.confirmed!=null&&it.pending==null}.keys
+     val entries=snapshot.entries.toMutableMap()
+     for(id in owned-confirmed){if(rowNames[id]!=null)continue;val value=readLegacy?.invoke(id)?:legacy[id]
+      if(value!=null&&PatientNameRules.valid(value)&&entries[id]?.pending==null)entries[id]=(entries[id]?:PatientNameEntry()).copy(pending=PatientNameEdit(name=value,initial=true))
+     }
+     snapshot=snapshot.copy(entries=entries)
+    }
+    legacyChecked=true
+    if(snapshot.entries.values.none {it.pending!=null})snapshot=snapshot.copy(migrationVersion=PatientNameRules.version)
+   }
+   if(hasOwnedLegacy&&snapshot.consentDecision!=null){busy=false;decide(userInitiated=false);return}
+   persist();cleanConfirmedLegacy()
+   // Ordinary reads use the encrypted API under the normal terms flow.
    publish(failed=false);sync(e)
-  }catch(error:Exception){if(e!=epoch)return;publish(failed=true)
+  }catch(error:CancellationException){throw error}
+  catch(error:Exception){if(e!=epoch)return;publish(failed=true)
    val code=(error as? NameSyncFailure)?.code
-   if(code=="consent_required"){publish(accepted=false);runCatching {lookup(e)}}
-   else if(code in listOf("unauthorized","http_401"))publish(accepted=false)
+   // Keep backend rejection as a failure; only legacy upload may request approval.
+   if(code=="consent_required"&&hasOwnedLegacy&&!migrationApproved)runCatching {lookup(e)}
   }finally{if(e==epoch){busy=false;publish();if(rerun){rerun=false;scope.launch {refresh(true)}}}}
  }
  private suspend fun fetch(e:Int):Map<String,ServerPatientName>{
@@ -163,17 +236,26 @@ class PatientNameSync(
  }
  private fun adopt(rows:Map<String,ServerPatientName>){
   val entries=snapshot.entries.toMutableMap()
-  rows.forEach { (id,row)->if(id in owned){var entry=entries[id]?:PatientNameEntry()
-   if(row.name!=null)entry=entry.copy(confirmed=row.name,revision=row.revision,initialized=true,pending=if(entry.pending?.initial==true)null else entry.pending)
-   else if(!entry.initialized&&entry.pending==null&&legacy[id]!=null)entry=entry.copy(pending=PatientNameEdit(name=legacy[id]!!,initial=true))
+  rows.forEach { (id,row)->if(id in owned){
+   if(rowNames.containsKey(id)&&entries[id]?.pending==null)return@forEach
+   var entry=entries[id]?:PatientNameEntry()
+   if(PatientNameRules.older(row.revision,entry.revision))return@forEach
+   if(row.name!=null)entry=entry.copy(confirmed=row.name,revision=row.revision,initialized=true,pending=null)
+   else entry=entry.copy(confirmed=null,revision=row.revision)
    entries[id]=entry
+   if(rowNames.containsKey(id))rowNames=rowNames+(id to row.name)
   }}
-  snapshot=snapshot.copy(entries=entries);persist();changed?.invoke()
+  snapshot=snapshot.copy(entries=entries);persist();cleanConfirmedLegacy();changed?.invoke()
  }
  private suspend fun sync(e:Int){
-  val migrating=!migrationComplete&&loadOwned!=null
-  if(migrating){val values=loadOwned!!.invoke();check(e);register(values)}
+  val migrating=!migrationComplete
+  if(rowsReceived&&owned.all {rowNames.containsKey(it)}) {
+   if(!hasOwnedLegacy)return
+   if(!migrationApproved){lookup(e);if(!migrationApproved)return}
+  }
   var rows=fetch(e);adopt(rows)
+  // Explicit approval protects automatic legacy uploads, not ordinary server-name reads.
+  if(hasOwnedLegacy&&!migrationApproved){lookup(e);if(!migrationApproved)return;persist()}
   for(id in owned.sorted()){
    var attempts=0
    while(id in owned && attempts<3){
@@ -186,9 +268,11 @@ class PatientNameSync(
      val result=request<PatientNameSetResult>("patient-names",buildJsonObject{put("operation","set");put("patient_id",id);put("name",intent.name);put("expected_revision",if(intent.initial)"0" else row.revision)},e)
      if(id !in owned)break
      if(!result.patient_id.equals(id,true)||!PatientNameRules.revision(result.revision)||result.updated_at.isBlank())throw NameSyncFailure("invalid_response")
+     writeRevision++
      val current=snapshot.entries[id]?:break
      snapshot=snapshot.copy(entries=snapshot.entries+(id to current.copy(confirmed=intent.name,revision=result.revision,initialized=true,pending=if(current.pending?.id==intent.id)null else current.pending)))
-     rows=rows+(id to ServerPatientName(id,intent.name,result.revision,result.updated_at));persist();changed?.invoke()
+     if(rowNames.containsKey(id))rowNames=rowNames+(id to intent.name)
+     rows=rows+(id to ServerPatientName(id,intent.name,result.revision,result.updated_at));persist();cleanConfirmedLegacy();changed?.invoke()
     }catch(error:Exception){check(e);if(id !in owned)break
      when((error as? NameSyncFailure)?.code){
       "revision_conflict"->{rows=fetch(e);adopt(rows)}
@@ -213,6 +297,7 @@ class PatientNameSync(
   // Keep this adapter shared by production and transport-level regression tests.
   internal suspend fun callService(client:SupabaseClient,method:String,payload:JsonObject):String {
    try {
+    if(com.cbtipul.app.BuildConfig.DEBUG && method=="patient-names") runCatching { android.util.Log.i("PatientLaunchTrace", "request=patient-names operation=${payload["operation"]?.jsonPrimitive?.content} t=${android.os.SystemClock.elapsedRealtime()}") }
     return if(method=="patient-names")client.functions.invoke(method,body=payload,headers=jsonHeaders()).bodyAsText()
     else client.postgrest.rpc(method,payload).data
    }catch(e:CancellationException){throw e}
@@ -229,12 +314,14 @@ class PatientNameSync(
    }
   }
   fun live(client:SupabaseClient,storage:DeviceDraftStorage,scope:CoroutineScope,localName:(String)->String?={null})=PatientNameSync(call={method,payload->callService(client,method,payload)},storage=storage,scope=scope,eligible={Entitlements.state.value.role==AppRole.Therapist&&!Entitlements.state.value.localDemo},fullAccess={Entitlements.state.value.access==EntitlementAccess.Full}).also { sync ->
+   sync.waitForPatientRows=true
+   sync.readLegacy=localName
    sync.loadOwned={
     val values=mutableMapOf<String,String?>();var offset=0L
     do {
      val data=client.from("Patients").select(Columns.raw("id")){order("id",Order.ASCENDING);range(offset,offset+499)}.data
      val page=Json.parseToJsonElement(data).jsonArray
-     page.forEach {val id=it.jsonObject.getValue("id").jsonPrimitive.content;values[id]=localName(id)}
+     page.forEach {val id=it.jsonObject.getValue("id").jsonPrimitive.content;values[id]=null}
      if(page.size<500)break;offset+=500
     }while(true)
     values

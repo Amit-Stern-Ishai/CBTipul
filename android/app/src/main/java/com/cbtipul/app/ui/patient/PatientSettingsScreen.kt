@@ -80,6 +80,9 @@ fun PatientSettingsScreen(
     onLeavePatientMode: () -> Unit,
     onClearLeaveError: () -> Unit,
     onDone: () -> Unit,
+    onDeleted: () -> Unit = {},
+    accountEmail: String? = null,
+    isAnonymousAccount: Boolean = true,
 ) {
     var showIntroduction by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     if (showIntroduction) {
@@ -92,6 +95,8 @@ fun PatientSettingsScreen(
     val colors = Theme.colors
     var page by remember { mutableStateOf<PatientSettingsPage>(PatientSettingsPage.Main) }
     var confirmLeave by remember { mutableStateOf(false) }
+    var deletionBusy by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = deletionBusy) {}
 
     when (val current = page) {
         PatientSettingsPage.Terms -> TermsScreen(onBack = { page = PatientSettingsPage.Main })
@@ -120,7 +125,7 @@ fun PatientSettingsScreen(
                 TopAppBar(
                     title = { Text(stringResource(R.string.settings_title), color = colors.textBright) },
                     navigationIcon = {
-                        IconButton(onClick = onDone, enabled = !isLeaving) {
+                        IconButton(onClick = onDone, enabled = !isLeaving && !deletionBusy) {
                             Icon(
                                 Icons.AutoMirrored.Outlined.ArrowBack,
                                 contentDescription = stringResource(R.string.back),
@@ -140,6 +145,18 @@ fun PatientSettingsScreen(
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
+                    if (!isAnonymousAccount && !accountEmail.isNullOrBlank()) {
+                        GroupedListCard(accent = colors.gold) {
+                            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("מייל לכניסה", color = colors.textBody)
+                                androidx.compose.foundation.text.selection.SelectionContainer {
+                                    Text(accountEmail, color = colors.textBright,
+                                        style = androidx.compose.ui.text.TextStyle(textDirection = androidx.compose.ui.text.style.TextDirection.Ltr),
+                                        modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right)
+                                }
+                            }
+                        }
+                    }
                     GroupedListCard(accent = colors.gold) {
                         SettingsRow(title = stringResource(R.string.introduction_review), onClick = { showIntroduction = true })
                     }
@@ -210,9 +227,13 @@ fun PatientSettingsScreen(
                         SettingsRow(
                             title = stringResource(R.string.patient_leave_mode_action),
                             destructive = true,
-                            enabled = !isLeaving,
+                            enabled = !isLeaving && !deletionBusy,
                             onClick = { confirmLeave = true },
                         )
+                    }
+
+                    if (BuildConfig.DEBUG) {
+                        PatientDeleteAccountSection(onDeleted = onDeleted, onBusy = { deletionBusy = it })
                     }
 
                     Text(
@@ -227,7 +248,7 @@ fun PatientSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                BusyOverlay(isBusy = isLeaving)
+                BusyOverlay(isBusy = isLeaving || deletionBusy)
             }
         }
     }

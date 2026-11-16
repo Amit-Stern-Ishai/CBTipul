@@ -67,6 +67,7 @@ fun RootScreen() {
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModel.Factory(app.authRepository, app.preferences, app.patientRepository),
     )
+    val claimState = app.appContext.emailClaim?.state?.collectAsStateWithLifecycle()?.value
     val observedSession by authViewModel.session.collectAsStateWithLifecycle()
     val invitationPhase by app.invitationFlow.phase.collectAsStateWithLifecycle()
     val session = app.authRepository.sessionForRouting(observedSession)
@@ -79,10 +80,11 @@ fun RootScreen() {
         entitlementScope.launch { if (!app.invitationFlow.isActive) app.appContext.refreshOnForeground() }
     }
     val isAnonymous = signedIn?.isAnonymous == true
-    val isTherapist = signedIn != null && !isAnonymous
+    val isTherapist = signedIn != null && entitlement.identity == signedIn.userId && entitlement.role == com.cbtipul.app.data.AppRole.Therapist
     val therapistIdentity = signedIn?.email?.takeUnless { it.isBlank() } ?: signedIn?.userId
     val invitationActive = invitationPhase !is com.cbtipul.app.data.InvitationPhase.Idle
-    val appContext by app.appContext.current.collectAsStateWithLifecycle()
+    val observedContext by app.appContext.current.collectAsStateWithLifecycle()
+    val appContext = observedContext.takeIf { app.appContext.boundIdentity == signedIn?.userId }
     val contextLoading by app.appContext.isLoading.collectAsStateWithLifecycle()
     val contextState by app.appContext.loadState.collectAsStateWithLifecycle()
     val accessPresentation = signedIn?.userId?.let {
@@ -92,10 +94,11 @@ fun RootScreen() {
         invitationActive = invitationActive,
         hasSession = signedIn != null,
         isAnonymous = isAnonymous,
+        context = appContext,
     )
     val anonymousDestination = AppRootRouting.anonymousDestination(
         context = appContext,
-        isLoading = contextLoading || session is AuthSession.Loading,
+        isLoading = contextLoading || session is AuthSession.Loading || contextState is com.cbtipul.app.data.AppContextLoadState.Unresolved,
     )
     LaunchedEffect(rootDestination, anonymousDestination, signedIn != null, isAnonymous) {
         InviteDebugLog.d("session exists: ${signedIn != null}")
@@ -168,8 +171,9 @@ fun RootScreen() {
     var therapistDisplayName by remember { mutableStateOf<String?>(null) }
     var therapistDisplayNameLoadFailed by remember { mutableStateOf(false) }
 
-    LaunchedEffect(signedIn?.userId, isAnonymous) {
-        if (signedIn == null || isAnonymous) return@LaunchedEffect
+    LaunchedEffect(signedIn?.userId, isTherapist) {
+        therapistDisplayName = null
+        if (!isTherapist) return@LaunchedEffect
         therapistDisplayNameLoadFailed = false
         try {
             therapistDisplayName = app.therapistProfiles.getCurrentProfile()?.displayName
@@ -230,8 +234,8 @@ fun RootScreen() {
     if (entitlementExplanation) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = com.cbtipul.app.data.Entitlements::dismissExplanation,
-            title = { androidx.compose.material3.Text(stringResource(if (entitlement.access == null) R.string.entitlement_access_unverified_title else if (isAnonymous) R.string.entitlement_patient_unavailable else R.string.entitlement_read_only_title)) },
-            text = { if (!isAnonymous) androidx.compose.material3.Text(stringResource(if (entitlement.localDemo) R.string.entitlement_demo_online_unavailable else if (entitlement.access == null) R.string.entitlement_access_unverified_body else R.string.entitlement_read_only_explanation)) },
+            title = { androidx.compose.material3.Text(stringResource(if (entitlement.access == null) R.string.entitlement_access_unverified_title else if (appContext?.role == com.cbtipul.app.data.AppRole.Patient) R.string.entitlement_patient_unavailable else R.string.entitlement_read_only_title)) },
+            text = { if (appContext?.role != com.cbtipul.app.data.AppRole.Patient) androidx.compose.material3.Text(stringResource(if (entitlement.localDemo) R.string.entitlement_demo_online_unavailable else if (entitlement.access == null) R.string.entitlement_access_unverified_body else R.string.entitlement_read_only_explanation)) },
             dismissButton = {
                 if (entitlement.access == null && !contextLoading) androidx.compose.material3.TextButton(onClick = {
                     entitlementScope.launch { runCatching { app.appContext.getCurrentAppContext() } }
@@ -241,8 +245,7 @@ fun RootScreen() {
         )
     }
     val showAccessResolution = signedIn != null && !invitationActive && !recovering && !entitlement.localDemo &&
-        appContext?.isIncompletePatient != true && accessPresentation in setOf(
-            com.cbtipul.app.data.AccessResolutionPresentation.Loading, com.cbtipul.app.data.AccessResolutionPresentation.Retry)
+        appContext?.isIncompletePatient != true && accessPresentation == com.cbtipul.app.data.AccessResolutionPresentation.Retry
     val showReadOnlyNotice = isTherapist && accessPresentation == com.cbtipul.app.data.AccessResolutionPresentation.ReadOnly && !invitationActive
         && !shouldShowIntroduction && !reviewIntroduction && !showWelcome && !entitlement.localDemo
     // Consume these insets at the shared parent so child toolbars don't add them again.
@@ -292,7 +295,23 @@ fun RootScreen() {
             rootDestination == AppRootDestination.Invitation -> {
                 InvitationFlowScreen(app.invitationFlow)
             }
-            rootDestination == AppRootDestination.AnonymousPatient -> {
+            !invitationActive && signedIn != null && claimState in setOf(
+                com.cbtipul.app.data.EmailInvitationClaim.State.Confirmation,
+                com.cbtipul.app.data.EmailInvitationClaim.State.Unavailable,
+                com.cbtipul.app.data.EmailInvitationClaim.State.Verification,
+                com.cbtipul.app.data.EmailInvitationClaim.State.Failed,
+            ) -> {
+                androidx.compose.runtime.key(signedIn.userId) { EmailClaimScreen(claimState!!, onRetry = { confirm ->
+                    app.appContext.emailClaim?.retry(confirm)
+                    entitlementScope.launch { runCatching { app.appContext.getCurrentAppContext() } }
+                }, onContinue = {
+                    app.appContext.emailClaim?.decline()
+                    entitlementScope.launch { runCatching { app.appContext.getCurrentAppContext() } }
+                }, onSignOut = { authViewModel.signOut() }, resend = {
+                    app.authRepository.resendSignUpConfirmation(signedIn.email.orEmpty())
+                }) }
+            }
+            rootDestination == AppRootDestination.AnonymousPatient -> androidx.compose.runtime.key(signedIn?.userId) {
                 when (anonymousDestination) {
                     AnonymousPatientDestination.PatientMode -> {
                         val pending by app.pendingDestinations.pending.collectAsStateWithLifecycle()
@@ -438,8 +457,7 @@ fun RootScreen() {
                     }
                     !app.patientRepository.isDemoMode.collectAsStateWithLifecycle().value &&
                         !com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle().value.localDemo &&
-                        (app.patientRepository.nameSync.account != app.authRepository.currentUserId()?.lowercase() ||
-                        !app.patientRepository.nameSync.state.collectAsStateWithLifecycle().value.migrationComplete) -> {
+                        app.patientRepository.nameSync.state.collectAsStateWithLifecycle().value.needsApproval -> {
                         com.cbtipul.app.ui.patients.PatientNameMigrationScreen(
                             sync=app.patientRepository.nameSync,
                             contextKey="${app.authRepository.currentUserId()}-${com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle().value.role}",
@@ -563,7 +581,7 @@ fun RootScreen() {
             }
         }
 
-        if (consentPrompt && !recovering && !isAnonymous) {
+        if (consentPrompt && !recovering && isTherapist) {
             AiConsentDialog(
                 onAccept = { scope.launch { app.aiConsentStore.accept() } },
                 onDecline = { scope.launch { app.aiConsentStore.decline() } },
@@ -581,6 +599,8 @@ fun RootScreen() {
 
         if (showPatientSettings) {
             PatientSettingsScreen(
+                accountEmail = signedIn?.email,
+                isAnonymousAccount = signedIn?.isAnonymous != false,
                 textSize = textSize,
                 appearance = appearance,
                 onTextSize = { value -> scope.launch { app.preferences.setTextSize(value) } },
@@ -602,6 +622,7 @@ fun RootScreen() {
                         }
                     }
                 },
+                onDeleted = { showPatientSettings = false; leavePatientError = null },
                 onClearLeaveError = { leavePatientError = null },
                 onDone = { showPatientSettings = false },
             )

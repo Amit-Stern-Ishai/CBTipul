@@ -55,6 +55,7 @@ internal data class AppContextDependencies(
     val nowMillis: () -> Long = System::currentTimeMillis,
     val timeoutMillis: Long = 8_000,
     val retryDelaysMillis: List<Long> = listOf(500, 1_500),
+    val emailClaim: EmailInvitationClaim? = null,
 )
 
 sealed interface AppContextLoadState {
@@ -80,7 +81,9 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
             EdgePayload.json.decodeFromString(AppContext.serializer(), http.bodyAsText())
         },
         refreshSession = { client.auth.refreshCurrentSession() },
+        emailClaim = EmailInvitationClaim.live(client),
     ))
+    internal val emailClaim get() = dependencies.emailClaim
     private val refreshMutex = Mutex()
     private var generation = 0L
     private var lastRefresh = 0L
@@ -97,8 +100,12 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
     suspend fun getCurrentAppContext(): AppContext = refreshMutex.withLock { fetchCurrentAppContext() }
 
     /** Called on real auth changes, including same-account reauthentication. */
-    internal fun authenticationChanged(identity: String?) {
-        clear()
+    internal fun authenticationChanged(identity: String?, tokenRefresh: Boolean = false) {
+        if (tokenRefresh && identity != null && account == identity && _current.value != null) {
+            // A refresh is not a new login: retain the confirmed route and drafts.
+            return
+        }
+        clear(resetClaim = !tokenRefresh || account != identity)
         account = identity
         Entitlements.setIdentity(identity)
     }
@@ -120,7 +127,16 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
             identity = dependencies.identity() ?: throw IllegalStateException("not_signed_in")
             if (account != identity) { _current.value = null; lastRefresh = 0; account = identity }
             Entitlements.setIdentity(identity)
-            val context = requestWithRecovery(identity, requestGeneration, telemetry)
+            val loaded = requestWithRecovery(identity, requestGeneration, telemetry)
+            ensureCurrent(identity, requestGeneration)
+            val context = dependencies.emailClaim?.let { claim ->
+                claim.resolve(loaded) { requestWithRecovery(identity, requestGeneration, telemetry) }
+            } ?: if (dependencies.emailClaim == null) loaded else {
+                _current.value = null
+                Entitlements.invalidate()
+                _loadState.value = AppContextLoadState.Unresolved
+                return loaded
+            }
             ensureCurrent(identity, requestGeneration)
             if (identity != account) throw CancellationException()
             _current.value = context
@@ -142,6 +158,7 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
         } catch (error: Exception) {
             telemetry.event(com.cbtipul.app.telemetry.Stage.failed,error=com.cbtipul.app.telemetry.SafeError.generic)
             if (requestGeneration == generation && (identity == null || identity == dependencies.identity())) {
+                // Keep the current route for this account, but revoke mutation permission.
                 Entitlements.invalidate()
                 _loadState.value = AppContextLoadState.Failed(when {
                     error is ContextInitializationTimeout -> AppContextFailure.SessionInitialization
@@ -200,8 +217,9 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
             dependencies.nowMillis() - lastRefresh < 60_000) return
         runCatching { getCurrentAppContext() }
     }
-    fun clear() {
+    fun clear(resetClaim: Boolean = true) {
         generation++
+        if (resetClaim) dependencies.emailClaim?.reset()
         account = null; lastRefresh = 0
         Entitlements.clear()
         _current.value = null

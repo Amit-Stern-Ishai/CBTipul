@@ -217,11 +217,14 @@ nonisolated struct WhisperService {
         // MARK: - Analyze Session
 
         func analyzeSession(
-            sessionNotes: String
+            sessionNotes: String,
+            diagnostics: AIActionDiagnostics = AIActionDiagnostics()
         ) async throws -> CBTSessionAnalysis {
         let telemetry=TelemetryFlowObservation(.ai,feature:.sessionAnalysis)
         defer {telemetry.finish()}
         do {
+        let owner = client.auth.currentUser?.id
+        guard owner != nil else { throw ClientFailure.expiredLogin }
         try await EntitlementState.shared.requireWrite()
 
             let notes =
@@ -233,17 +236,17 @@ nonisolated struct WhisperService {
                 throw APIError.invalidInput
             }
 
-            try await AIDataSharingConsentStore.ensureGranted()
+            try await diagnostics.measure(.consent) { try await AIDataSharingConsentStore.ensureGranted() }
         try await EntitlementState.shared.requireWrite()
 
-            AppLog.ai.info("Session analysis requested, notes characters: \(notes.count)")
+            try Task.checkCancellation()
 
             // --------------------------------------------------------------
             // Get authenticated session
             // --------------------------------------------------------------
 
             let session =
-                try await client.auth.session
+                try await diagnostics.measure(.authentication) { try await client.auth.session }
 
             // --------------------------------------------------------------
             // Edge Function URL
@@ -255,7 +258,7 @@ nonisolated struct WhisperService {
             guard let url =
                 URL(string: urlString)
             else {
-                throw APIError.invalidResponse
+                throw AIActionFailure.invalidResponse
             }
 
             // --------------------------------------------------------------
@@ -298,18 +301,16 @@ nonisolated struct WhisperService {
             // Call Edge Function
             // --------------------------------------------------------------
 
-            let (
-                data,
-                response
-            ) =
-                try await URLSession.shared.data(
-                    for: request
-                )
+            guard owner == client.auth.currentUser?.id else { throw CancellationError() }
+            try Task.checkCancellation()
+            let (data, response) = try await diagnostics.measure(.analysisHTTP, bytes: request.httpBody?.count) {
+                try await URLSession.shared.data(for: request)
+            }
 
             guard let httpResponse =
                 response as? HTTPURLResponse
             else {
-                throw APIError.invalidResponse
+                throw AIActionFailure.invalidResponse
             }
 
             // --------------------------------------------------------------
@@ -320,23 +321,23 @@ nonisolated struct WhisperService {
                 200...299 ~= httpResponse.statusCode
             else {
 
-                throw FunctionsError.httpError(code: httpResponse.statusCode, data: data)
+                let failure = FunctionsError.httpError(code: httpResponse.statusCode, data: data)
+                diagnostics.event(.response, .failed, status: httpResponse.statusCode, bytes: data.count, error: failure)
+                throw failure
             }
 
             // --------------------------------------------------------------
             // Decode response
             // --------------------------------------------------------------
 
-            let decoder =
-                JSONDecoder()
+            let result = try diagnostics.decode(SessionReviewResponse.self, data: data, status: httpResponse.statusCode)
+            guard !result.analysis.sessionSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw AIActionFailure.invalidResponse
+            }
+            try Task.checkCancellation()
+            guard owner == client.auth.currentUser?.id else { throw CancellationError() }
 
-            let result =
-                try decoder.decode(
-                    SessionReviewResponse.self,
-                    from: data
-                )
 
-            AppLog.ai.info("Session analysis succeeded, tokens: \(result.usage.totalTokens)")
             telemetry.succeeded()
             return result.analysis
 
@@ -512,27 +513,31 @@ nonisolated struct WhisperService {
     /// the token usage.
     func prepareNextSession(
         patientContext: PatientContext,
-        lastSessionAssignments: [AssignmentForNextWeek]? = nil
+        lastSessionAssignments: [AssignmentForNextWeek]? = nil,
+        diagnostics: AIActionDiagnostics = AIActionDiagnostics()
     ) async throws -> PrepareSessionResponse {
         let telemetry=TelemetryFlowObservation(.ai,feature:.sessionPreparation)
         defer {telemetry.finish()}
         do {
+        let owner = client.auth.currentUser?.id
+        guard owner != nil else { throw ClientFailure.expiredLogin }
         try await EntitlementState.shared.requireWrite()
-        try await AIDataSharingConsentStore.ensureGranted()
+        try await diagnostics.measure(.consent) { try await AIDataSharingConsentStore.ensureGranted() }
         try await EntitlementState.shared.requireWrite()
-        AppLog.ai.info("Next-session preparation requested")
+        try Task.checkCancellation()
+        guard owner == client.auth.currentUser?.id else { throw CancellationError() }
+        let body = PrepareSessionRequest(patientContext: patientContext, lastSessionAssignments: lastSessionAssignments)
         do {
-            let response: PrepareSessionResponse =
-                try await client.functions.invoke(
-                    "prepare-session",
-                    options: FunctionInvokeOptions(
-                        body: PrepareSessionRequest(
-                            patientContext: patientContext,
-                            lastSessionAssignments: lastSessionAssignments
-                        )
-                    )
-                )
-            AppLog.ai.info("Next-session preparation succeeded, tokens: \(response.usage.totalTokens)")
+            let response: PrepareSessionResponse = try await diagnostics.measure(.preparationHTTP, bytes: diagnostics.payloadBytes(body)) {
+                try await client.functions.invoke("prepare-session", options: FunctionInvokeOptions(body: body)) { data, response in
+                    try diagnostics.decode(PrepareSessionResponse.self, data: data, status: response.statusCode, decoder: client.functions.decoder)
+                }
+            }
+            guard !response.preparation.executiveSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw AIActionFailure.invalidResponse
+            }
+            try Task.checkCancellation()
+            guard owner == client.auth.currentUser?.id else { throw CancellationError() }
             telemetry.succeeded()
             return response
         } catch let error as APIError {

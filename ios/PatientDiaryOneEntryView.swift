@@ -168,6 +168,11 @@ struct PatientDiaryOneDetailView: View {
         }
         .patientAtmosphere(Theme.gold)
         .themedScreen()
+        .task(id: entry.id) {
+            guard therapistViewing, entry.createdBy == .patient,
+                  let key = DiaryNotificationKey(patientID: entry.patientId.queryValue, resourceType: "diary_one_entry", entryID: entry.id.uuidString) else { return }
+            await NotificationStore.shared?.markDiaryEntryRead(key)
+        }
         .navigationTitle(L10n.diaryOneTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

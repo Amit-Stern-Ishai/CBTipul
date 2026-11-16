@@ -24,6 +24,15 @@ class SummarySafeguardsReviewActivity : ComponentActivity() {
         val draft=SessionEditorDraft(Session())
         draft.configureRecovery(app.formDrafts,key)
         val mode=intent.getStringExtra("mode") ?: "available"
+        if (mode == "transcribed" || mode == "pending-audio") {
+            draft.clearAudio(this)
+            val audio = draft.beginAudio(this)
+            assets.open("synthetic-transcription-tone.aac").use { input -> audio.outputStream().use { input.copyTo(it) } }
+            draft.audioSeconds = 1.0
+            draft.transcriptReady = mode == "transcribed"
+            draft.notes = if (draft.transcriptReady) "תמלול סינתטי שהושלם בהצלחה" else ""
+            draft.persistRecovery()
+        }
         setContent {
             var error by remember { mutableStateOf<String?>(null) }
             var checking by remember { mutableStateOf(false) }
@@ -35,7 +44,7 @@ class SummarySafeguardsReviewActivity : ComponentActivity() {
                         TextButton(onClick={checking=false}) { Text("חזרה לטיוטה") }
                     } else SessionEditorScreen(
                         session=draft.initial, patient=Patient(DatabaseId.Text("synthetic"),localName="בדיקה סינתטית"),
-                        unnamed="בדיקה",isNew=false,isSaving=false,isTranscribing=false,isAnonymizingTranscription=false,isAnalyzing=false,
+                        unnamed="בדיקה",isNew=mode=="missing-type",isSaving=false,isTranscribing=false,isAnonymizingTranscription=false,isAnalyzing=false,
                         errorMessage=error,onBack={finish()}, onCheckSessions={draft.persistRecovery();checking=true},
                         onSave={ _, _ ->
                             attempts++; error="ניסיונות בדיקה: $attempts"

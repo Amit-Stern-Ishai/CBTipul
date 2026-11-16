@@ -84,6 +84,21 @@ class AppPreferences(private val context: Context) {
         }
     }
 
+    suspend fun discoverySeen(account: String, feature: String): Boolean = try {
+        context.dataStore.data.first()[booleanPreferencesKey(com.cbtipul.app.data.DiscoveryRules.key(account, feature))] == true
+    } catch (_: java.io.IOException) {
+        // Optional education must never interrupt clinical work if preferences are unavailable.
+        true
+    }
+
+    suspend fun markDiscovery(account: String, feature: String) {
+        try {
+            context.dataStore.edit { it[booleanPreferencesKey(com.cbtipul.app.data.DiscoveryRules.key(account, feature))] = true }
+        } catch (_: java.io.IOException) {
+            // Keep the current explanation usable; no clinical save depends on this write.
+        }
+    }
+
     private fun termsKey(email: String) = "hasAcceptedTerms-$email"
 
     private fun aiAcceptedKey(email: String) = "aiDataSharingConsentAccepted-$email"

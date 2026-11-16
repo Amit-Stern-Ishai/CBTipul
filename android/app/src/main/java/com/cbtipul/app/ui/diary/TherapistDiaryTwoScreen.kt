@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.diary
 
+import kotlinx.coroutines.launch
 import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.*
 import com.cbtipul.app.R
 import com.cbtipul.app.data.*
@@ -42,6 +44,8 @@ fun TherapistDiaryTwoScreen(
     isDemo: Boolean,
     focusEntryId: String? = null,
     returnDirectly: Boolean = false,
+    onCreated: () -> Unit = {},
+    onDiscoveryBlocked: (Boolean) -> Unit = {},
     onBack: () -> Unit,
 ) {
     val vm: DiaryTwoViewModel = viewModel(key = "diary-two-${patientId.queryValue}", factory = viewModelFactory {
@@ -53,6 +57,11 @@ fun TherapistDiaryTwoScreen(
     val draft by vm.draft.collectAsStateWithLifecycle()
     val nav = rememberNavController()
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { vm.refreshConnection() }
+    var stop by rememberSaveable { mutableStateOf(false) }
+    val discoveryEntry by nav.currentBackStackEntryAsState()
+    val discoveryBlocked = stop || state.busy || state.error != null || (discoveryEntry?.destination?.route?.let { it != "history" } == true)
+    LaunchedEffect(discoveryBlocked) { onDiscoveryBlocked(discoveryBlocked) }
+    DisposableEffect(Unit) { onDispose { onDiscoveryBlocked(false) } }
     var consumedFocus by remember(patientId.queryValue, focusEntryId) { mutableStateOf(false) }
     var focusedEntry by remember(patientId.queryValue, focusEntryId) { mutableStateOf<DiaryTwoEntry?>(null) }
     var focusRetry by remember { mutableIntStateOf(0) }
@@ -67,7 +76,6 @@ fun TherapistDiaryTwoScreen(
     }
     NavHost(navController = nav, startDestination = NotificationRouting.diaryStartRoute(focusEntryId)) {
         composable("history") {
-            var stop by rememberSaveable { mutableStateOf(false) }
             DiaryTwoFrame(patientName, atmosphere, onBack, bottom = {
                 Button(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) { vm.openEditor(null); nav.navigate("new") } }, modifier = Modifier.fillMaxWidth().entitlementCreateControl()) {
                     Icon(Icons.Outlined.Add, null); Text(stringResource(R.string.diary_one_add_entry))
@@ -131,6 +139,14 @@ fun TherapistDiaryTwoScreen(
                 }
             }) {
                 if (entry != null) {
+                    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+                    LaunchedEffect(entry.id) {
+                        if(entry.createdBy == DiaryOneEntryCreator.Patient && entry.patientId == patientId) {
+                            com.cbtipul.app.data.DiaryNotificationKey.of(patientId.queryValue,"diary_two_entry",entry.id)?.let {key ->
+                                app.applicationScope.launch {app.notifications.markDiaryEntryRead(key)}
+                            }
+                        }
+                    }
                     Text(entryDate(entry)); Text(source(entry), color = Theme.colors.textBody)
                     DiaryTwoEntryContent(entry.event, entry.automaticThoughts, entry.feelings, entry.thinkingErrors, entry.alternativeThoughts)
                 } else if (state.loading || (id == focusEntryId && !consumedFocus)) {
@@ -149,7 +165,7 @@ fun TherapistDiaryTwoScreen(
                 message = stringResource(R.string.diary_one_delete_confirm_message), confirmLabel = stringResource(R.string.diary_one_delete_action),
                 onConfirm = { delete = false; if (id != null) vm.delete(id) { closeDetail() } }, onDismiss = { delete = false })
         }
-        composable("new") { DiaryTwoEditor(vm, draft, state, null, patientName, atmosphere) { nav.popBackStack() } }
+        composable("new") { DiaryTwoEditor(vm, draft, state, null, patientName, atmosphere, onCreated = onCreated) { nav.popBackStack() } }
         composable("edit/{entryId}") { destination ->
             DiaryTwoEditor(vm, draft, state, destination.arguments?.getString("entryId"), patientName, atmosphere) { nav.popBackStack() }
         }
@@ -157,13 +173,13 @@ fun TherapistDiaryTwoScreen(
 }
 
 @Composable
-private fun DiaryTwoEditor(vm: DiaryTwoViewModel, draft: DiaryTwoEntryDraft, state: DiaryTwoState, id: String?, patientName: String, atmosphere: Color?, onBack: () -> Unit) {
+private fun DiaryTwoEditor(vm: DiaryTwoViewModel, draft: DiaryTwoEntryDraft, state: DiaryTwoState, id: String?, patientName: String, atmosphere: Color?, onCreated: () -> Unit = {}, onBack: () -> Unit) {
     var attempted by rememberSaveable { mutableStateOf(false) }
     var discard by rememberSaveable { mutableStateOf(false) }
     fun requestBack() { if (!state.busy) { if (vm.hasChanges()) discard = true else { vm.closeEditor(); onBack() } } }
     BackHandler { requestBack() }
     DiaryTwoFrame(patientName, atmosphere, ::requestBack, bottom = {
-        Button(onClick = { attempted = true; vm.save(id, onBack) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { attempted = true; vm.save(id) { onBack(); if (id == null) onCreated() } }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.diary_one_save_entry))
         }
     }) {

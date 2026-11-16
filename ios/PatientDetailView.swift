@@ -4,6 +4,17 @@ import SwiftUI
 /// and a separate notes editor that retains voice transcription.
 struct PatientDetailView: View {
     @Bindable var patient: Patient
+    var discoverInvitation = false
+    var discoverActivities = false
+    #if DEBUG
+    var activityReview = false
+    static func activityActionsReview() -> some View {
+        PatientDetailView(patient: Patient(id: .text("77777777-7777-4777-8777-777777777777"), firstName: "מטופל/ת לדוגמה"), activityReview: true).sendOptionsSheet
+            .environment(\.layoutDirection, .rightToLeft)
+            .onAppear { EntitlementState.shared.apply(AppContext(version: 1, role: .therapist, activation: nil, patientId: nil, entitlement: .init(access: .full))) }
+    }
+    #endif
+    @State private var discoveryInvitationOpened = false
 
     @Environment(AuthManager.self) private var auth
     @Environment(PatientStore.self) private var store
@@ -51,7 +62,12 @@ struct PatientDetailView: View {
     /// True while a fresh transcript is being anonymized, before it may
     /// appear in the notes field.
     @State private var isAnonymizingTranscription = false
-    @State private var isPreparing = false
+    @State private var preparationAction = AIActionLifecycle()
+    @State private var preparationTask: Task<Void, Never>?
+    @State private var preparationMessage: String?
+    @State private var preparationAlert: String?
+    @State private var preparationTrace: AIActionDiagnostics?
+    private var isPreparing: Bool { preparationAction.isRunning }
     @State private var preparationResult: NextSessionPreparationResult?
     @State private var savedPreparation: SavedPreparation?
     /// Programmatic push into sessions from Getting Started.
@@ -62,6 +78,7 @@ struct PatientDetailView: View {
     @State private var isCreatingInvitation = false
     @State private var isShowingDisplayNameForInvite = false
     @State private var pendingInvitationAfterDisplayName = false
+    @State private var emailInvitationPresented = false
     @State private var invitationError: String?
     @State private var invitationShare: InvitationSharePayload?
     @State private var isShowingMessageComposer = false
@@ -71,6 +88,9 @@ struct PatientDetailView: View {
     @State private var refreshedConnectionState: PatientConnectionState?
 
     private var connectionState: PatientConnectionState {
+        #if DEBUG
+        if activityReview { return .connected }
+        #endif
         guard !store.isDemoMode, !DemoData.isDemoID(patient.id), let patientId = patient.id.uuidValue else {
             return .unavailable
         }
@@ -301,7 +321,7 @@ struct PatientDetailView: View {
         } message: {
             Text(L10n.deletePatientConfirmMessage)
         }
-        .deleteCodeChallenge(isPresented: $isShowingDeleteCodeChallenge) { deletePatient() }
+        .deleteCodeChallenge(phrase: .patient, isPresented: $isShowingDeleteCodeChallenge) { deletePatient() }
         .sheet(isPresented: $isEditingName) {
             NavigationStack {
                 Form {
@@ -367,6 +387,7 @@ struct PatientDetailView: View {
         }
         .sheet(item: $preparationResult) { result in
             NextSessionPreparationView(response: result.response, accent: patientColor)
+                .onAppear { preparationTrace?.event(.presentation, .succeeded) }
         }
         .sheet(isPresented: $isEditingGoal) {
             NavigationStack {
@@ -415,12 +436,15 @@ struct PatientDetailView: View {
             guard connectionState == .notConnected || connectionState == .connected else { return }
             startPatientInvitation()
         }) {
-            connectionInfoSheet
+            EmailInvitationView(patientID: patient.id.queryValue)
         }
         .sheet(isPresented: $isShowingDisplayNameForInvite, onDismiss: {
             resumeInvitationAfterDisplayNameIfNeeded()
         }) {
             TherapistDisplayNameEditorView(requirement: .required)
+        }
+        .sheet(isPresented: $emailInvitationPresented) {
+            EmailInvitationView(patientID: patient.id.queryValue)
         }
         .sheet(item: $invitationShare, onDismiss: {
             Task { await refreshConnectionState() }
@@ -467,6 +491,16 @@ struct PatientDetailView: View {
             gettingStartedRouter.refresh(using: store)
             applyGettingStartedFocusIfNeeded()
         }
+        .onDisappear { cancelPreparation() }
+        .onChange(of: auth.currentUserId) { _, _ in
+            cancelPreparation()
+            preparationAction.invalidate()
+            preparationResult = nil
+            savedPreparation = nil
+            preparationMessage = nil
+            preparationAlert = nil
+            preparationTrace = nil
+        }
         .onChange(of: isShowingSessions) { _, showing in
             if showing {
                 gettingStartedRouter.setPlacement(.sessions, viewingPatientID: patient.id)
@@ -509,6 +543,17 @@ struct PatientDetailView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await refreshConnectionState() }
+            }
+        }
+        .task {
+            if discoverActivities && !discoveryInvitationOpened && !store.isDemoMode {
+                discoveryInvitationOpened = true
+                await refreshConnectionState()
+                isShowingSendOptions = true
+            } else if discoverInvitation && !discoveryInvitationOpened && !store.isDemoMode {
+                discoveryInvitationOpened = true
+                await refreshConnectionState()
+                if connectionState == .notConnected { isShowingConnectionInfo = true }
             }
         }
         .refreshable { await refreshConnectionState() }
@@ -617,7 +662,7 @@ struct PatientDetailView: View {
             if isTranscribing || isAnonymizingTranscription {
                 HStack {
                     ProgressView()
-                    Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
+                    Text(isTranscribing ? L10n.transcribingLabel : L10n.wwSavingToFile)
                         .foregroundStyle(.secondary)
                 }
                 .listRowBackground(groupBorderedRow(
@@ -725,10 +770,11 @@ struct PatientDetailView: View {
             }
             .buttonStyle(.plain).entitlementCreateControl()
             .accessibilityIdentifier("patient.newSession")
+            VStack(alignment: .leading, spacing: 6) {
             Button { requestPrepareNextSession() } label: {
                 HStack {
                     if isPreparing { ProgressView().controlSize(.small) }
-                    Text(L10n.prepareNextSessionAction).font(.subheadline.weight(.semibold))
+                    Text(isPreparing ? (preparationAction.stage == .questionnaires ? L10n.aiPreparationLoadingData : L10n.aiPreparationServerStatus) : L10n.prepareNextSessionAction).font(.subheadline.weight(.semibold))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, minHeight: 44)
@@ -738,6 +784,18 @@ struct PatientDetailView: View {
             }
             .buttonStyle(.plain).entitlementCreateControl().disabled(isPreparing)
             .accessibilityIdentifier("patient.prepareSession")
+            if let result = preparationResult {
+                Button(L10n.aiOpenPreparationResult) {
+                    preparationResult = NextSessionPreparationResult(response: result.response)
+                }.font(.footnote)
+            }
+            if let preparationMessage { Text(preparationMessage).font(.footnote).foregroundStyle(Theme.textBody).fixedSize(horizontal: false, vertical: true) }
+            }
+        .alert(L10n.aiPreparationFailedTitle, isPresented: Binding(
+            get: { preparationAlert != nil }, set: { if !$0 { preparationAlert = nil } }
+        )) { Button(L10n.closeAction) { preparationAlert = nil } }
+        message: { Text(preparationAlert ?? "") }
+
         }
     }
 
@@ -842,7 +900,7 @@ struct PatientDetailView: View {
 
     private var connectionActionTitle: String {
         switch connectionState {
-        case .connected, .checking: L10n.sendToPatientAction
+        case .connected, .checking: L10n.activitiesTitle
         case .failed: L10n.retry
         default: L10n.patientInviteToAppAction
         }
@@ -884,7 +942,7 @@ struct PatientDetailView: View {
                     } else { isShowingConnectionInfo = true }
                 }
             } label: {
-                Label(connectionState == .connected ? L10n.patientSendCompact : connectionActionTitle, systemImage: connectionState == .connected ? "paperplane" : "person.crop.circle.badge.plus")
+                Label(connectionActionTitle, systemImage: connectionState == .connected ? "slider.horizontal.3" : "person.crop.circle.badge.plus")
                     .font(.subheadline.weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(minHeight: 44)
@@ -982,50 +1040,48 @@ struct PatientDetailView: View {
         }
     }
 
+    @ViewBuilder private func activityAccessControl(_ type: PatientAssignmentType) -> some View {
+        #if DEBUG
+        if activityReview {
+            PatientToolAccessControl(patient: patient, type: type, listRow: true, reviewEnabled: type != .diaryOne)
+        } else {
+            PatientToolAccessControl(patient: patient, type: type, listRow: true, parentBusy: changingPatientAccess, onBusyChanged: { changingPatientAccess = $0 })
+        }
+        #else
+        PatientToolAccessControl(patient: patient, type: type, listRow: true, parentBusy: changingPatientAccess, onBusyChanged: { changingPatientAccess = $0 })
+        #endif
+    }
+
     private var sendOptionsSheet: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(L10n.messageRecipient(patient.displayName))
-                            .font(.title3.bold())
-                        Text(L10n.patientChooseSendAction)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+            List {
+                if connectionState == .connected {
+                    ForEach([PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo] +
+                            (PatientAssignmentType.diaryThreeSendingEnabled ? [.diaryThree] : []), id: \.rawValue) { type in
+                        activityAccessControl(type)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowBackground(Theme.surface)
                     }
-                    if connectionState == .connected {
-                        sendOption(.message, icon: "envelope", title: L10n.writePatientMessageAction,
-                                   detail: L10n.patientSendMessageDescription)
-                            .disabled(changingPatientAccess)
-                        Divider()
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(L10n.accessToolsTitle).font(.headline)
-                            Text(L10n.accessToolsExplanation).font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        ForEach([PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo] +
-                                (PatientAssignmentType.diaryThreeSendingEnabled ? [.diaryThree] : []), id: \.rawValue) { type in
-                            PatientToolAccessControl(patient: patient, type: type, parentBusy: changingPatientAccess,
-                                                     onBusyChanged: { changingPatientAccess = $0 })
-                                .padding(18)
-                                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
-                        }
-                    } else {
-                        sendingUnavailableNotice
-                    }
-                }
-                .padding(20)
+                } else { sendingUnavailableNotice }
             }
+            .listStyle(.insetGrouped).scrollContentBackground(.hidden)
             .themedScreen()
-            .navigationTitle(L10n.sendToPatientAction)
+            .navigationTitle(L10n.activitiesTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 2) {
+                        Text(L10n.activitiesTitle).font(.headline)
+                        Text(patient.displayName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }.accessibilityElement(children: .combine)
+                }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.cancel) { isShowingSendOptions = false }.disabled(changingPatientAccess)
+                    Button(L10n.closeAction) { isShowingSendOptions = false }.disabled(changingPatientAccess)
                 }
             }
         }
         .interactiveDismissDisabled(changingPatientAccess)
-        .presentationDetents([.large])
+        .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
         .presentationDragIndicator(.visible)
         .appTextSize()
     }
@@ -1264,25 +1320,71 @@ struct PatientDetailView: View {
 
     /// Gates preparation behind useful clinical input and a one-time tip.
     private func requestPrepareNextSession() {
-        guard EntitlementState.shared.allowMutation() else { return }
-        errorMessage = nil
-        Task {
-            let questionnaires: [CompletedQuestionnaire]
-            if let cached = store.cachedQuestionnaires(for: patient) {
-                questionnaires = cached
-            } else {
-                questionnaires = (try? await store.loadQuestionnaires(for: patient)) ?? []
-            }
-            if !GettingStartedProgress.hasUsefulPreparationInput(
-                patient: patient,
-                questionnaires: questionnaires
-            ) {
-                preparationMissingAction = GettingStartedProgress.missingPreparationAction(for: patient)
-                isShowingPreparationInsufficient = true
-                return
-            }
-            prepareNextSession()
+        guard !isPreparing, EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
+        guard let request = preparationAction.begin(owner: auth.currentUserId) else {
+            preparationMessage = ClientFailure.expiredLogin.localizedDescription
+            preparationAlert = preparationMessage
+            return
         }
+        let trace = AIActionDiagnostics()
+        preparationTrace = trace
+        preparationMessage = nil
+        preparationAlert = nil
+        trace.event(.action, .started)
+        preparationTask = Task {
+            defer { preparationAction.finish(request) }
+            do {
+                try preparationAction.advance(.questionnaires, request: request, owner: auth.currentUserId)
+                let questionnaires: [CompletedQuestionnaire] = try await trace.measure(.questionnaires) {
+                    if let cached = store.cachedQuestionnaires(for: patient) { return cached }
+                    return try await store.loadQuestionnaires(for: patient)
+                }
+                try preparationAction.advance(.context, request: request, owner: auth.currentUserId)
+                guard GettingStartedProgress.hasUsefulPreparationInput(patient: patient, questionnaires: questionnaires) else {
+                    preparationMissingAction = GettingStartedProgress.missingPreparationAction(for: patient)
+                    isShowingPreparationInsufficient = true
+                    trace.event(.action, .succeeded)
+                    return
+                }
+                let context = PatientContext.make(for: patient, questionnaires: questionnaires)
+                trace.event(.context, .succeeded, bytes: trace.payloadBytes(context), records: context.recentSessions.count + context.recentReviews.count + context.assessments.count + context.openFollowUps.count)
+                let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now)) ?? .now
+                let assignments = patient.sessions.filter { $0.date < tomorrow }.max { $0.date < $1.date }?.structuredNotes?.assignmentsForNextWeek
+                try preparationAction.advance(.server, request: request, owner: auth.currentUserId)
+                let response = try await WhisperService(client: auth.client).prepareNextSession(
+                    patientContext: context, lastSessionAssignments: assignments?.isEmpty == false ? assignments : nil,
+                    diagnostics: trace)
+                try preparationAction.advance(.presentation, request: request, owner: auth.currentUserId)
+                // A cache failure must never discard a usable response.
+                do {
+                    savedPreparation = try SavedPreparation.persist(response, for: patient.id)
+                    trace.event(.cache, .succeeded)
+                } catch {
+                    preparationMessage = L10n.aiPreparationCacheFailed
+                    trace.event(.cache, .failed, error: error)
+                }
+                if preparationMessage == nil { preparationMessage = L10n.aiPreparationReady }
+                preparationResult = NextSessionPreparationResult(response: response)
+                trace.event(.presentation, .started)
+                trace.event(.action, .succeeded)
+            } catch {
+                guard preparationAction.accepts(request, owner: auth.currentUserId) else {
+                    trace.event(.action, .discarded); return
+                }
+                preparationMessage = AIActionFailure.message(error)
+                if AIActionFailure.from(error) != .cancelled && !(error is AIDataSharingConsentDeclinedError) {
+                    preparationAlert = (preparationMessage ?? "") + trace.failureDetails(error, stage: preparationAction.stage)
+                }
+                trace.event(.action, AIActionFailure.from(error) == .cancelled ? .cancelled : .failed, error: error)
+            }
+        }
+    }
+
+    private func cancelPreparation() {
+        guard isPreparing else { return }
+        preparationTask?.cancel()
+        preparationMessage = AIActionFailure.cancelled.localizedDescription
+        preparationAction.invalidate()
     }
 
     private func handlePreparationMissingAction(_ action: PreparationMissingAction) {
@@ -1379,47 +1481,6 @@ struct PatientDetailView: View {
         }
     }
 
-    /// Builds the compact patient context and asks the AI to prepare the
-    /// next session, then presents the result.
-    private func prepareNextSession() {
-        guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
-        errorMessage = nil
-        isPreparing = true
-        Task {
-            do {
-                let questionnaires: [CompletedQuestionnaire]
-                if let cached = store.cachedQuestionnaires(for: patient) {
-                    questionnaires = cached
-                } else {
-                    questionnaires = try await store.loadQuestionnaires(for: patient)
-                }
-                let context = PatientContext.make(for: patient, questionnaires: questionnaires)
-                // Assignments come only from the immediately previous
-                // completed session (dated today or earlier, same rule as
-                // `sessionsUpToTodayCount`) — never aggregated across older
-                // sessions. Omitted entirely when that session has none.
-                let startOfToday = Calendar.current.startOfDay(for: .now)
-                let startOfTomorrow = Calendar.current.date(byAdding: .day, value: 1, to: startOfToday)
-                    ?? startOfToday
-                let lastSessionAssignments = patient.sessions
-                    .filter { $0.date < startOfTomorrow }
-                    .max { $0.date < $1.date }?
-                    .structuredNotes?.assignmentsForNextWeek
-                let response = try await WhisperService(client: auth.client)
-                    .prepareNextSession(
-                        patientContext: context,
-                        lastSessionAssignments: lastSessionAssignments?.isEmpty == false
-                            ? lastSessionAssignments : nil
-                    )
-                savedPreparation = SavedPreparation.save(response, for: patient.id)
-                preparationResult = NextSessionPreparationResult(response: response)
-            } catch {
-                errorMessage = error.userFacingMessage
-            }
-            isPreparing = false
-        }
-    }
-
     /// Deletes the patient (after the confirmation alert) and leaves the screen.
     /// Opens the name editor with the stored name split into first name and
     /// the rest (the store keeps one full-name string).
@@ -1462,7 +1523,7 @@ struct PatientDetailView: View {
         Task {
             defer { isSaving = false }
             do {
-                try store.renamePatient(patient, firstName: firstNameDraft, lastName: lastNameDraft)
+                try await store.renamePatient(patient, firstName: firstNameDraft, lastName: lastNameDraft)
                 if statusDraft != previousStatus {
                     patient.status = statusDraft
                     try await store.updatePatientStatus(patient)
@@ -1496,8 +1557,7 @@ struct PatientDetailView: View {
         guard EntitlementState.shared.allowMutation() else { return }
         guard !isSaving else { return }
         errorMessage = nil
-        // Only promise anonymization when the formulation carries text that
-        // may actually be sent to the anonymizer.
+        // Saving uses the encrypted clinical record API.
         var formulation = patient.formulation ?? .empty
         let goal = goalDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         formulation.treatmentGoal = goal.isEmpty ? nil : goal
@@ -1505,7 +1565,7 @@ struct PatientDetailView: View {
             .compactMap { $0 } + formulation.keyAutomaticThoughts + formulation.maintainingBehaviors
         let hasText = formulation.keyCBTCycle != nil
             || texts.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        busyLabel = hasText ? L10n.anonymizingStatusLabel : nil
+        busyLabel = hasText ? L10n.wwSavingToFile : nil
         isSaving = true
         Task {
             do {
@@ -1521,10 +1581,9 @@ struct PatientDetailView: View {
     private func save(thenDismiss: Bool = false, closeNotes: Bool = false) {
         guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
-        // Only promise anonymization when there are notes that may actually
-        // be sent to the anonymizer; otherwise show a plain spinner.
+        // Saving uses the encrypted clinical record API.
         let hasText = !patient.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        busyLabel = hasText ? L10n.anonymizingStatusLabel : nil
+        busyLabel = hasText ? L10n.wwSavingToFile : nil
         isSaving = true
         Task {
             do {
@@ -1550,7 +1609,7 @@ struct PatientDetailView: View {
     private func startPatientInvitation() {
         guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         guard !isCreatingInvitation else { return }
-        Task { await createPatientInvitationIfAllowed() }
+        emailInvitationPresented = true
     }
 
     private func resumeInvitationAfterDisplayNameIfNeeded() {
@@ -1572,40 +1631,7 @@ struct PatientDetailView: View {
             return
         }
 
-        isCreatingInvitation = true
-        do {
-            let profile = try await therapistProfiles.getCurrentProfile()
-            let therapistName = profile.flatMap { TherapistProfile.isValid($0.displayName) ? TherapistProfile.normalized($0.displayName) : nil }
-            guard let therapistName else {
-                isCreatingInvitation = false
-                pendingInvitationAfterDisplayName = true
-                isShowingDisplayNameForInvite = true
-                return
-            }
-
-            let connected = try await assignmentService().isPatientConnected(patientId: patientId)
-            let invitation = try await PatientInvitationService(client: auth.client)
-                .createPatientInvitation(patientId: patientId, kind: connected ? .replacement : .initial)
-            isCreatingInvitation = false
-            invitationShare = InvitationSharePayload(
-                text: L10n.patientInvitationShareMessage(
-                    therapistName: therapistName,
-                    invitationUrl: invitation.invitationUrl
-                ),
-                html: L10n.patientInvitationEmailHTML(
-                    therapistName: therapistName,
-                    invitationUrl: invitation.invitationUrl
-                ),
-                emailText: L10n.patientInvitationEmailMessage(
-                    therapistName: therapistName,
-                    invitationUrl: invitation.invitationUrl
-                ),
-                subject: L10n.patientInvitationShareSubject
-            )
-        } catch {
-            isCreatingInvitation = false
-            invitationError = error.userFacingMessage
-        }
+        emailInvitationPresented = true
     }
 
     /// Neutral record icons leave the gold accent for primary actions.

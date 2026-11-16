@@ -77,23 +77,41 @@ class PatientRepository(
     private val cacheLock = Mutex()
 
     init {
+        val originalLegacyReader=nameSync.readLegacy
+        nameSync.readLegacy={id ->
+            originalLegacyReader?.invoke(id) ?: run {
+                // Resolve legacy input without publishing an intermediate cached list.
+                val patient = _patients.value.firstOrNull {it.id.queryValue.equals(id,true)}
+                    ?: cache.load()?.patients?.firstOrNull {it.id.queryValue.equals(id,true)}
+                patient?.let {listOf(it.firstName,it.lastName).filter(String::isNotBlank).joinToString(" ").takeIf(String::isNotBlank)}
+            }
+        }
         nameSync.changed = {
-            if (!_isDemoMode.value) _patients.update { list -> list.map { it.copy(localName = identityStore.name(it.id)) } }
+            if(nameCreationRecovery?.owner != nameSync.account)nameCreationRecovery=null
+            if (!_isDemoMode.value) {
+                _patients.update { list -> list.map { if(nameSync.hasConfirmed(it.id.queryValue)) it.copy(firstName="",lastName="",localName=identityStore.name(it.id)) else it.copy(localName=identityStore.name(it.id)) } }
+                if(_patients.value.isNotEmpty())persistCache()
+            }
         }
     }
+    private data class NameCreationRecovery(val owner:String?,val creationID:String,val patient:Patient)
+    private var nameCreationRecovery: NameCreationRecovery? = null
     private fun scheduleNameSync() {
         if (_isDemoMode.value) return
-        nameSync.register(_patients.value.associate { it.id.queryValue to identityStore.legacyName(it.id) })
+        nameSync.register(_patients.value.associate { it.id.queryValue to null })
         nameSync.changed?.invoke()
         nameScope.launch { nameSync.refresh(true) }
     }
 
-    fun loadCachedPatients() {
-        if (_isDemoMode.value) return
+    private fun restoreCachedPatientsAfterLoadFailure() {
+        // Cached rows omit server names. Use them only as explicit offline recovery.
+        if (_isDemoMode.value || nameSync.account == null) return
         if (_patients.value.isNotEmpty()) return
         val cached = cache.load() ?: return
+        if(com.cbtipul.app.BuildConfig.DEBUG) android.util.Log.i("PatientLaunchTrace", "cache_publish t=${android.os.SystemClock.elapsedRealtime()} count=${cached.patients.size}")
         _patients.value = cached.patients.map { patient ->
-            patient.copy(localName = identityStore.name(patient.id))
+            val name = nameSync.displayed(patient.id.queryValue, nameSync.readLegacy?.invoke(patient.id.queryValue))
+            if(nameSync.hasConfirmed(patient.id.queryValue))patient.copy(firstName="",lastName="",localName=name) else patient.copy(localName=name)
         }
         _questionnaires.value = cached.questionnaires
     }
@@ -103,7 +121,10 @@ class PatientRepository(
             persistDemoClinic()
             return
         }
-        cache.save(_patients.value, _questionnaires.value)
+        cache.save(_patients.value.map { patient ->
+            val safe = patient.copy(localName=null, loadedClinicalRecord=patient.loadedClinicalRecord?.let { kotlinx.serialization.json.JsonObject(it - "decryptedName") })
+            if(nameSync.hasConfirmed(patient.id.queryValue)) safe.copy(firstName="",lastName="") else safe
+        }, _questionnaires.value)
     }
 
     /** Start a fresh local sample clinic on every entry. */
@@ -171,7 +192,6 @@ class PatientRepository(
         _showcaseDataLoaded.value = false
         _patients.value = emptyList()
         _questionnaires.value = emptyMap()
-        loadCachedPatients()
         runCatching { loadPatients() }
     }
 
@@ -228,8 +248,17 @@ class PatientRepository(
     suspend fun loadPatients() {
         if (_isDemoMode.value) return
         ensureConfigured()
+        val owner = client.auth.currentUserOrNull()?.id
+        val epoch = clinicalLoadEpoch
         cacheLock.withLock {
-            loadPatientsLocked()
+            try { loadPatientsLocked() }
+            catch(error: CancellationException) { throw error }
+            catch(error: Exception) {
+                if(owner != null && owner == client.auth.currentUserOrNull()?.id && epoch == clinicalLoadEpoch && !_isDemoMode.value) {
+                    restoreCachedPatientsAfterLoadFailure()
+                }
+                throw error
+            }
         }
     }
 
@@ -250,7 +279,7 @@ class PatientRepository(
         persistCache()
     }
     private suspend fun saveEncryptedSession(session: Session, patientId: DatabaseId? = null, beforeInsert: (String) -> Unit = {}) {
-        if (patientId != null && session.type == null) throw SummaryFailure(SummaryFailure.Kind.Validation)
+        if (patientId != null && session.type == null) throw SummaryFailure(SummaryFailure.Kind.SessionType)
         val changes = sessionWriteBody(session.date, session.notes, session.type, patientId).toMutableMap()
         session.loadedClinicalRecord?.let { baseline ->
             val row = json.decodeFromJsonElement<SessionRow>(baseline)
@@ -277,13 +306,26 @@ class PatientRepository(
             checkpoint = {
                 if (owner != client.auth.currentUserOrNull()?.id || epoch != clinicalLoadEpoch || _isDemoMode.value) throw CancellationException()
             }, invoke = { name, body ->
-                json.decodeFromString<JsonObject>(client.functions.invoke(name, body = body, headers = PatientNameSync.jsonHeaders()).bodyAsText())
+                if(com.cbtipul.app.BuildConfig.DEBUG) android.util.Log.i("PatientLaunchTrace", "request=$name t=${android.os.SystemClock.elapsedRealtime()}")
+                val response = try {client.functions.invoke(name, body = body, headers = PatientNameSync.jsonHeaders())}
+                catch(error: Exception) {
+                    if(com.cbtipul.app.BuildConfig.DEBUG) android.util.Log.i("PatientLaunchTrace", "response=$name http=${EdgePayload.httpStatus(error) ?: 0} t=${android.os.SystemClock.elapsedRealtime()}")
+                    throw error
+                }
+                if(com.cbtipul.app.BuildConfig.DEBUG) android.util.Log.i("PatientLaunchTrace", "response=$name http=${response.status.value} t=${android.os.SystemClock.elapsedRealtime()}")
+                val page=json.decodeFromString<JsonObject>(response.bodyAsText())
+                if(com.cbtipul.app.BuildConfig.DEBUG && name=="load-patients") {
+                    val rows=(page["records"] as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull {it as? JsonObject}
+                    android.util.Log.i("PatientLaunchTrace", "response=load-patients t=${android.os.SystemClock.elapsedRealtime()} count=${rows.size} string=${rows.count {(it["decryptedName"] as? JsonPrimitive)?.isString==true}} null=${rows.count {it["decryptedName"]==JsonNull}} missing=${rows.count {!it.containsKey("decryptedName")}}")
+                }
+                page
             })
     }
 
     private suspend fun loadPatientsLocked() {
         val nameOwner = nameSync.account
         val epoch = clinicalLoadEpoch
+        val nameRevision = nameSync.writeRevision
         val patientRecords = loadClinical("load-patients")
         val sessionRecords = loadClinical("load-sessions")
         if (epoch != clinicalLoadEpoch) throw CancellationException()
@@ -293,6 +335,10 @@ class PatientRepository(
         val sessionSnapshots = sessionRecords.associateBy { it.getValue("id").jsonPrimitive.content }
         if (_isDemoMode.value || nameOwner != nameSync.account) return
 
+        if (nameRevision != nameSync.writeRevision) return
+        nameSync.receivePatientRows(patientRecords)
+        nameSync.refresh(true)
+        if (_isDemoMode.value || nameOwner != nameSync.account || epoch != clinicalLoadEpoch) throw CancellationException()
         val sessionsByPatient = sessionRows.groupBy { it.patientId.queryValue }
         val existing = _patients.value
         val loaded = patientRows.map { row ->
@@ -327,16 +373,16 @@ class PatientRepository(
             patient.copy(localName = identityStore.name(patient.id))
         }
         // Pending edits and confirmed account-scoped names take precedence over legacy values.
+        if(com.cbtipul.app.BuildConfig.DEBUG) android.util.Log.i("PatientLaunchTrace", "server_publish t=${android.os.SystemClock.elapsedRealtime()} count=${loaded.size} resolved=${loaded.count {!it.localName.isNullOrEmpty()}}")
         _patients.value = loaded.map { it.copy(localName = identityStore.name(it.id)) }
-        scheduleNameSync()
         persistCache()
     }
 
-    suspend fun addPatient(firstName: String, lastName: String, status: PatientStatus) {
+    suspend fun addPatient(firstName: String, lastName: String, status: PatientStatus, creationID: String = UUID.randomUUID().toString()): Patient? {
         Entitlements.requireWrite(localDemo = _isDemoMode.value)
         if (_isDemoMode.value) {
             val name = listOf(firstName, lastName).map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
-            if (name.isEmpty()) return
+            if (name.isEmpty()) return null
             val patient = Patient(
                 id = DemoData.makeTutorialPatientId(),
                 firstName = firstName,
@@ -347,30 +393,39 @@ class PatientRepository(
             demoClinicStore.saveName(name, patient.id)
             _patients.update { it + patient }
             persistDemoClinic()
-            return
+            return patient
         }
         ensureConfigured()
         val enteredName = listOf(firstName, lastName).filter { it.isNotEmpty() }.joinToString(" ")
         if (!PatientNameRules.valid(enteredName)) throw NameSyncFailure("invalid_name")
         val nameOwner = nameSync.account
+        nameCreationRecovery?.takeIf {it.owner==nameOwner && it.creationID==creationID}?.let { recovery ->
+            nameSync.rememberCreated(recovery.patient.id.queryValue, enteredName)
+            val named=recovery.patient.copy(localName=enteredName)
+            nameCreationRecovery=null
+            _patients.update {if(it.any {p->p.id==named.id})it else it+named}
+            persistCache();return named
+        }
         val encryptedRecord = saveEncrypted("save-patient", null, changes = buildJsonObject { put("active", JsonPrimitive(status == PatientStatus.Active)) })
         val inserted = InsertedRow(DatabaseId.Text(encryptedRecord.getValue("id").jsonPrimitive.content))
-        if (nameOwner != nameSync.account || _isDemoMode.value) return
+        if (nameOwner != nameSync.account || _isDemoMode.value) return null
         val patient = Patient(
             id = inserted.id,
             firstName = firstName,
             lastName = lastName,
             status = status,
         )
-        runCatching { identityStore.save(patient.id, enteredName) }
+        nameCreationRecovery=NameCreationRecovery(nameOwner,creationID,patient.copy(loadedClinicalRecord=encryptedRecord))
         nameSync.rememberCreated(patient.id.queryValue, enteredName)
+        nameCreationRecovery=null
         val named = patient.copy(localName = identityStore.name(patient.id), loadedClinicalRecord = encryptedRecord)
         _patients.update { it + named }
         scheduleNameSync()
         persistCache()
+        return named
     }
 
-    fun renamePatient(patientId: DatabaseId, firstName: String, lastName: String) {
+    suspend fun renamePatient(patientId: DatabaseId, firstName: String, lastName: String) {
         Entitlements.requireWrite(localDemo = DemoData.isDemoId(patientId) || _isDemoMode.value)
         val name = listOf(firstName, lastName).map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
         if (name.isEmpty()) return
@@ -799,6 +854,7 @@ class PatientRepository(
         patient(patientId)?.sessions?.find { it.id.toString() == sessionId || it.databaseId?.queryValue == sessionId }
 
     fun clearAllCaches() {
+        nameCreationRecovery=null
         clinicalLoadEpoch = UUID.randomUUID()
         if (_isDemoMode.value) {
             resetDemoContent(_patients.value)

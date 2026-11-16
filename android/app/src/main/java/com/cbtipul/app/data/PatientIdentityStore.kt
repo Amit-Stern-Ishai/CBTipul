@@ -16,13 +16,12 @@ class PatientIdentityStore(context: Context) {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 
-    fun save(patientId: DatabaseId, name: String) {
-        prefs.edit().putString(patientId.queryValue, name).apply()
-    }
-
     var resolvedName: ((DatabaseId) -> String?)? = null
     fun legacyName(patientId: DatabaseId): String? = prefs.getString(patientId.queryValue, null)
-    fun name(patientId: DatabaseId): String? = resolvedName?.invoke(patientId) ?: legacyName(patientId)
+    fun name(patientId: DatabaseId): String? = resolvedName?.invoke(patientId)
+
+    // Migration calls this only after an authoritative server acknowledgement.
+    fun removeConfirmedLegacy(patientId: String): Boolean = prefs.edit().remove(patientId).commit()
 
     fun delete(patientId: DatabaseId) {
         prefs.edit().remove(patientId.queryValue).apply()
@@ -30,15 +29,6 @@ class PatientIdentityStore(context: Context) {
 
     fun clearAll() {
         prefs.edit().clear().apply()
-    }
-
-    fun upsertIdentities(backendNames: Map<DatabaseId, String>) {
-        backendNames.forEach { (id, name) ->
-            if (name.isEmpty()) return@forEach
-            if (this.name(id) == name) return@forEach
-            runCatching { save(id, name) }
-                .onFailure { Log.e(TAG, "Saving patient name failed", it) }
-        }
     }
 
     companion object {

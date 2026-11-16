@@ -750,4 +750,42 @@ struct NotificationInboxSemanticsTests {
             !NotificationInboxSeenPolicy.shouldMarkSeen(isInboxVisible: true, unseenCount: 0)
         )
     }
+    @MainActor @Test func joinedNotificationWaitsForColdLaunchThenOpensActivities() {
+        let coordinator = TherapistNotificationCoordinator.shared
+        coordinator.resetOnLogout()
+        defer { coordinator.resetOnLogout() }
+        let patient = Patient(id: .text("joined-patient"))
+        coordinator.handlePushTap(userInfo: ["type": "patient_connected", "patientId": "joined-patient"])
+        coordinator.processPending(patients: [])
+        #expect(coordinator.pendingPatientNavigation == nil)
+        coordinator.markTherapistRootReady()
+        coordinator.processPending(patients: [])
+        #expect(!coordinator.unavailableTarget)
+        coordinator.markPatientsLoadSettled()
+        coordinator.processPending(patients: [patient])
+        let route = coordinator.consumePatientNavigation()
+        #expect(route?.patientID == patient.id)
+        #expect(route?.activitySettings == true)
+        #expect(route?.questionnairesRoute == nil)
+        #expect(coordinator.consumePatientNavigation() == nil)
+    }
+    @MainActor @Test func joinedInboxAndWarmPushUseActivitiesAndMissingPatientFallsBack() {
+        let coordinator = TherapistNotificationCoordinator.shared
+        coordinator.resetOnLogout()
+        defer { coordinator.resetOnLogout() }
+        let patient = Patient(id: .text("joined-patient"))
+        let item = AppNotification(id: UUID(), type: .patientConnected, patientId: "joined-patient",
+            sessionId: nil, assignmentId: nil, resourceType: nil, resourceId: nil,
+            createdAt: Date(), seenAt: nil, readAt: nil)
+        coordinator.handleInboxTap(item, patients: [patient])
+        #expect(coordinator.consumePatientNavigation()?.activitySettings == true)
+        coordinator.markTherapistRootReady(); coordinator.markPatientsLoadSettled()
+        coordinator.handlePushTap(userInfo: ["type": "patient_connected", "patientId": "joined-patient"])
+        coordinator.processPending(patients: [patient])
+        #expect(coordinator.consumePatientNavigation()?.activitySettings == true)
+        coordinator.handleInboxTap(item, patients: [])
+        #expect(coordinator.unavailableTarget)
+        #expect(coordinator.consumePatientNavigation() == nil)
+    }
+
 }

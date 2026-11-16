@@ -22,7 +22,10 @@ private final class InvitationFixture {
     var anonymousSignInReturnsTherapist = false
     var afterClaim: () -> Void = {}
     struct Failed: Error {}
-    init(_ session: InvitationSession? = nil) { self.session = session }
+    init(_ session: InvitationSession? = nil) {
+        self.session = session
+        if session?.isAnonymous == false { existingContext = AppContext(version: 1, role: .therapist, activation: nil, patientId: nil) }
+    }
     var dependencies: InvitationActivationDependencies {
         InvitationActivationDependencies(
             awaitInitialization: { await self.initialization() },
@@ -72,7 +75,7 @@ struct PatientInvitationFlowTests {
 
     @Test(arguments: [false, true]) func coldAndWarmInvitationReserveRootBeforeAwait(warm: Bool) async {
         let flow = PatientInvitationFlow()
-        #expect(AppRootRouting.destination(invitationActive: false, hasSession: warm, isAnonymous: false) == (warm ? .therapist : .unauthenticated))
+        #expect(AppRootRouting.destination(invitationActive: false, hasSession: warm, isAnonymous: false, context: AppContext(version: 1, role: .therapist, activation: nil, patientId: nil)) == (warm ? .therapist : .unauthenticated))
         flow.receive(token: "mock-invitation")
         #expect(flow.phase == .loading)
         #expect(AppRootRouting.destination(invitationActive: flow.isActive, hasSession: true, isAnonymous: false) == .invitation)
@@ -88,7 +91,7 @@ struct PatientInvitationFlowTests {
         #expect(f.signOuts == 0 && f.signIns == 0 && f.claims == 0 && f.clears == 0)
         flow.dismiss()
         #expect(f.session == therapist)
-        #expect(AppRootRouting.destination(invitationActive: flow.isActive, hasSession: true, isAnonymous: false) == .therapist)
+        #expect(AppRootRouting.destination(invitationActive: flow.isActive, hasSession: true, isAnonymous: false, context: AppContext(version: 1, role: .therapist, activation: nil, patientId: nil)) == .therapist)
     }
 
     @Test func confirmedSwitchIsLocalThenAnonymousThenClaim() async {
@@ -106,7 +109,7 @@ struct PatientInvitationFlowTests {
         let task = Task { await flow.activate(using: f.dependencies) }
         while !gate.waiting { await Task.yield() }
         #expect(flow.phase == .activating && flow.token != nil)
-        f.session = therapist; gate.open(); await task.value
+        f.session = therapist; f.existingContext = AppContext(version: 1, role: .therapist, activation: nil, patientId: nil); gate.open(); await task.value
         #expect(flow.phase == .confirmTherapistSwitch && f.claims == 0 && f.signIns == 0)
     }
 
@@ -171,6 +174,16 @@ struct PatientInvitationFlowTests {
         let f = InvitationFixture(), flow = PatientInvitationFlow(); f.anonymousSignInReturnsTherapist = true
         await preview(flow); await flow.activate(using: f.dependencies)
         #expect(f.claims == 0 && flow.isActive)
+    }
+
+    @Test func emailPatientOpeningLegacyLinkKeepsAccountAndConnection() async {
+        let f = InvitationFixture(InvitationSession(userID: "email-patient", isAnonymous: false))
+        f.existingContext = AppContext(version: 1, role: .patient, activation: .active, patientId: f.patientID)
+        let original = f.session
+        let flow = PatientInvitationFlow()
+        await preview(flow); await flow.activate(using: f.dependencies)
+        #expect(flow.phase == .existingPatient)
+        #expect(f.session == original && f.signOuts == 0 && f.signIns == 0 && f.claims == 0)
     }
 
     @Test func staleIdentityAfterClaimCannotFinishActivation() async {

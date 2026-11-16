@@ -1,5 +1,8 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.foundation.background
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -22,7 +25,7 @@ import com.cbtipul.app.model.Patient
 import com.cbtipul.app.ui.theme.*
 import java.util.Date
 
-internal data class RecentSubmission(val id: String, val route: String, val title: Int, val date: Date)
+internal data class RecentSubmission(val id: String, val route: String, val title: Int, val date: Date, val diaryKey: DiaryNotificationKey? = null)
 
 /** Both list badges and detail rows use the same cached, patient-authored records. */
 internal fun recentSubmissions(
@@ -33,9 +36,9 @@ internal fun recentSubmissions(
     val id = patient.id.queryValue
     val cutoff = patient.sessions.map { it.date }.filter { !it.after(now) }.maxOrNull()
     return buildList {
-        one.filter { it.createdBy == DiaryOneEntryCreator.Patient }.forEach { add(RecentSubmission("diary-one-${it.id}", "patient/$id/diary-one?entry=${it.id}", R.string.diary_one_title, it.createdAt)) }
-        two.filter { it.createdBy == DiaryOneEntryCreator.Patient }.forEach { add(RecentSubmission("diary-two-${it.id}", "patient/$id/diary-two?entry=${it.id}", R.string.diary_two_title, it.createdAt)) }
-        three.filter { it.createdBy == DiaryOneEntryCreator.Patient }.forEach { add(RecentSubmission("diary-three-${it.id}", "patient/$id/diary-three?entry=${it.id}", R.string.diary_three_title, it.createdAt)) }
+        one.filter { it.createdBy == DiaryOneEntryCreator.Patient }.forEach { add(RecentSubmission("diary-one-${it.id}", "patient/$id/diary-one?entry=${it.id}", R.string.diary_one_title, it.createdAt, DiaryNotificationKey.of(id,"diary_one_entry",it.id))) }
+        two.filter { it.createdBy == DiaryOneEntryCreator.Patient }.forEach { add(RecentSubmission("diary-two-${it.id}", "patient/$id/diary-two?entry=${it.id}", R.string.diary_two_title, it.createdAt, DiaryNotificationKey.of(id,"diary_two_entry",it.id))) }
+        three.filter { it.createdBy == DiaryOneEntryCreator.Patient }.forEach { add(RecentSubmission("diary-three-${it.id}", "patient/$id/diary-three?entry=${it.id}", R.string.diary_three_title, it.createdAt, DiaryNotificationKey.of(id,"diary_three_entry",it.id))) }
         questionnaires.filter { it.createdBy == "patient" }.forEach { add(RecentSubmission("questionnaire-${it.databaseId.queryValue}", "patient/$id/questionnaire-result/${it.databaseId.queryValue}", R.string.questionnaire_item_title, it.answeredDate)) }
     }.filter { (cutoff == null || it.date.after(cutoff)) && !dismissals.contains(it.id, owner, id) }
         .sortedWith(compareByDescending<RecentSubmission> { it.date }.thenBy { it.id })
@@ -44,6 +47,8 @@ internal fun recentSubmissions(
 @Composable
 fun PatientRecentActivity(patient: Patient, isDemo: Boolean, onOpen: (String) -> Unit) {
     val app = LocalContext.current.applicationContext as CbTipulApp
+    val notifications by app.notifications.items.collectAsStateWithLifecycle()
+    val unread = remember(notifications) {DiaryNotificationReadState.unreadKeys(notifications)}
     val one by app.diaryOne.entries.collectAsStateWithLifecycle()
     val two by app.diaryTwo.entries.collectAsStateWithLifecycle()
     val three by app.diaryThree.entries.collectAsStateWithLifecycle()
@@ -55,6 +60,16 @@ fun PatientRecentActivity(patient: Patient, isDemo: Boolean, onOpen: (String) ->
     var failed by remember(id, owner) { mutableStateOf(false) }
     var dismissed by remember(id, owner) { mutableStateOf(false) }
     var expanded by remember(id, owner) { mutableStateOf(false) }
+    var collapsed by androidx.compose.runtime.saveable.rememberSaveable(id, owner) { mutableStateOf(true) }
+    var visitInitialized by androidx.compose.runtime.saveable.rememberSaveable(id, owner) { mutableStateOf(false) }
+    LaunchedEffect(id, owner) {
+        if (!visitInitialized && !isDemo && owner != null && activityIdentity.role == AppRole.Therapist) {
+            val feature = DiscoveryRules.patientFeature(id, "recentVisit")
+            collapsed = app.preferences.discoverySeen(owner, feature)
+            app.preferences.markDiscovery(owner, feature)
+            visitInitialized = true
+        } else if (isDemo) collapsed = false
+    }
     var revision by remember(id, owner) { mutableIntStateOf(0) }
     val dismissals = app.recentActivityDismissals
     val dismissalRevision by dismissals.revision.collectAsStateWithLifecycle()
@@ -73,14 +88,14 @@ fun PatientRecentActivity(patient: Patient, isDemo: Boolean, onOpen: (String) ->
     }
     if (items.isEmpty() && (dismissed || !failed)) return
 
-    RecentActivityCard(items, cutoff, failed, expanded, onExpand = { expanded = !expanded },
+    RecentActivityCard(items, cutoff, failed, expanded, collapsed = collapsed, onToggle = { collapsed = !collapsed; if (!collapsed) expanded = true }, onExpand = { expanded = !expanded },
         onDismiss = { dismissals.dismiss(items.map { it.id }, owner, id); dismissed = true },
-        onRetry = { revision++ }, onOpen = onOpen)
+        onRetry = { revision++ }, onOpen = onOpen, unread = unread)
 }
 
 @Composable
 internal fun RecentActivityCard(items: List<RecentSubmission>, cutoff: Date?, failed: Boolean, expanded: Boolean,
-    onExpand: () -> Unit, onDismiss: () -> Unit, onRetry: () -> Unit, onOpen: (String) -> Unit) {
+    collapsed: Boolean = false, onToggle: () -> Unit = {}, onExpand: () -> Unit, onDismiss: () -> Unit, onRetry: () -> Unit, onOpen: (String) -> Unit, unread: Set<DiaryNotificationKey> = emptySet()) {
     GroupedListCard(accent = Theme.colors.gold) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -89,6 +104,9 @@ internal fun RecentActivityCard(items: List<RecentSubmission>, cutoff: Date?, fa
                         style = MaterialTheme.typography.titleMedium, lineHeight = 20.sp, color = Theme.colors.textBright)
                     if (cutoff != null) Text(stringResource(R.string.recent_since_date, hebrewDate(cutoff)),
                         color = Theme.colors.textBody, fontSize = 12.sp, lineHeight = 16.sp)
+                }
+                TextButton(onClick = onToggle) {
+                    Text(stringResource(if (collapsed) R.string.recent_show_all else R.string.recent_show_less, items.size))
                 }
                 FilledTonalIconButton(onClick = onDismiss,
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -99,11 +117,15 @@ internal fun RecentActivityCard(items: List<RecentSubmission>, cutoff: Date?, fa
             }
             if (items.isNotEmpty()) {
                 Text(stringResource(R.string.recent_submission_count, items.size), style = MaterialTheme.typography.titleSmall)
-                items.take(if (expanded) items.size else 3).forEach { item ->
+                (if (collapsed) emptyList() else items.take(if (expanded) items.size else 3)).forEach { item ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = androidx.compose.ui.semantics.Role.Button) { onOpen(item.route) }.padding(vertical = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(if (item.title == R.string.questionnaire_item_title) Icons.Outlined.Assignment else Icons.Outlined.Book,
                             contentDescription = null, tint = Theme.colors.gold, modifier = Modifier.size(22.dp))
+                        if(item.diaryKey in unread) {
+                            val unreadLabel=stringResource(R.string.notification_unread_accessibility)
+                            Box(Modifier.size(7.dp).background(Theme.colors.gold,androidx.compose.foundation.shape.CircleShape).semantics {contentDescription=unreadLabel})
+                        }
                         Column {
                             Text(stringResource(item.title), color = Theme.colors.textBright)
                             Text(hebrewDate(item.date), color = Theme.colors.textBody, fontSize = 12.sp, lineHeight = 16.sp)
@@ -111,7 +133,7 @@ internal fun RecentActivityCard(items: List<RecentSubmission>, cutoff: Date?, fa
                     }
                 }
             }
-            if (items.size > 3) TextButton(onClick = onExpand) {
+            if (!collapsed && items.size > 3) TextButton(onClick = onExpand) {
                 Text(if (expanded) stringResource(R.string.recent_show_less) else stringResource(R.string.recent_show_all, items.size))
             }
             if (failed) {

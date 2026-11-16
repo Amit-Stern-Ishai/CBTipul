@@ -3,6 +3,7 @@ import SwiftUI
 /// Clinical submissions, independent of notification read/seen state.
 struct PatientRecentActivityView: View {
     let patient: Patient
+    @Environment(NotificationStore.self) private var notifications
     @Environment(PatientStore.self) private var store
     @Environment(AuthManager.self) private var auth
     @Environment(DiaryOneStore.self) private var diaryOne
@@ -14,6 +15,8 @@ struct PatientRecentActivityView: View {
     @State private var dismissed = false
     @State private var activityDismissals = RecentActivityDismissals.shared
     @State private var showAll = false
+    @State private var collapsed = false
+    @State private var visitIdentity: String?
     @State private var revision = 0
 
     private var cutoff: Date? { patient.sessions.map(\.date).filter { $0 <= .now }.max() }
@@ -69,7 +72,19 @@ struct PatientRecentActivityView: View {
         allSubmissions.filter { !activityDismissals.contains($0.id, owner: activityOwner, patientID: patient.id) }
     }
     private var count: Int { submissions.count }
-    private var visibleSubmissions: [Submission] { Array(submissions.prefix(showAll ? count : 2)) }
+    private var visibleSubmissions: [Submission] { collapsed ? [] : Array(submissions.prefix(showAll ? count : 2)) }
+
+    private func unread(_ submission: Submission) -> Bool {
+        let resource: String; let id: UUID
+        switch submission {
+        case .questionnaire: return false
+        case .diaryOne(let entry): resource = "diary_one_entry"; id = entry.id
+        case .diaryTwo(let entry): resource = "diary_two_entry"; id = entry.id
+        case .diaryThree(let entry): resource = "diary_three_entry"; id = entry.id
+        }
+        guard let key = DiaryNotificationKey(patientID: patient.id.queryValue, resourceType: resource, entryID: id.uuidString) else { return false }
+        return DiaryNotificationReadState.unreadKeys(notifications.notifications).contains(key)
+    }
 
     @ViewBuilder
     private func destination(_ submission: Submission) -> some View {
@@ -94,11 +109,11 @@ struct PatientRecentActivityView: View {
                                 .accessibilityLabel(L10n.recentSubmissionCount(count))
                         }
                         Spacer(minLength: 0)
-                        if count > 2 {
-                            Button { showAll.toggle() } label: {
-                                Image(systemName: showAll ? "chevron.up" : "chevron.down").frame(width: 44, height: 44)
+                        if count > 0 {
+                            Button { if collapsed { collapsed = false; showAll = true } else if !showAll && count > 2 { showAll = true } else { collapsed = true; showAll = false } } label: {
+                                Image(systemName: collapsed || (!showAll && count > 2) ? "chevron.down" : "chevron.up").frame(width: 44, height: 44)
                             }
-                            .accessibilityLabel(showAll ? L10n.recentShowLess : L10n.recentShowAll(count))
+                            .accessibilityLabel(collapsed || (!showAll && count > 2) ? L10n.recentShowAll(count) : L10n.recentShowLess)
                             .accessibilityIdentifier("patient.recent.showAll")
                         }
                         Menu {
@@ -116,6 +131,11 @@ struct PatientRecentActivityView: View {
                         Divider().overlay(Theme.borderDefault)
                         NavigationLink { destination(submission) } label: {
                             HStack {
+                                if unread(submission) {
+                                    Circle().fill(Theme.gold).frame(width: 7, height: 7)
+                                        .accessibilityLabel(L10n.notificationUnreadAccessibility)
+                                        .accessibilityIdentifier("diary.unread.\(submission.id)")
+                                }
                                 row(submission.title, icon: submission.icon, date: submission.date)
                                 Spacer(minLength: 8)
                                 Image(systemName: "chevron.forward").font(.caption).foregroundStyle(Theme.textBody)
@@ -131,6 +151,13 @@ struct PatientRecentActivityView: View {
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
                 .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.borderFaint, lineWidth: 1) }
             }
+        }
+        .task(id: "\(auth.currentUserId ?? "")/\(patient.id.queryValue)") {
+            let identity = "\(auth.currentUserId ?? "")/\(patient.id.queryValue)"
+            guard visitIdentity != identity, !store.isDemoMode, let owner = auth.currentUserId,
+                  EntitlementState.shared.role == .therapist else { return }
+            visitIdentity = identity
+            collapsed = FeatureDiscovery.shared.beginPatientVisit(account: owner, patient: patient.id)
         }
         .task(id: revision) {
             guard !store.isDemoMode else { return }

@@ -75,11 +75,26 @@ internal fun rememberPatientConnection(patient: Patient?, repository: PatientAss
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 internal fun PatientConnectionActions(patient: Patient, name: String, repository: PatientAssignmentRepository?, isDemo: Boolean,
-    busy: Boolean, onInvite: () -> Unit, onMessage: () -> Unit, onNewSession: () -> Unit) {
+    busy: Boolean, onInvite: () -> Unit, onMessage: () -> Unit, onNewSession: () -> Unit, initialSheet: String? = null, onSheetChanged: (Boolean) -> Unit = {}, review: Boolean = false) {
     val colors = Theme.colors
-    val (connection, refresh) = rememberPatientConnection(patient, repository, isDemo)
-    var sheet by remember { mutableStateOf<String?>(null) }
+    val (connection, refresh) = if (com.cbtipul.app.BuildConfig.DEBUG && review) ConnectionUi.Connected to {} else rememberPatientConnection(patient, repository, isDemo)
+    var sheet by androidx.compose.runtime.saveable.rememberSaveable(patient.id.queryValue, initialSheet) {
+        mutableStateOf(initialSheet?.takeIf { !isDemo && it in listOf("send", "invite") })
+    }
     var sending by remember { mutableStateOf(false) }
+    val appContext = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp).appContext
+    LaunchedEffect(sheet, patient.id) {
+        if (sheet == "invite" && !isDemo) {
+            sheet = null
+            onSheetChanged(false)
+            onInvite()
+            return@LaunchedEffect
+        }
+        onSheetChanged(sheet != null)
+        // Recover unresolved/restored access through the existing bounded check.
+        if (sheet == "send" && !isDemo && !review) appContext.refreshOnForeground()
+    }
+    DisposableEffect(Unit) { onDispose { onSheetChanged(false) } }
     // Keep the card footprint stable while cached status refreshes, including larger text.
     val textScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
     val statusColor = when (connection) {
@@ -114,15 +129,15 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                     style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
                     maxLines = 2, modifier = Modifier.weight(1f))
                 if (connection == ConnectionUi.Connected) {
-                    IconButton(onClick = { sheet = "invite" }, enabled = !busy && !sending,
-                        modifier = Modifier.size(48.dp).entitlementCreateControl()) {
-                        Icon(Icons.Outlined.PersonAdd, contentDescription = stringResource(R.string.patient_reinvite_action), tint = colors.gold)
+                    TextButton(onClick = { onInvite() },
+                        enabled = !busy && !sending, modifier = Modifier.entitlementCreateControl()) {
+                        Text(stringResource(R.string.patient_reinvite_action), color = colors.gold)
                     }
                 }
             }
             val checking = connection == ConnectionUi.Checking
             val actionLabel = when (connection) {
-                ConnectionUi.Connected, ConnectionUi.Checking -> R.string.send_to_patient_action
+                ConnectionUi.Connected, ConnectionUi.Checking -> R.string.activities_title
                 ConnectionUi.Failed -> R.string.retry
                 else -> R.string.patient_invite_to_app_action
             }
@@ -133,7 +148,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                         when (connection) {
                             ConnectionUi.Connected -> sheet = "send"
                             ConnectionUi.Failed -> refresh()
-                            else -> sheet = "invite"
+                            else -> onInvite()
                         }
                     },
                     enabled = !busy && !sending,
@@ -143,7 +158,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.gold),
                 ) {
                     Icon(when (connection) {
-                        ConnectionUi.Connected -> Icons.AutoMirrored.Outlined.Send
+                        ConnectionUi.Connected -> Icons.Outlined.Assignment
                         ConnectionUi.Failed -> Icons.Outlined.Refresh
                         else -> Icons.Outlined.PersonAdd
                     },
@@ -154,18 +169,21 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
             }
         }
     }
-    if (sheet != null) ModalBottomSheet(onDismissRequest = { if (!sending) sheet = null },
+    if (sheet != null && sheet != "invite") ModalBottomSheet(onDismissRequest = { if (!sending) sheet = null },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !sending })) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { sheet = null }, enabled = !sending) {
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.back))
+                Text(stringResource(if (sheet == "send") R.string.close_action else R.string.back))
             }
-            Text(name, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(if (sheet == "send") stringResource(R.string.activities_title) else name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                if (sheet == "send") Text(name, style = MaterialTheme.typography.bodySmall, color = colors.textBody)
+            }
         }
         HorizontalDivider()
-        Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(if (sheet == "send") 0.dp else 16.dp)) {
             if (sheet == "invite") {
                 val connected = connection == ConnectionUi.Connected
                 Text(stringResource(if (connected) R.string.patient_reinvite_action else R.string.patient_connect_description))
@@ -177,26 +195,23 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                 } else Text(stringResource(R.string.patient_invitation_unavailable_explanation))
                 if (!connected) Text(stringResource(R.string.patient_connection_optional_explanation))
             } else if (connection == ConnectionUi.Connected) {
-                Text(stringResource(R.string.patient_choose_send_action), fontWeight = FontWeight.Bold)
-                SendChoice(Icons.Outlined.MailOutline, R.string.send_patient_message_action, R.string.patient_send_message_description, !sending) { sheet = null; onMessage() }
-                HorizontalDivider()
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(stringResource(R.string.access_tools_title), style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(R.string.access_tools_explanation), style = MaterialTheme.typography.bodyMedium, color = colors.textBody)
-                }
                 val tools = listOf(PatientAssignmentType.Questionnaire, PatientAssignmentType.DiaryOne, PatientAssignmentType.DiaryTwo) +
                     if (PatientAssignmentType.diaryThreeSendingEnabled) listOf(PatientAssignmentType.DiaryThree) else emptyList()
-                tools.forEach { type ->
+                tools.forEachIndexed { index, type ->
                     key(type) {
-                        OutlinedCard(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(16.dp)) {
-                                PatientToolAccessControl(patient, repository, isDemo, type, busy || sending, onBusyChanged = { sending = it })
-                            }
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) {
+                            PatientToolAccessControl(patient, repository, isDemo, type, busy || sending,
+                                onBusyChanged = { sending = it }, reviewEnabled = if (com.cbtipul.app.BuildConfig.DEBUG && review) type != PatientAssignmentType.DiaryOne else null,
+                                listRow = true)
                         }
+                        if (index < tools.lastIndex) HorizontalDivider(color = colors.borderFaint)
                     }
                 }
+            } else if (connection == ConnectionUi.Checking) {
+                CircularProgressIndicator()
+                Text(stringResource(R.string.patient_connection_checking))
             } else Text(stringResource(R.string.patient_not_connected_body))
-            TextButton(onClick = { sheet = null }, enabled = !sending) { Text(stringResource(R.string.cancel)) }
+            if (sheet == "invite") TextButton(onClick = { sheet = null }, enabled = !sending) { Text(stringResource(R.string.cancel)) }
         }
     }
 

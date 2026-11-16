@@ -109,6 +109,13 @@ final class NotificationStore {
                   (try? await client.auth.session.user.id) == recipientID else { return }
             didFailLastLoad = false
             notifications = rows.map(\.asAppNotification)
+            // A duplicate delivered after an earlier read is still the same entry.
+            let read = DiaryNotificationReadState.readKeys(notifications)
+            for item in notifications where item.isUnread {
+                if let key = DiaryNotificationKey(item), read.contains(key) {
+                    await persistRead(item, requestGeneration: requestGeneration)
+                }
+            }
             await synchronizeAppIconBadge()
         } catch {
             if !silently && !Task.isCancelled { didFailLastLoad = true }
@@ -145,28 +152,43 @@ final class NotificationStore {
         }
     }
 
-    /// Persists `read_at` via `mark_notification_read`. Does not invent a local-only read.
+    /// Persists `read_at` via the existing RPC; never invents a local-only receipt.
     func markRead(_ notification: AppNotification) async {
+        let requestGeneration = generation
         while isRefreshing {
             do { try await Task.sleep(for: .milliseconds(25)) } catch { return }
         }
+        guard requestGeneration == generation else { return }
         receiptWrites += 1
         defer { receiptWrites -= 1 }
-        guard notification.isUnread else { return }
-        guard !AuthManager.isUITesting, SupabaseConfig.isConfigured else { return }
+        await persistRead(notification, requestGeneration: requestGeneration)
+    }
+
+    private func persistRead(_ notification: AppNotification, requestGeneration: Int) async {
+        guard requestGeneration == generation, !Task.isCancelled, notification.isUnread,
+              !isDemoInbox, !AuthManager.isUITesting, SupabaseConfig.isConfigured else { return }
         do {
-            try await client.rpc(
-                "mark_notification_read",
-                params: MarkNotificationReadParams(pNotificationId: notification.id)
-            )
-            .execute()
+            try await client.rpc("mark_notification_read", params: MarkNotificationReadParams(pNotificationId: notification.id)).execute()
+            guard requestGeneration == generation, !Task.isCancelled else { return }
             apply(notification.opened(at: Date()))
-        } catch {
-            #if DEBUG
-            AppLog.push.debug(
-                "notifications mark-read failed: \(error.localizedDescription, privacy: .public)"
-            )
-            #endif
+        } catch { /* Keep unread when the server has not confirmed the receipt. */ }
+    }
+
+    /// Called only by a successfully loaded, visible therapist diary entry.
+    func markDiaryEntryRead(_ key: DiaryNotificationKey) async {
+        guard !isDemoInbox, !patientModeActive else { return }
+        let requestGeneration = generation
+        while isRefreshing || receiptWrites > 0 {
+            do { try await Task.sleep(for: .milliseconds(25)) } catch { return }
+        }
+        guard requestGeneration == generation, !Task.isCancelled else { return }
+        if !notifications.contains(where: { DiaryNotificationKey($0) == key }) {
+            await refresh(silently: true)
+        }
+        guard requestGeneration == generation, !Task.isCancelled else { return }
+        for item in notifications where item.isUnread && DiaryNotificationKey(item) == key {
+            guard requestGeneration == generation, !Task.isCancelled else { return }
+            await markRead(item)
         }
     }
 

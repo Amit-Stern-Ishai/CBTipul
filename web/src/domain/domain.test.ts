@@ -140,6 +140,7 @@ describe("local names", () => {
     names.set(s, "therapist-a", "p1", "דנה לוי");
     names.set(s, "therapist-b", "p1", "שם אחר");
     expect(names.get(s, "therapist-a", "p1")).toBe("דנה לוי");
+    expect(Object.keys(s).filter(k=>k.startsWith("cbtipul.names."))).toEqual([]);
     expect(names.get(s, "therapist-b", "p1")).toBe("שם אחר");
     names.clear(s, "therapist-a");
     expect(names.get(s, "therapist-a", "p1")).toBe("");

@@ -48,6 +48,7 @@ class AppRootRoutingTest {
                 invitationActive = false,
                 hasSession = true,
                 isAnonymous = false,
+                context = AppContext(role = AppRole.Therapist),
             ),
         )
         assertEquals(
@@ -114,5 +115,16 @@ class AppRootRoutingTest {
                 isLoading = false,
             ),
         )
+    }
+
+    @Test fun serverRoleRoutesBothKindsOfPatientAndNeverGuesses() {
+        for (anonymous in listOf(true, false)) {
+            val patient = AppContext(role = AppRole.Patient, activation = PatientActivation.Active, patientId = "synthetic")
+            assertEquals(AppRootDestination.AnonymousPatient, AppRootRouting.destination(false, true, anonymous, patient))
+            assertEquals(AnonymousPatientDestination.PatientMode, AppRootRouting.anonymousDestination(patient, false))
+            assertEquals(AppRootDestination.AnonymousPatient, AppRootRouting.destination(false, true, anonymous))
+            assertEquals(AppRootDestination.Unauthenticated, AppRootRouting.destination(false, false, anonymous, patient))
+            assertEquals(AppRootDestination.Therapist, AppRootRouting.destination(false, true, anonymous, AppContext(role = AppRole.Therapist)))
+        }
     }
 }

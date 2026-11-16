@@ -23,7 +23,7 @@ extension Error {
         let failure = ClientFailure.from(self)
         if failure != .unknown { return failure.localizedDescription }
         // Domain errors supply curated copy; never display raw transport bodies.
-        if self is EntitlementDenied || self is AuthError || self is PatientStoreError || self is SummaryAllowanceError { return localizedDescription }
+        if self is EntitlementDenied || self is AuthError || self is PatientStoreError || self is SummaryAllowanceError || self is NameSyncFailure { return localizedDescription }
         return ClientFailure.unknown.localizedDescription
     }
 }

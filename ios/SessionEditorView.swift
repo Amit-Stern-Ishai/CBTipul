@@ -31,6 +31,7 @@ struct SessionEditorView: View {
 
     @State private var recovery = DeviceFormDraft<SessionRecovery>()
     @State private var recoveryClosed = false
+    @State private var voiceDiscoveryPending = false
     @State private var recoveryAccount: String?
     @State private var audioFileName: String?
     @State private var transcriptReady = false
@@ -72,7 +73,18 @@ struct SessionEditorView: View {
     @State private var isTranscribing = false
     /// True while the protected local transcript is being anonymized for server saving.
     @State private var isAnonymizingTranscription = false
-    @State private var isAnalyzing = false
+    @State private var analysisAction = AIActionLifecycle()
+    @State private var analysisTask: Task<Void, Never>?
+    @State private var analysisAlert: String?
+    @State private var analysisTrace: AIActionDiagnostics?
+    private var isAnalyzing: Bool { analysisAction.isRunning }
+    private var analysisStatus: String {
+        switch analysisAction.stage {
+        case .allowance: return L10n.aiCheckingAllowanceStatus
+        case .anonymization: return L10n.anonymizingStatusLabel
+        default: return L10n.aiAnalysisServerStatus
+        }
+    }
     @State private var analysisResult: SessionAnalysisResult?
     @State private var isShowingAllFollowUps = false
     // Keep recovered summary controls available even if the user clears the draft.
@@ -139,7 +151,7 @@ struct SessionEditorView: View {
         if pendingCreation || hasSummaryWork {
             VStack(alignment: .leading, spacing: 8) {
                 if hasVersionConflict {
-                    Button("בדיקת המפגש המעודכן — הטיוטה נשארת במכשיר") {
+                    Button("בדיקת המפגש המעודכן") {
                         guard persistRecovery() else { return }
                         showingRecoverySessions = true
                     }.disabled(storePatient == nil)
@@ -153,6 +165,7 @@ struct SessionEditorView: View {
                         confirmingManualRetry = true
                     }.accessibilityIdentifier("summary.manualRetry")
                 }
+                Menu {
                 if !session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Button(copiedDraft ? "הטיוטה הועתקה" : "העתקת הטיוטה") {
                         UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: session.notes]],
@@ -160,9 +173,14 @@ struct SessionEditorView: View {
                         copiedDraft = true
                     }.accessibilityIdentifier("summary.copyDraft")
                 }
-                Button("מחיקת הטיוטה מהמכשיר", role: .destructive) {
+                Button("מחיקת הטיוטה", role: .destructive) {
                     confirmingDraftDiscard = true
                 }.accessibilityIdentifier("summary.discardDraft")
+                } label: {
+                    Label(copiedDraft ? "הטיוטה הועתקה" : "טיוטה", systemImage: "ellipsis.circle")
+                        .frame(minHeight: 44)
+                }
+                .accessibilityIdentifier("summary.draftMenu")
             }
             .font(.footnote)
             .disabled(isWorking)
@@ -282,7 +300,7 @@ struct SessionEditorView: View {
     private var saveStatus: String? {
         if voiceRecorder.isRecording { return L10n.sessionRecordingInProgress }
         if isTranscribing { return L10n.transcribingLabel }
-        if isAnonymizingTranscription { return L10n.anonymizingStatusLabel }
+        if isAnonymizingTranscription { return isAnalyzing ? L10n.anonymizingStatusLabel : L10n.summaryPreparingStatusLabel }
         if isSaving { return L10n.sessionSaving }
         if isAnalyzing { return L10n.analyzingLabel }
         if isWorking { return L10n.sessionProcessing }
@@ -364,7 +382,6 @@ struct SessionEditorView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                 allowanceFeedback
-                if !showingNotesEditor { recoveryActions }
                 if let feedback = draftStatus {
                     Section {
                         Text(feedback).font(.footnote).foregroundStyle(recovery.hasError ? Theme.error : Theme.textBody)
@@ -425,6 +442,7 @@ struct SessionEditorView: View {
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(patientAccent.opacity(0.35), lineWidth: 1))
                     summaryRecordingPanel
+                    if !showingNotesEditor { recoveryActions }
                 }
 
                 if showsSummaryEditor && (!session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || session.structuredNotes != nil) {
@@ -520,7 +538,7 @@ struct SessionEditorView: View {
             } message: {
                 Text(L10n.deleteSessionConfirmMessage)
             }
-            .deleteCodeChallenge(isPresented: $isShowingDeleteCodeChallenge) { deleteSession() }
+            .deleteCodeChallenge(phrase: .session, isPresented: $isShowingDeleteCodeChallenge) { deleteSession() }
             // An alert, not a confirmation dialog: iPad popover dialogs hide
             // cancel-role buttons, and Keep Editing must always be offered.
             .alert(L10n.discardChangesTitle,
@@ -579,7 +597,10 @@ struct SessionEditorView: View {
                         if isEditingSummary {
                             GeometryReader { space in
                                 VStack(spacing: 0) {
-                                    TextField(L10n.sessionSummaryFieldPlaceholder, text: $session.notes, axis: .vertical)
+                                    TextField(L10n.sessionSummaryFieldPlaceholder, text: Binding(get: { session.notes }, set: { text in
+                                        if let owner = auth.currentUserId, DiscoveryRules.voice(userEdit: text != session.notes, nonempty: !text.isEmpty, therapist: EntitlementState.shared.role == .therapist, demo: store.isDemoMode, seen: FeatureDiscovery.shared.seen("voice", account: owner)) { voiceDiscoveryPending = true }
+                                        session.notes = text
+                                    }), axis: .vertical)
                                         .font(.body).lineSpacing(7)
                                         .lineLimit(3...max(3, Int((space.size.height - 48) / summaryLineHeight)))
                                         .foregroundStyle(Theme.textBright)
@@ -591,6 +612,10 @@ struct SessionEditorView: View {
                                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
                                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(patientAccent.opacity(0.4), lineWidth: 1))
                                         .accessibilityIdentifier("session.summaryText")
+                                    if voiceDiscoveryPending && !isWorking && errorMessage == nil && !confirmLeavingNotes && allowanceMessage == nil, let owner = auth.currentUserId, owner == recoveryAccount {
+                                        DiscoveryCard(title: DiscoveryCopy.voiceTitle, bodyText: DiscoveryCopy.voiceBody) { voiceDiscoveryPending = false; notesEditorFocused = true }
+                                            .onAppear { FeatureDiscovery.shared.mark("voice", account: owner) }
+                                    }
                                     Spacer(minLength: 0)
                                 }
                                 .padding(16)
@@ -656,7 +681,7 @@ struct SessionEditorView: View {
                                 ScrollView {
                                     summaryRecordingPanel
                                 }
-                                .frame(maxHeight: voiceRecorder.recordingURL != nil && !isWorking ? 230 : 126)
+                                .frame(maxHeight: voiceRecorder.recordingURL != nil && !transcriptReady && !isWorking ? 230 : 126)
                                 .fixedSize(horizontal: false, vertical: true)
                             }
                             allowanceFeedback
@@ -749,7 +774,18 @@ struct SessionEditorView: View {
                 // Save on each edit, without a termination-loss debounce window.
                 persistRecovery()
             }
+            .onDisappear { voiceDiscoveryPending = false; FeatureDiscovery.shared.feedbackVisible = false }
+            .onChange(of: errorMessage) { _, value in FeatureDiscovery.shared.feedbackVisible = value != nil || allowanceMessage != nil }
+            .onChange(of: allowanceMessage) { _, value in FeatureDiscovery.shared.feedbackVisible = value != nil || errorMessage != nil }
             .onChange(of: auth.currentUserId) { _, _ in
+                analysisTask?.cancel()
+                analysisAction.invalidate()
+                analysisResult = nil
+                analysisAlert = nil
+                analysisTrace = nil
+                isAnonymizingTranscription = false
+                voiceDiscoveryPending = false
+                FeatureDiscovery.shared.clear()
                 // Keep the old owner's protected draft; never expose it to the next account.
                 allowanceCheckID = UUID()
                 allowanceChecking = false
@@ -764,7 +800,15 @@ struct SessionEditorView: View {
                 showingNotesEditor = false
                 dismiss()
             }
-            .onDisappear { voiceRecorder.stopRecording(); persistRecovery() }
+            .onDisappear {
+                voiceRecorder.stopRecording(); persistRecovery()
+                if isAnalyzing {
+                    analysisTask?.cancel()
+                    analysisAction.invalidate()
+                    isAnonymizingTranscription = false
+                    errorMessage = AIActionFailure.cancelled.localizedDescription
+                }
+            }
             .task { await refreshQuestionnaireState() }
             .task(id: auth.currentUserId) {
                 // Quiet advisory preflight on entry, before the therapist records.
@@ -801,6 +845,7 @@ struct SessionEditorView: View {
                                     requiresSaveDecision: result.requiresSaveDecision,
                                     onSave: EntitlementState.shared.canWrite ? { saveStructuredNotes($0) } : nil,
                                     accent: patientAccent)
+                    .onAppear { analysisTrace?.event(.presentation, .succeeded) }
             }
         }
         .appTextSize()
@@ -808,21 +853,20 @@ struct SessionEditorView: View {
 
     private var summaryRecordingPanel: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if voiceRecorder.recordingURL == nil || !transcriptReady {
             recordControl
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)
                 .background(patientAccent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(patientAccent.opacity(0.4), lineWidth: 1))
-            if !isWorking && voiceRecorder.recordingURL == nil {
-                Text(L10n.sessionRecordingHelp).font(.footnote).foregroundStyle(Theme.textBody)
             }
                         // Transcription starts automatically when recording
                         // stops, so this row only ever appears after a failed
                         // transcription — the recording survives for a retry.
-                        if voiceRecorder.recordingURL != nil, !isWorking {
+                        if voiceRecorder.recordingURL != nil, !transcriptReady, !isWorking {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text(transcriptReady
-                                     ? "התמלול נשמר במכשיר. אפשר לנסות שוב את עיבוד הסיכום בלי לתמלל מחדש."
+                                     ? "התמלול מוכן. אפשר לנסות שוב."
                                      : L10n.sessionPendingRecording)
                                     .foregroundStyle(.secondary)
                                 Button {
@@ -862,7 +906,7 @@ struct SessionEditorView: View {
                         if isTranscribing || isAnonymizingTranscription {
                             HStack {
                                 ProgressView()
-                                Text(isTranscribing ? L10n.transcribingLabel : L10n.anonymizingStatusLabel)
+                                Text(isTranscribing ? L10n.transcribingLabel : (isAnalyzing ? L10n.anonymizingStatusLabel : L10n.summaryPreparingStatusLabel))
                                     .foregroundStyle(.secondary)
                             }
                             .listRowBackground(groupBorderedRow(.middle))
@@ -1014,8 +1058,13 @@ struct SessionEditorView: View {
                     }
                     Divider()
                 }
+                if let result = analysisResult {
+                    Button(L10n.aiOpenAnalysisResult) {
+                        analysisResult = SessionAnalysisResult(analysis: result.analysis, requiresSaveDecision: result.requiresSaveDecision)
+                    }.disabled(isAnalyzing)
+                }
                 if isAnalyzing {
-                    HStack { ProgressView(); Text(L10n.analyzingLabel).font(.subheadline) }
+                    HStack { ProgressView(); Text(analysisStatus).font(.subheadline) }
                 } else {
                     Button { analyze() } label: {
                         Label(session.structuredNotes == nil ? L10n.aiSummaryAction : L10n.sessionRegenerate,
@@ -1024,7 +1073,7 @@ struct SessionEditorView: View {
                             .contentShape(Rectangle())
                             .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.purple.opacity(0.4)))
                     }
-                    .disabled(isWorking || !EntitlementState.shared.canWrite || session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || voiceRecorder.recordingURL != nil)
+                    .disabled(isWorking || !EntitlementState.shared.canWrite || session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (voiceRecorder.recordingURL != nil && !transcriptReady))
                 }
             }
             .font(.subheadline)
@@ -1035,6 +1084,11 @@ struct SessionEditorView: View {
         .padding(14)
         .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.purple.opacity(0.30), lineWidth: 1))
+        .alert(L10n.aiAnalysisFailedTitle, isPresented: Binding(
+            get: { analysisAlert != nil }, set: { if !$0 { analysisAlert = nil } }
+        )) { Button(L10n.closeAction) { analysisAlert = nil } }
+        message: { Text(analysisAlert ?? "") }
+
     }
 
     private var patientPicker: some View {
@@ -1147,7 +1201,6 @@ struct SessionEditorView: View {
                         .background(patientAccent.opacity(0.14), in: Circle())
                     VStack(alignment: .leading, spacing: 3) {
                         Text(L10n.recordSessionNotesAction).font(.subheadline.weight(.semibold))
-                        Text(L10n.sessionRecordingSubtitle).font(.caption).foregroundStyle(Theme.textBody)
                     }
                     Spacer(minLength: 0)
                 }
@@ -1171,6 +1224,7 @@ struct SessionEditorView: View {
         guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
         guard !isWorking, let fileURL = voiceRecorder.recordingURL else { return }
         let whisperService = WhisperService(client: auth.client)
+        if voiceRecorder.isPlaying { voiceRecorder.togglePlayback() }
         voiceRecorder.errorMessage = nil
         isTranscribing = true
         Task {
@@ -1183,7 +1237,7 @@ struct SessionEditorView: View {
                     guard owner == auth.currentUserId else { throw CancellationError() }
                     session.notes = session.notes.isEmpty ? text : session.notes + "\n\n" + text
                     transcriptReady = true
-                    // Preserve the completed transcript BEFORE anonymization can fail.
+                    // Preserve the completed transcript before subsequent checks and saving.
                     guard persistRecovery() else { throw ClientFailure.localDraft }
                 }
                 isTranscribing = false
@@ -1218,35 +1272,51 @@ struct SessionEditorView: View {
     /// the full response in a sheet.
     private func analyze() {
         guard EntitlementState.shared.allowMutation(allowLocalDemo: false) else { return }
-        guard !isWorking, voiceRecorder.recordingURL == nil else { return }
-        isAnalyzing = true
-        let whisperService = WhisperService(client: auth.client)
+        guard !isWorking, voiceRecorder.recordingURL == nil || transcriptReady else { return }
+        guard let owner = auth.currentUserId, owner == recoveryAccount,
+              let request = analysisAction.begin(owner: owner) else {
+            errorMessage = ClientFailure.expiredLogin.localizedDescription
+            analysisAlert = errorMessage
+            return
+        }
+        let notes = session.notes
+        let trace = AIActionDiagnostics()
+        analysisTrace = trace
         errorMessage = nil
-        Task {
+        analysisAlert = nil
+        trace.event(.action, .started)
+        analysisTask = Task {
+            defer {
+                if analysisAction.accepts(request, owner: auth.currentUserId) {
+                    isAnonymizingTranscription = false
+                }
+                analysisAction.finish(request)
+            }
             do {
-                // No raw text may leave the device: the notes pass the same
-                // anonymization gate as saving before they are sent for
-                // analysis. Text that is already anonymized (loaded or
-                // previously gated) skips the extra call, and the field
-                // shows the anonymized version from here on.
-                isAnonymizingTranscription = true
-                try await checkAllowance(needsTokens: true)
-                let anonymizedNotes = try await store.anonymizedText(session.notes)
+                guard persistRecovery() else { throw ClientFailure.localDraft }
+                try analysisAction.advance(.allowance, request: request, owner: auth.currentUserId)
+                try await trace.measure(.allowance) { try await checkAllowance(needsTokens: true) }
+                // analyze-session anonymizes the supplied notes on the backend.
+                try analysisAction.advance(.server, request: request, owner: auth.currentUserId)
                 isAnonymizingTranscription = false
-                isAnalyzing = true
-                let analysis = try await whisperService.analyzeSession(sessionNotes: anonymizedNotes)
-                // AI output is registered as server-provided so saving it
-                // unedited skips anonymization; only fields the therapist
-                // edits afterwards go through the Edge Function.
+                let analysis = try await WhisperService(client: auth.client).analyzeSession(sessionNotes: notes, diagnostics: trace)
+                try analysisAction.advance(.presentation, request: request, owner: auth.currentUserId)
                 store.registerAIAnalysis(analysis)
                 analysisResult = SessionAnalysisResult(analysis: analysis, requiresSaveDecision: true)
+                trace.event(.presentation, .started)
+                trace.event(.action, .succeeded)
                 gettingStartedRouter.refresh(using: store)
                 gettingStartedRouter.beginShowcaseCountdownIfNeeded(using: store)
             } catch {
-                errorMessage = error.userFacingMessage
+                guard analysisAction.accepts(request, owner: auth.currentUserId) else {
+                    trace.event(.action, .discarded); return
+                }
+                errorMessage = AIActionFailure.message(error)
+                if AIActionFailure.from(error) != .cancelled && !(error is AIDataSharingConsentDeclinedError) {
+                    analysisAlert = errorMessage
+                }
+                trace.event(.action, AIActionFailure.from(error) == .cancelled ? .cancelled : .failed, error: error)
             }
-            isAnonymizingTranscription = false
-            isAnalyzing = false
         }
     }
 
@@ -1258,7 +1328,7 @@ struct SessionEditorView: View {
         guard EntitlementState.shared.canWrite else { return }
         defer { isSaving = false }
         errorMessage = nil
-        busyLabel = L10n.anonymizingStatusLabel
+        busyLabel = L10n.sessionSaving
         do {
             guard persistRecovery() else { throw ClientFailure.localDraft }
             try await store.updateSession(session, beforeUpdate: {
@@ -1398,8 +1468,12 @@ struct SessionEditorView: View {
                                                   isExisting: true)
                 } label: {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text(L10n.hebrewDate(questionnaire.answeredDate))
-                            .font(.subheadline).foregroundStyle(Theme.textBody)
+                        HStack {
+                            Text(L10n.hebrewDate(questionnaire.answeredDate))
+                                .font(.subheadline).foregroundStyle(Theme.textBody)
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.forward").font(.caption.weight(.semibold)).foregroundStyle(Theme.gold)
+                        }
                         ViewThatFits(in: .horizontal) {
                             HStack(spacing: 12) {
                                 ScoreCapsule.gad7(questionnaire.questionnaire, previous: previousQuestionnaireRecord?.questionnaire)
@@ -1410,15 +1484,7 @@ struct SessionEditorView: View {
                                 ScoreCapsule.phq9(questionnaire.questionnaire, previous: previousQuestionnaireRecord?.questionnaire)
                             }
                         }
-                        Divider().overlay(Theme.borderFaint)
-                        HStack(spacing: 8) {
-                            Label(L10n.questionnaireCompletedLabel, systemImage: "checkmark.circle.fill")
-                                .font(.subheadline.weight(.medium))
-                            Spacer(minLength: 4)
-                            Image(systemName: "chevron.forward").font(.caption.weight(.semibold))
-                        }
-                        .foregroundStyle(Theme.gold)
-                        .frame(minHeight: 44)
+
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
@@ -1429,7 +1495,7 @@ struct SessionEditorView: View {
                 therapistQuestionnaireEntryRow
                 if let patient = storePatient {
                     Divider().overlay(Theme.borderFaint)
-                    QuestionnaireAccessControl(patient: patient)
+                    QuestionnaireAccessControl(patient: patient, compact: true)
                 }
             }
         }
@@ -1446,10 +1512,8 @@ struct SessionEditorView: View {
             } label: {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Label(L10n.fillQuestionnaireHereAction, systemImage: "square.and.pencil")
+                        Label("מילוי עכשיו", systemImage: "square.and.pencil")
                             .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.gold)
-                        Text(L10n.questionnaireSessionEntryHelp)
-                            .font(.footnote).foregroundStyle(Theme.textBody)
                     }
                     Spacer(minLength: 4)
                     Image(systemName: "chevron.forward")
@@ -1508,12 +1572,12 @@ struct SessionEditorView: View {
     private func save(thenDismiss: Bool = false, closeNotesEditor: Bool = false) {
         guard EntitlementState.shared.allowMutation() else { return }
         guard canSave, let patient = storePatient else { return }
+        FeatureDiscovery.shared.requestWeb(account: auth.currentUserId, patient: patient.id, session: session.id, demo: store.isDemoMode)
+        FeatureDiscovery.shared.saving = true
+        voiceDiscoveryPending = false
         errorMessage = nil
-        // Only promise anonymization when there is text that may actually be
-        // sent to the anonymizer; otherwise show a plain spinner.
-        let hasText = !session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || session.structuredNotes != nil
-        busyLabel = hasText ? L10n.anonymizingStatusLabel : nil
+        // Saving uses the encrypted clinical record API.
+        busyLabel = L10n.sessionSaving
         isSaving = true
         Task {
             do {
@@ -1533,6 +1597,7 @@ struct SessionEditorView: View {
                         guard persistRecovery() else { pendingCreation = false; throw ClientFailure.localDraft }
                     })
                     guard owner == auth.currentUserId else { throw CancellationError() }
+                    FeatureDiscovery.shared.sessionCreated(session, patient: patient, account: owner, demo: store.isDemoMode)
                     clearRecoveryAfterSave()
                     recoveryClosed = true
                     showingNotesEditor = false
@@ -1567,6 +1632,10 @@ struct SessionEditorView: View {
                 errorMessage = pendingCreation ? uncertainSaveMessage : error.userFacingMessage
             }
             isSaving = false
+            if recoveryAccount == auth.currentUserId {
+                FeatureDiscovery.shared.saving = false
+                FeatureDiscovery.shared.feedbackVisible = errorMessage != nil
+            }
         }
     }
 }

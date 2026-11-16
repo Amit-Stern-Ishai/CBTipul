@@ -80,6 +80,11 @@ struct DiaryTwoEntryDetailView: View {
                     DiaryTwoEntryContent(event: entry.event, automaticThoughts: entry.automaticThoughts,
                         feelings: entry.feelings, thinkingErrors: entry.thinkingErrors, alternativeThoughts: entry.alternativeThoughts)
                 }.padding(20)
+                .task(id: entry.id) {
+                    guard entry.createdBy == .patient, entry.patientId == patient.id,
+                          let key = DiaryNotificationKey(patientID: patient.id.queryValue, resourceType: "diary_two_entry", entryID: entry.id.uuidString) else { return }
+                    await NotificationStore.shared?.markDiaryEntryRead(key)
+                }
             }
         }
         .themedScreen().demoModeChrome()

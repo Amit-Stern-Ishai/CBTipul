@@ -5,6 +5,13 @@ import Testing
 
 @MainActor struct ClinicalRecordSaveTests {
     let old = ClinicalLoadedRecord(values: ["id": .string("9223372036854775807"), "_version": .string("v1"), "notes": .null, "combined_notes": .object(["gad7": .array([.string("old")])])])
+    @Test func savingCopyIsDistinctFromAIInputProtection() {
+        #expect(L10n.wwSavingToFile == "שומר…")
+        #expect(L10n.sessionSaving == "שומר את הפגישה…")
+        #expect(L10n.summaryPreparingStatusLabel == "מכין את הסיכום…")
+        #expect(L10n.anonymizingStatusLabel.contains("AI"))
+        #expect(!L10n.anonymizationFailedError.contains("לא נשמר"))
+    }
     @Test func changedFieldsAndExplicitClears() throws {
         let body = try ClinicalRecordSave.request(previous: old, proposed: ["notes": .string(""), "combined_notes": .null, "patient_id": .string("immutable")])
         #expect(body["id"] == .string("9223372036854775807"))

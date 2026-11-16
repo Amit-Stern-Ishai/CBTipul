@@ -30,7 +30,7 @@ fun AppContextRepository.bindAuthentication(
             // auth notification from its confirmed anonymous sign-in.
             if (invitation) { accepted = session; return@collectLatest }
             val changed = accepted != session || boundIdentity != session?.userId
-            if (changed) { authenticationChanged(session?.userId); accepted = session }
+            if (changed) { authenticationChanged(session?.userId, tokenRefresh = session?.isTokenRefresh == true); accepted = session }
             if (session != null && !invitation && (changed || current.value == null || loadState.value is AppContextLoadState.Failed)) {
                 runCatching { getCurrentAppContext() }
             }

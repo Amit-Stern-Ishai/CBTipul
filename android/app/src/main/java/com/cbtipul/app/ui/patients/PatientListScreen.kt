@@ -89,6 +89,9 @@ fun PatientListScreen(
     val workspaceApp = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
     val workspaceState by workspaceApp.webWorkspaces.state.collectAsStateWithLifecycle()
     val patients by viewModel.patients.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(patients) {
+        if(com.cbtipul.app.BuildConfig.DEBUG && patients.isNotEmpty()) android.util.Log.i("PatientLaunchTrace", "rows_composed t=${android.os.SystemClock.elapsedRealtime()} count=${patients.size} resolved=${patients.count {!it.localName.isNullOrEmpty()}}")
+    }
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
     val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
@@ -99,12 +102,9 @@ fun PatientListScreen(
     val activityIdentity by com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle()
     val dismissalRevision by workspaceApp.recentActivityDismissals.revision.collectAsStateWithLifecycle()
     val activityOwner = if (isDemoMode) "local-demo" else activityIdentity.identity
-    val recentCounts = remember(patients, one, two, three, questionnaires, activityOwner, dismissalRevision) {
-        patients.associate { patient ->
-            val id = patient.id.queryValue
-            id to recentSubmissions(patient, one[id].orEmpty(), two[id].orEmpty(), three[id].orEmpty(),
-                questionnaires[id].orEmpty(), workspaceApp.recentActivityDismissals, activityOwner).size
-        }
+    val notifications by workspaceApp.notifications.items.collectAsStateWithLifecycle()
+    val recentCounts = remember(notifications) {
+        com.cbtipul.app.data.DiaryNotificationReadState.unreadKeys(notifications).groupingBy {it.patientId}.eachCount()
     }
     val colors = Theme.colors
     val listState = rememberLazyListState()
@@ -250,7 +250,7 @@ fun PatientListScreen(
                                             unnamed = unnamed,
                                             onClick = { onOpenPatient(patient.id.queryValue) },
                                             pulse = pulse,
-                                            recentSubmissionCount = recentCounts[patient.id.queryValue] ?: 0,
+                                            recentSubmissionCount = recentCounts[patient.id.queryValue.lowercase()] ?: 0,
                                         )
                                     }
                                 }

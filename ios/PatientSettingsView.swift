@@ -13,6 +13,7 @@ struct PatientSettingsView: View {
     @State private var returnHomeAfterIntroduction = false
     @State private var isConfirmingLeave = false
     @State private var isLeaving = false
+    @State private var deletionBusy = false
     @State private var leaveError: String?
 
     private var appVersionLine: String {
@@ -24,6 +25,15 @@ struct PatientSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if !auth.isAnonymous, let email = auth.currentUserEmail, !email.isEmpty {
+                    Section("מייל לכניסה") {
+                        Text(email)
+                            .textSelection(.enabled)
+                            .environment(\.layoutDirection, .leftToRight)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                }
+
                 Section {
                     Button { showIntroduction = true } label: {
                         Label(L10n.introductionReview, systemImage: "rectangle.stack")
@@ -106,10 +116,13 @@ struct PatientSettingsView: View {
                         Text(L10n.patientLeaveModeAction)
                             .frame(maxWidth: .infinity)
                     }
-                    .disabled(isLeaving)
+                    .disabled(isLeaving || deletionBusy)
                 }
                 .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
 
+                #if DEBUG
+                PatientDeleteAccountSection { deletionBusy = $0 }
+                #endif
                 Section {
                     Text(appVersionLine)
                         .font(.footnote)
@@ -139,7 +152,7 @@ struct PatientSettingsView: View {
                     } label: {
                         Label(L10n.back, systemImage: "chevron.backward")
                     }
-                    .disabled(isLeaving)
+                    .disabled(isLeaving || deletionBusy)
                 }
             }
             .alert(L10n.patientLeaveModeConfirmTitle, isPresented: $isConfirmingLeave) {
@@ -179,7 +192,7 @@ struct PatientSettingsView: View {
                 .appTextSize()
             }
             .busyOverlay(isLeaving)
-            .interactiveDismissDisabled(isLeaving)
+            .interactiveDismissDisabled(isLeaving || deletionBusy)
         }
         .appTextSize()
     }
@@ -213,7 +226,7 @@ struct PatientSettingsView: View {
 
     private func leavePatientMode() async {
         guard !isLeaving else { return }
-        guard auth.isAnonymous, !auth.isTherapistAuthenticated else {
+        guard auth.hasSession else {
             leaveError = L10n.patientLeaveModeFailed
             return
         }

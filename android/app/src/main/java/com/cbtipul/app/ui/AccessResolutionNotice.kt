@@ -28,18 +28,19 @@ import com.cbtipul.app.ui.theme.Theme
 @Composable
 fun AccessResolutionNotice(state: AppContextLoadState, onRetry: () -> Unit) {
     val failed = state as? AppContextLoadState.Failed
+    val loading = state is AppContextLoadState.Loading
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (failed == null) CircularProgressIndicator(color = Theme.colors.gold)
-            Text(stringResource(if (failed == null) R.string.access_resolution_loading_title else R.string.access_resolution_failed_title), color = Theme.colors.textBright)
+            if (loading) CircularProgressIndicator(color = Theme.colors.gold)
+            Text(stringResource(if (loading) R.string.access_resolution_loading_title else R.string.access_resolution_failed_title), color = Theme.colors.textBright)
         }
         Text(stringResource(when (failed?.reason) {
             AppContextFailure.MissingEntitlement -> R.string.access_resolution_missing_body
             AppContextFailure.SessionInitialization -> R.string.access_resolution_session_body
-            null -> R.string.access_resolution_loading_body
+            null -> if (loading) R.string.access_resolution_loading_body else R.string.access_resolution_failed_body
             else -> R.string.access_resolution_failed_body
         }), color = Theme.colors.textBody)
-        if (failed != null) TextButton(onClick = onRetry) { Text(stringResource(R.string.retry), color = Theme.colors.gold) }
+        if (!loading) TextButton(onClick = onRetry) { Text(stringResource(R.string.retry), color = Theme.colors.gold) }
     }
 }
 

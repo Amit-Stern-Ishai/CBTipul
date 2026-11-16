@@ -143,6 +143,14 @@ class PatientInvitationFlow internal constructor(
                     return@launch
                 }
                 if (session != null && !session.isAnonymous) {
+                    // Auth anonymity is not a role: preserve linked email patients too.
+                    failure = ActivationFailure.Context
+                    val context = d.context()
+                    check(d.session() == session)
+                    if (context.role != AppRole.Therapist) {
+                        _phase.value = InvitationPhase.ExistingPatient
+                        return@launch
+                    }
                     if (didSucceedClaim) {
                         _phase.value = InvitationPhase.ActivationFailed(ActivationFailure.Context); return@launch
                     }

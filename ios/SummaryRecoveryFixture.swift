@@ -12,7 +12,7 @@ struct SummaryRecoveryFixture: View {
     private static var didReset = false
     @State private var auth: AuthManager
     @State private var store: PatientStore
-    @State private var presented = true
+    @State private var presented = false
     private let patient: Patient
     init() {
         let config = URLSessionConfiguration.ephemeral
@@ -55,7 +55,7 @@ struct SummaryRecoveryFixture: View {
                     try audio.write(from: buffer)
                     let key = try DeviceDraftStorage.key(userID: AuthManager.uiTestingUserId,
                         kind: "therapist-session", target: "new:987654321")
-                    let value = SessionRecovery(date: .now, notes: " ", type: nil, structuredNotes: nil,
+                    let value = SessionRecovery(date: .now, notes: " ", type: .intake, structuredNotes: nil,
                         selectedPatientID: nil, audioFileName: url.lastPathComponent, transcriptReady: false)
                     try storage.save(value, key: key)
                 } catch { assertionFailure("Synthetic audio setup failed") }
@@ -63,15 +63,24 @@ struct SummaryRecoveryFixture: View {
             for key in ["allowance", "transcribe", "anonymize", "insert", "committed"] { UserDefaults.standard.removeObject(forKey: "summary-fixture." + key) }
         }
     }
+    private var syntheticSession: Session {
+        let session = Session(notes: " ")
+        session.type = .intake
+        return session
+    }
     var body: some View {
         VStack {
             Text("בדיקת שחזור בלבד")
             Button("פתיחת סיכום בדיקה") { presented = true }.accessibilityIdentifier("fixture.open")
             metrics
         }
+        .task {
+            _ = try? await auth.client.auth.signIn(email: "synthetic@example.invalid", password: "unused")
+            presented = true
+        }
         .sheet(isPresented: $presented) {
             VStack(spacing: 0) {
-                SessionEditorView(session: Session(notes: " "), patient: patient, isNew: true)
+                SessionEditorView(session: syntheticSession, patient: patient, isNew: true)
                 metrics
             }
             .environment(auth).environment(store).environment(GettingStartedRouter()).environment(OnboardingStore())
@@ -98,7 +107,11 @@ nonisolated final class SummaryFixtureProtocol: URLProtocol, @unchecked Sendable
             let key = "summary-fixture." + step
             UserDefaults.standard.set(UserDefaults.standard.integer(forKey: key) + 1, forKey: key)
         }
-        if path.hasSuffix("get_my_ai_allowance") {
+        if path == "/auth/v1/token" {
+            body = #"{"access_token":"synthetic","refresh_token":"synthetic","token_type":"bearer","expires_in":3600,"expires_at":4102444800,"user":{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","aud":"authenticated","app_metadata":{},"user_metadata":{},"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}"#
+        } else if path.hasSuffix("load-sessions") {
+            body = #"{"records":[],"next_cursor":null}"#
+        } else if path.hasSuffix("get_my_ai_allowance") {
             count("allowance")
             body = #"{"checked_at":"2026-10-22T09:00:00Z","usage_month":"2026-10","resets_at":"2026-11-01T00:00:00Z","chat_tokens":{"limit":1000000,"used":0,"remaining":1000000,"exhausted":false,"code":null},"transcription_seconds":{"limit":10000,"used":0,"remaining":10000,"exhausted":false,"code":null}}"#
             if ProcessInfo.processInfo.arguments.contains("-SummaryAllowanceLow") {
@@ -118,17 +131,23 @@ nonisolated final class SummaryFixtureProtocol: URLProtocol, @unchecked Sendable
                 status = 429
                 body = #"{"monthlyLimit":1000000,"usedTokens":1004700,"remainingTokens":0}"#
             } else { body = #"{"anonymizedText":"סיכום מוגן לבדיקה"}"# }
-        } else if path.hasSuffix("Sessions") && request.httpMethod == "POST" {
+        } else if path.hasSuffix("save-session") && request.httpMethod == "POST" {
             count("insert")
             if ProcessInfo.processInfo.arguments.contains("-SummaryNeverReached") {
                 // A transport failure before simulated server execution.
                 client?.urlProtocol(self, didFailWithError: URLError(.timedOut)); return
             }
+            if failure {
+                status = 503
+                body = #"{"error":"service_unavailable"}"#
+                client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: Data(body.utf8)); client?.urlProtocolDidFinishLoading(self); return
+            }
             count("committed")
             if ProcessInfo.processInfo.arguments.contains("-SummaryUncertainSave") && UserDefaults.standard.integer(forKey: "summary-fixture.insert") == 1 {
                 client?.urlProtocol(self, didFailWithError: URLError(.timedOut)); return
             }
-            body = #"{"id":987654322}"#
+            body = #"{"record":{"id":"987654322","patient_id":"987654321","session_date":"2026-11-02","notes":"Synthetic recovery note","structured_notes":null,"type":null,"_version":"synthetic-v1"}}"#
         }
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)

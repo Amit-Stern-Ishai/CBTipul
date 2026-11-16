@@ -39,6 +39,11 @@ import androidx.compose.ui.unit.sp
 import com.cbtipul.app.R
 import com.cbtipul.app.ui.theme.Theme
 
+enum class DeletionPhrase(val text: String) {
+    Patient("מחיקת מטופל"), Account("מחיקת חשבון"), Session("מחיקת פגישה"), Questionnaire("מחיקת שאלוני מצב הרוח");
+    fun matches(input: String) = input.trim() == text
+}
+
 @Composable
 fun ConfirmDeleteOverlay(
     visible: Boolean,
@@ -47,8 +52,10 @@ fun ConfirmDeleteOverlay(
     confirmLabel: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    phrase: DeletionPhrase? = null,
 ) {
     if (!visible) return
+    var input by remember(phrase) { mutableStateOf("") }
     val colors = Theme.colors
     AppDialogOverlay(onDismiss = onDismiss) {
         Text(
@@ -64,8 +71,15 @@ fun ConfirmDeleteOverlay(
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Right,
         )
+        if (phrase != null) {
+            Text(stringResource(R.string.delete_code_message, phrase.text), color = colors.textBody)
+            OutlinedTextField(value = input, onValueChange = { input = it }, singleLine = true,
+                modifier = Modifier.editorFocus().fillMaxWidth(),
+                textStyle = TextStyle(color = colors.textBright, textDirection = TextDirection.Rtl, textAlign = TextAlign.Right),
+                placeholder = { Text(stringResource(R.string.delete_code_placeholder)) })
+        }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = { if (phrase == null || phrase.matches(input)) onConfirm() }, enabled = phrase == null || phrase.matches(input)) {
                 Text(confirmLabel, color = colors.error)
             }
             TextButton(onClick = onDismiss) {
@@ -77,14 +91,14 @@ fun ConfirmDeleteOverlay(
 
 @Composable
 fun DeleteCodeDialog(
+    phrase: DeletionPhrase,
     visible: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     if (!visible) return
     val colors = Theme.colors
-    var code by remember { mutableStateOf(randomCode()) }
-    var input by remember { mutableStateOf("") }
+    var input by remember(phrase) { mutableStateOf("") }
     var mismatch by remember { mutableStateOf(false) }
     AppDialogOverlay(onDismiss = onDismiss) {
         Text(
@@ -95,28 +109,29 @@ fun DeleteCodeDialog(
             textAlign = TextAlign.Right,
         )
         Text(
-            stringResource(R.string.delete_code_message, code),
+            stringResource(R.string.delete_code_message, phrase.text),
             color = colors.textBody,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Right,
         )
         OutlinedTextField(
             value = input,
-            onValueChange = { input = it.uppercase() },
+            onValueChange = { input = it },
             modifier = Modifier.editorFocus().fillMaxWidth(),
             singleLine = true,
             textStyle = TextStyle(
                 color = colors.textBright,
-                textDirection = TextDirection.Ltr,
-                textAlign = TextAlign.Left,
+                textDirection = TextDirection.Rtl,
+                textAlign = TextAlign.Right,
                 fontSize = 16.sp,
             ),
             placeholder = { Text(stringResource(R.string.delete_code_placeholder)) },
         )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(
+                enabled = phrase.matches(input),
                 onClick = {
-                    if (input.trim().equals(code, ignoreCase = true)) {
+                    if (phrase.matches(input)) {
                         onConfirm()
                     } else {
                         mismatch = true
@@ -216,9 +231,4 @@ fun AppDialogOverlay(
             )
         }
     }
-}
-
-private fun randomCode(): String {
-    val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    return (1..8).map { chars.random() }.joinToString("")
 }

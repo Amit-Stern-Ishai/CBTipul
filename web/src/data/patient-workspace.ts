@@ -66,11 +66,11 @@ export function decodeNamePage(value: unknown): {
     next_after: p.next_after,
   };
 }
-export async function patientNames(account: string) {
+async function patientNameRows(account: string) {
   const done = await guard();
   await consents.require(account, "patient_name_storage");
   done();
-  const result: Record<string, string> = {},
+  const result: Record<string, NameRow> = {},
     seen = new Set<string>();
   let after: string | null = null;
   do {
@@ -96,13 +96,27 @@ export async function patientNames(account: string) {
     }
     const page = decodeNamePage(response.data);
     page.names.forEach((n) => {
-      if (n.name) result[n.patient_id] = n.name;
+      result[n.patient_id] = n;
     });
     after = page.next_after;
     if (after && seen.has(after)) throw new ApiError("invalid_response");
     if (after) seen.add(after);
   } while (after);
   return result;
+}
+export async function patientNames(account:string):Promise<Record<string,string>> {
+ const rows=await patientNameRows(account);
+ return Object.fromEntries(Object.values(rows).filter(r=>r.name!==null).map(r=>[r.patient_id,r.name!]));
+}
+export async function savePatientName(account:string,id:string,name:string) {
+ const done=await guard();
+ if(!name.trim() || [...name].length>200 || /[\x00-\x1f\x7f]/.test(name))throw new ApiError("invalid_request");
+ const rows=await patientNameRows(account);done();
+ const row=rows[canonical(id)];if(!row)throw new ApiError("invalid_response");
+ const {data,error}=await db.functions.invoke("patient-names",{body:{operation:"set",patient_id:id,name,expected_revision:row.revision}});
+ done();
+ if(error)throw new ApiError("names_unavailable");
+ if(!data || canonical(data.patient_id??"")!==canonical(id) || typeof data.revision!=="string" || !/^\d+$/.test(data.revision) || typeof data.updated_at!=="string" || !data.updated_at || typeof data.unchanged!=="boolean")throw new ApiError("invalid_response");
 }
 export async function patientDirectory() {
   const done = await guard();

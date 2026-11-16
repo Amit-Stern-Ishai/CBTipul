@@ -30,27 +30,9 @@ final class PatientIdentityStore {
         ]
     }
 
-    /// Saves or updates the name stored for a patient.
-    func save(patientID: DatabaseID, name: String) throws {
-        let data = Data(name.utf8)
-        let query = Self.query(for: patientID.queryValue)
-        let update: [String: Any] = [kSecValueData as String: data]
-        var status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-        if status == errSecItemNotFound {
-            var attributes = query
-            attributes[kSecValueData as String] = data
-            attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            status = SecItemAdd(attributes as CFDictionary, nil)
-        }
-        guard status == errSecSuccess else {
-            throw PatientIdentityStoreError.keychainFailure(status)
-        }
-        PatientNameResolver.setDisplayName(name, forPatientId: patientID.queryValue)
-    }
-
     /// The name stored for a patient, or nil when there is no mapping or the
     /// stored value is unreadable.
-    func name(for patientID: DatabaseID) -> String? {
+    func legacyName(for patientID: DatabaseID) throws -> String? {
         var query = Self.query(for: patientID.queryValue)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -60,11 +42,11 @@ final class PatientIdentityStore {
             if status != errSecItemNotFound {
                 logger.error("Reading patient name failed: \(status)")
             }
-            return nil
+            if status == errSecItemNotFound { return nil }
+            throw PatientIdentityStoreError.keychainFailure(status)
         }
         guard let data = result as? Data, let name = String(data: data, encoding: .utf8) else {
-            logger.error("Stored patient name is unreadable; ignoring it")
-            return nil
+            throw PatientIdentityStoreError.keychainFailure(errSecDecode)
         }
         return name
     }
@@ -79,53 +61,4 @@ final class PatientIdentityStore {
         PatientNameResolver.removeDisplayName(forPatientId: patientID.queryValue)
     }
 
-    /// Upserts a patientID → name mapping for every patient. Safe to run
-    /// repeatedly: unchanged names are left untouched (sparing iCloud
-    /// Keychain sync churn). Failures are logged and never thrown, so they
-    /// cannot prevent the patient list from loading.
-    ///
-    /// Saves the backend name, never the resolved display name — and never
-    /// an empty one, so a backend without names can't erase stored ones.
-    func upsertIdentities(for patients: [Patient]) {
-        for patient in patients {
-            let name = patient.backendName
-            guard !name.isEmpty else { continue }
-            guard self.name(for: patient.id) != name else { continue }
-            do {
-                try save(patientID: patient.id, name: name)
-            } catch {
-                logger.error("Saving patient name failed: \(error)")
-            }
-        }
-        mirrorExistingNamesToAppGroup()
-    }
-
-    /// Copies existing Keychain names into App Group storage for the
-    /// Notification Service Extension in legacy flows. Updated patient loading
-    /// mirrors resolved names through PatientStore instead.
-    func mirrorExistingNamesToAppGroup() {
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.service,
-            kSecAttrSynchronizable as String: true,
-            kSecReturnAttributes as String: true,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitAll,
-        ]
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let items = result as? [[String: Any]] else {
-            if status != errSecItemNotFound {
-                logger.error("Mirroring patient names failed: \(status)")
-            }
-            return
-        }
-        for item in items {
-            guard let account = item[kSecAttrAccount as String] as? String,
-                  let data = item[kSecValueData as String] as? Data,
-                  let name = String(data: data, encoding: .utf8)
-            else { continue }
-            PatientNameResolver.setDisplayName(name, forPatientId: account)
-        }
-    }
 }

@@ -221,6 +221,9 @@ final class DiaryTwoStore {
                     .execute()
                     .value
                 upsertCache(saved)
+                if therapistId == client.auth.currentUser?.id {
+                    FeatureDiscovery.shared.requestMilestone(.diaryTwo, account: therapistId.uuidString, patient: patientId, entry: saved.id, demo: false)
+                }
                 AppLog.store.info("Diary 2 entry created")
                 return saved
             } catch {

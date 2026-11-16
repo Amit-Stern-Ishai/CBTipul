@@ -62,6 +62,7 @@ struct TherapistRootView: View {
         .tint(Theme.gold)
         .toolbarBackground(.visible, for: .tabBar)
         .accessibilityIdentifier("therapist.root")
+        .modifier(WebDiscoveryHost())
         .onChange(of: coordinator.selectedTab) { _, tab in
             if tab != .patients { coordinator.cancelInboxReturn() }
         }
@@ -82,7 +83,6 @@ struct TherapistRootView: View {
         }
         .task {
             coordinator.markTherapistRootReady()
-            store.loadCachedPatients()
             if store.isDemoMode {
                 notificationStore.isDemoInbox = true
                 notificationStore.clear()

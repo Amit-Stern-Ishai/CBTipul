@@ -149,10 +149,15 @@ class CbTipulApp : Application() {
         demoClinicStore = DemoClinicStore(this)
         val anonymizer = ClinicalTextAnonymizer(client, aiConsentStore)
         val nameSync = com.cbtipul.app.data.PatientNameSync.live(client, formDrafts, applicationScope) { id -> identityStore.legacyName(com.cbtipul.app.model.DatabaseId.Text(id)) }
-        identityStore.resolvedName = { id -> nameSync.displayed(id.queryValue, identityStore.legacyName(id)) }
+        nameSync.removeConfirmedLegacy = { id -> identityStore.removeConfirmedLegacy(id) }
+        identityStore.resolvedName = { id -> nameSync.displayed(id.queryValue, null) }
         applicationScope.launch {
-            authRepository.contextSessionChanges.collect { session ->
-                nameSync.setAccount(if (authRepository.isAnonymousSession()) null else session?.userId)
+            kotlinx.coroutines.flow.combine(
+                authRepository.contextSessionChanges.map { it?.userId }.distinctUntilChanged(),
+                com.cbtipul.app.data.Entitlements.state,
+            ) { owner, state -> owner to state }.collect { (owner, state) ->
+                nameSync.updateAuthenticatedContext(owner, state)
+                applicationScope.launch { nameSync.refresh(true) }
             }
         }
         patientRepository = PatientRepository(

@@ -1,8 +1,13 @@
 import SwiftUI
 import OSLog
 
+private struct CreatedPatientInvitationRoute: Hashable {
+    let patient: Patient
+}
+
 /// Lists the therapist's patients and allows adding new ones.
 struct PatientListView: View {
+    @Environment(NotificationStore.self) private var notifications
     @Environment(PatientStore.self) private var store
     @Environment(WebWorkspaceStore.self) private var workspaces
     @Environment(AuthManager.self) private var auth
@@ -14,8 +19,8 @@ struct PatientListView: View {
     @Environment(TherapistNotificationCoordinator.self) private var notificationCoordinator
 
     @Environment(\.scenePhase) private var nameSyncScenePhase
-    @State private var showingNameSetup = false
     @State private var isAddingPatient = false
+    @State private var pendingCreatedInvitation: (patient: Patient, account: String?)?
     @State private var isLoading = false
     @State private var hasFinishedInitialLoad = false
     @State private var loadError: String?
@@ -52,20 +57,10 @@ struct PatientListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("patients.root")
-            .sheet(isPresented: $showingNameSetup) { PatientNameSetupView(sync: store.nameSync, logout: { store.nameSync.setAccount(nil); auth.signOut() }) }
             .onChange(of: nameSyncScenePhase) { _, phase in
                 if phase == .active && !store.isDemoMode { Task { await store.nameSync.refresh() } }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                if !store.isDemoMode && (!store.nameSync.accepted || store.nameSync.failed || store.nameSync.hasPending) {
-                    Button {
-                        if store.nameSync.accepted { Task { await store.nameSync.refresh(force: true) } }
-                        else { showingNameSetup = true }
-                    } label: {
-                        Label(store.nameSync.accepted ? "סנכרון שמות ממתין — ניסיון נוסף" : "הגדרת סנכרון שמות", systemImage: "arrow.triangle.2.circlepath")
-                            .font(.footnote).frame(minHeight: 44)
-                    }.disabled(store.nameSync.busy)
-                }
                 if !store.isDemoMode && workspaces.associationCount > 0 {
                     NavigationLink(value: WebWorkspaceInboxRoute()) {
                         Label(L10n.wwPendingCount(workspaces.associationCount), systemImage: "tray.full")
@@ -90,6 +85,9 @@ struct PatientListView: View {
             // Destinations outlive the pending-count banner, including the final association.
             .navigationDestination(for: WebWorkspaceInboxRoute.self) { _ in WebWorkspaceInboxView() }
             .navigationDestination(for: WebWorkspaceRoute.self) { route in WebWorkspacePreview(id: route.id).id(route.id) }
+            .navigationDestination(for: CreatedPatientInvitationRoute.self) { route in
+                PatientDetailView(patient: route.patient, discoverInvitation: true)
+            }
             .navigationDestination(for: Patient.self) { patient in
                 PatientDetailView(patient: patient)
             }
@@ -157,8 +155,17 @@ struct PatientListView: View {
             .sheet(isPresented: $isAddingPatient, onDismiss: {
                 gettingStartedRouter.setPlacement(.patientList)
                 refreshProgress()
+                if let pending = pendingCreatedInvitation {
+                    pendingCreatedInvitation = nil
+                    if pending.account == auth.currentUserId, !store.isDemoMode,
+                       store.patients.contains(where: { $0.id == pending.patient.id }) {
+                        path.append(CreatedPatientInvitationRoute(patient: pending.patient))
+                    }
+                }
             }) {
-                AddPatientView()
+                AddPatientView(onInviteCreatedPatient: { patient in
+                    pendingCreatedInvitation = (patient, auth.currentUserId)
+                })
             }
             .onChange(of: tutorialProgressSignature) { _, _ in
                 refreshProgress()
@@ -296,6 +303,13 @@ struct PatientListView: View {
                 PatientListRow(patient: patient, recentSubmissionCount: recentSubmissionCount(for: patient), directoryStyle: true)
                     .tutorialPulse(isTutorialFocus)
             }
+            .onAppear {
+                #if DEBUG
+                if patient.id == patients.first?.id {
+                    print("PatientLaunchTrace rows_visible t=\(ProcessInfo.processInfo.systemUptime) count=\(patients.count) resolved=\(patients.filter { $0.localName != nil }.count)")
+                }
+                #endif
+            }
             .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16))
             .listRowBackground(
                 RoundedRectangle(cornerRadius: 14)
@@ -314,18 +328,11 @@ struct PatientListView: View {
         }
     }
 
-    /// Read cached clinical submissions without making one network request per row.
+    /// A diary entry is one unread item even if multiple notifications reference it.
     private func recentSubmissionCount(for patient: Patient) -> Int {
-        let cutoff = patient.sessions.map(\.date).filter { $0 <= .now }.max()
-        let owner = store.isDemoMode ? "local-demo" : auth.currentUserId
-        func isRecent(_ date: Date, id: String) -> Bool {
-            (cutoff.map { date > $0 } ?? true)
-                && !activityDismissals.contains(id, owner: owner, patientID: patient.id)
-        }
-        return diaryOne.entries(for: patient.id).filter { $0.createdBy == .patient && isRecent($0.createdAt, id: "diary-one-\($0.id.uuidString)") }.count
-            + diaryTwo.entries(for: patient.id).filter { $0.createdBy == .patient && isRecent($0.createdAt, id: "diary-two-\($0.id.uuidString)") }.count
-            + diaryThree.entries(for: patient.id).filter { $0.createdBy == .patient && isRecent($0.createdAt, id: "diary-three-\($0.id.uuidString)") }.count
-            + (store.cachedQuestionnaires(for: patient) ?? []).filter { $0.isPatientSubmitted && isRecent($0.answeredDate, id: "questionnaire-\($0.id.queryValue)") }.count
+        DiaryNotificationReadState.unreadKeys(notifications.notifications).filter {
+            $0.patientID == patient.id.queryValue.lowercased()
+        }.count
     }
 
     /// Alphabetical within each status group.
@@ -366,7 +373,6 @@ struct PatientListView: View {
     }
 
     private func load() async {
-        store.loadCachedPatients()
         refreshProgress()
         isLoading = true
         loadError = nil

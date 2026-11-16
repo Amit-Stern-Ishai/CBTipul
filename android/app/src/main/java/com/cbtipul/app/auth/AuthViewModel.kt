@@ -320,9 +320,9 @@ class AuthViewModel(
             AuthErrorKind.NotConfigured -> notConfigured
             AuthErrorKind.EmailNotConfirmed -> emailNotConfirmed
             AuthErrorKind.TooManyRequests -> tooManyRequests
-            AuthErrorKind.VerificationFailed -> notConfigured
+            AuthErrorKind.VerificationFailed -> "לא ניתן לאמת את ההתחברות. נסו להתחבר שוב."
         }
-        else -> error.message ?: error.toString()
+        else -> authFailureMessage(error)
     }
 
     class Factory(
@@ -334,4 +334,27 @@ class AuthViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
             AuthViewModel(auth, preferences, patients) as T
     }
+}
+
+/** Only structured codes are classified; server descriptions never reach the UI. */
+internal fun authFailureMessage(error: Throwable): String {
+    val code = (error as? io.github.jan.supabase.auth.exception.AuthRestException)?.errorCode?.value
+    val network = generateSequence(error) { it.cause }.any {
+        it is java.io.IOException || it is io.ktor.client.plugins.HttpRequestTimeoutException
+    }
+    return authFailureCopy(code, network)
+}
+internal fun authFailureCopy(code: String?, network: Boolean = false): String = when (code) {
+    "invalid_credentials", "user_not_found" -> "כתובת המייל או הסיסמה שגויות. בדקו את הפרטים ונסו שוב."
+    "email_not_confirmed", "provider_email_needs_verification" -> "כתובת המייל עדיין לא אומתה. פתחו את קישור האימות שנשלח אליכם."
+    "over_request_rate_limit", "over_email_send_rate_limit", "over_sms_send_rate_limit" -> "נשלחו יותר מדי בקשות. המתינו מעט ונסו שוב."
+    "weak_password" -> "הסיסמה אינה עומדת בדרישות. בחרו סיסמה בהתאם לכללים המוצגים."
+    "same_password" -> "בחרו סיסמה שונה מהסיסמה הנוכחית."
+    "email_address_invalid", "validation_failed" -> "בדקו את כתובת המייל ואת שאר הפרטים ונסו שוב."
+    "user_already_exists", "email_exists" -> "לא ניתן להירשם עם הפרטים האלה. נסו להתחבר או לאפס סיסמה."
+    "otp_expired", "flow_state_expired", "flow_state_not_found" -> "קישור האימות אינו תקף עוד. בקשו קישור חדש ונסו שוב."
+    "user_banned" -> "לא ניתן להתחבר לחשבון הזה. פנו לתמיכה לקבלת עזרה."
+    "signup_disabled", "email_provider_disabled" -> "ההרשמה אינה זמינה כרגע. נסו שוב מאוחר יותר או פנו לתמיכה."
+    else -> if (network) "לא ניתן להתחבר כרגע. בדקו את החיבור לאינטרנט ונסו שוב."
+        else "לא ניתן להשלים את הפעולה כרגע. נסו שוב בעוד מעט."
 }

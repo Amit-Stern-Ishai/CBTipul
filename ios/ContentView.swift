@@ -48,6 +48,7 @@ struct MyApp: App {
         let appContext = AppContextService(client: auth.client)
         let webWorkspaces = WebWorkspaceStore(client: auth.client)
         _webWorkspaces = State(initialValue: webWorkspaces)
+        auth.onSessionStarted = { appContext.clear() }
         auth.onIdentityChanged = { appContext.clear(); webWorkspaces.clear(); store.clearSummaryProcessingCache() }
         webWorkspaces.refreshRecords = { patientID in
             var succeeded = true
@@ -74,7 +75,9 @@ struct MyApp: App {
             AppVersionGateView {
                 #if DEBUG
                 if ProcessInfo.processInfo.environment["CBTIPUL_NAME_SYNC_TESTS"] == "1" { Color.clear }
-                else if ProcessInfo.processInfo.arguments.contains("-PatientHomeDesignReview") { PatientModeView() }
+                else if ProcessInfo.processInfo.arguments.contains("-PatientHomeDesignReview") { PatientModeView().id(auth.currentUserId) }
+                else if ProcessInfo.processInfo.arguments.contains("-ActivityActionsReview") { PatientDetailView.activityActionsReview() }
+                else if ProcessInfo.processInfo.arguments.contains("-FeatureDiscoveryReview") { FeatureDiscoveryReview() }
                 else if SummaryRecoveryFixture.enabled { SummaryRecoveryFixture() }
                 else { ContentView() }
                 #else
@@ -144,11 +147,21 @@ struct ContentView: View {
     @State private var gettingStartedRouter = GettingStartedRouter()
     @State private var isResolvingDisplayNameGate = false
     @State private var showOptionalDisplayNamePrompt = false
+    @State private var claimVerificationNotice: String?
+    @State private var resendingClaimVerification = false
 
     var body: some View {
         @Bindable var auth = auth
         @Bindable var onboarding = onboarding
         return VStack(spacing: 0) {
+            if auth.hasSession && appContext.current != nil && appContext.loadError != nil && !invitationFlow.isActive {
+                HStack {
+                    Text(L10n.patientContextRetryTitle).font(.footnote)
+                    Button(L10n.retry) { Task { _ = try? await appContext.getCurrentAppContext() } }
+                        .disabled(appContext.isLoading)
+                }.padding(8).background(Theme.surface)
+            }
+
             // A real layout row keeps the notice outside navigation/toolbar bounds.
             if auth.isTherapistAuthenticated && entitlement.access == .readOnly
                 && !invitationFlow.isActive && !isShowingSplash
@@ -164,7 +177,8 @@ struct ContentView: View {
                 switch AppRootRouting.destination(
                     invitationActive: invitationFlow.isActive,
                     hasSession: auth.hasSession,
-                    isAnonymous: auth.isAnonymous
+                    isAnonymous: auth.isAnonymous,
+                    context: AuthManager.isUITesting ? AppContext(version: 1, role: .therapist, activation: nil, patientId: nil) : appContext.current
                 ) {
                 case .invitation:
                     PatientInvitationFlowView()
@@ -215,7 +229,8 @@ struct ContentView: View {
             AIDataSharingConsentStore.shared.setActiveUser(email: email)
         }
         .onChange(of: auth.currentUserId, initial: true) { _, userId in
-            store.nameSync.setAccount(auth.isAnonymous ? nil : userId)
+            claimVerificationNotice = nil; resendingClaimVerification = false
+            store.nameSync.setAccount(nil)
             entitlement.setIdentity(userId)
             if AuthManager.isUITesting && userId != nil {
                 entitlement.apply(AppContext(version: 1, role: .therapist, activation: nil, patientId: nil, entitlement: AppEntitlement(access: .full)))
@@ -248,10 +263,13 @@ struct ContentView: View {
                 }
             }
         }
+        .task(id: "\(auth.currentUserId ?? "")-\(String(describing: appContext.current?.role))") {
+            store.nameSync.setAccount(auth.isTherapistAuthenticated ? auth.currentUserId : nil)
+        }
         .task(id: displayNameGateTaskID) {
             await resolveDisplayNameGate()
         }
-        .task(id: auth.currentUserId) {
+        .task(id: "\(auth.currentUserId ?? "")-\(auth.authenticationEpoch)") {
             await resolveAnonymousAppContext()
         }
         .task(id: pushRegistrationContext) {
@@ -309,7 +327,7 @@ struct ContentView: View {
             )
         } else if isResolvingDisplayNameGate && !store.isDemoMode {
             Theme.base.ignoresSafeArea()
-        } else if !store.isDemoMode && !entitlement.isLocalDemo && (store.nameSync.account != auth.currentUserId?.lowercased() || store.nameSync.shouldGate(therapist: true, demo: false)) {
+        } else if !store.isDemoMode && !entitlement.isLocalDemo && store.nameSync.shouldGate(therapist: true, demo: false) {
             PatientNameSetupView(sync: store.nameSync, blocking: true, retry: {
                 if entitlement.role == nil { _ = try? await appContext.getCurrentAppContext() }
                 await store.nameSync.retryMigration()
@@ -318,7 +336,7 @@ struct ContentView: View {
                 await store.nameSync.refresh(force: true)
             }
         } else {
-            TherapistRootView()
+            TherapistRootView().task(id: auth.currentUserId) { await store.nameSync.refresh(force: true) }
         }
     }
 
@@ -326,12 +344,48 @@ struct ContentView: View {
     /// Patient Mode vs a recoverable incomplete/retry state.
     @ViewBuilder
     private var patientSessionRoot: some View {
+        if let claim = appContext.emailClaim, [.confirmation, .unavailable, .verification, .failed].contains(claim.state) {
+            VStack(spacing: 20) {
+                Text(claim.state == .confirmation ? "לעבור למצב מטופל/ת?" : claim.state == .unavailable ? "ההזמנה אינה זמינה" : claim.state == .verification ? L10n.verifyEmailTitle : "לא ניתן לבדוק את ההזמנה")
+                    .font(.title2.bold())
+                Text(claim.state == .confirmation ? "נמצאה הזמנה ממטפל/ת. האם לעבור לחשבון המטופל/ת?" : claim.state == .unavailable ? "לא ניתן להשתמש בהזמנה הזו. אפשר להמשיך לחשבון הקיים." : claim.state == .verification ? L10n.verifyEmailMessage(email: auth.currentUserEmail ?? "") : "נסו שוב כדי לבדוק אם החשבון כבר חובר.")
+                    .multilineTextAlignment(.center)
+                if claim.state == .confirmation {
+                    Button("מעבר למצב מטופל/ת") { claim.retry(confirmSwitch: true); Task { await resolveAnonymousAppContext() } }.buttonStyle(.borderedProminent)
+                } else if claim.state != .unavailable {
+                    Button("ניסיון נוסף") { claim.retry(); Task { await resolveAnonymousAppContext() } }.buttonStyle(.borderedProminent)
+                }
+                if claim.state == .confirmation || claim.state == .unavailable {
+                    Button("המשך לחשבון הקיים") { claim.decline(); Task { await resolveAnonymousAppContext() } }
+                }
+                if claim.state == .verification {
+                    Button(L10n.resendVerificationAction) {
+                        let owner = auth.currentUserId
+                        resendingClaimVerification = true
+                        Task {
+                            do {
+                                try await auth.resendSignUpConfirmation(email: auth.currentUserEmail ?? "")
+                                if owner == auth.currentUserId { claimVerificationNotice = L10n.verificationResentMessage }
+                            } catch {
+                                if owner == auth.currentUserId { claimVerificationNotice = "לא ניתן לשלוח את הקישור. נסו שוב." }
+                            }
+                            if owner == auth.currentUserId { resendingClaimVerification = false }
+                        }
+                    }.disabled(resendingClaimVerification)
+                    if let claimVerificationNotice { Text(claimVerificationNotice).font(.footnote) }
+                }
+                Button("יציאה מהחשבון") { auth.signOut() }
+            }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.base).tint(Theme.gold)
+        } else { existingPatientSessionRoot }
+    }
+
+    @ViewBuilder private var existingPatientSessionRoot: some View {
         switch AppRootRouting.anonymousDestination(
             context: appContext.current,
-            isLoading: appContext.isLoading
+            isLoading: appContext.isLoading || (appContext.current == nil && appContext.loadError == nil)
         ) {
         case .patientMode:
-            PatientModeView()
+            PatientModeView().id(auth.currentUserId)
         case .incomplete:
             PatientActivationIncompleteView {
                 Task { await resolveAnonymousAppContext() }
@@ -360,7 +414,7 @@ struct ContentView: View {
     /// Re-runs the optional prompt check when the signed-in user changes
     /// or password recovery ends (recovery uses the root sheet).
     private var displayNameGateTaskID: String {
-        "\(auth.currentUserId ?? "")-\(auth.isRecoveringPassword)"
+        "\(auth.currentUserId ?? "")-\(auth.isRecoveringPassword)-\(String(describing: appContext.current?.role))"
     }
 
     /// Permission is requested only from the therapist tab shell
@@ -371,7 +425,8 @@ struct ContentView: View {
         switch AppRootRouting.destination(
             invitationActive: invitationFlow.isActive,
             hasSession: auth.hasSession,
-            isAnonymous: auth.isAnonymous
+            isAnonymous: auth.isAnonymous,
+                    context: AuthManager.isUITesting ? AppContext(version: 1, role: .therapist, activation: nil, patientId: nil) : appContext.current
         ) {
         case .therapist:
             let ready = hasAcceptedTerms
@@ -383,7 +438,7 @@ struct ContentView: View {
         case .anonymousPatient:
             let active = AppRootRouting.anonymousDestination(
                 context: appContext.current,
-                isLoading: appContext.isLoading
+                isLoading: appContext.isLoading || (appContext.current == nil && appContext.loadError == nil)
             ) == .patientMode
             return active ? auth.currentUserId.map { "patient-\($0)" } : nil
         case .invitation, .unauthenticated:
@@ -399,7 +454,7 @@ struct ContentView: View {
             _ = try await appContext.getCurrentAppContext()
         } catch {
             AppLog.auth.error(
-                "Patient app context failed: \(error.localizedDescription, privacy: .public)"
+                "Patient app context resolution failed"
             )
         }
     }

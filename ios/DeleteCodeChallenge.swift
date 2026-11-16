@@ -1,14 +1,18 @@
 import SwiftUI
 
-/// Second layer of delete protection shown after the regular delete
-/// confirmation: an alert displaying a randomly generated 8-character code
-/// that the user must type back before `onConfirm` is called. A wrong code
-/// shows an error and nothing is deleted.
+enum DeletionPhrase: String, CaseIterable {
+    case patient = "מחיקת מטופל"
+    case account = "מחיקת חשבון"
+    case session = "מחיקת פגישה"
+    case questionnaire = "מחיקת שאלוני מצב הרוח"
+    func matches(_ input: String) -> Bool { input.trimmingCharacters(in: .whitespacesAndNewlines) == rawValue }
+}
+
 private struct DeleteCodeChallenge: ViewModifier {
     @Binding var isPresented: Bool
+    let phrase: DeletionPhrase
     let onConfirm: () -> Void
 
-    @State private var code = ""
     @State private var input = ""
     @State private var isShowingMismatch = false
 
@@ -16,18 +20,19 @@ private struct DeleteCodeChallenge: ViewModifier {
         content
             .alert(L10n.deleteCodeTitle, isPresented: $isPresented) {
                 TextField(L10n.deleteCodePlaceholder, text: $input)
-                    .textInputAutocapitalization(.characters)
+                    .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 Button(L10n.deleteCodeConfirmAction, role: .destructive) {
-                    if input.trimmingCharacters(in: .whitespaces).uppercased() == code {
+                    if phrase.matches(input) {
                         onConfirm()
                     } else {
                         isShowingMismatch = true
                     }
                 }
+                .disabled(!phrase.matches(input))
                 Button(L10n.cancel, role: .cancel) {}
             } message: {
-                Text(L10n.deleteCodeMessage(code))
+                Text(L10n.deleteCodeMessage(phrase.rawValue))
             }
             .alert(L10n.deleteCodeMismatchTitle, isPresented: $isShowingMismatch) {
                 Button(L10n.ok, role: .cancel) {}
@@ -36,23 +41,17 @@ private struct DeleteCodeChallenge: ViewModifier {
             }
             .onChange(of: isPresented) { _, isShown in
                 if isShown {
-                    code = Self.randomCode()
                     input = ""
                 }
             }
     }
 
-    /// Uppercase letters and digits, skipping the easily confused
-    /// 0/O and 1/I.
-    private static func randomCode() -> String {
-        let characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        return String((0..<8).compactMap { _ in characters.randomElement() })
-    }
+
 }
 
 extension View {
-    func deleteCodeChallenge(isPresented: Binding<Bool>,
+    func deleteCodeChallenge(phrase: DeletionPhrase, isPresented: Binding<Bool>,
                              onConfirm: @escaping () -> Void) -> some View {
-        modifier(DeleteCodeChallenge(isPresented: isPresented, onConfirm: onConfirm))
+        modifier(DeleteCodeChallenge(isPresented: isPresented, phrase: phrase, onConfirm: onConfirm))
     }
 }

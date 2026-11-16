@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -78,6 +79,8 @@ fun TherapistDiaryOneScreen(
     isDemo: Boolean = false,
     focusEntryId: String? = null,
     returnDirectly: Boolean = false,
+    onCreated: () -> Unit = {},
+    onDiscoveryBlocked: (Boolean) -> Unit = {},
     onBack: () -> Unit,
 ) {
     val colors = Theme.colors
@@ -107,6 +110,9 @@ fun TherapistDiaryOneScreen(
     var isCreating by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var editorError by remember { mutableStateOf<String?>(null) }
+    val discoveryBlocked = isCreating || editor != null || isSaving || isUpdatingAssignment || showStopConfirm || assignmentError != null || editorError != null
+    LaunchedEffect(discoveryBlocked) { onDiscoveryBlocked(discoveryBlocked) }
+    DisposableEffect(Unit) { onDispose { onDiscoveryBlocked(false) } }
     val saveFailed = stringResource(R.string.diary_one_save_failed)
     val deleteFailed = stringResource(R.string.diary_one_delete_failed)
     val activateFailed = stringResource(R.string.diary_patient_mode_activate_failed)
@@ -188,6 +194,14 @@ fun TherapistDiaryOneScreen(
 
     if (isCreating || editor != null) {
         val existing = editor
+        val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+        LaunchedEffect(existing?.id) {
+            if(existing?.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Patient && existing.patientId == patientId) {
+                com.cbtipul.app.data.DiaryNotificationKey.of(patientId.queryValue,"diary_one_entry",existing.id)?.let { key ->
+                    app.applicationScope.launch {app.notifications.markDiaryEntryRead(key)}
+                }
+            }
+        }
         DiaryOneEditorScreen(
             modeCreate = isCreating,
             existing = existing,
@@ -226,6 +240,7 @@ fun TherapistDiaryOneScreen(
                         }
                         isCreating = false
                         editor = null
+                        if (existing == null) onCreated()
                         if (returnDirectly && existing?.id == focusEntryId) onBack()
                     } catch (_: Exception) {
                         editorError = saveFailed

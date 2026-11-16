@@ -211,7 +211,6 @@ struct GlobalSessionsView: View {
     }
 
     private func load() async {
-        store.loadCachedPatients()
         guard !store.isDemoMode else { return }
         isLoading = true
         loadError = nil

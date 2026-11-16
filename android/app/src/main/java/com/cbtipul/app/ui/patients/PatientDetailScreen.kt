@@ -14,6 +14,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import com.cbtipul.app.ui.theme.editorScroll
@@ -120,6 +121,7 @@ import com.cbtipul.app.model.SessionType
 import com.cbtipul.app.ui.theme.BusyOverlay
 import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.GroupedListDivider
+import com.cbtipul.app.ui.theme.hebrewDate
 import com.cbtipul.app.ui.theme.Theme
 import com.cbtipul.app.ui.theme.dismissKeyboardOnTap
 import com.cbtipul.app.ui.onboarding.TutorialHighlight
@@ -135,7 +137,7 @@ fun PatientDetailScreen(
     patient: Patient?,
     unnamed: String,
     onBack: () -> Unit,
-    onRename: (String, String) -> Unit,
+    onRename: suspend (String, String) -> Unit,
     lastQuestionnaire: CombinedMoodQuestionnaire?,
     previousQuestionnaire: CombinedMoodQuestionnaire?,
     lastSessionType: SessionType?,
@@ -152,6 +154,8 @@ fun PatientDetailScreen(
     onOpenDiaryTwo: () -> Unit = {},
     onOpenDiaryThree: () -> Unit = {},
     onInvitePatient: () -> Unit = {},
+    initialConnectionSheet: String? = null,
+    onDiscoveryBlocked: (Boolean) -> Unit = {},
     isCreatingInvitation: Boolean = false,
     onSendMessage: () -> Unit = {},
     onOpenMessages: () -> Unit = {},
@@ -243,6 +247,10 @@ fun PatientDetailScreen(
     var isSendingQuestionnaire by remember { mutableStateOf(false) }
     var sendFeedbackTitle by remember { mutableStateOf<String?>(null) }
     var sendFeedbackMessage by remember { mutableStateOf<String?>(null) }
+    var connectionSheetOpen by remember { mutableStateOf(initialConnectionSheet != null) }
+    val discoveryBlocked = busy || showNotes || diariesExpanded || showRename || showGoal || showDeleteConfirm || showDeleteCode || overflow || statusExpanded || showDiscard || connectionSheetOpen || isSendingQuestionnaire || sendFeedbackTitle != null || notesError != null || prepareError != null
+    LaunchedEffect(discoveryBlocked) { onDiscoveryBlocked(discoveryBlocked) }
+    DisposableEffect(Unit) { onDispose { onDiscoveryBlocked(false) } }
     val sendQuestionnaireTitle = stringResource(R.string.send_questionnaire_to_patient)
     val questionnaireSent = stringResource(R.string.questionnaire_sent_to_patient)
     val questionnaireSendError = stringResource(R.string.questionnaire_assignment_send_error)
@@ -342,15 +350,18 @@ fun PatientDetailScreen(
             val statusLabel = stringResource(if (patient.status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive)
             val statusTitle = stringResource(R.string.status_label)
             val statusColor = if (patient.status == PatientStatus.Active) (if (colors.isPaper) colors.success else Color(0xFF8CE4B7)) else colors.headerInk
-            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(),
-                maxItemsInEachRow = if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f) 1 else 2,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(48.dp).background(accent, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+                    Text(name.split(" ").filter { it.isNotEmpty() }.take(2).joinToString("") { it.take(1) },
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = PatientAvatarColor.foreground(patient.id))
+                }
+                Column(Modifier.weight(1f)) {
                 TextButton(onClick = { showRename = true },
                     enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                     Text(name, color = colors.headerInk, fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start,
+                        style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Start,
                         modifier = Modifier.weight(1f))
                     Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_patient_name_action),
                         tint = colors.headerInk, modifier = Modifier.size(16.dp))
@@ -390,13 +401,14 @@ fun PatientDetailScreen(
                 }
             }
             }
+            }
                 Row(Modifier.fillMaxWidth().background(Color.White.copy(alpha = .03f), RoundedCornerShape(12.dp)).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f).clickable { goalExpanded = !goalExpanded }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(stringResource(R.string.treatment_goal_section), style = MaterialTheme.typography.labelMedium, color = colors.headerInk.copy(alpha = .95f))
                         Text(treatmentGoal.ifEmpty { stringResource(R.string.no_treatment_goal_placeholder) },
                             color = colors.headerInk,
                             style = MaterialTheme.typography.bodyMedium,
-                            maxLines = if (goalExpanded || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f) Int.MAX_VALUE else 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            maxLines = if (goalExpanded || androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.3f) Int.MAX_VALUE else 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                     IconButton(onClick = { goalDraft = treatmentGoal; showGoal = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !busy, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_treatment_goal_action), tint = colors.headerInk)
@@ -404,31 +416,33 @@ fun PatientDetailScreen(
                 }
             PatientJourneySection(patient, inHeader = true)
             }
-            PatientConnectionActions(patient, name, assignmentRepository, isDemo, busy || isCreatingInvitation, onInvitePatient, onSendMessage, onNewSession)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onNewSession, enabled = !busy, modifier = Modifier.weight(1f).entitlementCreateControl(),
+            PatientConnectionActions(patient, name, assignmentRepository, isDemo, busy || isCreatingInvitation, onInvitePatient, onSendMessage, onNewSession, initialConnectionSheet, onSheetChanged = { connectionSheetOpen = it })
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 8.dp), maxItemsInEachRow = if (androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.3f) 1 else 2, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onNewSession, enabled = !busy, modifier = Modifier.weight(1f).heightIn(min = 48.dp).entitlementCreateControl(),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentFill, contentColor = colors.textOnAccent)) {
+                    Icon(Icons.Outlined.Add, null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
                     Text(stringResource(R.string.ww_new_session))
                 }
-                OutlinedButton(onClick = onPrepare, enabled = !isPreparing && !busy, modifier = Modifier.weight(1f).entitlementCreateControl()) {
+                OutlinedButton(onClick = onPrepare, enabled = !isPreparing && !busy, modifier = Modifier.weight(1f).heightIn(min = 48.dp).entitlementCreateControl(), shape = RoundedCornerShape(12.dp)) {
                     Text(stringResource(R.string.prepare_next_session_action))
                 }
             }
             PatientRecentActivity(patient, isDemo, onOpenRecent)
-            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stringResource(R.string.patient_record_heading), style = MaterialTheme.typography.titleMedium,
-                    color = colors.textBright, modifier = Modifier.padding(vertical = 12.dp))
-                if (com.cbtipul.app.data.patientJourney(patient.sessions).isNotEmpty()) TextButton(onClick = onOpenLatestSession) {
-                    Text(stringResource(R.string.patient_latest_session))
-                }
+            val latest = com.cbtipul.app.data.patientJourney(patient.sessions).flatMap { it.sessions }.maxByOrNull { it.date }
+            if (latest != null) OutlinedButton(onClick = onOpenLatestSession, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(12.dp)) {
+                Text(stringResource(R.string.patient_latest_session), modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
+                Text(hebrewDate(latest.date), style = MaterialTheme.typography.labelMedium, color = colors.textBody)
             }
+            Text(stringResource(R.string.patient_record_heading), style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold, color = colors.textBright, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val singleColumn = maxWidth < 340.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
+                val singleColumn = maxWidth < 340.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.3f
                 val actions = listOf(
                     Triple(Icons.Outlined.DateRange, stringResource(R.string.sessions_title), onOpenSessions),
                     Triple(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), onOpenGraphs),
                     Triple(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title), { diariesExpanded = true }),
-                    Triple(Icons.Outlined.Assignment, stringResource(R.string.questionnaire_history_title), onOpenQuestionnaires),
+                    Triple(Icons.Outlined.Assignment, stringResource(R.string.questionnaires_title), onOpenQuestionnaires),
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     actions.chunked(if (singleColumn) 1 else 2).forEach { row ->
@@ -436,8 +450,8 @@ fun PatientDetailScreen(
                             row.forEach { (icon, title, action) ->
                                 OutlinedButton(onClick = action, modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                                     shape = MaterialTheme.shapes.medium,
-                                    colors = ButtonDefaults.outlinedButtonColors(containerColor = accent.copy(alpha = .10f), contentColor = colors.textBright),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = .45f)),
+                                    colors = ButtonDefaults.outlinedButtonColors(containerColor = colors.surface, contentColor = colors.textBright),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.borderStrong),
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp)) {
                                     Icon(icon, null, tint = lerp(accent, colors.textBright, .35f), modifier = Modifier.size(22.dp))
                                     Spacer(Modifier.width(8.dp))
@@ -449,7 +463,7 @@ fun PatientDetailScreen(
                     androidx.compose.material3.FilledTonalButton(onClick = onOpenChat, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFF9B59CE).copy(alpha = .16f), contentColor = colors.textBright)) {
                         Icon(Icons.Outlined.AutoAwesome, null); Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.patient_ai_assistance_title))
+                        Text("שיחת AI")
                     }
                 }
             }
@@ -557,7 +571,7 @@ fun PatientDetailScreen(
                         CircularProgressIndicator(Modifier.size(18.dp), color = colors.gold, strokeWidth = 2.dp)
                         Text(
                             stringResource(
-                                if (isTranscribing) R.string.transcribing_label else R.string.anonymizing_status_label,
+                                if (isTranscribing) R.string.transcribing_label else R.string.clinical_saving_status,
                             ),
                             color = colors.textBody,
                         )
@@ -575,7 +589,7 @@ fun PatientDetailScreen(
     }
         BusyOverlay(
             isBusy = isSavingNotes || isSavingStatus || isAnonymizingTranscription,
-            label = if (isAnonymizingTranscription) stringResource(R.string.anonymizing_status_label) else null,
+            label = if (isAnonymizingTranscription) stringResource(R.string.clinical_saving_status) else null,
         )
         if (showGoal) {
             EditGoalOverlay(
@@ -592,8 +606,8 @@ fun PatientDetailScreen(
 
     if (showRename) {
         RenameDialog(
-            initialFirst = patient.firstName,
-            initialLast = patient.lastName,
+            initialFirst = patient.localName?.substringBefore(" ") ?: patient.firstName,
+            initialLast = patient.localName?.substringAfter(" ", "") ?: patient.lastName,
             onDismiss = { showRename = false },
             onSave = { first, last ->
                 onRename(first, last)
@@ -615,6 +629,7 @@ fun PatientDetailScreen(
         )
     }
     DeleteCodeDialog(
+        phrase = com.cbtipul.app.ui.patients.DeletionPhrase.Patient,
         visible = showDeleteCode,
         onConfirm = {
             showDeleteCode = false
@@ -755,11 +770,14 @@ private fun RenameDialog(
     initialFirst: String,
     initialLast: String,
     onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit,
+    onSave: suspend (String, String) -> Unit,
 ) {
+    val saveScope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
     var first by remember { mutableStateOf(initialFirst) }
     var last by remember { mutableStateOf(initialLast) }
-    AppDialogOverlay(onDismiss = onDismiss) {
+    AppDialogOverlay(onDismiss = { if (!saving) onDismiss() }) {
         Text(
             stringResource(R.string.edit_patient_name_title),
             color = Theme.colors.textBright,
@@ -781,7 +799,7 @@ private fun RenameDialog(
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Right,
                 )
-            }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
+            }, readOnly = saving || !com.cbtipul.app.ui.entitlementCanWrite())
         OutlinedTextField(value = last,
             onValueChange = { last = it },
             modifier = Modifier.editorFocus().fillMaxWidth(),
@@ -796,13 +814,20 @@ private fun RenameDialog(
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Right,
                 )
-            }, readOnly = !com.cbtipul.app.ui.entitlementCanWrite())
+            }, readOnly = saving || !com.cbtipul.app.ui.entitlementCanWrite())
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (saving) CircularProgressIndicator()
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(
-                onClick = { onSave(first.trim(), last.trim()) },
-                enabled = first.trim().isNotEmpty() || last.trim().isNotEmpty(),
+                onClick = { if (!saving) { saving = true; error = null; saveScope.launch {
+                    try { onSave(first.trim(), last.trim()) }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (e: Exception) { error = (e as? com.cbtipul.app.data.NameSyncFailure)?.message ?: "שמירת השם נכשלה. אפשר לנסות שוב." }
+                    finally { saving = false }
+                } } },
+                enabled = !saving && (first.trim().isNotEmpty() || last.trim().isNotEmpty()),
             ) { Text(stringResource(R.string.save), color = Theme.colors.gold) }
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = Theme.colors.gold) }
+            TextButton(onClick = onDismiss, enabled = !saving) { Text(stringResource(R.string.cancel), color = Theme.colors.gold) }
         }
     }
 }

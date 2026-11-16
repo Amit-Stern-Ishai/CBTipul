@@ -310,6 +310,29 @@ class AuthRepository(
             AuthSession.SignedIn(it.user?.email, it.user?.id, isAnonymousSession(it))
         })
 
+    suspend fun deletePatientAccountForDebug(expectedUserId: String) {
+        check(com.cbtipul.app.BuildConfig.DEBUG && currentUserId() == expectedUserId)
+        val response = client.functions.invoke("delete-patient-account", body = kotlinx.serialization.json.buildJsonObject {})
+        val receipt = response.body<kotlinx.serialization.json.JsonObject>()
+        validatePatientDeletionReceipt(response.status.value, receipt)
+    }
+
+    suspend fun verifyPatientDeletionSession(expectedUserId: String) {
+        check(com.cbtipul.app.BuildConfig.DEBUG && currentUserId() == expectedUserId)
+        val session = checkNotNull(client.auth.currentSessionOrNull())
+        val user = client.auth.retrieveUser(session.accessToken)
+        check(currentUserId() == expectedUserId && user.id == expectedUserId)
+    }
+
+    suspend fun finishPatientDeletion(expectedUserId: String) {
+        check(com.cbtipul.app.BuildConfig.DEBUG && currentUserId() == expectedUserId)
+        abandonBrowserSignIn()
+        cancelGoogleSignIn()
+        client.auth.clearSession()
+        _isRecoveringPassword.value = false
+        runCatching { clearCredentialState() }
+    }
+
     fun currentUserId(): String? = client.auth.currentSessionOrNull()?.user?.id
 
     fun hasSession(): Boolean = client.auth.currentSessionOrNull() != null
@@ -323,7 +346,7 @@ class AuthRepository(
         abandonBrowserSignIn()
         client.auth.codeVerifierCache.deleteCodeVerifier()
         cancelGoogleSignIn()
-        if (!isAnonymousSession()) {
+        if (!hasSession()) {
             throw AuthException(AuthErrorKind.VerificationFailed)
         }
         ensureConfigured()

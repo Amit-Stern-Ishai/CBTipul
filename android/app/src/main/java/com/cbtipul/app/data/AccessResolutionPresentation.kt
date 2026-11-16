@@ -15,6 +15,7 @@ fun accessResolutionPresentation(
             null -> Unit
         }
     }
-    return if (contextState is AppContextLoadState.Failed) AccessResolutionPresentation.Retry
-        else AccessResolutionPresentation.Loading
+    // Unresolved after cancellation is idle, not a request that can finish itself.
+    return if (contextState is AppContextLoadState.Loading) AccessResolutionPresentation.Loading
+        else AccessResolutionPresentation.Retry
 }

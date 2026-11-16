@@ -3,7 +3,7 @@ import { DiaryWorksheet } from "./DiaryWorksheet";
 import { todayLocal, updateItem, type Worksheet } from "./model";
 import { questionnaireScore } from "./scores";
 import { ww } from "./he";
-export function WorksheetEditor({ item, onChange, disabled, shared = false }: { item: Worksheet; onChange: (next: Worksheet) => void; disabled: boolean; shared?: boolean }) {
+export function WorksheetEditor({ item, onChange, disabled, shared = false, presentation = false }: { item: Worksheet; onChange: (next: Worksheet) => void; disabled: boolean; shared?: boolean; presentation?: boolean }) {
   const d = item.data;
   const set = (key: string, value: unknown) => onChange(updateItem(item, { data: { [key]: value } }));
   if (item.type === "questionnaire") {
@@ -14,7 +14,7 @@ export function WorksheetEditor({ item, onChange, disabled, shared = false }: { 
       <section className="ww-sheet"><fieldset disabled={disabled}><legend>{mobile.phq9_interference_question.replaceAll("**", "")}</legend><div className="ww-options ww-options-compact">{mobile.phq9_interference_options.map((label, value) => <label key={value} className={d.interference_level === value ? "selected" : ""}><input type="radio" name={`${item.id}-interference`} checked={d.interference_level === value} onChange={() => set("interference_level", value)} />{label}</label>)}</div></fieldset>{!shared && <><label htmlFor={`${item.id}-note`}>{ww.optionalNote}</label><textarea id={`${item.id}-note`} rows={3} maxLength={50000} disabled={disabled} value={String(d.notes ?? "")} onChange={(e) => set("notes", e.target.value)} /></>}</section>
     </div>;
   }
-  return <DiaryWorksheet item={item} onChange={onChange} disabled={disabled} />;
+  return <DiaryWorksheet presentation={presentation} item={item} onChange={onChange} disabled={disabled} />;
 }
 
 function ScoreSummary({ values, kind }: { values: (number | null)[]; kind: "gad" | "phq" }) {

@@ -16,6 +16,9 @@ class SummaryFailure(val kind: Kind) : Exception(kind.message) {
         Login("הכניסה לחשבון פגה. יש להתחבר מחדש ולנסות שוב."),
         Restricted("אין הרשאה לבצע פעולה זו בחשבון הנוכחי."),
         Rate("נדרשת הפסקה קצרה\nהמתינו מעט ונסו שוב. זו מגבלה זמנית, ולא הודעה על סיום המכסה החודשית."),
+        SessionType("יש לבחור סוג מפגש לפני השמירה. הסיכום נשאר במסך."),
+        Audio("לא ניתן להכין את ההקלטה לתמלול. ההקלטה לא נמחקה; אפשר לנסות שוב."),
+        TranscriptionRejected("לא ניתן לתמלל את ההקלטה כרגע. ההקלטה לא נמחקה; אפשר לנסות שוב."),
         Validation("לא ניתן לשמור את הנתונים. בדקו את הפרטים ונסו שוב."),
         Conflict("הנתונים השתנו. יש לבדוק את המידע המעודכן לפני ניסיון נוסף."),
         Service("השירות אינו זמין כרגע. נסו שוב מאוחר יותר."),
@@ -27,6 +30,8 @@ class SummaryFailure(val kind: Kind) : Exception(kind.message) {
             val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             val code = obj?.get("code")?.jsonPrimitive?.contentOrNull
                 ?: (obj?.get("error") as? JsonObject)?.get("code")?.jsonPrimitive?.contentOrNull
+                ?: (obj?.get("error") as? JsonPrimitive)?.contentOrNull
+            if (code == "invalid_session_type") return Kind.SessionType
             if (code in setOf("monthly_ai_limit_exceeded", "monthly_quota_exceeded", "monthly_allowance_exhausted")) return Kind.Tokens
             val values = listOf("monthlyLimit", "usedTokens", "remainingTokens").map { key ->
                 (obj?.get(key) as? JsonPrimitive)?.takeUnless { it.isString }?.longOrNull

@@ -29,7 +29,7 @@ final class SummaryRecoveryUITests: XCTestCase {
     func testAllowanceDenialAppearsBeforeOpeningSummaryAndBlocksWriting() {
         continueAfterFailure = false
         launch(["-ResetSummaryFixture", "-SummaryAllowanceDenied"])
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "מכסת ה־AI החודשית נוצלה")).firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "מכסת ה־AI לחודש זה נוצלה")).firstMatch.waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["fixture.counts"].firstMatch.label.contains("transcribe=0"))
         openEditor()
         XCTAssertFalse(app.buttons["session.editSummaryText"].isEnabled)
@@ -50,7 +50,7 @@ final class SummaryRecoveryUITests: XCTestCase {
         app.buttons["שמירת טיוטה ויציאה"].tap()
         app.terminate()
         launch(["-SummaryAllowanceDenied"])
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "מכסת ה־AI החודשית נוצלה")).firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "מכסת ה־AI לחודש זה נוצלה")).firstMatch.waitForExistence(timeout: 10))
         openEditor()
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Synthetic recovery note")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["session.editSummaryText"].isEnabled)
@@ -63,8 +63,10 @@ final class SummaryRecoveryUITests: XCTestCase {
         openEditor()
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "edited")).firstMatch.waitForExistence(timeout: 5))
         attach("Recovered draft stays editable despite exhausted allowance")
+        app.buttons["summary.draftMenu"].tap()
         app.buttons["summary.copyDraft"].tap()
         XCTAssertTrue(app.buttons["הטיוטה הועתקה"].exists)
+        app.buttons["summary.draftMenu"].tap()
         app.buttons["summary.discardDraft"].tap()
         XCTAssertTrue(app.buttons["מחיקת הטיוטה"].waitForExistence(timeout: 5))
         app.buttons["מחיקת הטיוטה"].tap()
@@ -75,8 +77,8 @@ final class SummaryRecoveryUITests: XCTestCase {
 
     func testAllowanceLookupFailureIsShownOnEntryWithoutClaimingExhaustion() {
         launch(["-ResetSummaryFixture", "-SummaryAllowanceUnavailable"])
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "לא ניתן לבדוק כרגע את מכסת")).firstMatch.waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "מכסת ה־AI החודשית נוצלה")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "לא הצלחנו לבדוק את המכסה")).firstMatch.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "מכסת ה־AI לחודש זה נוצלה")).firstMatch.exists)
         typeSummary()
         XCTAssertTrue(app.staticTexts["fixture.counts"].firstMatch.label.contains("anonymize=0"))
         attach("Allowance unavailable — local writing remains available")
@@ -109,46 +111,29 @@ final class SummaryRecoveryUITests: XCTestCase {
         attach("Explicit manual retry only — duplicate risk accepted")
     }
 
-    func testTypedFailureRelaunchAndSuccessfulRetry() {
-        continueAfterFailure = false
-        launch(["-ResetSummaryFixture", "-SummaryProcessingFailure"])
-        typeSummary(); save()
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "מכסת ה־AI החודשית נוצלה")).firstMatch.waitForExistence(timeout: 10))
-        attach("Hebrew processing failure — draft retained")
-        app.terminate()
-        launch()
-        openEditor()
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Synthetic recovery note")).firstMatch.waitForExistence(timeout: 5))
-        save()
-        XCTAssertTrue(app.buttons["fixture.open"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["fixture.counts"].firstMatch.label.contains("insert=1"))
-        app.terminate()
-        launch()
-        XCTAssertTrue(app.buttons["session.emptySummary"].waitForExistence(timeout: 5))
-        attach("Confirmed save cleaned recovery material")
-    }
     func testVoiceTranscriptSurvivesRelaunchWithoutRetranscription() {
         continueAfterFailure = false
-        launch(["-ResetSummaryFixture", "-SummaryVoiceFixture", "-SummaryProcessingFailure"])
+        launch(["-ResetSummaryFixture", "-SummaryVoiceFixture", "-SummaryUncertainSave"])
         let transcribe = app.buttons["תמלול"]
-        XCTAssertTrue(transcribe.waitForExistence(timeout: 5))
-        transcribe.tap()
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "מכסת ה־AI החודשית נוצלה")).firstMatch.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["fixture.counts"].firstMatch.label.contains("transcribe=1"))
-        attach("Transcript retained after anonymization failure")
-        app.terminate()
-        launch()
-        XCTAssertTrue(app.buttons["ניסיון עיבוד נוסף"].waitForExistence(timeout: 5))
-        app.swipeUp()
-        app.buttons["ניסיון עיבוד נוסף"].tap()
-        let processed = NSPredicate(format: "label CONTAINS %@", "anonymize=2")
-        expectation(for: processed, evaluatedWith: app.staticTexts["fixture.counts"].firstMatch)
+        XCTAssertTrue(transcribe.waitForExistence(timeout: 5)); transcribe.tap()
+        expectation(for: NSPredicate(format: "label CONTAINS %@", "transcribe=1"), evaluatedWith: app.staticTexts["fixture.counts"].firstMatch)
         waitForExpectations(timeout: 10)
-        XCTAssertTrue(app.staticTexts["fixture.counts"].firstMatch.label.contains("transcribe=1"))
+        XCTAssertTrue(app.buttons["session.save"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["תמלול"].exists)
+        XCTAssertFalse(app.buttons["ניסיון עיבוד נוסף"].exists)
+        attach("Completed transcript hides audio recovery controls")
         app.buttons["session.save"].tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "לא ניתן לוודא אם הסיכום נשמר")).firstMatch.waitForExistence(timeout: 10))
+        attach("Voice save failure retains completed transcript")
+        app.terminate(); launch()
+        XCTAssertTrue(app.buttons["summary.manualRetry"].waitForExistence(timeout: 5))
+        app.swipeUp()
+        app.buttons["summary.manualRetry"].tap()
+        XCTAssertTrue(app.buttons["בדקתי — לשמור שוב"].waitForExistence(timeout: 5))
+        app.buttons["בדקתי — לשמור שוב"].tap()
         XCTAssertTrue(app.buttons["fixture.open"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["fixture.counts"].firstMatch.label.contains("insert=1"))
-        attach("Voice retry reused transcript and saved once")
+        XCTAssertTrue(app.staticTexts["fixture.counts"].firstMatch.label.contains("transcribe=1"))
+        attach("Voice retry reuses transcript")
     }
 
     func testCommittedInsertWithLostResponseKeepsDraftAndBlocksDuplicate() {

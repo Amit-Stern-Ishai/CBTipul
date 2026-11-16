@@ -112,8 +112,13 @@ class NotificationRepository(
             if (isDemoInbox) { clear(); return }
             _items.value = rows.map { it.toDomain() }
             hasLoaded = true
+            val read = DiaryNotificationReadState.readKeys(_items.value)
+            _items.value.filter {it.isUnread && DiaryNotificationKey.from(it) in read}.forEach {markReadLocked(it)}
+            if (requestGeneration != generation || currentUserId?.invoke() != recipient) return
+            val unseen = fetchUnseenCount()
+            if (requestGeneration != generation || currentUserId?.invoke() != recipient) return
             _failed.value = false
-            _unseenCount.value = fetchUnseenCount() ?: NotificationInbox.unseenCount(_items.value)
+            _unseenCount.value = unseen ?: NotificationInbox.unseenCount(_items.value)
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
@@ -146,16 +151,33 @@ class NotificationRepository(
 
     private suspend fun markReadLocked(notification: AppNotification) {
         if (!notification.isUnread || isDemoInbox || !SupabaseConfig.isConfigured) return
+        val requestGeneration = generation
+        val recipient = currentUserId?.invoke()
         try {
             client.postgrest.rpc(
                 "mark_notification_read",
                 buildJsonObject { put("p_notification_id", notification.id) },
             )
+            if(requestGeneration!=generation || currentUserId?.invoke()!=recipient)return
             val opened = notification.opened(Date())
             _items.value = _items.value.map { if (it.id == opened.id) opened else it }
-            _unseenCount.value = fetchUnseenCount() ?: NotificationInbox.unseenCount(_items.value)
+            val unseen = fetchUnseenCount()
+            if (requestGeneration != generation || currentUserId?.invoke() != recipient) return
+            _unseenCount.value = unseen ?: NotificationInbox.unseenCount(_items.value)
         } catch (_: Exception) {
             // Keep unread until a later refresh.
+        }
+    }
+
+    /** Only invoked after the exact entry is loaded and committed to the visible UI. */
+    suspend fun markDiaryEntryRead(key:DiaryNotificationKey) = refreshMutex.withLock {
+        if(isDemoInbox)return@withLock
+        val requestGeneration=generation
+        if(_items.value.none {DiaryNotificationKey.from(it)==key})refreshInbox(false,true)
+        if(requestGeneration!=generation)return@withLock
+        _items.value.filter {it.isUnread && DiaryNotificationKey.from(it)==key}.forEach {
+            if(requestGeneration!=generation)return@withLock
+            markReadLocked(it)
         }
     }
 

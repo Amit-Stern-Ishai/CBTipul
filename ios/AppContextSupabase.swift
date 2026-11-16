@@ -8,5 +8,6 @@ extension AppContextService {
             guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
             return try await client.functions.invoke("get-app-context")
         })
+        emailClaim = EmailInvitationClaim(client: client)
     }
 }

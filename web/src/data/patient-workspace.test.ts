@@ -5,7 +5,7 @@ const f=vi.hoisted(()=>({from:vi.fn(),invoke:vi.fn(),guard:vi.fn(),rows:vi.fn(),
 vi.mock('./client',()=>({supabase:{from:f.from,functions:{invoke:f.invoke}}}));
 vi.mock('./api',()=>({ApiError:class extends Error{constructor(public code:string){super(code);}},guard:f.guard,rows:f.rows,workspaceAccount:()=> 'account',workspaceClinicalAnonymizer:async()=>f.anonymize}));
 vi.mock('./consent',()=>({consents:{require:f.require,refuse:f.refuse}}));
-import {columns,decodeNamePage,editableContent,patientNames,recordHistory,saveRecord,savePatientSession,writeRecord} from './patient-workspace';
+import {columns,decodeNamePage,editableContent,patientNames,savePatientName,recordHistory,saveRecord,savePatientSession,writeRecord} from './patient-workspace';
 import {createWorksheet,type WorksheetType} from '../workspace/model';
 function complete(type:WorksheetType){const x=createWorksheet(type);x.data=type==='questionnaire'?{gad7_answers:Array(7).fill(0),phq9_answers:Array(9).fill(0),interference_level:0}:{[type==='diary_three'?'situation':'event']:'שם סינתטי — בדיוק!',automatic_thoughts:type==='diary_three'?[{text:'מחשבה',beliefBefore:80,beliefAfter:20}]:['מחשבה'],feelings:type==='diary_three'?[{name:'עצב',intensityBefore:80,intensityAfter:20}]:[{name:'עצב',intensity:80}],thinking_errors:[],alternative_thoughts:type==='diary_three'?[{text:'חלופה',belief:70}]:['חלופה'],behaviour:'פעולה',physical_symptoms:''};return x;}
 function database(result:unknown={data:{id:'entry',patient_id:'patient'},error:null}){const chain={update:vi.fn(),insert:vi.fn(),eq:vi.fn(),select:vi.fn(),single:vi.fn().mockResolvedValue(result)};for(const k of ['update','insert','eq','select'] as const)chain[k].mockReturnValue(chain);f.from.mockReturnValue(chain);return chain;}
@@ -47,4 +47,16 @@ it('private questionnaire saves preserve original notes without legacy writes',a
  await saveRecord('patient','entry',complete('questionnaire'),false,null,{gad7:['  original!  ']},baseline);
  expect(vi.mocked(clinicalSave.save).mock.calls.at(-1)![2].combined_notes).toEqual({gad7:['  original!  ']});
  expect(f.anonymize).not.toHaveBeenCalled();expect(f.from).not.toHaveBeenCalled();
+});
+
+it('name writes await consent, revision and acknowledgement',async()=>{
+ f.invoke.mockReset();
+ f.invoke.mockResolvedValueOnce({data:{names:[{patient_id:'ABC',name:'old',revision:'9',updated_at:null}],next_after:null},error:null})
+ .mockResolvedValueOnce({data:{patient_id:'abc',revision:'10',updated_at:'2026-11-08T12:00:00Z',unchanged:false},error:null});
+ await savePatientName('account','ABC','synthetic new');
+ expect(f.invoke.mock.calls[1][1].body).toEqual({operation:'set',patient_id:'ABC',name:'synthetic new',expected_revision:'9'});
+});
+it.each([{data:null,error:{code:'failure'}},{data:{patient_id:'wrong',revision:'1',updated_at:'date',unchanged:false},error:null}])('failed/malformed name writes never succeed',async response=>{
+ f.invoke.mockReset();f.invoke.mockResolvedValueOnce({data:{names:[{patient_id:'abc',name:null,revision:'0',updated_at:null}],next_after:null},error:null}).mockResolvedValueOnce(response);
+ await expect(savePatientName('account','abc','synthetic')).rejects.toThrow();
 });

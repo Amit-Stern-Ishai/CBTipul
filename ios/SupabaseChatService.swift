@@ -80,6 +80,7 @@ nonisolated struct SupabaseChatService {
         try await AIDataSharingConsentStore.ensureGranted()
         try await EntitlementState.shared.requireWrite()
 
+        let diagnostics = AIActionDiagnostics.current ?? AIActionDiagnostics()
         let body = GatewayRequest(
             model: "gpt-4o-mini",
             messages: [GatewayRequest.Message(role: "system", content: systemPrompt)]
@@ -89,10 +90,11 @@ nonisolated struct SupabaseChatService {
 
         AppLog.ai.info("Chat completion requested, turns: \(turns.count)")
         do {
-            let response: OpenAIResponse = try await client.functions.invoke(
-                "openai-gateway",
-                options: FunctionInvokeOptions(body: body)
-            )
+            let response: OpenAIResponse = try await diagnostics.measure(.gatewayHTTP, bytes: diagnostics.payloadBytes(body), records: body.messages.count) {
+                try await client.functions.invoke("openai-gateway", options: FunctionInvokeOptions(body: body)) { data, response in
+                    try diagnostics.decode(OpenAIResponse.self, data: data, status: response.statusCode, decoder: client.functions.decoder)
+                }
+            }
 
             guard let content = response.choices.first?.message.content,
                   !content.isEmpty else {

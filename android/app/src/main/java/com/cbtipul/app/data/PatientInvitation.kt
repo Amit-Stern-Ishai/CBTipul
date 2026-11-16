@@ -5,6 +5,7 @@ import com.cbtipul.app.auth.AuthRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.network.supabaseApi
 import io.ktor.client.request.header
 import io.ktor.client.request.setBody
@@ -69,6 +70,34 @@ sealed class PatientInvitationClaimError : Exception() {
 }
 
 class PatientInvitationService(private val client: SupabaseClient) {
+    suspend fun emailInvitationStatus(patientId: String): String {
+        val owner = client.auth.currentUserOrNull()?.id ?: error("not_signed_in")
+        val status = client.postgrest.rpc("get_patient_email_invitation_status",
+            JsonObject(mapOf("p_patient_id" to JsonPrimitive(patientId)))).decodeAs<String>()
+        check(owner == client.auth.currentUserOrNull()?.id)
+        check(status in setOf("pending", "connected", "no_invitation")) { "invalid_invitation_status" }
+        return status
+    }
+    suspend fun saveEmailInvitation(patientId: String, email: String): String {
+        Entitlements.requireWrite()
+        check(Entitlements.state.value.role == AppRole.Therapist)
+        val owner = client.auth.currentUserOrNull()?.id ?: error("not_signed_in")
+        try {
+            val response = client.functions.invoke("save-patient-email-invitation", body = JsonObject(mapOf(
+                "patient_id" to JsonPrimitive(patientId), "email" to JsonPrimitive(email))))
+            check(owner == client.auth.currentUserOrNull()?.id)
+            val json = EdgePayload.json.decodeFromString<JsonObject>(response.bodyAsText())
+            val outcome = (json["status"] as? JsonPrimitive)?.contentOrNull ?: "invalid_response"
+            logEmailInvitation(response.status.value, outcome)
+            check(outcome != "invalid_response")
+            return outcome
+        } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
+        catch (error: Exception) {
+            logEmailInvitation(EdgePayload.httpStatus(error), EdgePayload.codeAndMessage(EdgePayload.responseBody(error)).first)
+            throw error
+        }
+    }
+
     suspend fun createPatientInvitation(patientId: String, kind: InvitationKind = InvitationKind.Initial): PatientInvitation {
         return com.cbtipul.app.telemetry.Telemetry.measure(com.cbtipul.app.telemetry.Flow.sharing,feature=com.cbtipul.app.telemetry.Feature.invitationCreation) {
         Entitlements.requireWrite()
@@ -194,4 +223,11 @@ object PatientInvitationShare {
             "לפתיחת ההזמנה:\n" +
             "$invitationUrl\n\n" +
             "ההזמנה אישית ומיועדת עבורך בלבד."
+}
+
+/** Only allowlisted outcomes and HTTP status, never server messages or request data. */
+private fun logEmailInvitation(status: Int?, outcome: String) {
+    if (!com.cbtipul.app.BuildConfig.DEBUG) return
+    val safe = outcome.takeIf { it in setOf("waiting_for_sign_in", "waiting_for_confirmation", "already_connected", "email_unavailable", "invalid_email", "invalid_response") } ?: "request_failed"
+    android.util.Log.d("CBTipulEmailInvite", "http=${status ?: 0} outcome=$safe")
 }

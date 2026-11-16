@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.patients
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -7,6 +9,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import com.cbtipul.app.model.SessionType
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,17 +38,28 @@ internal fun PatientJourneySection(patient: Patient, inHeader: Boolean = false) 
     val foreground = if (inHeader) colors.headerInk else colors.textBright
     Surface(color = if (inHeader && !colors.isPaper) Color.Black.copy(alpha = .12f) else accent.copy(alpha = .12f), shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.dp, accent.copy(alpha = .4f))) {
-        Row(Modifier.padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+        Text(stringResource(R.string.patient_journey_title), style = MaterialTheme.typography.titleSmall, color = foreground)
+        Row(Modifier.padding(horizontal = 0.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             if (stages.isEmpty()) Text(stringResource(R.string.patient_journey_empty), color = foreground,
                 modifier = Modifier.weight(1f).padding(8.dp))
             else CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Balance the journey action so one stage sits at the center of the whole section.
+                if (stages.size == 1) Spacer(Modifier.width(48.dp))
+                LazyRow(Modifier.weight(1f), horizontalArrangement = if (stages.size == 1)
+                    Arrangement.Center else Arrangement.spacedBy(4.dp)) {
                     items(stages.reversed(), key = { it.sessions.first().id }) { stage ->
                         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                             TextButton(onClick = { expanded = true },
                                 colors = ButtonDefaults.textButtonColors(contentColor = foreground),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Icon(when (stage.type) {
+                                        SessionType.Intake, SessionType.PsychoEducation -> Icons.Outlined.School
+                                        SessionType.DiaryOne, SessionType.DiaryTwo, SessionType.DiaryThree -> Icons.AutoMirrored.Outlined.MenuBook
+                                        else -> Icons.Outlined.Description
+                                    }, null, tint = foreground,
+                                        modifier = Modifier.size(28.dp).background(accent.copy(alpha = .25f), CircleShape).padding(5.dp))
                                     Text(stringResource(stage.type?.labelRes() ?: R.string.session_type_none), style = MaterialTheme.typography.labelLarge)
                                     Text(stringResource(R.string.patient_journey_count, stage.sessions.size), style = MaterialTheme.typography.labelSmall)
                                 }
@@ -57,6 +73,7 @@ internal fun PatientJourneySection(patient: Patient, inHeader: Boolean = false) 
                     contentDescription = stringResource(R.string.patient_journey_title))
             }
         }
+    }
     }
     if (expanded) ModalBottomSheet(onDismissRequest = { expanded = false }) {
         Text(stringResource(R.string.patient_journey_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 24.dp))

@@ -228,7 +228,8 @@ final class TherapistNotificationCoordinator {
                 token: UUID(),
                 patientID: patient.id,
                 questionnairesRoute: nil,
-                diaryOneRoute: nil
+                diaryOneRoute: nil,
+                activitySettings: true
             )
             #if DEBUG
             AppLog.push.debug(
@@ -340,6 +341,12 @@ final class TherapistNotificationCoordinator {
         return nil
     }
 
+    func openDiscovery(patientID: DatabaseID, invitation: Bool) {
+        selectedTab = .notifications
+        pendingPatientNavigation = PendingPatientNavigation(token: UUID(), patientID: patientID,
+            questionnairesRoute: nil, diaryOneRoute: nil, activitySettings: !invitation, invitation: invitation)
+    }
+
     func consumePatientNavigation() -> PendingPatientNavigation? {
         let pending = pendingPatientNavigation
         pendingPatientNavigation = nil
@@ -362,4 +369,6 @@ struct PendingPatientNavigation: Hashable {
     let diaryOneRoute: PatientDiaryOneRoute?
     var diaryTwoRoute: PatientDiaryTwoRoute? = nil
     var diaryThreeRoute: PatientDiaryThreeRoute? = nil
+    var activitySettings = false
+    var invitation = false
 }

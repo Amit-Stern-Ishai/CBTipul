@@ -15,25 +15,11 @@ import com.cbtipul.app.data.PatientNameRules
 import com.cbtipul.app.data.PatientNameSync
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun PatientNameSyncControl(sync:PatientNameSync) {
  val state by sync.state.collectAsStateWithLifecycle()
- val scope=rememberCoroutineScope();var show by remember {mutableStateOf(false)}
+ val scope=rememberCoroutineScope()
+ LaunchedEffect(state.account){sync.refresh(true)}
  LifecycleEventEffect(Lifecycle.Event.ON_RESUME){scope.launch {sync.refresh()}}
- if(!state.accepted||state.pending||state.failed) TextButton(onClick={if(state.accepted)scope.launch {sync.refresh(true)} else show=true},enabled=!state.busy) {
-  Text(if(state.accepted) "סנכרון שמות ממתין — ניסיון נוסף" else "הגדרת סנכרון שמות")
- }
- if(show) ModalBottomSheet(onDismissRequest={if(!state.busy)show=false}) {
-  Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-   Text(PatientNameRules.title,style=MaterialTheme.typography.titleLarge)
-   Text(PatientNameRules.notice,style=MaterialTheme.typography.bodyLarge)
-   if(state.failed)Text("לא ניתן להשלים את סנכרון השמות כרגע. אפשר לנסות שוב; הגישה לתיקי המטופלים נשארת זמינה.",color=MaterialTheme.colorScheme.error)
-   if(state.busy)CircularProgressIndicator()
-   Button(onClick={scope.launch {sync.decide();if(sync.state.value.accepted&&!sync.state.value.failed)show=false}},enabled=!state.busy,modifier=Modifier.fillMaxWidth()){Text("אישור והמשך")}
-   val context=androidx.compose.ui.platform.LocalContext.current
-   TextButton(onClick={sync.setAccount(null);scope.launch {(context.applicationContext as com.cbtipul.app.CbTipulApp).authRepository.signOut()}}){Text("יציאה מהחשבון")}
-  }
- }
 }
 
 /** Root-level gate. Completion is a durable device/account checkpoint, not cached consent. */
@@ -45,12 +31,11 @@ import kotlinx.coroutines.launch
  Surface(Modifier.fillMaxSize()) {
   Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
    Text(PatientNameRules.title,style=MaterialTheme.typography.titleLarge)
-   if(state.consentChecked&&!state.accepted)Text(PatientNameRules.notice,style=MaterialTheme.typography.bodyLarge)
-   Text(if(state.accepted)"מסנכרנים את שמות המטופלים במכשיר זה. המרפאה תיפתח לאחר השלמת הסנכרון." else "בודקים את אישור שמירת השמות.")
-   if(state.busy)CircularProgressIndicator(Modifier.semantics {contentDescription="מסנכרנים שמות"})
-   if(state.failed)Text("לא ניתן להשלים את הבדיקה או הסנכרון כרגע. השמות המקומיים לא נמחקו. יש לבדוק את החיבור ולנסות שוב.",color=MaterialTheme.colorScheme.error)
-   if(state.consentChecked&&!state.accepted)Button(onClick={scope.launch {sync.decide()}},enabled=!state.busy,modifier=Modifier.fillMaxWidth()){Text("אישור והמשך")}
-   if(!state.busy)OutlinedButton(onClick={scope.launch {retry()}},modifier=Modifier.fillMaxWidth()){Text("ניסיון נוסף")}
+   Text(PatientNameRules.notice,style=MaterialTheme.typography.bodyLarge)
+
+
+   if(state.approvalFailed)Text(androidx.compose.ui.res.stringResource(com.cbtipul.app.R.string.patient_name_approval_failed),color=MaterialTheme.colorScheme.error)
+   if(!state.accepted)Button(onClick={scope.launch {sync.decide()}},enabled=!state.busy,modifier=Modifier.fillMaxWidth()){Text("אישור והמשך")}
    TextButton(onClick=logout,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
     Text("לא עכשיו — יציאה מהחשבון",textAlign=androidx.compose.ui.text.style.TextAlign.Center,softWrap=true)
    }

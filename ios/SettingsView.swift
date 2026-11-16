@@ -512,7 +512,7 @@ struct SettingsView: View {
                 }
                 .appTextSize()
             }
-            .deleteCodeChallenge(isPresented: $isShowingDeleteAccountCodeChallenge) {
+            .deleteCodeChallenge(phrase: .account, isPresented: $isShowingDeleteAccountCodeChallenge) {
                 deleteAccount()
             }
             .alert(L10n.deleteAccountFailedTitle,

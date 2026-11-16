@@ -27,7 +27,7 @@ nonisolated struct SavedPreparation: Codable {
         do {
             return try JSONDecoder().decode(SavedPreparation.self, from: data)
         } catch {
-            AppLog.store.warning("Dropped undecodable saved preparation for patient \(patientID.queryValue, privacy: .public) (old schema)")
+            AppLog.store.warning("Saved preparation could not be decoded")
             return nil
         }
     }
@@ -43,6 +43,15 @@ nonisolated struct SavedPreparation: Codable {
             try? data.write(to: fileURL(for: patientID),
                             options: [.atomic, .completeFileProtection])
         }
+        return saved
+    }
+
+    /// Used by the action so a failed local write cannot be reported as persistence success.
+    static func persist(_ response: WhisperService.PrepareSessionResponse,
+                        for patientID: DatabaseID) throws -> SavedPreparation {
+        if DemoData.isDemoID(patientID) { return DemoClinicStore.savePreparation(response, for: patientID) }
+        let saved = SavedPreparation(generatedAt: .now, response: response)
+        try JSONEncoder().encode(saved).write(to: fileURL(for: patientID), options: [.atomic, .completeFileProtection])
         return saved
     }
 

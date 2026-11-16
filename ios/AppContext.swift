@@ -56,7 +56,9 @@ final class AppContextService {
     private var generation = 0
     private var requestSequence = 0
 
-    private(set) var current: AppContext?
+    var emailClaim: EmailInvitationClaim?
+    private var resolved: AppContext?
+    var current: AppContext? { account == identity() ? resolved : nil }
     private(set) var isLoading = false
     private(set) var loadError: String?
 
@@ -73,7 +75,7 @@ final class AppContextService {
         let requestGeneration = generation
         requestSequence += 1
         let request = requestSequence
-        if account != identity { current = nil; lastRefresh = nil; account = identity }
+        if account != identity { resolved = nil; lastRefresh = nil; account = identity }
         EntitlementState.shared.setIdentity(identity)
         isLoading = true
         loadError = nil
@@ -85,17 +87,26 @@ final class AppContextService {
             do { context = try await requestContext(); requestTelemetry.event(.succeeded) }
             catch { requestTelemetry.event(.failed, error: .generic); throw error }
             guard requestGeneration == generation, request == requestSequence, identity == self.identity(), identity == account else { throw CancellationError() }
-            current = context
+            if let emailClaim {
+                guard let permitted = try await emailClaim.resolve(context, reload: requestContext) else {
+                    resolved = nil
+                    EntitlementState.shared.invalidate()
+                    return context
+                }
+                guard requestGeneration == generation, request == requestSequence, identity == self.identity() else { throw CancellationError() }
+                resolved = permitted
+            } else { resolved = context }
             lastRefresh = Date()
-            EntitlementState.shared.apply(context)
-            AppLog.auth.info("App context received, role: \(context.role.rawValue, privacy: .public)")
-            if let access = context.entitlement?.access {
+            EntitlementState.shared.apply(resolved ?? context)
+            AppLog.auth.info("App context received, role: \((self.resolved ?? context).role.rawValue, privacy: .public)")
+            if let access = (resolved ?? context).entitlement?.access {
                 telemetry.event(.succeeded, access: access == .full ? .full : .readOnly)
             } else { telemetry.event(.failed, error: .unresolved) }
-            return context
+            return resolved ?? context
         } catch {
             telemetry.event(error is CancellationError ? .cancelled : .failed, error: error is CancellationError ? .cancelled : .generic)
             if requestGeneration == generation && request == requestSequence && identity == account && identity == self.identity() {
+                // Retain the same-account route; failed checks never authorize writes.
                 EntitlementState.shared.invalidate()
                 loadError = error.localizedDescription
             }
@@ -111,9 +122,10 @@ final class AppContextService {
 
     func clear() {
         generation += 1
+        emailClaim?.reset()
         account = nil; lastRefresh = nil
         EntitlementState.shared.clear()
-        current = nil
+        resolved = nil
         loadError = nil
         isLoading = false
     }

@@ -131,6 +131,12 @@ final class PatientInvitationFlow {
                 return
             }
             if let existing = session, !existing.isAnonymous {
+                // An email-backed patient is still a patient. Resolve the role before
+                // offering a switch or clearing any existing credentials.
+                failure = .context
+                let context = try await d.context()
+                guard d.session() == existing else { phase = .activationFailed(.context); return }
+                guard context.role == .therapist else { phase = .existingPatient; return }
                 guard !didSucceedClaim else { phase = .activationFailed(.context); return }
                 guard confirmedTherapist == existing.userID else {
                     switchUserID = existing.userID

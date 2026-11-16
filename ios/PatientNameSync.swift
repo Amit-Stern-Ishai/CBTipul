@@ -12,6 +12,10 @@ nonisolated enum PatientNameRules {
     static func revision(_ value: String) -> Bool {
         !value.isEmpty && value.utf8.allSatisfy { $0 >= 48 && $0 <= 57 }
     }
+    static func older(_ value: String, than current: String) -> Bool {
+        let lhs = value.drop(while: { $0 == "0" }), rhs = current.drop(while: { $0 == "0" })
+        return lhs.count == rhs.count ? lhs.lexicographicallyPrecedes(rhs) : lhs.count < rhs.count
+    }
     static let title = "שמירת שמות מטופלים וסנכרון בין מכשירים"
     static let notice = """
 מעתה שמות המטופלים יישמרו בשרתי CBTipul בצורה מוצפנת, כדי לאפשר סנכרון בין מכשירים ובהמשך גם בחירת מטופל/ת בסביבת העבודה במחשב.
@@ -67,10 +71,19 @@ nonisolated struct PatientNameSyncSnapshot: Codable {
     var entries: [String: PatientNameEntry] = [:]
     var consentDecision: NameConsentDecision?
     var migrationVersion: String?
+    var confirmedIDs: Set<String>?
+    var approvalVersion: String?
 }
 nonisolated struct NameSyncFailure: Error, LocalizedError {
     let code: String
-    var errorDescription: String? { code == "invalid_name" ? "יש להזין שם שאינו ריק, עד 200 תווים וללא תווי בקרה." : "סנכרון השמות ממתין. אפשר לנסות שוב." }
+    var errorDescription: String? {
+        switch code {
+        case "invalid_name": "יש להזין שם שאינו ריק, עד 200 תווים וללא תווי בקרה."
+        case "consent_required": L10n.patientNameConsentRequired
+        case "revision_conflict": L10n.patientNameChanged
+        default: L10n.patientNameSaveFailed
+        }
+    }
     static func from(_ error: Error) -> Self {
         if let e = error as? Self { return e }
         if case let FunctionsError.httpError(status, data) = error {
@@ -83,7 +96,7 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
     }
 }
 
-/// Device/account-scoped durable intent. Legacy synchronizable mappings are read only.
+/// Account-scoped memory plus durable unfinished legacy migration input. iCloud mappings are read only.
 @MainActor @Observable final class PatientNameSync {
     typealias Call = (String, Data) async throws -> Data
     private let call: Call
@@ -96,19 +109,50 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
     private var owned: Set<String> = []
     private var deleting: Set<String> = []
     private var legacy: [String: String] = [:]
+    private var rowNames: [String: String?] = [:]
+    private var rowLegacy: [String: String] = [:]
+    private var rowsReceived = false
+    private(set) var writeRevision = 0
+    var waitForPatientRows = false
+    /// Presence is authoritative even for null. These values are never persisted.
+    func receivePatientRows(_ records: [ClinicalLoadedRecord]) throws {
+        var names: [String: String?] = [:]
+        var fallbacks: [String: String] = [:]
+        for record in records {
+            let id = record.id.lowercased()
+            if let value = record.values["decryptedName"] {
+                switch value {
+                case .string(let name): names.updateValue(name, forKey: id)
+                case .null: names.updateValue(nil, forKey: id)
+                default: throw NameSyncFailure(code: "invalid_response")
+                }
+            }
+            if (names[id] ?? nil) == nil, let name = try? readLegacy?(id), !name.isEmpty { fallbacks[id] = name }
+        }
+        rowNames = names; rowLegacy = fallbacks; rowsReceived = true
+        register(Dictionary(uniqueKeysWithValues: records.map { ($0.id, Optional<String>.none) }))
+        for (id, name) in names where name != nil {
+            if snapshot.entries[id]?.pending?.initial == true { snapshot.entries[id]?.pending = nil }
+        }
+    }
     private var lastRefresh = Date.distantPast
     private var rerun = false
     private var diskReady = false
+    private(set) var legacyChecked = false
     private(set) var busy = false
     private(set) var accepted = false
     private(set) var failed = false
+    /// Only an explicit approval attempt may produce feedback on the approval gate.
+    private(set) var approvalFailed = false
     private var consentRevision: Int64?
     private(set) var consentChecked = false
     var loadOwned: (() async throws -> [String: String?])?
     var migrationComplete: Bool { snapshot.migrationVersion == PatientNameRules.version }
-    func shouldGate(therapist: Bool, demo: Bool) -> Bool { therapist && !demo && !migrationComplete }
+    private var hasOwnedLegacy: Bool { owned.contains { snapshot.entries[$0]?.pending != nil } }
+    private var migrationApproved: Bool { snapshot.approvalVersion == PatientNameRules.version }
+    func shouldGate(therapist: Bool, demo: Bool) -> Bool { therapist && !demo && legacyChecked && hasOwnedLegacy && !migrationApproved }
     var changed: (() -> Void)?
-    var readLegacy: ((String) -> String?)?
+    var readLegacy: ((String) throws -> String?)?
     var hasPending: Bool { snapshot.entries.values.contains { $0.pending != nil } }
     init(call: @escaping Call, storage: any DraftPersistence = DeviceDraftStorage(service: "CBTipul.patient-name-sync.v1"),
          eligible: @escaping () -> Bool, fullAccess: @escaping () -> Bool) {
@@ -118,18 +162,22 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
         self.init(call: { name, data in
             let params = try JSONDecoder().decode([String: AnyJSON].self, from: data)
             if name == "patient-names" {
+                #if DEBUG
+                if case .string(let operation) = params["operation"] { print("PatientLaunchTrace request=patient-names operation=\(operation) t=\(ProcessInfo.processInfo.systemUptime)") }
+                #endif
                 let response: AnyJSON = try await client.functions.invoke(name, options: FunctionInvokeOptions(body: params))
                 return try JSONEncoder().encode(response)
             }
             return try await client.rpc(name, params: params).execute().data
         }, eligible: { ProcessInfo.processInfo.environment["CBTIPUL_NAME_SYNC_TESTS"] != "1" && EntitlementState.shared.role == .therapist && !EntitlementState.shared.isLocalDemo },
            fullAccess: { EntitlementState.shared.access == .full })
+        waitForPatientRows = true
         loadOwned = {
             struct Owned: Decodable { let id: String }
             var result: [String: String?] = [:]; var offset = 0
             repeat {
                 let page: [Owned] = try await client.from("Patients").select("id").order("id").range(from: offset, to: offset + 499).execute().value
-                for row in page { result.updateValue(PatientIdentityStore().name(for: .text(row.id)), forKey: row.id) }
+                for row in page { result.updateValue(nil, forKey: row.id) }
                 if page.count < 500 { break }; offset += 500
             } while true
             return result
@@ -138,48 +186,64 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
     func setAccount(_ value: String?) {
         let value = value?.lowercased()
         guard account != value else { return }
-        generation += 1; account = value; snapshot = .init(); owned = []; deleting = []; legacy = [:]
-        busy = false; rerun = false; accepted = false; failed = false; consentRevision = nil; consentChecked = false; lastRefresh = .distantPast; diskReady = false
-        guard let value else { return }
-        do { snapshot = try storage.load(PatientNameSyncSnapshot.self, key: value) ?? .init(); diskReady = true }
+        rowNames = [:]; rowLegacy = [:]; rowsReceived = false; writeRevision = 0
+        generation += 1; PatientNameResolver.clear(); legacyChecked = false; account = value; snapshot = .init(); owned = []; deleting = []; legacy = [:]
+        busy = false; rerun = false; accepted = false; failed = false; approvalFailed = false; consentRevision = nil; consentChecked = false; lastRefresh = .distantPast; diskReady = false
+        guard let value else { changed?(); return }
+        do { snapshot = try storage.load(PatientNameSyncSnapshot.self, key: value) ?? .init(); diskReady = true; discardConfirmedCache() }
         catch { failed = true }
+        changed?()
+    }
+    func hasConfirmed(_ id: String) -> Bool {
+        (rowNames[id.lowercased()] ?? nil) != nil || snapshot.confirmedIDs?.contains(id.lowercased()) == true || snapshot.entries[id.lowercased()]?.confirmed != nil
+    }
+    private func discardConfirmedCache() {
+        // Preserve all unfinished input. Only values already acknowledged by the server are discarded.
+        snapshot.confirmedIDs = (snapshot.confirmedIDs ?? []).union(snapshot.entries.filter { $0.value.confirmed != nil && $0.value.pending == nil }.keys)
+        snapshot.entries = snapshot.entries.filter { $0.value.pending != nil }.mapValues { var e = $0; e.confirmed = nil; return e }
     }
     private func persist() throws {
         guard let account, diskReady else { throw NameSyncFailure(code: "local_storage") }
-        try storage.save(snapshot, key: account)
+        var durable = snapshot
+        // Confirmed server values are session memory only. Only unfinished legacy input is retained.
+        durable.entries = snapshot.entries.filter { $0.value.pending != nil }.mapValues {
+            var entry = $0; entry.confirmed = nil; return entry
+        }
+        durable.confirmedIDs = (snapshot.confirmedIDs ?? []).union(snapshot.entries.filter { $0.value.confirmed != nil && $0.value.pending == nil }.keys)
+        snapshot.confirmedIDs = durable.confirmedIDs
+        try storage.save(durable, key: account)
     }
     func register(_ values: [String: String?]) {
         guard account != nil else { return }
         owned = Set(values.keys.map { $0.lowercased() }.filter { UUID(uuidString: $0) != nil }).subtracting(deleting)
         legacy = Dictionary(uniqueKeysWithValues: values.compactMap { key, value in
-            guard owned.contains(key.lowercased()), let value, PatientNameRules.valid(value) else { return nil }
+            guard owned.contains(key.lowercased()), !hasConfirmed(key.lowercased()), let value, PatientNameRules.valid(value) else { return nil }
             return (key.lowercased(), value)
         })
     }
     func displayed(_ id: String, legacy fallback: String?) -> String? {
         guard account != nil else { return fallback }
-        let entry = snapshot.entries[id.lowercased()]
-        return entry?.pending?.name ?? entry?.confirmed ?? fallback
+        let key = id.lowercased()
+        let entry = snapshot.entries[key]
+        if let value = rowNames[key] { return value ?? entry?.pending?.name ?? rowLegacy[key] ?? fallback }
+        return entry?.pending?.name ?? entry?.confirmed ?? rowLegacy[key] ?? fallback
     }
-    func edit(_ id: String, name: String) throws {
+    /// Ordinary writes are awaited, never persisted as offline name intents.
+    func edit(_ id: String, name: String) async throws {
         guard PatientNameRules.valid(name), UUID(uuidString: id) != nil else { throw NameSyncFailure(code: "invalid_name") }
-        let id = id.lowercased(); owned.insert(id)
-        let previous = snapshot
-        var entry = snapshot.entries[id] ?? .init(); entry.pending = .init(name: name, initial: false)
-        snapshot.entries[id] = entry
-        do { try persist() } catch { snapshot = previous; failed = true; throw error }
-        changed?(); Task { await refresh(force: true) }
-    }
-    // A patient already exists at this point. Keep its name even if local persistence fails;
-    // retry storage before any network work rather than reporting patient creation as failed.
-    func rememberCreated(_ id: String, name: String) {
-        guard account != nil, UUID(uuidString: id) != nil, PatientNameRules.valid(name) else { return }
-        let id = id.lowercased(); owned.insert(id)
-        var entry = snapshot.entries[id] ?? .init()
-        entry.pending = .init(name: name, initial: true); snapshot.entries[id] = entry
-        do { try persist() } catch { failed = true }
+        let epoch = generation; let id = id.lowercased()
+        let rows = try await fetch(epoch)
+        guard let row = rows[id] else { throw NameSyncFailure(code: "patient_not_found") }
+        struct SetName: Encodable { let operation = "set"; let patient_id: String; let name: String; let expected_revision: String }
+        let result: PatientNameSetResult = try await request("patient-names", SetName(patient_id: id, name: name, expected_revision: row.revision), epoch)
+        guard result.patient_id.lowercased() == id, PatientNameRules.revision(result.revision), !result.updated_at.isEmpty else { throw NameSyncFailure(code: "invalid_response") }
+        writeRevision += 1
+        owned.insert(id)
+        snapshot.entries[id] = PatientNameEntry(confirmed: name, revision: result.revision, initialized: true)
+        if rowNames.keys.contains(id) { rowNames.updateValue(name, forKey: id) }
         changed?()
     }
+    func rememberCreated(_ id: String, name: String) async throws { try await edit(id, name: name) }
     func beginDeletion(_ id: String) { deleting.insert(id.lowercased()); owned.remove(id.lowercased()) }
     func cancelDeletion(_ id: String) { deleting.remove(id.lowercased()); owned.insert(id.lowercased()) }
     func remove(_ id: String) {
@@ -191,30 +255,38 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
     }
     private func request<P: Encodable, R: Decodable>(_ method: String, _ payload: P, _ epoch: Int) async throws -> R {
         try check(epoch)
-        let data = try await call(method, JSONEncoder().encode(payload))
+        let data: Data
+        do { data = try await call(method, JSONEncoder().encode(payload)) }
+        catch is CancellationError { throw CancellationError() }
+        catch let error as URLError where error.code == .cancelled { throw CancellationError() }
+        catch { throw NameSyncFailure.from(error) }
         try check(epoch)
         if method == "get_my_consent" || method == "record_my_consent" {
             let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             guard let object, ["therapist_id", "consent_type", "required_version", "accepted_version", "accepted_at", "revoked_at", "status", "revision"].allSatisfy({ object.keys.contains($0) }) else { throw NameSyncFailure(code: "invalid_response") }
         }
-        return try JSONDecoder().decode(R.self, from: data)
+        do { return try JSONDecoder().decode(R.self, from: data) }
+        catch { throw NameSyncFailure(code: "invalid_response") }
     }
     private func lookup(_ epoch: Int) async throws -> NameConsentReceipt {
         let receipt: NameConsentReceipt = try await request("get_my_consent", ["p_consent_type": PatientNameRules.type, "p_required_version": PatientNameRules.version], epoch)
         try receipt.validate(account: account!)
         guard consentRevision == nil || receipt.revision >= consentRevision! else { throw NameSyncFailure(code: "invalid_response") }
         consentRevision = receipt.revision; accepted = receipt.status == "accepted"; consentChecked = true
+        snapshot.approvalVersion = accepted ? PatientNameRules.version : nil
         return receipt
     }
     private func reopenStorage() {
         guard !diskReady, let account else { return }
-        do { snapshot = try storage.load(PatientNameSyncSnapshot.self, key: account) ?? .init(); diskReady = true }
+        do { snapshot = try storage.load(PatientNameSyncSnapshot.self, key: account) ?? .init(); diskReady = true; discardConfirmedCache() }
         catch { failed = true }
     }
-    func decide(_ decision: String = "accepted") async {
+    func decide(_ decision: String = "accepted", userInitiated: Bool = true) async {
         reopenStorage()
-        guard !busy, account != nil, eligible(), diskReady else { return }
+        guard !busy, account != nil, eligible() else { return }
+        guard diskReady else { if userInitiated { approvalFailed = true }; return }
         let epoch = generation; busy = true; failed = false; accepted = false
+        if userInitiated { approvalFailed = false }
         var decisionConfirmed = false
         defer { if epoch == generation { busy = false } }
         do {
@@ -231,10 +303,13 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
             try receipt.validate(account: account!)
             guard consentRevision == nil || receipt.revision >= consentRevision! else { throw NameSyncFailure(code: "invalid_response") }
             consentRevision = receipt.revision; accepted = receipt.status == "accepted"
-            snapshot.consentDecision = nil; try persist(); decisionConfirmed = true; consentChecked = true
-            if accepted { try await sync(epoch) }
+            snapshot.consentDecision = nil; if accepted { snapshot.approvalVersion = PatientNameRules.version }; try persist(); decisionConfirmed = true; consentChecked = true
+            if accepted { Task { await refresh(force: true) } }
+        } catch is CancellationError {
+            // Keep the durable decision for the next background resume.
         } catch {
             guard epoch == generation else { return }
+            if userInitiated { approvalFailed = true }
             if !decisionConfirmed { accepted = false }; failed = true
             let code = NameSyncFailure.from(error).code
             if code == "consent_required" { accepted = false; _ = try? await lookup(epoch) }
@@ -245,9 +320,10 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
         }
     }
     func retryMigration() async {
-        if snapshot.consentDecision != nil { await decide() } else { await refresh(force: true) }
+        if snapshot.consentDecision != nil { await decide(userInitiated: false) } else { await refresh(force: true) }
     }
     func refresh(force: Bool = false) async {
+        guard !waitForPatientRows || rowsReceived else { return }
         reopenStorage()
         guard account != nil, eligible(), diskReady else { return }
         if busy { rerun = true; return }
@@ -260,18 +336,37 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
             }
         }
         do {
-            // An uncertain decision is retried only by the explicit approval/retry action.
-            guard snapshot.consentDecision == nil else { failed = true; accepted = false; return }
+            if !legacyChecked {
+                if !migrationComplete {
+                    if !rowsReceived, let loadOwned { let values = try await loadOwned(); try check(epoch); register(values) }
+                    let confirmed = (snapshot.confirmedIDs ?? []).union(snapshot.entries.filter { $0.value.confirmed != nil && $0.value.pending == nil }.keys)
+                    for id in owned where !confirmed.contains(id) && (rowNames[id] ?? nil) == nil {
+                        if let value = try readLegacy?(id) ?? legacy[id], PatientNameRules.valid(value) {
+                            var entry = snapshot.entries[id] ?? .init()
+                            if entry.pending == nil { entry.pending = .init(name: value, initial: true) }
+                            snapshot.entries[id] = entry
+                        }
+                    }
+                }
+                legacyChecked = true
+                if !hasPending { snapshot.migrationVersion = PatientNameRules.version }
+            }
+            // Approval requests are idempotent and resume after a lost receipt.
+            if hasOwnedLegacy && snapshot.consentDecision != nil {
+                busy = false; await decide(userInitiated: false); return
+            }
             try persist()
-            _ = try await lookup(epoch)
-            guard accepted else { return }
+            // Ordinary reads rely on the normal terms flow and the encrypted API.
             failed = false; try await sync(epoch)
+        } catch is CancellationError {
+            // Cancellation is an unfinished background operation, not a visible error.
         } catch {
             guard epoch == generation else { return }
             failed = true
             let code = NameSyncFailure.from(error).code
-            if code == "consent_required" { accepted = false; _ = try? await lookup(epoch) }
-            else if code == "http_401" || code == "unauthorized" { accepted = false }
+            // The deployed API may still reject ordinary reads. Never turn that
+            // rejection into name-specific UI or consent requests for a clean account.
+            if code == "consent_required", hasOwnedLegacy, !migrationApproved { _ = try? await lookup(epoch) }
         }
     }
     private func fetch(_ epoch: Int) async throws -> [String: ServerPatientName] {
@@ -293,36 +388,40 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
     }
     private func adopt(_ rows: [String: ServerPatientName]) throws {
         for (id, row) in rows where owned.contains(id) {
+            guard !rowNames.keys.contains(id) || snapshot.entries[id]?.pending != nil else { continue }
             var entry = snapshot.entries[id] ?? .init()
+            guard !PatientNameRules.older(row.revision, than: entry.revision) else { continue }
             if let name = row.name {
                 entry.confirmed = name; entry.revision = row.revision; entry.initialized = true
-                if entry.pending?.initial == true { entry.pending = nil }
-            } else if !entry.initialized, entry.pending == nil, let local = legacy[id] {
-                entry.pending = .init(name: local, initial: true)
+                if entry.pending != nil { entry.pending = nil }
+            } else {
+                entry.confirmed = nil; entry.revision = row.revision
             }
             snapshot.entries[id] = entry
+            if rowNames.keys.contains(id) { rowNames.updateValue(row.name, forKey: id) }
         }
         try persist(); changed?()
     }
     private func sync(_ epoch: Int) async throws {
-        let migrating = !migrationComplete && loadOwned != nil
-        if migrating, let loadOwned {
-            let values = try await loadOwned(); try check(epoch); register(values)
-        }
-        // Re-read only confirmed owned IDs so late iCloud arrivals can fill missing names.
-        // Server names still win in adopt; no shared-Keychain enumeration occurs.
-        if let readLegacy {
-            for id in owned {
-                if let name = readLegacy(id), PatientNameRules.valid(name) { legacy[id] = name }
-            }
+        let migrating = !migrationComplete
+        // Never re-read a confirmed legacy source, including late iCloud copies.
+        if rowsReceived && owned.allSatisfy({ rowNames.keys.contains($0) }) {
+            if !hasOwnedLegacy { return }
+            if !migrationApproved { _ = try await lookup(epoch); guard migrationApproved else { return } }
         }
         var rows = try await fetch(epoch); try adopt(rows)
+        // Only automatic upload of existing device-local input requires this approval.
+        // Reading server names, including names that resolve legacy conflicts, does not.
+        if hasOwnedLegacy && !migrationApproved {
+            _ = try await lookup(epoch)
+            guard migrationApproved else { return }
+            try persist()
+        }
         for id in owned.sorted() {
             var attempts = 0
             while owned.contains(id), let intent = snapshot.entries[id]?.pending, attempts < 3 {
                 guard let row = rows[id] else { break }
-                // Existing server names finish initial reconciliation. Preserve explicit
-                // offline renames for ordinary sync instead of blocking read-only therapists.
+                // Initial reconciliation never replaces an existing server name.
                 if migrating && row.name != nil { break }
                 if row.name == intent.name {
                     snapshot.entries[id]?.pending = nil; try persist(); changed?(); break
@@ -334,8 +433,10 @@ nonisolated struct NameSyncFailure: Error, LocalizedError {
                     let result: PatientNameSetResult = try await request("patient-names", SetName(patient_id: id, name: intent.name, expected_revision: intent.initial ? "0" : row.revision), epoch)
                     guard owned.contains(id) else { break }
                     guard result.patient_id.lowercased() == id, PatientNameRules.revision(result.revision), !result.updated_at.isEmpty else { throw NameSyncFailure(code: "invalid_response") }
+                    writeRevision += 1
                     snapshot.entries[id]?.confirmed = intent.name; snapshot.entries[id]?.revision = result.revision; snapshot.entries[id]?.initialized = true
                     if snapshot.entries[id]?.pending?.id == intent.id { snapshot.entries[id]?.pending = nil }
+                    if rowNames.keys.contains(id) { rowNames.updateValue(intent.name, forKey: id) }
                     rows[id] = ServerPatientName(patient_id: id, name: intent.name, revision: result.revision, updated_at: result.updated_at)
                     try persist(); changed?()
                 } catch {
@@ -376,19 +477,12 @@ struct PatientNameSetupView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(PatientNameRules.title).font(.title2.bold())
-                    if !blocking || (sync.consentChecked && !sync.accepted) { Text(PatientNameRules.notice) }
-                    if blocking {
-                        Text(sync.accepted ? "מסנכרנים את שמות המטופלים במכשיר זה. המרפאה תיפתח לאחר השלמת הסנכרון." : "בודקים את אישור שמירת השמות.")
-                    }
-                    if sync.failed { Text(blocking ? "לא ניתן להשלים את הבדיקה או הסנכרון כרגע. השמות המקומיים לא נמחקו. יש לבדוק את החיבור ולנסות שוב." : "לא ניתן להשלים את סנכרון השמות כרגע. אפשר לנסות שוב.").foregroundStyle(Theme.error) }
-                    if sync.busy { ProgressView().accessibilityLabel("מסנכרנים שמות") }
-                    if !sync.accepted && (!blocking || sync.consentChecked) {
+                    Text(PatientNameRules.notice)
+                    if sync.approvalFailed { Text(L10n.patientNameApprovalFailed).foregroundStyle(Theme.error) }
+
+                    if !sync.accepted {
                         Button("אישור והמשך") { Task { await sync.decide(); if !blocking && sync.accepted && !sync.failed { dismiss() } } }
                             .buttonStyle(.borderedProminent).disabled(sync.busy)
-                    }
-                    if blocking && !sync.busy {
-                        Button("ניסיון נוסף") { Task { if let retry { await retry() } else { await sync.retryMigration() } } }
-                            .buttonStyle(.bordered)
                     }
                     Button(action: { logout?() }) {
                         Text(blocking ? "לא עכשיו — יציאה מהחשבון" : "יציאה מהחשבון")

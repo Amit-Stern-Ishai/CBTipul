@@ -19,10 +19,11 @@ object AppRootRouting {
         invitationActive: Boolean,
         hasSession: Boolean,
         isAnonymous: Boolean,
+        context: AppContext? = null,
     ): AppRootDestination {
         if (invitationActive) return AppRootDestination.Invitation
         if (!hasSession) return AppRootDestination.Unauthenticated
-        return if (isAnonymous) AppRootDestination.AnonymousPatient else AppRootDestination.Therapist
+        return if (context?.role == AppRole.Therapist) AppRootDestination.Therapist else AppRootDestination.AnonymousPatient
     }
 
     fun anonymousDestination(

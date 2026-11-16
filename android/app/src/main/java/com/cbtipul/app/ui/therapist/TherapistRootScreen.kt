@@ -232,6 +232,7 @@ fun TherapistRootScreen(
                         onOpenSettings = { tab = TherapistRootTab.Settings },
                         onCloseSettings = onCloseSettingsOverlay,
                         navController = patientsNav,
+                        discoveryActive = tab == TherapistRootTab.Patients,
                     )
                 }
             }
@@ -281,7 +282,9 @@ fun TherapistRootScreen(
                                 repository = app.notifications, workspaces = app.webWorkspaces, patients = patients, unnamed = unnamed,
                                 onOpen = { item ->
                                     val destination = NotificationRouting.destination(NotificationPayload.from(item))
-                                    app.applicationScope.launch { app.notifications.markRead(item) }
+                                    if (!com.cbtipul.app.data.DiaryNotificationReadState.isDiaryEvent(item.type)) {
+                                        app.applicationScope.launch { app.notifications.markRead(item) }
+                                    }
                                     if (destination != null) navigateInboxDestination(inboxNav, destination)
                                 },
                             )

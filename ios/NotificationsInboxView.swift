@@ -182,7 +182,7 @@ struct NotificationsInboxView: View {
 
     private func open(_ item: AppNotification) async {
         coordinator.handleInboxTap(item, patients: store.patients)
-        await notifications.markRead(item)
+        if !DiaryNotificationReadState.isDiaryEvent(item.type) { await notifications.markRead(item) }
     }
 }
 
@@ -275,7 +275,7 @@ private struct NotificationInboxRow: View {
         case .webWorkspace: L10n.wwPreview
         case .completedQuestionnaire: L10n.notificationOpenQuestionnaires
         case .diaryOneEntry, .diaryTwoEntry, .diaryThreeEntry: L10n.notificationOpenDiary
-        case .patientDetail: L10n.notificationOpenPatient
+        case .patientDetail: L10n.discoveryActivitiesAction
         case .none: nil
         }
     }
@@ -333,7 +333,7 @@ private struct NotificationItemDestination: View {
                         if found { DiaryThreeEntryDetailView(patient: patient, entryID: id) }
                         else { loadState }
                     } else { PatientDiaryThreeView(patient: patient) }
-                } else { PatientDetailView(patient: patient) }
+                } else { PatientDetailView(patient: patient, discoverInvitation: target.invitation, discoverActivities: target.activitySettings) }
             } else {
                 ContentUnavailableView { Label(L10n.notificationTargetUnavailable, systemImage: "questionmark.circle") }
             }

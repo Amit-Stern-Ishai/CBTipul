@@ -100,10 +100,10 @@
     <string name="questionnaire_incomplete_title">שאלוני מצב הרוח לא הושלמו</string>
     <string name="questionnaire_incomplete_message">יש לענות על כל השאלות כדי לשמור את שאלוני מצב הרוח.</string>
     <string name="delete_code_title">אישור מחיקה נוסף</string>
-    <string name="delete_code_placeholder">הקלדת הקוד</string>
+    <string name="delete_code_placeholder">הקלדת הביטוי</string>
     <string name="delete_code_confirm_action">מחיקה</string>
-    <string name="delete_code_mismatch_title">הקוד שגוי</string>
-    <string name="delete_code_mismatch_message">הקוד שהוקלד אינו תואם, ולכן המחיקה לא בוצעה.</string>
+    <string name="delete_code_mismatch_title">הביטוי אינו תואם</string>
+    <string name="delete_code_mismatch_message">הביטוי שהוקלד אינו תואם, ולכן המחיקה לא בוצעה.</string>
     <string name="ok">אישור</string>
     <string name="edit_patient_name_action">עריכת שם</string>
     <string name="edit_patient_name_title">עריכת שם מטופל/ת</string>
@@ -200,7 +200,7 @@
     <string name="phq9_short_name">PHQ-9</string>
     <string name="questionnaire_section_title">שאלוני מצב רוח</string>
     <string name="has_structured_summary_label">כולל סיכום מובנה</string>
-    <string name="session_type_label">סוג פגישה (לא חובה)</string>
+    <string name="session_type_label">סוג פגישה</string>
     <string name="session_type_none">ללא</string>
     <string name="no_questionnaire_for_session">אין שאלוני מצב רוח לפגישה זו</string>
     <string name="gad7_title">GAD-7 שאלון לאבחון חרדה מוכללת</string>
@@ -358,8 +358,8 @@
     <string name="patient_not_saved_error">המטופל/ת עדיין לא נשמר/ה במסד הנתונים.</string>
     <string name="session_not_saved_error">הפגישה עדיין לא נשמרה במסד הנתונים.</string>
     <string name="update_rejected_error">השרת קיבל את הבקשה, אך לא בוצע שינוי. יש לבדוק את מדיניות אבטחת השורות (RLS) של הטבלה — ייתכן שחסרה הרשאת UPDATE.</string>
-    <string name="anonymization_failed_error">לא ניתן היה להסיר פרטים מזהים ולכן המידע לא נשמר. אפשר לנסות שוב.</string>
-    <string name="anonymizing_status_label">הסרת פרטים מזהים…</string>
+    <string name="anonymization_failed_error">לא ניתן היה להכין את הטקסט בבטחה לעיבוד בינה מלאכותית. אפשר לנסות שוב.</string>
+    <string name="anonymizing_status_label">מכין טקסט ל־AI — הסרת פרטים מזהים…</string>
     <string name="session_type_first_phone_call">שיחת טלפון ראשונית</string>
     <string name="session_type_intake">אינטייק</string>
     <string name="session_type_psycho_education">פסיכו-חינוכי</string>
@@ -387,7 +387,7 @@
     <string name="session">פגישה %1$d</string>
     <string name="session_editor_title">פגישה%1$s</string>
     <string name="more_follow_ups">עוד (%1$d)</string>
-    <string name="delete_code_message">להשלמת המחיקה יש להקליד את הקוד:\n%1$s</string>
+    <string name="delete_code_message">להשלמת המחיקה יש להקליד את הביטוי:\n%1$s</string>
     <string name="sessions_count_one">פגישה אחת</string>
     <string name="sessions_count_other">%d פגישות</string>
     <string name="last_session_summary">%1$s · %2$s</string>
@@ -472,7 +472,7 @@
     <string name="welcome_primary_action">המשך למצב הדגמה</string>
     <string name="welcome_secondary_action">אפשר לעבור על זה אחר כך</string>
     <string name="welcome_info_link">איך נשמר המידע?</string>
-    <string name="welcome_info_body">לאחר אישור מפורש ונפרד, שמות המטופלים מועלים לשרתי CBTipul ומסונכרנים בין מכשירים מורשים. השמות מוצפנים בתעבורה ובאחסון באמצעות מפתחות שרת; תהליכים מורשים יכולים לפענחם. זו אינה הצפנה מקצה לקצה. עותקים מקומיים נשארים לתצוגה ולשימוש ללא רשת; מיפויי iOS קיימים עשויים להסתנכרן גם דרך iCloud Keychain, בהתאם להגדרות Apple. שדה השם אינו נשלח אוטומטית לכלי בינה מלאכותית; טקסט חופשי מטופל בנפרד לפי מדיניות הפרטיות וההסכמות. המנגנון החדש חל על אחסון שמות בלבד.</string>
+    <string name="welcome_info_body">לאחר אישור מפורש ונפרד, שמות המטופלים מועלים לשרתי CBTipul ומסונכרנים בין מכשירים מורשים. השמות מוצפנים בתעבורה ובאחסון באמצעות מפתחות שרת; תהליכים מורשים יכולים לפענחם. זו אינה הצפנה מקצה לקצה. עותקים מקומיים נשארים לתצוגה ולשימוש ללא רשת; מיפויי iOS קיימים עשויים להסתנכרן גם דרך iCloud Keychain, בהתאם להגדרות Apple. שדה השם אינו נשלח אוטומטית לכלי בינה מלאכותית; טקסט חופשי מטופל בנפרד לפי מדיניות הפרטיות וההסכמות. בגרסאות החדשות גם הערות והמשגה בתיק, סיכומי פגישות והניתוחים המובנים שלהן, והערות וסיכומים משולבים של שאלוני מצב רוח נשמרים מוצפנים בשרת, בנוסח המקורי. ההצפנה אינה חלה על כל סוגי המידע או על כל הרשומות הישנות. עותקים מקומיים וטיוטות עשויים להישאר במכשיר. הכנת טקסט לבינה מלאכותית נפרדת משמירתו; שירות הסרת הפרטים המזהים עצמו מקבל טקסט מקורי ועשוי לעבד מידע מזהה.</string>
     <string name="welcome_info_done_action">סגירה</string>
     <string name="getting_started_progress">שלב %1$d מתוך %2$d</string>
     <string name="getting_started_step_add_patient">יצירת מטופל/ת</string>
@@ -577,7 +577,7 @@
     <string name="patient_questionnaire_submit_error">לא ניתן היה לשלוח את שאלוני מצב הרוח. נסו שוב.</string>
     <string name="patient_questionnaire_cancelled_error">הגישה לשאלוני מצב רוח אינה פעילה. אפשר לעיין במילויים קודמים, אך לא לשלוח מילוי חדש.</string>
     <string name="patient_questionnaire_access_denied">לא ניתן לשלוח את שאלוני מצב הרוח כרגע.</string>
-    <string name="patient_leave_mode_action">יציאה ממצב מטופל/ת</string>
+    <string name="patient_leave_mode_action">התנתקות</string>
     <string name="patient_leave_mode_confirm_title">יציאה ממצב מטופל/ת?</string>
     <string name="patient_leave_mode_confirm_message">לאחר היציאה יהיה צורך בהזמנה חדשה מהמטפל/ת כדי להתחבר שוב למצב מטופל/ת במכשיר זה.</string>
     <string name="patient_leave_mode_confirm_action">יציאה</string>
@@ -738,7 +738,7 @@
     <string name="record_patient_notes_action">הקלטת הערות</string>
     <string name="stop_and_transcribe_action">עצירה ותמלול</string>
     <string name="session_recording_help">בסיום ההקלטה, התמלול יתווסף לסיכום ואפשר יהיה לערוך אותו.</string>
-    <string name="session_pending_recording">ההקלטה עדיין לא נוספה לטקסט. נסו לתמלל שוב או מחקו את ההקלטה לפני השמירה.</string>
+    <string name="session_pending_recording">ההקלטה ממתינה לתמלול.</string>
     <string name="session_optional_ai">סיכום בעזרת AI (לא חובה)</string>
     <string name="session_ai_help">אפשר ליצור מהטקסט סיכום מובנה. התוצאה תוצג לבדיקה לפני השמירה.</string>
     <string name="fill_questionnaire_here_action">מילוי שאלוני מצב רוח כאן</string>
@@ -960,7 +960,7 @@
     <string name="diary_choose_thinking_errors">בחירת טעויות חשיבה</string>
     <string name="diary_edit_thinking_errors">שינוי הבחירה</string>
     <string name="diary_remove_thinking_error">הסרת %1$s</string>
-    <string name="patient_reinvite_action">שליחת הזמנה חדשה</string>
+    <string name="patient_reinvite_action">הזמנה מחדש</string>
     <string name="patient_reinvite_explanation">אפשר לשלוח קישור חדש כדי להתחבר מחדש, למשל לאחר החלפת טלפון. החיבור הנוכחי יישאר פעיל עד לאישור ההזמנה החדשה, ואז יוחלף בחיבור החדש.</string>
     <string name="diary_entry_guide">ממלאים חלק אחד בכל פעם. אפשר לפתוח כל חלק כדי לעיין או לשנות.</string>
     <string name="diary_entry_progress">הושלמו %1$d מתוך %2$d חלקים</string>
@@ -1101,7 +1101,7 @@
     <string name="introduction_graph_start">בתחילת המעקב</string>
     <string name="introduction_graph_latest">לאחרונה</string>
     <string name="introduction_graph_hint">דוגמה: ירידה בעוצמת התסמינים לאורך זמן</string>
-    <string name="session_creation_help">בחרו תאריך לפגישה. סוג הפגישה אינו חובה. אפשר להוסיף סיכום לאחר השמירה.</string>
+    <string name="session_creation_help">בחרו תאריך וסוג לפגישה. אפשר להוסיף סיכום לאחר השמירה.</string>
     <string name="session_your_summary_section">הסיכום שלכם</string>
     <string name="session_summary_empty">עדיין אין סיכום לפגישה</string>
     <string name="session_summary_unsaved">יש שינויים בסיכום שטרם נשמרו</string>
@@ -1168,4 +1168,24 @@
     <string name="recent_show_less">הצגת פחות מילויים</string>
     <string name="recent_show_all">הצגת כל %1$d המילויים</string>
     <string name="patient_ai_assistance_description">שיחה עם עוזר בינה מלאכותית</string>
+    <string name="summary_preparing_status">מכין את הסיכום…</string>
+    <string name="clinical_saving_status">שומר…</string>
+    <string name="email_invitation_correct">תיקון כתובת מייל</string>
+    <string name="email_invitation_email">כתובת אימייל (חובה)</string>
+    <string name="email_invitation_saving">שומר…</string>
+    <string name="email_invitation_failed">לא ניתן לשמור את ההזמנה. אפשר לתקן את הכתובת או לנסות שוב.</string>
+    <string name="email_invitation_waiting_sign_in">ממתין להתחברות המטופל/ת</string>
+    <string name="email_invitation_waiting_confirmation">ממתין לאישור המטופל/ת</string>
+    <string name="email_invitation_connected">המטופל/ת כבר מחובר/ת</string>
+    <string name="email_invitation_profile_connected">המטופל/ת כבר מחובר/ת לפרופיל הזה.</string>
+    <string name="email_invitation_unavailable">לא ניתן להשתמש בכתובת הזו להזמנה</string>
+    <string name="email_invitation_close">סגירה</string>
+    <string name="email_invitation_pending_explanation">ההזמנה נשמרה. המטופל/ת עדיין לא מחובר/ת.</string>
+    <string name="email_invitation_invalid">לא ניתן לשמור את ההזמנה. בדקו את כתובת האימייל ונסו שוב.</string>
+    <string name="email_invitation_network_failed">לא ניתן לוודא שההזמנה נשמרה. בדקו את החיבור ונסו שוב.</string>
+    <string name="email_invitation_auth_failed">יש להתחבר מחדש כדי לשמור את ההזמנה.</string>
+    <string name="email_invitation_forbidden">אין הרשאה לשמור את ההזמנה הזו. בדקו שהמטופל/ת שייך/ת לחשבון הפעיל.</string>
+    <string name="email_invitation_pending">הזמנה ממתינה</string>
+    <string name="email_invitation_status_failed">לא ניתן לבדוק את מצב ההזמנה.</string>
+    <string name="email_invitation_share">שיתוף הזמנה</string>
 </resources>

@@ -184,3 +184,6 @@ class SessionEditorDraft(val initial: Session) {
 
     fun snapshot(): Session = initial.copy(date = date, notes = notes, type = type, structuredNotes = structuredNotes, loadedClinicalRecord = loadedClinicalRecord)
 }
+
+internal fun requiresSessionTypeForSave(isNew: Boolean, isDemo: Boolean, type: com.cbtipul.app.model.SessionType?): Boolean =
+    isNew && !isDemo && type == null

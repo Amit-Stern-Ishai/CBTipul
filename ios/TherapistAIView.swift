@@ -79,7 +79,6 @@ struct TherapistAIView: View {
             .subtleAnimation(value: loadError)
             .demoModeChrome()
             .task {
-                store.loadCachedPatients()
                 if store.patients.isEmpty { await load() }
             }
             .refreshable { await load() }

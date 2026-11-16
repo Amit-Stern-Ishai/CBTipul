@@ -1,3 +1,4 @@
+import Supabase
 import XCTest
 @testable import CBTipul
 
@@ -17,6 +18,9 @@ import XCTest
         let date = "2026-10-29T10:00:00Z"
         let disk: Memory
         var allowed = true; var full = true; var consent = "accepted"; var consentRevision: Int64 = 0
+        var nameFailure: Error?
+        var emptyPage = false
+        var nameError: String?
         var lookupFailure = false; var consentError: String?; var uncertainConsent = false
         var sets = 0; var lists = 0; var name: String?; var revision = "0"; var paginated = false
         var calls: [(String, [String: Any])] = []
@@ -38,9 +42,11 @@ import XCTest
                 if uncertainConsent { throw NameSyncFailure(code: "connection") }
                 return try receipt()
             }
+            if let nameFailure { throw nameFailure }
+            if let nameError { throw NameSyncFailure(code: nameError) }
             if p["operation"] as? String == "list" {
                 lists += 1; let last = paginated && p["after"] is String
-                return try self.data(["names": last ? [] : [["patient_id": id, "name": name as Any? ?? NSNull(), "revision": revision, "updated_at": name == nil ? NSNull() : date as Any]], "next_after": paginated && !last ? id as Any : NSNull()])
+                return try self.data(["names": last || emptyPage ? [] : [["patient_id": id, "name": name as Any? ?? NSNull(), "revision": revision, "updated_at": name == nil ? NSNull() : date as Any]], "next_after": paginated && !last ? id as Any : NSNull()])
             }
             sets += 1; try onSet?(p)
             let incoming = p["name"] as! String
@@ -50,105 +56,184 @@ import XCTest
             return try self.data(["patient_id": id, "revision": revision, "updated_at": date, "unchanged": unchanged])
         }
     }
-    func testNoApprovalOrFailedLookupNeverRequestsNames() async {
-        let h = Harness(); h.consent = "required"; await h.sync.refresh(force: true)
-        XCTAssertEqual(h.lists, 0); XCTAssertEqual(h.sets, 0)
-        h.lookupFailure = true; await h.sync.refresh(force: true); XCTAssertEqual(h.lists, 0)
-        XCTAssertEqual(h.sync.displayed(patient, legacy: "ישן"), "ישן")
-    }
-    func testExistingAcceptanceAndPaginationMigrate() async {
-        let h = Harness(); h.paginated = true; await h.sync.refresh(force: true)
-        XCTAssertEqual(h.lists, 2); XCTAssertEqual(h.name, "שם בדיקה"); XCTAssertFalse(h.sync.hasPending)
-    }
-    func testServerWinsOverLegacyIncludingLaterCloudArrival() async {
-        let h = Harness(); h.name = "שרת"; h.revision = "9007199254740993"; await h.sync.refresh(force: true)
-        h.sync.register([patient: "iCloud מאוחר"]); await h.sync.refresh(force: true)
-        XCTAssertEqual(h.sets, 0); XCTAssertEqual(h.sync.displayed(patient, legacy: "ישן"), "שרת")
-    }
-    func testConsentRequiredAfterApprovalStopsAndReloadsConsent() async {
-        let h = Harness(); h.consent = "required"
-        h.onSet = { _ in h.consent = "revoked"; h.consentRevision = 2; throw NameSyncFailure(code: "consent_required") }
-        await h.sync.decide(); XCTAssertFalse(h.sync.accepted); XCTAssertEqual(h.sets, 1)
-        XCTAssertEqual(h.calls.filter { $0.0 == "get_my_consent" }.count, 2)
-    }
-    func testLateCloudArrivalFillsOnlyMissingOwnedName() async {
-        let h = Harness(); h.sync.register([patient: nil]); var local: String?
-        h.sync.readLegacy = { id in XCTAssertEqual(id, self.patient); return local }
-        await h.sync.refresh(force: true); XCTAssertEqual(h.sets, 0)
-        local = "ערך מאוחר"; await h.sync.refresh(force: true); XCTAssertEqual(h.sets, 1)
-        local = "ערך מיושן"; await h.sync.refresh(force: true)
-        XCTAssertEqual(h.sets, 1); XCTAssertEqual(h.sync.displayed(patient, legacy: nil), "ערך מאוחר")
-    }
-    func testInitialRaceAdoptsServerWinner() async {
-        let h = Harness(); h.onSet = { _ in h.name = "אחר"; h.revision = "1"; h.onSet = nil }
-        await h.sync.refresh(force: true); XCTAssertEqual(h.sets, 1); XCTAssertEqual(h.sync.displayed(patient, legacy: nil), "אחר")
-    }
-    func testExplicitConflictRetriesLatestRevisionAndCoalesces() async throws {
-        let h = Harness(); h.name = "קיים"; h.revision = "1"; await h.sync.refresh(force: true)
-        h.onSet = { _ in h.onSet = nil; try h.sync.edit(h.id, name: "חדש"); h.name = "מכשיר אחר"; h.revision = "2" }
-        try h.sync.edit(patient, name: "ישן"); await h.sync.refresh(force: true)
-        XCTAssertEqual(h.name, "חדש")
-        XCTAssertEqual(h.calls.filter { $0.1["operation"] as? String == "set" }.compactMap { $0.1["name"] as? String }, ["ישן", "חדש"])
-    }
-    func testBoundedRetryAndRelaunchRecovery() async throws {
-        let h = Harness(); h.name = "קיים"; h.revision = "1"; await h.sync.refresh(force: true)
-        h.onSet = { _ in throw NameSyncFailure(code: "revision_conflict") }
-        try h.sync.edit(patient, name: "ממתין"); await h.sync.refresh(force: true)
-        XCTAssertEqual(h.sets, 3); XCTAssertTrue(h.sync.hasPending)
-        h.allowed = false // no further background work from this simulated process
-        let next = Harness(h.disk); next.name = "קיים"; next.revision = "1"
-        XCTAssertEqual(next.sync.displayed(patient, legacy: nil), "ממתין")
-        await next.sync.refresh(force: true); XCTAssertEqual(next.name, "ממתין")
-    }
-    func testUncertainNameWriteAdoptsExistingWithoutRepeating() async {
-        let h = Harness(); h.onSet = { p in h.name = p["name"] as? String; h.revision = "1"; throw NameSyncFailure(code: "connection") }
-        await h.sync.refresh(force: true); h.onSet = nil; await h.sync.refresh(force: true)
-        XCTAssertEqual(h.sets, 1); XCTAssertFalse(h.sync.hasPending)
-    }
-    func testPendingEditSurvivesReadonlyRefresh() async throws {
-        let h = Harness(); h.name = "שרת"; h.revision = "1"; h.full = false
-        try h.sync.edit(patient, name: "מקומי"); await h.sync.refresh(force: true)
-        XCTAssertEqual(h.sets, 0); XCTAssertEqual(h.sync.displayed(patient, legacy: nil), "מקומי")
-        h.name = "מקומי"; h.revision = "2"; await h.sync.refresh(force: true)
-        XCTAssertFalse(h.sync.hasPending); XCTAssertEqual(h.sets, 0)
-    }
-    func testReadonlyInitialUploadAndMissingLocal() async {
-        let h = Harness(); h.full = false; await h.sync.refresh(force: true); XCTAssertEqual(h.sets, 1)
-        let empty = Harness(); empty.sync.register([patient: nil]); await empty.sync.refresh(force: true); XCTAssertEqual(empty.sets, 0)
-    }
-    func testDeletionAndAccountSwitchIgnoreInFlightResult() async {
-        let h = Harness(); h.onSet = { _ in h.sync.beginDeletion(h.id); h.sync.remove(h.id) }
-        await h.sync.refresh(force: true); XCTAssertNil(h.sync.displayed(patient, legacy: nil))
-        let other = Harness(); other.onSet = { _ in other.sync.setAccount("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb") }
-        await other.sync.refresh(force: true); XCTAssertNil(other.sync.displayed(patient, legacy: nil))
-    }
-    func testPatientAndDemoModesDoNothing() async {
-        let h = Harness(); h.allowed = false; await h.sync.refresh(force: true); await h.sync.decide()
-        XCTAssertEqual(h.calls.count, 0)
-    }
-    func testExactConsentRetryAcrossRelaunchAndSupersession() async {
-        let h = Harness(); h.consent = "required"; h.uncertainConsent = true; await h.sync.decide()
-        XCTAssertEqual(h.lists, 0)
-        let original = h.calls.first { $0.0 == "record_my_consent" }!.1
-        let next = Harness(h.disk); next.consentError = "consent_request_superseded"; next.consent = "revoked"
-        await next.sync.decide(); XCTAssertFalse(next.sync.accepted); XCTAssertEqual(next.lists, 0)
-        let retried = next.calls.first { $0.0 == "record_my_consent" }!.1
-        XCTAssertEqual(original as NSDictionary, retried as NSDictionary)
-    }
-    func testRevocationStopsRequestsAndNotificationResolverTracksDisplay() async throws {
-        let h = Harness(); var mirrored: String?
-        h.sync.changed = { mirrored = h.sync.displayed(h.id, legacy: nil) }
-        await h.sync.refresh(force: true); XCTAssertEqual(mirrored, "שם בדיקה")
-        h.consent = "revoked"; h.consentRevision = 1
-        let before = h.lists; try h.sync.edit(patient, name: "עריכה ממתינה")
+    func testInlineNamesAndNullAvoidListButMissingUsesCompatibility() async throws {
+        let h = Harness(); h.sync.waitForPatientRows = true
+        await h.sync.refresh(force: true); XCTAssertEqual(h.lists, 0)
+        try h.sync.receivePatientRows([ClinicalLoadedRecord(values: ["id": .string(h.id.uppercased()), "decryptedName": .string("שם שרת")])])
         await h.sync.refresh(force: true)
-        XCTAssertEqual(h.lists, before); XCTAssertEqual(mirrored, "עריכה ממתינה")
+        XCTAssertEqual(h.sync.displayed(h.id, legacy: nil), "שם שרת"); XCTAssertEqual(h.lists, 0)
+        try h.sync.receivePatientRows([ClinicalLoadedRecord(values: ["id": .string(h.id), "decryptedName": .null])])
+        await h.sync.refresh(force: true)
+        XCTAssertNil(h.sync.displayed(h.id, legacy: nil)); XCTAssertEqual(h.lists, 0)
+        try h.sync.receivePatientRows([ClinicalLoadedRecord(values: ["id": .string(h.id)])])
+        await h.sync.refresh(force: true); XCTAssertEqual(h.lists, 1)
     }
-    func testCreatedNameSurvivesTemporaryPersistenceFailure() async {
-        let h = Harness(); h.disk.fail = true; h.sync.rememberCreated(patient, name: "שם חדש")
-        XCTAssertEqual(h.sync.displayed(patient, legacy: nil), "שם חדש")
-        await h.sync.refresh(force: true); XCTAssertEqual(h.sets, 0)
-        h.disk.fail = false; await h.sync.refresh(force: true); XCTAssertEqual(h.name, "שם חדש")
+    func testInlineNameDoesNotReplaceWriteRevisionLookupOrPersistName() async throws {
+        let h = Harness()
+        try h.sync.receivePatientRows([ClinicalLoadedRecord(values: ["id": .string(h.id), "decryptedName": .string("שם שרת")])])
+        await h.sync.refresh(force: true)
+        XCTAssertFalse(h.disk.values.values.contains { String(data: $0, encoding: .utf8)?.contains("שם שרת") == true })
+        try await h.sync.edit(h.id, name: "שם חדש")
+        XCTAssertEqual(h.lists, 1); XCTAssertEqual(h.sets, 1)
+        XCTAssertEqual(h.sync.displayed(h.id, legacy: nil), "שם חדש")
+        h.sync.setAccount(nil); XCTAssertNil(h.sync.displayed(h.id, legacy: nil))
+    }
+    func testPagedInlineNamesResolveTogetherWithoutDirectoryLookup() async throws {
+        let h = Harness(); let second = "22222222-2222-4222-8222-222222222222"
+        var calls = 0
+        let records = try await ClinicalRecordLoad.pages(endpoint: "load-patients", checkpoint: {}, invoke: { _, body in
+            calls += 1
+            XCTAssertNil(body["include_names"])
+            if calls == 1 { return ["records": .array([.object(["id": .string(h.id), "_version": .string("v"), "decryptedName": .string("inline")])]), "next_cursor": .string("next")] }
+            XCTAssertEqual(body["cursor"], .string("next"))
+            return ["records": .array([.object(["id": .string(second), "_version": .string("v"), "decryptedName": .null])]), "next_cursor": .null]
+        })
+        try h.sync.receivePatientRows(records)
+        await h.sync.refresh(force: true)
+        XCTAssertEqual(calls, 2); XCTAssertEqual(h.lists, 0)
+        XCTAssertEqual(h.sync.displayed(h.id, legacy: nil), "inline")
+        XCTAssertNil(h.sync.displayed(second, legacy: nil))
+    }
+    func testCompatibilityReadCannotReplaceExplicitNullFromAnotherRow() async throws {
+        let h = Harness(); h.name = "directory name must not override null"
+        let other = "22222222-2222-4222-8222-222222222222"
+        try h.sync.receivePatientRows([
+            ClinicalLoadedRecord(values: ["id": .string(h.id), "decryptedName": .null]),
+            ClinicalLoadedRecord(values: ["id": .string(other)])])
+        await h.sync.refresh(force: true)
+        XCTAssertEqual(h.lists, 1)
+        XCTAssertNil(h.sync.displayed(h.id, legacy: nil))
+    }
+    func testInlineNullKeepsLegacyWithoutReadingServer() async throws {
+        let h = Harness(); h.consent = "required"
+        h.sync.readLegacy = { _ in "שם מקומי" }
+        try h.sync.receivePatientRows([ClinicalLoadedRecord(values: ["id": .string(h.id), "decryptedName": .null])])
+        await h.sync.refresh(force: true)
+        XCTAssertEqual(h.sync.displayed(h.id, legacy: nil), "שם מקומי")
+        XCTAssertEqual(h.lists, 0); XCTAssertEqual(h.sets, 0)
+        await h.sync.decide()
+        await h.sync.refresh(force: true)
+        XCTAssertEqual(h.sets, 1)
+    }
+    func testLegacyRequiresApprovalButDoesNotUpload() async {
+        let h=Harness(); h.consent="required"; await h.sync.refresh(force:true)
+        XCTAssertTrue(h.sync.shouldGate(therapist:true,demo:false)); XCTAssertEqual(h.lists,1); XCTAssertEqual(h.sets,0)
+    }
+    func testNoLegacyNeverShowsMigrationEvenWithoutConsent() async {
+        let h=Harness(); h.sync.register([h.id:nil]); h.consent="required"
+        await h.sync.refresh(force:true)
+        XCTAssertFalse(h.sync.shouldGate(therapist:true,demo:false)); XCTAssertEqual(h.sets,0); XCTAssertEqual(h.lists,1)
+        XCTAssertFalse(h.calls.contains { $0.0 != "patient-names" })
+        XCTAssertFalse(h.sync.accepted)
+    }
+    func testConfirmedCacheIsNotLegacyAndIsNotPersisted() async throws {
+        let disk=Memory(); var snapshot=PatientNameSyncSnapshot()
+        snapshot.entries[patient]=PatientNameEntry(confirmed:"server cached",revision:"3",initialized:true)
+        try disk.save(snapshot,key:account)
+        let h=Harness(disk);h.consent="required";await h.sync.refresh(force:true)
+        XCTAssertFalse(h.sync.shouldGate(therapist:true,demo:false))
+        XCTAssertNil(h.sync.displayed(patient,legacy:nil))
+        XCTAssertFalse(String(data:disk.values[account]!,encoding:.utf8)!.contains("server cached"))
+    }
+    func testServerWinnerNeverOverwrittenByLegacy() async {
+        let h=Harness();h.name="newer server";h.revision="7";await h.sync.refresh(force:true)
+        XCTAssertEqual(h.sets,0);XCTAssertEqual(h.sync.displayed(patient,legacy:nil),"newer server")
+    }
+    func testMigrationPersistsOnlyUnfinishedInputAndResumes() async {
+        let h=Harness();h.onSet={_ in throw NameSyncFailure(code:"connection")};await h.sync.refresh(force:true)
+        XCTAssertTrue(h.sync.hasPending)
+        let next=Harness(h.disk);await next.sync.refresh(force:true)
+        XCTAssertEqual(next.sets,1);XCTAssertFalse(next.sync.hasPending)
+        XCTAssertFalse(String(data:h.disk.values[account]!,encoding:.utf8)!.contains("שם בדיקה"))
+    }
+    func testApprovedMigrationDoesNotAskAgainWhileOffline() async {
+        let h=Harness();h.consent="required";h.onSet={_ in throw NameSyncFailure(code:"connection")}
+        await h.sync.refresh(force:true);XCTAssertTrue(h.sync.shouldGate(therapist:true,demo:false))
+        await h.sync.decide()
+        for _ in 0..<100 {if h.sets>0 && !h.sync.busy {break};await Task.yield()}
+        XCTAssertEqual(h.calls.filter {$0.0=="record_my_consent"}.count,1)
+        XCTAssertTrue(h.sync.hasPending);XCTAssertFalse(h.sync.approvalFailed)
+        let next=Harness(h.disk);next.consent="required";next.lookupFailure=true;next.nameError="connection"
+        await next.sync.refresh(force:true)
+        XCTAssertFalse(next.sync.shouldGate(therapist:true,demo:false));XCTAssertTrue(next.sync.hasPending);XCTAssertFalse(next.sync.approvalFailed)
+        next.nameError=nil;await next.sync.refresh(force:true)
+        XCTAssertFalse(next.sync.hasPending);XCTAssertEqual(next.sets,1)
+        XCTAssertFalse(next.sync.shouldGate(therapist:true,demo:false))
+        XCTAssertTrue(next.calls.allSatisfy {$0.0=="patient-names"})
+    }
+    func testCreateAndRenameAreAwaitedAndNotPersisted() async throws {
+        let h=Harness();h.sync.register([h.id:nil]);await h.sync.refresh(force:true)
+        try await h.sync.rememberCreated(patient,name:"created synthetic")
+        try await h.sync.edit(patient,name:"renamed synthetic")
+        XCTAssertEqual(h.sync.displayed(patient,legacy:nil),"renamed synthetic")
+        XCTAssertFalse(String(data:h.disk.values[account]!,encoding:.utf8)!.contains("synthetic"))
+    }
+    func testFailedRenameLeavesExistingResultAndNoQueue() async {
+        let h=Harness();h.name="existing";h.revision="1";await h.sync.refresh(force:true)
+        h.onSet={_ in throw NameSyncFailure(code:"connection")}
+        do {try await h.sync.edit(patient,name:"unsaved");XCTFail("must fail")}catch{}
+        XCTAssertEqual(h.sync.displayed(patient,legacy:nil),"existing");XCTAssertFalse(h.sync.hasPending)
+    }
+    func testConflictAndAccountSwitchDoNotReportSaved() async {
+        let h=Harness();await h.sync.refresh(force:true)
+        h.onSet={_ in throw NameSyncFailure(code:"revision_conflict")}
+        do {try await h.sync.edit(patient,name:"unsaved");XCTFail("must fail")}catch{}
+        h.onSet={_ in h.sync.setAccount("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")}
+        do {try await h.sync.edit(patient,name:"unsaved");XCTFail("must cancel")}catch{}
+        XCTAssertNil(h.sync.displayed(patient,legacy:nil))
+    }
+    func testPatientAndDemoModesNeverUpload() async {
+        let h=Harness();h.allowed=false;await h.sync.refresh(force:true);XCTAssertTrue(h.calls.isEmpty)
+    }
+
+    func testApprovalReleasesWorkspaceBeforeSlowUploadCompletes() async {
+        let h=Harness();h.consent="required"
+        var release: CheckedContinuation<Void,Never>?
+        let sync=PatientNameSync(call:{ method,data in
+            if method=="patient-names", h.consent=="accepted", release == nil { await withCheckedContinuation { release=$0 } }
+            return try h.call(method,data)
+        },storage:h.disk,eligible:{true},fullAccess:{true})
+        sync.setAccount(account);sync.register([patient:"synthetic legacy"])
+        await sync.refresh(force:true);XCTAssertTrue(sync.shouldGate(therapist:true,demo:false))
+        await sync.decide()
+        for _ in 0..<100 { if release != nil {break};await Task.yield() }
+        XCTAssertTrue(sync.accepted);XCTAssertFalse(sync.shouldGate(therapist:true,demo:false));XCTAssertTrue(sync.hasPending)
+        release?.resume()
+        for _ in 0..<100 { if !sync.busy {break};await Task.yield() }
+        XCTAssertFalse(sync.hasPending);XCTAssertEqual(h.sets,1)
+    }
+    func testConfirmedMigrationNeverReadsLegacyAgainAfterRelaunch() async {
+        let h=Harness();var reads=0
+        h.sync.readLegacy={_ in reads += 1;return "synthetic legacy"}
+        await h.sync.refresh(force:true);XCTAssertEqual(reads,1)
+        await h.sync.refresh(force:true);XCTAssertEqual(reads,1)
+        let next=Harness(h.disk);next.sync.readLegacy={_ in XCTFail("legacy must not be read");return nil}
+        await next.sync.refresh(force:true);XCTAssertFalse(next.sync.hasPending)
+    }
+    func testInaccessibleLegacyIsNotTreatedAsMissing() async {
+        let h=Harness();h.sync.readLegacy={_ in throw NameSyncFailure(code:"local_storage")}
+        await h.sync.refresh(force:true)
+        XCTAssertFalse(h.sync.migrationComplete);XCTAssertTrue(h.sync.failed);XCTAssertEqual(h.sets,0)
+    }
+
+    func testOlderRefreshCannotUndoRenameAndConfirmedMissingClearsName() async throws {
+        let h=Harness();h.name="original";h.revision="7";await h.sync.refresh(force:true)
+        try await h.sync.edit(patient,name:"renamed")
+        h.name="stale response";h.revision="7";await h.sync.refresh(force:true)
+        XCTAssertEqual(h.sync.displayed(patient,legacy:nil),"renamed")
+        h.name=nil;h.revision="9";await h.sync.refresh(force:true)
+        XCTAssertNil(h.sync.displayed(patient,legacy:nil))
+    }
+    func testMalformedResponseIsNotAConfirmedWrite() async {
+        let h=Harness()
+        let sync=PatientNameSync(call:{method,data in
+            let p=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
+            if p?["operation"] as? String == "set" { return Data("{}".utf8) }
+            return try h.call(method,data)
+        },storage:h.disk,eligible:{true},fullAccess:{true})
+        sync.setAccount(account);sync.register([patient:nil]);await sync.refresh(force:true)
+        do {try await sync.edit(patient,name:"unsaved");XCTFail("invalid response must fail")}catch{}
+        XCTAssertNil(sync.displayed(patient,legacy:nil));XCTAssertFalse(sync.hasPending)
     }
     func testWrongAccountTypeVersionAndMalformedReceiptRejected() {
         for (owner, type, version, revision) in [("wrong", PatientNameRules.type, PatientNameRules.version, Int64(0)),
@@ -159,67 +244,21 @@ import XCTest
             XCTAssertThrowsError(try receipt.validate(account: account))
         }
     }
-    func testPersistenceFailureAndUnicodeValidation() throws {
-        let h = Harness(); h.disk.fail = true
-        XCTAssertThrowsError(try h.sync.edit(patient, name: "בדיקה")); XCTAssertFalse(h.sync.hasPending)
-        XCTAssertTrue(PatientNameRules.valid("  שם  בדיקה  "))
-        XCTAssertTrue(PatientNameRules.valid(String(repeating: "😀", count: 200)))
-        XCTAssertFalse(PatientNameRules.valid(String(repeating: "😀", count: 201)))
-        for bad in ["", "  ", "שם\n", "\u{0}", "\u{7f}"] { XCTAssertFalse(PatientNameRules.valid(bad)) }
+    func testDeletionAndAccountSwitchIgnoreInFlightResult() async {
+        let h = Harness(); h.onSet = { _ in h.sync.beginDeletion(h.id); h.sync.remove(h.id) }
+        await h.sync.refresh(force: true); XCTAssertNil(h.sync.displayed(patient, legacy: nil))
+        let other = Harness(); other.onSet = { _ in other.sync.setAccount("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb") }
+        await other.sync.refresh(force: true); XCTAssertNil(other.sync.displayed(patient, legacy: nil))
     }
-    func testMigrationMissingConsentBlocksAndLogoutDoesNotUpload() async {
-        let h = Harness(); h.consent = "required"
-        h.sync.loadOwned = { XCTFail("ownership must wait for consent"); return [:] }
-        await h.sync.refresh(force: true)
-        XCTAssertTrue(h.sync.shouldGate(therapist: true, demo: false)); XCTAssertEqual(h.lists, 0)
-        h.sync.setAccount(nil); XCTAssertEqual(h.sets, 0)
+    func testExactConsentRetryAcrossRelaunchAndSupersession() async {
+        let h = Harness(); h.consent = "required"; h.uncertainConsent = true; await h.sync.decide()
+        XCTAssertEqual(h.lists, 0)
+        let original = h.calls.first { $0.0 == "record_my_consent" }!.1
+        let next = Harness(h.disk); next.consentError = "consent_request_superseded"; next.consent = "revoked"
+        await next.sync.decide(); XCTAssertFalse(next.sync.accepted); XCTAssertEqual(next.lists, 0)
+        let retried = next.calls.first { $0.0 == "record_my_consent" }!.1
+        XCTAssertEqual(original as NSDictionary, retried as NSDictionary)
     }
-    func testMigrationAcceptanceAndServerAcknowledgementRequired() async {
-        let h = Harness(); h.consent = "required"
-        h.sync.loadOwned = { [h.id: "שם בדיקה"] }
-        h.onSet = { _ in XCTAssertFalse(h.sync.migrationComplete) }
-        await h.sync.decide()
-        XCTAssertTrue(h.sync.migrationComplete); XCTAssertEqual(h.sets, 1)
-    }
-    func testMigrationExistingAcceptanceSkipsDecisionAndMissingNamesDoNotBlock() async {
-        let h = Harness(); h.sync.loadOwned = { [h.id: nil] }
-        await h.sync.refresh(force: true)
-        XCTAssertTrue(h.sync.migrationComplete); XCTAssertEqual(h.sets, 0)
-        XCTAssertFalse(h.calls.contains { $0.0 == "record_my_consent" })
-    }
-    func testMigrationFailureRelaunchRetryThenOfflineCompletionAndAccountIsolation() async {
-        let h = Harness(); h.sync.loadOwned = { [h.id: "מקומי"] }
-        h.onSet = { _ in throw NameSyncFailure(code: "connection") }
-        await h.sync.refresh(force: true); XCTAssertFalse(h.sync.migrationComplete)
-        XCTAssertEqual(h.sync.displayed(patient, legacy: nil), "מקומי")
-        let next = Harness(h.disk); next.sync.loadOwned = { [next.id: "מקומי"] }
-        await next.sync.refresh(force: true); XCTAssertTrue(next.sync.migrationComplete)
-        let offline = Harness(h.disk); offline.lookupFailure = true
-        XCTAssertFalse(offline.sync.shouldGate(therapist: true, demo: false))
-        await offline.sync.refresh(force: true); XCTAssertTrue(offline.sync.migrationComplete)
-        offline.sync.setAccount("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-        XCTAssertTrue(offline.sync.shouldGate(therapist: true, demo: false))
-        XCTAssertFalse(offline.sync.shouldGate(therapist: false, demo: false))
-        XCTAssertFalse(offline.sync.shouldGate(therapist: true, demo: true))
-    }
-    func testMigrationLookupOwnershipAndLocalCheckpointFailuresRemainBlocked() async {
-        let h = Harness(); h.lookupFailure = true; await h.sync.refresh(force: true)
-        XCTAssertFalse(h.sync.migrationComplete)
-        h.lookupFailure = false; h.sync.loadOwned = { throw NameSyncFailure(code: "connection") }
-        await h.sync.refresh(force: true); XCTAssertFalse(h.sync.migrationComplete); XCTAssertEqual(h.lists, 0)
-        h.sync.loadOwned = { [h.id: "בדיקה"] }
-        h.onSet = { _ in h.disk.fail = true }
-        await h.sync.refresh(force: true); XCTAssertFalse(h.sync.migrationComplete)
-    }
-    func testMigrationInitialRaceAdoptsWinnerAndIgnoresUnownedLegacy() async {
-        let h = Harness(); h.sync.register(["22222222-2222-2222-2222-222222222222": "לא שייך"])
-        h.sync.loadOwned = { [h.id: "מקומי"] }
-        h.onSet = { _ in h.name = "שרת"; h.revision = "1"; h.onSet = nil }
-        await h.sync.refresh(force: true)
-        XCTAssertTrue(h.sync.migrationComplete); XCTAssertEqual(h.sets, 1)
-        XCTAssertEqual(h.sync.displayed(patient, legacy: nil), "שרת")
-    }
-
     func testMigrationPartialUploadResumesOnlyRemainingPatient() async throws {
         let h = Harness(); let second = "22222222-2222-2222-2222-222222222222"
         var names: [String: String] = [:]; var failSecond = true; var writes = 0
@@ -247,15 +286,112 @@ import XCTest
         let relaunched = make(); await relaunched.retryMigration()
         XCTAssertTrue(relaunched.migrationComplete); XCTAssertEqual(writes, 2)
     }
-    func testMigrationRetryResumesUncertainConsentAfterRelaunch() async {
-        let h = Harness(); h.consent = "required"; h.uncertainConsent = true
-        await h.sync.decide()
-        let next = Harness(h.disk); next.sync.loadOwned = { [next.id: "בדיקה"] }
-        await next.sync.retryMigration()
-        XCTAssertTrue(next.sync.migrationComplete)
-        let original = h.calls.first { $0.0 == "record_my_consent" }!.1
-        let retry = next.calls.first { $0.0 == "record_my_consent" }!.1
-        XCTAssertEqual(original["p_request_id"] as? String, retry["p_request_id"] as? String)
+    func testUnicodeValidation() {
+        XCTAssertTrue(PatientNameRules.valid("  שם  בדיקה  "))
+        XCTAssertTrue(PatientNameRules.valid(String(repeating: "😀", count: 200)))
+        XCTAssertFalse(PatientNameRules.valid(String(repeating: "😀", count: 201)))
+        for bad in ["", "  ", "שם\n", "\u{0}", "\u{7f}"] { XCTAssertFalse(PatientNameRules.valid(bad)) }
+    }
+    func testInaccessibleFormerPatientDoesNotTriggerApproval() async throws {
+        let disk=Memory();var snapshot=PatientNameSyncSnapshot()
+        snapshot.entries[patient]=PatientNameEntry(pending:PatientNameEdit(name:"legacy unavailable patient",initial:true))
+        try disk.save(snapshot,key:account)
+        let h=Harness(disk);h.consent="required";h.sync.loadOwned={[:]}
+        await h.sync.refresh(force:true)
+        XCTAssertFalse(h.sync.shouldGate(therapist:true,demo:false));XCTAssertEqual(h.sets,0)
+        // Unconfirmed legacy recovery input is retained, never deleted or uploaded to an unowned patient.
+        XCTAssertTrue(String(data:disk.values[account]!,encoding:.utf8)!.contains("legacy unavailable patient"))
+    }
+    func testCleanAccountReadsCreatesAndRenamesWithoutAnyNameConsentRPC() async throws {
+        let h=Harness();h.consent="required";h.lookupFailure=true
+        h.sync.register([patient:nil]);h.name="fetched synthetic";h.revision="1"
+        await h.sync.refresh(force:true)
+        XCTAssertEqual(h.sync.displayed(patient,legacy:nil),"fetched synthetic")
+        XCTAssertFalse(h.sync.shouldGate(therapist:true,demo:false));XCTAssertFalse(h.sync.failed)
+        try await h.sync.rememberCreated(patient,name:"created synthetic")
+        try await h.sync.edit(patient,name:"renamed synthetic")
+        XCTAssertEqual(h.sync.displayed(patient,legacy:nil),"renamed synthetic")
+        XCTAssertTrue(h.calls.allSatisfy { $0.0 == "patient-names" })
+        XCTAssertFalse(h.sync.hasPending)
+        let stored=String(data:h.disk.values[account]!,encoding:.utf8)!
+        for name in ["fetched synthetic","created synthetic","renamed synthetic"] {XCTAssertFalse(stored.contains(name))}
+        h.sync.setAccount(nil);XCTAssertNil(h.sync.displayed(patient,legacy:nil))
+    }
+    func testBackendConsentRejectionOnCleanAccountFailsWithoutPromptOrRecordingReceipt() async {
+        let h=Harness();h.sync.register([patient:nil]);h.consent="required";h.nameError="consent_required"
+        await h.sync.refresh(force:true)
+        XCTAssertTrue(h.sync.failed);XCTAssertFalse(h.sync.shouldGate(therapist:true,demo:false))
+        do {try await h.sync.rememberCreated(patient,name:"unsaved synthetic");XCTFail("backend rejection must fail")}
+        catch {XCTAssertEqual((error as? NameSyncFailure)?.code,"consent_required")}
+        XCTAssertNil(h.sync.displayed(patient,legacy:nil));XCTAssertFalse(h.sync.hasPending)
+        XCTAssertTrue(h.calls.allSatisfy { $0.0 == "patient-names" })
+    }
+    func testBackendSetRejectionKeepsExistingNameAndNoOfflineQueue() async {
+        let h=Harness();h.sync.register([patient:nil]);h.name="existing synthetic";h.revision="3"
+        await h.sync.refresh(force:true);h.onSet={_ in throw NameSyncFailure(code:"consent_required")}
+        do {try await h.sync.edit(patient,name:"unsaved synthetic");XCTFail("must fail")}
+        catch {XCTAssertEqual((error as? NameSyncFailure)?.code,"consent_required")}
+        XCTAssertEqual(h.sync.displayed(patient,legacy:nil),"existing synthetic");XCTAssertFalse(h.sync.hasPending)
+        XCTAssertTrue(h.calls.allSatisfy { $0.0 == "patient-names" })
+    }
+    func testCleanAccountDoesNotReplayAnOldApprovalDecisionWithoutLegacyInput() async throws {
+        let h=Harness();var snapshot=PatientNameSyncSnapshot()
+        snapshot.consentDecision=NameConsentDecision(p_decision:"accepted",p_request_id:"old-request",p_expected_revision:0)
+        try h.disk.save(snapshot,key:account)
+        let next=Harness(h.disk);next.sync.register([patient:nil]);next.consent="required"
+        await next.sync.refresh(force:true)
+        XCTAssertFalse(next.sync.shouldGate(therapist:true,demo:false));XCTAssertEqual(next.lists,1)
+        XCTAssertTrue(next.calls.allSatisfy { $0.0 == "patient-names" })
+    }
+    func testBackgroundFailureOnLegacyGateDoesNotBecomeApprovalError() async {
+        let h=Harness();h.consent="required";await h.sync.refresh(force:true)
+        XCTAssertTrue(h.sync.shouldGate(therapist:true,demo:false))
+        h.nameError="connection";await h.sync.refresh(force:true)
+        // Previously this shared failure directly rendered the sync-error/retry UI.
+        XCTAssertTrue(h.sync.failed);XCTAssertFalse(h.sync.approvalFailed)
+        XCTAssertTrue(h.sync.hasPending)
+    }
+    func testFailedBackgroundRefreshRetainsMemoryAndCleanAccountHasNoUI() async {
+        let h=Harness();h.sync.register([patient:nil]);h.name="synthetic loaded";h.revision="1"
+        await h.sync.refresh(force:true);h.nameError="connection";await h.sync.refresh(force:true)
+        XCTAssertEqual(h.sync.displayed(patient,legacy:nil),"synthetic loaded")
+        XCTAssertFalse(h.sync.approvalFailed);XCTAssertFalse(h.sync.shouldGate(therapist:true,demo:false))
+        h.nameError=nil;h.emptyPage=true;await h.sync.refresh(force:true)
+        XCTAssertFalse(h.sync.failed);XCTAssertFalse(h.sync.approvalFailed)
+    }
+    func testCancelledBackgroundRequestIsNotFailure() async {
+        let h=Harness();h.sync.register([patient:nil]);h.nameFailure=URLError(.cancelled)
+        await h.sync.refresh(force:true)
+        XCTAssertFalse(h.sync.failed);XCTAssertFalse(h.sync.approvalFailed)
+        h.nameFailure=CancellationError();await h.sync.refresh(force:true)
+        XCTAssertFalse(h.sync.failed);XCTAssertFalse(h.sync.approvalFailed)
+    }
+    func testExplicitApprovalErrorIsSeparateFromAutomaticDecisionResume() async {
+        let h=Harness();h.consent="required";await h.sync.refresh(force:true)
+        h.consentError="connection";await h.sync.decide()
+        XCTAssertTrue(h.sync.approvalFailed)
+        let next=Harness(h.disk);next.consent="required";next.consentError="connection"
+        await next.sync.refresh(force:true)
+        XCTAssertTrue(next.sync.failed);XCTAssertFalse(next.sync.approvalFailed)
+        XCTAssertTrue(next.sync.hasPending)
+    }
+
+    func testCancelledApprovedUploadResumesSilentlyAfterRelaunch() async {
+        let h=Harness();h.onSet={_ in throw CancellationError()}
+        await h.sync.refresh(force:true)
+        XCTAssertTrue(h.sync.hasPending);XCTAssertFalse(h.sync.failed);XCTAssertFalse(h.sync.approvalFailed)
+        XCTAssertFalse(h.sync.shouldGate(therapist:true,demo:false))
+        let next=Harness(h.disk);next.consent="required";next.lookupFailure=true
+        await next.sync.refresh(force:true)
+        XCTAssertEqual(next.sets,1);XCTAssertFalse(next.sync.hasPending)
+        XCTAssertFalse(next.sync.approvalFailed);XCTAssertFalse(next.sync.shouldGate(therapist:true,demo:false))
+        XCTAssertTrue(next.calls.allSatisfy {$0.0=="patient-names"})
+    }
+    func testEmptyPageRetainsUnconfirmedLegacyWithoutSyncFeedback() async {
+        let h=Harness();h.emptyPage=true;await h.sync.refresh(force:true)
+        XCTAssertTrue(h.sync.hasPending);XCTAssertTrue(h.sync.failed)
+        XCTAssertFalse(h.sync.approvalFailed);XCTAssertFalse(h.sync.shouldGate(therapist:true,demo:false))
+        XCTAssertEqual(h.sets,0)
     }
 
 }

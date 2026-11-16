@@ -199,7 +199,7 @@ private fun InboxRow(item: AppNotification, patient: Patient?, patientName: Stri
         InboxCopyKind.WebWorkspaceReady, InboxCopyKind.Generic -> Icons.Outlined.NotificationsNone
     }
     val action = when (NotificationRouting.destination(NotificationPayload.from(item))) {
-        is AppDestination.PatientDetail -> R.string.notification_open_patient
+        is AppDestination.PatientDetail -> R.string.discovery_activities_action
         is AppDestination.QuestionnaireResult -> R.string.notification_open_questionnaires
         is AppDestination.DiaryOneEntry, is AppDestination.DiaryTwoEntry, is AppDestination.DiaryThreeEntry -> R.string.notification_open_diary
         else -> null

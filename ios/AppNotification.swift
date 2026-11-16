@@ -307,3 +307,34 @@ enum DiaryThreeNotificationFocus {
         return UUID(uuidString: resourceId.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }
+
+/// Exact identity shared by diary routes and persisted notification receipts.
+struct DiaryNotificationKey: Hashable, Sendable {
+    let patientID: String
+    let resourceType: String
+    let entryID: UUID
+    init?(patientID: String, resourceType: String, entryID: String) {
+        guard !patientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              ["diary_one_entry", "diary_two_entry", "diary_three_entry"].contains(resourceType),
+              let id = UUID(uuidString: entryID) else { return nil }
+        self.patientID = patientID.lowercased(); self.resourceType = resourceType; self.entryID = id
+    }
+    init?(_ item: AppNotification) {
+        guard let patient = item.patientId, let type = item.resourceType, let entry = item.resourceId,
+              (item.type == .diaryOneEntryAdded && type == "diary_one_entry") ||
+              (item.type == .diaryTwoEntryAdded && type == "diary_two_entry") ||
+              (item.type == .diaryThreeEntryAdded && type == "diary_three_entry") else { return nil }
+        self.init(patientID: patient, resourceType: type, entryID: entry)
+    }
+}
+enum DiaryNotificationReadState {
+    static func isDiaryEvent(_ type: AppNotificationType) -> Bool {
+        [.diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded].contains(type)
+    }
+    static func readKeys(_ items: [AppNotification]) -> Set<DiaryNotificationKey> {
+        Set(items.filter { !$0.isUnread }.compactMap(DiaryNotificationKey.init))
+    }
+    static func unreadKeys(_ items: [AppNotification]) -> Set<DiaryNotificationKey> {
+        Set(items.filter(\.isUnread).compactMap(DiaryNotificationKey.init)).subtracting(readKeys(items))
+    }
+}

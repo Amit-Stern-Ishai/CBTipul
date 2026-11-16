@@ -1,5 +1,6 @@
 package com.cbtipul.app.ui.diary
 
+import kotlinx.coroutines.launch
 import com.cbtipul.app.ui.entitlementCreateControl
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -137,6 +138,14 @@ fun TherapistDiaryThreeScreen(
                 }
             }) {
                 if (entry != null) {
+                    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+                    LaunchedEffect(entry.id) {
+                        if(entry.createdBy == DiaryOneEntryCreator.Patient && entry.patientId == patientId) {
+                            com.cbtipul.app.data.DiaryNotificationKey.of(patientId.queryValue,"diary_three_entry",entry.id)?.let {key ->
+                                app.applicationScope.launch {app.notifications.markDiaryEntryRead(key)}
+                            }
+                        }
+                    }
                     Text(entryDate(entry)); Text(source(entry), color = Theme.colors.textBody)
                     DiaryThreeEntryContent(entry)
                 } else if (state.loading || (id == focusEntryId && !consumedFocus)) {

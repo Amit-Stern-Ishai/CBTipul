@@ -24,13 +24,16 @@ class WhisperService(
         consent.ensureGranted()
         Entitlements.requireWrite()
         val audioData = try {
-            file.readBytes()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                TranscriptionAudio.withUpload(file) { it.readBytes() }
+            }
         } catch (error: Exception) {
-            throw SummaryFailure(SummaryFailure.Kind.Local)
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            throw SummaryFailure(SummaryFailure.Kind.Audio)
         }
         return@measure try {
             val http = client.functions.invoke("whisper-transcribe") {
-                contentType(ContentType.parse(if (file.extension == "aac") "audio/aac" else "audio/m4a"))
+                contentType(ContentType.parse("audio/m4a"))
                 header("x-language", language)
                 setBody(audioData)
             }
@@ -40,7 +43,8 @@ class WhisperService(
         } catch (error: WhisperException) {
             throw error
         } catch (error: Exception) {
-            throw SummaryFailure.from(error)
+            val failure = SummaryFailure.from(error)
+            throw if (failure.kind == SummaryFailure.Kind.Validation) SummaryFailure(SummaryFailure.Kind.TranscriptionRejected) else failure
         }
 
         }

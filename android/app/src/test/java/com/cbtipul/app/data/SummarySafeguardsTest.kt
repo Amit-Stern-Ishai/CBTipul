@@ -7,6 +7,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SummarySafeguardsTest {
+    @org.junit.Test fun missingSessionTypeHasAnActionableMessage() {
+        org.junit.Assert.assertEquals(SummaryFailure.Kind.SessionType,
+            SummaryFailure.classify(400, """{"error":"invalid_session_type"}"""))
+        org.junit.Assert.assertEquals(SummaryFailure.Kind.SessionType,
+            SummaryFailure.classify(400, """{"code":"invalid_session_type"}"""))
+        org.junit.Assert.assertEquals(SummaryFailure.Kind.Validation,
+            SummaryFailure.classify(400, """{"error":"invalid_date"}"""))
+    }
+
     private fun allowance(tokens: Double = 500.0, seconds: Double = 60.0) = SummaryAllowance(
         "2026-10-22T10:00:00Z", "2026-10", "2026-11-01T00:00:00Z",
         SummaryAllowance.Balance(1000.0, 1000.0-tokens, tokens, tokens==0.0),

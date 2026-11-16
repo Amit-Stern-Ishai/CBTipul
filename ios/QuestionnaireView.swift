@@ -163,7 +163,7 @@ struct CombinedMoodQuestionnaireView: View {
         } message: {
             Text(L10n.deleteQuestionnaireConfirmMessage)
         }
-        .deleteCodeChallenge(isPresented: $isShowingDeleteCodeChallenge) { deleteQuestionnaire() }
+        .deleteCodeChallenge(phrase: .questionnaire, isPresented: $isShowingDeleteCodeChallenge) { deleteQuestionnaire() }
         // An alert, not a confirmation dialog: iPad popover dialogs hide
         // cancel-role buttons, and Keep Editing must always be offered.
         .alert(L10n.discardChangesTitle,
@@ -207,12 +207,11 @@ struct CombinedMoodQuestionnaireView: View {
     private func save() {
         guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
-        // Only promise anonymization when there is note text that may
-        // actually be sent to the anonymizer; otherwise show a plain spinner.
+        // Saving uses the encrypted clinical record API.
         let questionnaire = session.questionnaire
         let hasNoteText = (questionnaire.gad7Notes + questionnaire.phq9Notes + [questionnaire.interferenceNote])
             .contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        busyLabel = hasNoteText ? L10n.anonymizingStatusLabel : nil
+        busyLabel = hasNoteText ? L10n.wwSavingToFile : nil
         isSaving = true
         Task {
             do {
@@ -447,7 +446,7 @@ struct PatientQuestionnaireEditorView: View {
         } message: {
             Text(L10n.deleteQuestionnaireConfirmMessage)
         }
-        .deleteCodeChallenge(isPresented: $isShowingDeleteCodeChallenge) { deleteQuestionnaire() }
+        .deleteCodeChallenge(phrase: .questionnaire, isPresented: $isShowingDeleteCodeChallenge) { deleteQuestionnaire() }
         .alert(L10n.discardChangesTitle,
                isPresented: $isShowingBackWarning) {
             if canSave {
@@ -481,7 +480,7 @@ struct PatientQuestionnaireEditorView: View {
         errorMessage = nil
         let hasNoteText = (questionnaire.gad7Notes + questionnaire.phq9Notes + [questionnaire.interferenceNote])
             .contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        busyLabel = hasNoteText ? L10n.anonymizingStatusLabel : nil
+        busyLabel = hasNoteText ? L10n.wwSavingToFile : nil
         isSaving = true
         Task {
             do {

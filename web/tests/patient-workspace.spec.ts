@@ -3,7 +3,7 @@ import {createWorksheet,type WorksheetType} from '../src/workspace/model';
 const patient='11111111-1111-4111-8111-111111111111', other='22222222-2222-4222-8222-222222222222';
 const user={id:'therapist-fixture',email:'fixture@example.invalid',is_anonymous:false,app_metadata:{provider:'email'},user_metadata:{},aud:'authenticated',created_at:'2026-01-01T00:00:00Z'};
 function diary(type:WorksheetType){return {...createWorksheet(type).data,id:'entry',patient_id:patient,created_by:'patient',created_at:'2026-10-30T12:00:00Z',updated_at:'2026-10-30T12:00:00Z',[type==='diary_three'?'situation':'event']:'אירוע סינתטי',automatic_thoughts:type==='diary_three'?[{text:'מחשבה סינתטית',beliefBefore:80,beliefAfter:20}]:['מחשבה סינתטית'],feelings:type==='diary_three'?[{name:'עצב',intensityBefore:70,intensityAfter:20}]:[{name:'עצב',intensity:70}],thinking_errors:[],alternative_thoughts:type==='diary_three'?[{text:'חלופה סינתטית',belief:80}]:['חלופה סינתטית'],behaviour:'פעולה סינתטית',physical_symptoms:''};}
-async function fixture(context:BrowserContext,options:{nameConsent?:boolean;deny?:boolean;fail?:boolean;uncertain?:boolean;loseAfterSave?:boolean;delay?:Promise<void>}={}) {
+async function fixture(context:BrowserContext,options:{nameDelay?:Promise<void>;nameFailure?:boolean;missingName?:boolean;nameConsent?:boolean;deny?:boolean;fail?:boolean;uncertain?:boolean;loseAfterSave?:boolean;delay?:Promise<void>}={}) {
  const requests:{path:string;select:string;method:string;body:Record<string,unknown>|null;patient:string|null}[]=[];
  let approved=options.nameConsent!==false;
  const records:Record<string,Record<string,unknown>[]>= {Sessions:[],CombinedMood:[{id:'9007199254740993',patient_id:patient,session_id:null,created_by:'therapist',answered_date:'2026-10-30',gad7_answers:Array(7).fill(1),phq9_answers:Array(9).fill(0),interference_level:1,combined_notes:{gad7:['PRIVATE_NOTE_SENTINEL'],phq9:[],interference:''}}],diary_one_entries:[diary('diary_one')],diary_two_entries:[diary('diary_two')],diary_three_entries:[diary('diary_three')]};
@@ -19,7 +19,11 @@ async function fixture(context:BrowserContext,options:{nameConsent?:boolean;deny
   else if(path.endsWith('/logout'))data={};
   else if(path.endsWith('/get-app-context'))data={role:'therapist',entitlement:{access:'full'}};
   else if(path.endsWith('/get_my_consent')||path.endsWith('/record_my_consent')){if(path.endsWith('/record_my_consent')&&body.p_consent_type==='patient_name_storage')approved=body.p_decision==='accepted';const ok=body.p_consent_type!=='patient_name_storage'||approved;data={therapist_id:user.id,consent_type:body.p_consent_type,required_version:body.p_required_version,accepted_version:ok?body.p_required_version:null,status:ok?'accepted':'required',accepted_at:ok?'2026-10-30T10:00:00Z':null,revoked_at:null,revision:ok?1:0};}
-  else if(path.endsWith('/patient-names'))data={names:[{patient_id:patient.toUpperCase(),name:'מטופלת לדוגמה א',revision:'1',updated_at:null},{patient_id:other,name:'מטופל לדוגמה ב',revision:'2',updated_at:null}],next_after:null};
+  else if(path.endsWith('/patient-names')) {
+   if(options.nameDelay)await options.nameDelay;
+   if(options.nameFailure){status=503;data={code:'service_unavailable'};}
+   else data={names:[{patient_id:patient.toUpperCase(),name:options.missingName?null:'מטופלת לדוגמה א',revision:'1',updated_at:null},{patient_id:other,name:'מטופל לדוגמה ב',revision:'2',updated_at:null}],next_after:null};
+  }
   else if(path.endsWith('/load-patients'))data={records:[{id:patient,active:true,notes:null,formulation:null,_version:'v'},{id:other,active:true,notes:null,formulation:null,_version:'v'}],next_cursor:null};
   else if(path.endsWith('/load-sessions')||path.endsWith('/load-questionnaires')) {
     const table=path.endsWith('/load-sessions')?'Sessions':'CombinedMood';
@@ -57,7 +61,7 @@ async function openEntry(page:Page,type:string,shared=false){await page.goto(`/a
 
 test('consent gates name lookup; choose patient and save directly',async({context,page},info)=>{
  const f=await fixture(context,{nameConsent:false});await page.goto('/app/');await expect(page.getByRole('heading',{name:'שמירת שמות מטופלים וסנכרון בין מכשירים'})).toBeVisible();expect(f.requests.some(r=>r.path.endsWith('/patient-names'))).toBe(false);
- await page.getByRole('button',{name:'אישור והמשך'}).click();await page.getByRole('link',{name:/מטופלת לדוגמה א/}).click();await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א'})).toBeVisible();await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('סיכום סינתטי');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'הרשומה נשמרה'})).toBeVisible();expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='create')).toHaveLength(1);expect(f.records.Sessions[0].notes).toBe('סיכום סינתטי');expect(f.requests.some(r=>r.path.includes('anonymize'))).toBe(false);expect(f.requests.some(r=>/web_workspace/.test(r.path))).toBe(false);await page.screenshot({path:info.outputPath('session.png'),fullPage:true});await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('עריכה נוספת סינתטית');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='create')).toHaveLength(1);expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='update')).toHaveLength(1);
+ await page.getByRole('button',{name:'אישור והמשך'}).click();await page.getByRole('link',{name:/מטופלת לדוגמה א/}).click();await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א'})).toBeVisible();await page.getByRole('button',{name:'פגישה חדשה',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('סיכום סינתטי');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'הרשומה נשמרה'})).toBeVisible();expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='create')).toHaveLength(1);expect(f.records.Sessions[0].notes).toBe('סיכום סינתטי');expect(f.requests.some(r=>r.path.includes('anonymize'))).toBe(false);expect(f.requests.some(r=>/web_workspace/.test(r.path))).toBe(false);await page.screenshot({path:info.outputPath('session.png'),fullPage:true});await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('עריכה נוספת סינתטית');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='create')).toHaveLength(1);expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='update')).toHaveLength(1);
 });
 for(const type of ['diary_one','diary_two','diary_three'])test(`${type} edits either author in place and retries failure`,async({context,page})=>{
  const f=await fixture(context,{fail:true});await openEntry(page,type);const lead=page.locator('.ww-diary-section[data-part="event"] textarea').first();await lead.fill('טקסט סינתטי — מדויק!');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();await expect(lead).toHaveValue('טקסט סינתטי — מדויק!');await page.getByRole('button',{name:'ניסיון שמירה נוסף',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();const saves=f.requests.filter(r=>r.method==='PATCH');expect(saves).toHaveLength(2);expect(saves[1].body).not.toHaveProperty('created_by');expect(saves[1].body).not.toHaveProperty('patient_id');expect(f.requests.some(r=>r.path.includes('anonymize'))).toBe(false);expect(f.records[`${type}_entries`]).toHaveLength(1);
@@ -69,17 +73,17 @@ test('dirty switching prompts; in-flight save cannot switch',async({context,page
  let release!:()=>void;const delay=new Promise<void>(r=>{release=r;});await fixture(context,{delay});await openEntry(page,'diary_one');await page.locator('[data-part="event"] textarea').fill('עריכה סינתטית');await page.getByLabel('מעבר למטופל/ת').selectOption(other);await expect(page.getByRole('dialog')).toBeVisible();await page.getByRole('dialog').getByRole('button').first().click();await expect(page).toHaveURL(new RegExp(patient));await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByRole('button',{name:'שומר…'})).toBeDisabled();await page.getByLabel('מעבר למטופל/ת').selectOption(other);await expect(page).toHaveURL(new RegExp(patient));release();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();
 });
 test('uncertain create retains input and prevents automatic duplicate',async({context,page})=>{
- const f=await fixture(context,{uncertain:true});await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('סינתטי בלבד');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText(/לא ניתן לוודא אם הרשומה נשמרה/)).toBeVisible();await expect(page.getByRole('button',{name:'ניסיון שמירה נוסף',exact:true})).toBeDisabled();await expect(page.getByLabel('סיכום הפגישה',{exact:true})).toHaveValue('סינתטי בלבד');expect(f.requests.filter(r=>r.body?.mode==='create'&&r.path.endsWith('/save-session'))).toHaveLength(1);
+ const f=await fixture(context,{uncertain:true});await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'פגישה חדשה',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('סינתטי בלבד');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText(/לא ניתן לוודא אם הרשומה נשמרה/)).toBeVisible();await expect(page.getByRole('button',{name:'ניסיון שמירה נוסף',exact:true})).toBeDisabled();await expect(page.getByLabel('סיכום הפגישה',{exact:true})).toHaveValue('סינתטי בלבד');expect(f.requests.filter(r=>r.body?.mode==='create'&&r.path.endsWith('/save-session'))).toHaveLength(1);
 });
 test('separate shared window receives only selected name and stays fixed',async({context,page},info)=>{
- await fixture(context);await page.goto(`/app/patients/${patient}/sessions`);await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א'})).toBeVisible();const popupPromise=page.waitForEvent('popup');await page.getByRole('link',{name:'תצוגה משותפת',exact:true}).click();const shared=await popupPromise;await expect(shared.getByRole('heading',{name:'מטופלת לדוגמה א'})).toBeVisible();await shared.screenshot({path:info.outputPath('shared-opened.png'),fullPage:true});await page.getByLabel('מעבר למטופל/ת').selectOption(other);await expect(page).toHaveURL(new RegExp(other));await expect(shared).toHaveURL(new RegExp(patient));await expect(shared.locator('body')).not.toContainText('מטופל לדוגמה ב');await page.getByRole('button',{name:'התנתקות',exact:true}).click();await expect(shared.getByRole('heading',{name:'תוקף התצוגה הסתיים'})).toBeVisible();
+ await fixture(context);await page.goto(`/app/patients/${patient}/sessions`);await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א'})).toBeVisible();const popupPromise=page.waitForEvent('popup');await page.getByRole('button',{name:'תצוגה משותפת',exact:true}).click();await page.getByLabel('הטופס לפגישה').selectOption('diary_one');await page.getByRole('link',{name:'פתיחת חלון לשיתוף',exact:true}).click();const shared=await popupPromise;await expect(shared.getByRole('heading',{name:'מטופלת לדוגמה א'})).toBeVisible();await shared.screenshot({path:info.outputPath('shared-opened.png'),fullPage:true});await page.getByLabel('מעבר למטופל/ת').selectOption(other);await expect(page).toHaveURL(new RegExp(other));await expect(shared).toHaveURL(new RegExp(patient));await expect(shared.locator('body')).not.toContainText('מטופל לדוגמה ב');await page.getByRole('button',{name:'התנתקות',exact:true}).click();await expect(shared.getByRole('heading',{name:'תוקף התצוגה הסתיים'})).toBeVisible();
 });
 test('unauthorized shared patient is neutral and never queries clinical tables',async({context,page})=>{const f=await fixture(context,{deny:true});await page.goto(`/app/shared/${patient}/diary_one`);await expect(page.getByRole('alert')).toBeVisible();expect(f.requests.some(r=>/diary_.*entries/.test(r.path))).toBe(false);await expect(page.locator('.pw-picker,.cb-header')).toHaveCount(0);});
 for(const width of [1440,390])test(`RTL worksheet layout ${width}`,async({context,page},info)=>{await fixture(context);await page.setViewportSize({width,height:900});await openEntry(page,'diary_three');await expect(page.locator('.pw')).toHaveAttribute('dir','rtl');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:info.outputPath(`patient-${width}.png`),fullPage:true});await page.evaluate(()=>document.documentElement.style.fontSize='24px');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.keyboard.press('Tab');expect(await page.evaluate(()=>document.activeElement?.tagName)).not.toBe('BODY');});
 
 test('shared new questionnaire completes scores and flags question nine without notes',async({context,page})=>{const f=await fixture(context);await page.goto(`/app/shared/${patient}/questionnaire`);await page.getByRole('button',{name:'שאלון חדש',exact:true}).click();await expect(page.getByText('השאלון טרם הושלם',{exact:false}).first()).toBeVisible();for(let i=0;i<16;i++)await page.locator('fieldset.ww-question').nth(i).getByRole('radio').nth(1).check();await page.locator('.ww-options-compact').getByRole('radio').nth(1).check();await expect(page.locator('.ww-safety')).toBeVisible();await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();const writes=f.requests.filter(r=>r.path.endsWith('/save-questionnaire')&&r.body?.mode==='create');expect(writes).toHaveLength(1);expect(writes[0].body).not.toHaveProperty('combined_notes');expect((writes[0].body?.changes as Record<string,unknown>).session_id).toBeNull();});
 
-test('lost create response can recover by opening the confirmed row, then UPDATE',async({context,page})=>{const f=await fixture(context,{loseAfterSave:true});await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('טיוטה סינתטית');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText(/לא ניתן לוודא אם הרשומה נשמרה/)).toBeVisible();await page.getByRole('button',{name:'בדיקת ההיסטוריה',exact:true}).click();page.once('dialog',dialog=>dialog.accept());await page.locator('.pw-session-list button').first().click();await expect(page.getByText(/לא ניתן לוודא אם הרשומה נשמרה/)).toHaveCount(0);await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('עריכה סינתטית');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='create')).toHaveLength(1);expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='update')).toHaveLength(1);});
+test('lost create response can recover by opening the confirmed row, then UPDATE',async({context,page})=>{const f=await fixture(context,{loseAfterSave:true});await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'פגישה חדשה',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('טיוטה סינתטית');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText(/לא ניתן לוודא אם הרשומה נשמרה/)).toBeVisible();await page.getByRole('button',{name:'בדיקת ההיסטוריה',exact:true}).click();page.once('dialog',dialog=>dialog.accept());await page.locator('.pw-session-list button').first().click();await expect(page.getByText(/לא ניתן לוודא אם הרשומה נשמרה/)).toHaveCount(0);await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('עריכה סינתטית');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='create')).toHaveLength(1);expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='update')).toHaveLength(1);});
 test('search retains the selected patient identity',async({context,page})=>{await fixture(context);await page.goto(`/app/patients/${patient}/sessions`);await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א'})).toBeVisible();await page.getByLabel('חיפוש מטופל/ת',{exact:true}).fill('לדוגמה ב');await expect(page.getByLabel('מעבר למטופל/ת')).toHaveValue(patient);await expect(page.getByLabel('מעבר למטופל/ת').locator('option:checked')).toHaveText('מטופלת לדוגמה א');});
 
 for(const width of [1440,800,390])test(`contextual record lists ${width}`,async({context,page},info)=>{
@@ -97,7 +101,7 @@ for(const width of [1440,800,390])test(`contextual record lists ${width}`,async(
 });
 test('visible intensity controls preserve null, keyboard values and before/after serialization',async({context,page},info)=>{
  const f=await fixture(context);f.records.diary_three_entries[0].feelings=[{name:'עצב',intensityBefore:null,intensityAfter:null}];
- await openEntry(page,'diary_three');
+ await openEntry(page,'diary_three');await page.getByRole('button',{name:'היומן המלא',exact:true}).click();
  const before=page.getByRole('slider',{name:'עוצמה לפני — עצב — מחוון',exact:true});
  const number=page.getByRole('spinbutton',{name:'עוצמה לפני — עצב — אחוז',exact:true});
  await expect(before).toBeVisible();await expect(number).toHaveValue('');await expect(before).toHaveAttribute('aria-valuetext','טרם נבחרה עוצמה');
@@ -119,12 +123,12 @@ test('visible intensity controls preserve null, keyboard values and before/after
 
 for(const width of [1440,390])test(`focused editors cancel and preserve list ${width}`,async({context,page},info)=>{
  const f=await fixture(context);f.records.Sessions=[{id:'s1',patient_id:patient,session_date:'2026-10-30',type:'intake',notes:'סיכום לדוגמה בלבד'}];await page.setViewportSize({width,height:900});
- await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();
- const dialog=page.getByRole('dialog',{name:'מפגש חדש',exact:true});await expect(dialog).toBeVisible();await expect(page.locator('.pw-session-list li')).toHaveCount(1);
+ await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'פגישה חדשה',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'פגישה חדשה',exact:true});await expect(dialog).toBeVisible();await expect(page.locator('.pw-session-list li')).toHaveCount(1);
  await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).waitFor({state:'visible'});
  await page.screenshot({path:info.outputPath(`session-dialog-${width}.png`)});
- await dialog.getByRole('button',{name:'ביטול',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('button',{name:'מפגש חדש',exact:true})).toBeFocused();
- await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('טיוטה סינתטית');page.once('dialog',d=>d.dismiss());await page.keyboard.press('Escape');await expect(dialog).toBeVisible();await expect(page.getByLabel('סיכום הפגישה',{exact:true})).toHaveValue('טיוטה סינתטית');
+ await dialog.getByRole('button',{name:'ביטול',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('button',{name:'פגישה חדשה',exact:true})).toBeFocused();
+ await page.getByRole('button',{name:'פגישה חדשה',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('טיוטה סינתטית');page.once('dialog',d=>d.dismiss());await page.keyboard.press('Escape');await expect(dialog).toBeVisible();await expect(page.getByLabel('סיכום הפגישה',{exact:true})).toHaveValue('טיוטה סינתטית');
  page.once('dialog',d=>d.accept());await dialog.getByRole('button',{name:'ביטול',exact:true}).click();await expect(dialog).toHaveCount(0);expect(f.requests.filter(r=>r.path.endsWith('/save-session')&&r.body?.mode==='create')).toHaveLength(0);
  await openEntry(page,'questionnaire');const q=page.getByRole('dialog',{name:'עריכת שאלון',exact:true});await expect(q).toBeVisible();await page.screenshot({path:info.outputPath(`questionnaire-dialog-${width}.png`)});
  await q.getByRole('button',{name:'חזרה לשאלונים',exact:true}).click();await expect(q).toHaveCount(0);await expect(page.locator('.pw-history button').first()).toBeFocused();
@@ -132,5 +136,99 @@ for(const width of [1440,390])test(`focused editors cancel and preserve list ${w
  page.once('dialog',d=>d.accept());await page.keyboard.press('Escape');await expect(q).toHaveCount(0);expect(f.requests.filter(r=>r.method==='PATCH')).toHaveLength(0);
 });
 test('session modal cannot dismiss while saving',async({context,page})=>{
- let release!:()=>void;await fixture(context,{delay:new Promise<void>(r=>release=r)});await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'מפגש חדש',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('סינתטי');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByRole('button',{name:'ביטול',exact:true})).toBeDisabled();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeVisible();release();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();await page.getByRole('button',{name:'חזרה למפגשים',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('.pw-session-list li')).toHaveCount(1);
+ let release!:()=>void;await fixture(context,{delay:new Promise<void>(r=>release=r)});await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'פגישה חדשה',exact:true}).click();await page.locator('.pw-session-editor select').selectOption('intake');await page.getByLabel('סיכום הפגישה',{exact:true}).fill('סינתטי');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByRole('button',{name:'ביטול',exact:true})).toBeDisabled();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeVisible();release();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();await page.getByRole('button',{name:'חזרה לפגישות',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('.pw-session-list li')).toHaveCount(1);
+});
+
+for(const type of ['diary_one','diary_two','diary_three'])test(`guided diary navigation preserves edits ${type}`,async({context,page},info)=>{
+ const f=await fixture(context);await page.setViewportSize({width:390,height:844});await openEntry(page,type);
+ await expect(page.locator('.ww-diary-section')).toHaveCount(1);
+ await expect(page.getByRole('button',{name:'הקודם',exact:true})).toBeDisabled();
+ await page.locator('[data-part="event"] textarea').fill('תוכן סינתטי שנשמר בין חלקים');
+ await page.getByRole('button',{name:'הבא',exact:true}).click();await expect(page.locator('[data-part="thought"] textarea')).toHaveValue('מחשבה סינתטית');
+ await page.locator('[data-part="thought"] textarea').fill('מחשבה סינתטית מעודכנת');
+ await page.getByRole('button',{name:'הקודם',exact:true}).click();await expect(page.locator('[data-part="event"] textarea')).toHaveValue('תוכן סינתטי שנשמר בין חלקים');
+ await page.getByLabel('מעבר לחלק',{exact:true}).selectOption('2');await expect(page.getByRole('slider').first()).toBeVisible();
+ await page.screenshot({path:info.outputPath(`${type}-phone-focus.png`)});
+ await page.getByRole('button',{name:'היומן המלא',exact:true}).click();await expect(page.locator('.ww-diary-section')).toHaveCount(type==='diary_one'?4:type==='diary_two'?5:7);
+ await expect(page.locator('[data-part="thought"] textarea')).toHaveValue('מחשבה סינתטית מעודכנת');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:info.outputPath(`${type}-phone-all.png`),fullPage:true});
+ await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:info.outputPath(`${type}-desktop-all.png`),fullPage:true});
+ await page.getByRole('button',{name:'חלק אחד',exact:true}).click();await expect(page.getByLabel('מעבר לחלק',{exact:true})).toHaveValue('2');
+ await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();
+ expect(f.records[`${type}_entries`][0][type==='diary_three'?'situation':'event']).toBe('תוכן סינתטי שנשמר בין חלקים');
+});
+for(const chosen of ['questionnaire','diary_one','diary_two','diary_three'])test(`shared form scope ${chosen}`,async({context,page},info)=>{
+ const f=await fixture(context);await page.goto(`/app/patients/${patient}/sessions`);await page.getByRole('button',{name:'תצוגה משותפת',exact:true}).click();
+ await expect(page.getByRole('link',{name:'פתיחת חלון לשיתוף',exact:true})).toHaveCount(0);
+ await page.getByLabel('הטופס לפגישה').selectOption(chosen);await page.screenshot({path:info.outputPath(`share-picker-${chosen}.png`)});
+ const popup=page.waitForEvent('popup');await page.getByRole('link',{name:'פתיחת חלון לשיתוף',exact:true}).click();const shared=await popup;
+ await expect(shared.locator('.pw-tabs a')).toHaveCount(chosen==='questionnaire'?1:2);
+ for(const type of ['diary_one','diary_two','diary_three'])if(type!==chosen)await expect(shared.locator(`.pw-tabs a[href*="/${type}"]`)).toHaveCount(0);
+ if(chosen!=='questionnaire'){
+  await shared.locator('.pw-tabs a[href*="/questionnaire"]').click();await expect(shared.locator('.pw-tabs a')).toHaveCount(2);await shared.reload();await expect(shared.locator('.pw-tabs a')).toHaveCount(2);
+  await shared.locator(`.pw-tabs a[href*="/${chosen}"]`).click();await shared.locator('.pw-history button').first().click();await shared.setViewportSize({width:390,height:844});await shared.screenshot({path:info.outputPath(`shared-${chosen}-phone.png`)});
+  const another=chosen==='diary_one'?'diary_two':'diary_one';await shared.goto(`/app/shared/${patient}/${another}?form=${chosen}`);await expect(shared.getByText('התצוגה אינה זמינה.',{exact:true})).toBeVisible();
+ }
+ expect(f.requests.some(r=>r.body?.view==='shared'&&r.select.includes('notes'))).toBe(false);
+});
+
+for(const width of [1280,1440])test(`laptop presentation remains legible when screen-shared ${width}`,async({context,page},info)=>{
+ const f=await fixture(context);await page.setViewportSize({width,height:width===1280?800:900});
+ await openEntry(page,'diary_three',true);
+ const text=page.locator('[data-part="event"] textarea');
+ await text.fill('כשלא קיבלתי תשובה להודעה, חשבתי שעשיתי משהו לא בסדר.');
+ await expect(page.locator('.diary-presentation')).toBeVisible();
+ const font=await text.evaluate(e=>parseFloat(getComputedStyle(e).fontSize));expect(font/width).toBeGreaterThan(.04);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ const sharedImage=await page.screenshot({path:info.outputPath(`laptop-${width}-event.png`)});
+ await page.getByRole('button',{name:'הגדלת טקסט בשיתוף',exact:true}).click();expect(await text.evaluate(e=>parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThan(font);
+ await page.getByRole('button',{name:'הקטנת טקסט בשיתוף',exact:true}).click();
+ await page.getByRole('button',{name:'הבא',exact:true}).click();await expect(page.locator('.ww-diary-section')).toHaveCount(1);
+ await page.screenshot({path:info.outputPath(`laptop-${width}-thought.png`)});
+ await page.getByLabel('מעבר לחלק',{exact:true}).selectOption('2');await page.screenshot({path:info.outputPath(`laptop-${width}-feelings.png`)});
+ await page.getByRole('button',{name:'היומן המלא',exact:true}).click();await expect(page.locator('.ww-diary-section')).toHaveCount(7);
+ await page.getByRole('button',{name:'חלק אחד',exact:true}).click();await expect(page.getByLabel('מעבר לחלק',{exact:true})).toHaveValue('2');
+ await page.getByLabel('מעבר לחלק',{exact:true}).selectOption('0');await expect(text).toHaveValue('כשלא קיבלתי תשובה להודעה, חשבתי שעשיתי משהו לא בסדר.');
+ await page.getByRole('button',{name:'מסך מלא',exact:true}).click();await expect(page.locator('.pw-shared')).toHaveJSProperty('nodeName','MAIN');
+ await expect.poll(()=>page.evaluate(()=>!!document.fullscreenElement)).toBe(true);
+ await page.getByRole('button',{name:'מסך מלא',exact:true}).click();await expect.poll(()=>page.evaluate(()=>!!document.fullscreenElement)).toBe(false);
+ await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();await expect(page.getByText('הרשומה נשמרה בתיק המטופל/ת',{exact:true})).toBeVisible();
+ expect(f.records.diary_three_entries[0].situation).toBe('כשלא קיבלתי תשובה להודעה, חשבתי שעשיתי משהו לא בסדר.');
+ const viewer=await context.newPage();
+ for(const received of [{width:390,height:844,name:'portrait'},{width:844,height:390,name:'landscape'}]){
+  await viewer.setViewportSize(received);
+  await viewer.setContent(`<html><body style="margin:0;background:#14171d;display:grid;place-items:center;height:100vh"><img alt="הדמיית חלון המחשב המשותף מוקטן למסך טלפון" style="display:block;max-width:100vw;max-height:100vh;object-fit:contain" src="data:image/png;base64,${sharedImage.toString('base64')}"></body></html>`);
+  await viewer.screenshot({path:info.outputPath(`received-${width}-${received.name}.png`)});
+ }
+ await viewer.close();
+});
+
+test('names start with directory, cold picker waits and reopening reuses names',async({context,page})=>{
+ let release!:()=>void;const delay=new Promise<void>(resolve=>release=resolve);
+ const f=await fixture(context,{nameDelay:delay});await page.goto('/app/');
+ await expect.poll(()=>f.requests.filter(r=>r.path.endsWith('/patient-names')).length).toBe(1);
+ await expect.poll(()=>f.requests.filter(r=>r.path.endsWith('/load-patients')).length).toBe(1);
+ await expect(page.locator('.pw-picker select')).toBeDisabled();
+ await expect(page.locator('.pw-directory .pw-patient-row')).toHaveCount(0);
+ await expect(page.locator('body')).not.toContainText('מטופל/ת ללא שם');
+ await page.getByRole('searchbox').fill('לדוגמה א');release();
+ await expect(page.getByRole('link',{name:/מטופלת לדוגמה א/})).toBeVisible();
+ await expect(page.getByRole('link',{name:/מטופל לדוגמה ב/})).toHaveCount(0);
+ await page.getByRole('link',{name:/מטופלת לדוגמה א/}).click();
+ await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א'})).toBeVisible();
+ await page.locator('.pw-picker select').selectOption('');
+ await expect(page.getByRole('link',{name:/מטופלת לדוגמה א/})).toBeVisible();
+ expect(f.requests.filter(r=>r.path.endsWith('/patient-names'))).toHaveLength(1);
+ expect(await page.evaluate(()=>Object.keys(localStorage).some(k=>k.startsWith('cbtipul.names.')))).toBe(false);
+});
+test('a confirmed missing name differs from a failed lookup',async({context,page})=>{
+ await fixture(context,{missingName:true});await page.goto('/app/');
+ await expect(page.getByRole('link',{name:/מטופל\/ת ללא שם/})).toBeVisible();
+});
+test('failed names never render unnamed directory rows',async({context,page})=>{
+ await fixture(context,{nameFailure:true});await page.goto('/app/');
+ await expect(page.locator('.pw-picker select')).toBeDisabled();
+ await expect(page.getByRole('option',{name:'טעינת השמות נכשלה'})).toBeAttached();
+ await expect(page.locator('.pw-directory .pw-patient-row')).toHaveCount(0);
 });

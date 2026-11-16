@@ -310,6 +310,7 @@ final class PatientStore {
 
     /// Local patientID → name store, populated whenever the patient list
     /// loads (Phase 1 of moving patient names off the backend).
+    private var nameCreationRecovery: (owner: String?, creationID: UUID, patient: Patient)?
     private let identityStore = PatientIdentityStore()
     let nameSync: PatientNameSync
 
@@ -327,32 +328,46 @@ final class PatientStore {
     /// `anonymizeText` overrides the anonymization call, for tests only;
     /// the app always uses `ClinicalTextAnonymizer` on the shared client.
     private let persistPatientCache: Bool
+    private let patientCacheURL: URL
 
     init(client: SupabaseClient,
          persistPatientCache: Bool = true,
+         patientCacheURL: URL? = nil,
          anonymizeText: (@Sendable (String) async throws -> String)? = nil) {
         self.client = client
         self.nameSync = PatientNameSync(client: client)
         self.persistPatientCache = persistPatientCache
+        self.patientCacheURL = patientCacheURL ?? Self.patientsCacheURL
         let anonymizer = ClinicalTextAnonymizer(client: client)
         textGate = ClinicalTextGate(
             anonymize: anonymizeText ?? { try await anonymizer.anonymize($0) }
         )
         nameSync.changed = { [weak self] in self?.applySynchronizedNames() }
-        nameSync.readLegacy = { [weak self] id in self?.identityStore.name(for: .text(id)) }
+        nameSync.readLegacy = { [weak self] id in
+            guard let self else { return nil }
+            if let name = try self.identityStore.legacyName(for: .text(id)) { return name }
+            if let patient = self.patients.first(where: { $0.id.queryValue.lowercased() == id.lowercased() }), !patient.backendName.isEmpty { return patient.backendName }
+            // Reading a legacy mapping must never publish a preliminary list.
+            guard let row = self.readCachedPatients().first(where: { $0.databaseID?.queryValue.lowercased() == id.lowercased() }) else { return nil }
+            let name = [row.firstName, row.lastName].filter { !$0.isEmpty }.joined(separator: " ")
+            return name.isEmpty ? nil : name
+        }
     }
 
     private func applySynchronizedNames() {
+        if nameCreationRecovery?.owner != nameSync.account { nameCreationRecovery = nil }
         guard !isDemoMode else { return }
         for patient in patients {
-            patient.localName = nameSync.displayed(patient.id.queryValue, legacy: identityStore.name(for: patient.id))
+            patient.localName = nameSync.displayed(patient.id.queryValue, legacy: nil)
+            if nameSync.hasConfirmed(patient.id.queryValue) { patient.firstName = ""; patient.lastName = "" }
             if let name = patient.localName { PatientNameResolver.setDisplayName(name, forPatientId: patient.id.queryValue) }
         }
+        if !patients.isEmpty { saveCachedPatients() }
     }
 
     private func scheduleNameSync() {
         guard !isDemoMode else { return }
-        nameSync.register(Dictionary(uniqueKeysWithValues: patients.map { ($0.id.queryValue, identityStore.name(for: $0.id)) }))
+        nameSync.register(Dictionary(uniqueKeysWithValues: patients.map { ($0.id.queryValue, Optional<String>.none) }))
         applySynchronizedNames()
         Task { await nameSync.refresh(force: true) }
     }
@@ -433,7 +448,6 @@ final class PatientStore {
         showcaseDataLoaded = false
         patients = []
         questionnairesByPatient = [:]
-        loadCachedPatients()
         do {
             try await loadPatients()
         } catch {
@@ -753,16 +767,42 @@ final class PatientStore {
             checkpoint: { [self] in
                 guard owner == client.auth.currentUser?.id, epoch == clinicalLoadEpoch, !isDemoMode else { throw CancellationError() }
             }, invoke: { [self] endpoint, body in
-                try await client.functions.invoke(endpoint, options: FunctionInvokeOptions(body: body))
+                #if DEBUG
+                print("PatientLaunchTrace request=\(endpoint) t=\(ProcessInfo.processInfo.systemUptime)")
+                #endif
+                let page: [String: AnyJSON] = try await client.functions.invoke(endpoint, options: FunctionInvokeOptions(body: body))
+                #if DEBUG
+                if endpoint == "load-patients", case .array(let values) = page["records"] {
+                    let rows = values.compactMap { value -> [String: AnyJSON]? in if case .object(let row) = value { return row }; return nil }
+                    let strings = rows.filter { if case .string = $0["decryptedName"] { return true }; return false }.count
+                    print("PatientLaunchTrace response=load-patients t=\(ProcessInfo.processInfo.systemUptime) count=\(rows.count) string=\(strings) null=\(rows.filter { $0["decryptedName"] == .null }.count) missing=\(rows.filter { $0["decryptedName"] == nil }.count)")
+                }
+                #endif
+                return page
             })
     }
 
     func loadPatients() async throws {
         if isDemoMode { return }
+        let owner = client.auth.currentUser?.id, epoch = clinicalLoadEpoch
+        do { try await loadPatientRecords() }
+        catch is CancellationError { throw CancellationError() }
+        catch {
+            // Offline recovery is explicit; never flash nameless cached rows before a live load.
+            if owner != nil, owner == client.auth.currentUser?.id, epoch == clinicalLoadEpoch, !isDemoMode {
+                restoreCachedPatientsAfterLoadFailure()
+            }
+            throw error
+        }
+    }
+
+    private func loadPatientRecords() async throws {
+        if isDemoMode { return }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
         let nameOwner = nameSync.account
         let epoch = clinicalLoadEpoch
+        let nameRevision = nameSync.writeRevision
         let patientRecords = try await loadClinical("load-patients")
         let sessionRecords = try await loadClinical("load-sessions")
         guard epoch == clinicalLoadEpoch else { throw CancellationError() }
@@ -775,6 +815,10 @@ final class PatientStore {
         // not replace the sample records with the eventual network response.
         guard !isDemoMode, nameOwner == nameSync.account else { return }
 
+        guard nameRevision == nameSync.writeRevision else { return }
+        try nameSync.receivePatientRows(patientRecords)
+        await nameSync.refresh(force: true)
+        guard epoch == clinicalLoadEpoch, nameOwner == nameSync.account, !isDemoMode else { return }
         var sessionRowsByPatient: [DatabaseID: [SessionRow]] = [:]
         for row in sessionRows {
             sessionRowsByPatient[row.patientID, default: []].append(row)
@@ -808,41 +852,50 @@ final class PatientStore {
                 .sorted { $0.date < $1.date }
             return patient
         }
-        // Readable server names arrive only through the separately consented sync coordinator.
+        // Resolve the inline field (or older-server fallback) before publishing rows.
         for patient in loadedPatients {
-            patient.localName = nameSync.displayed(patient.id.queryValue, legacy: identityStore.name(for: patient.id))
+            patient.localName = nameSync.displayed(patient.id.queryValue, legacy: nil)
         }
+        #if DEBUG
+        print("PatientLaunchTrace server_publish t=\(ProcessInfo.processInfo.systemUptime) count=\(loadedPatients.count) resolved=\(loadedPatients.filter { $0.localName != nil }.count)")
+        #endif
         patients = loadedPatients
-        scheduleNameSync()
+        applySynchronizedNames()
         AppLog.store.info("Patients loaded from server: \(patientRows.count), sessions: \(sessionRows.count)")
         saveCachedPatients()
     }
 
     // MARK: - Patient disk cache
 
-    /// Snapshot of the patient list, kept so the list shows instantly on the
-    /// next launch (or offline) before the network load replaces it.
+    /// Offline recovery snapshot. Server names are intentionally excluded.
     private static var patientsCacheURL: URL {
         URL.cachesDirectory.appending(path: "patients-cache.json")
     }
 
-    /// Fills the patient list from the last saved snapshot. Does nothing once
-    /// patients are already loaded.
-    func loadCachedPatients() {
-        if isDemoMode { return }
-        guard patients.isEmpty,
-              let data = try? Data(contentsOf: Self.patientsCacheURL),
-              let cached = try? JSONDecoder().decode([CachedPatient].self, from: data)
-        else { return }
+    /// Decode without publishing; legacy name reads also use this path.
+    private func readCachedPatients() -> [CachedPatient] {
+        guard persistPatientCache, nameSync.account != nil,
+              let data = try? Data(contentsOf: patientCacheURL),
+              let cached = try? JSONDecoder().decode([CachedPatient].self, from: data) else { return [] }
+        return cached
+    }
+
+    private func restoreCachedPatientsAfterLoadFailure() {
+        guard !isDemoMode, patients.isEmpty else { return }
+        let cached = readCachedPatients()
+        guard !cached.isEmpty else { return }
         // Entries without a database ID (pre-migration cache formats) are
         // dropped: patient identity is always server-assigned, and the next
         // network load restores them anyway.
+        #if DEBUG
+        print("PatientLaunchTrace cache_publish t=\(ProcessInfo.processInfo.systemUptime) count=\(cached.count)")
+        #endif
         patients = cached.compactMap { cachedPatient in
             guard let id = cachedPatient.databaseID else { return nil }
             let patient = Patient(
                 id: id,
-                firstName: cachedPatient.firstName,
-                lastName: cachedPatient.lastName,
+                firstName: nameSync.hasConfirmed(id.queryValue) ? "" : cachedPatient.firstName,
+                lastName: nameSync.hasConfirmed(id.queryValue) ? "" : cachedPatient.lastName,
                 status: cachedPatient.active ? .active : .inactive,
                 notes: cachedPatient.notes ?? "",
                 sessions: cachedPatient.sessions.map {
@@ -854,8 +907,8 @@ final class PatientStore {
             )
             patient.formulation = cachedPatient.formulation
             patient.loadedClinicalRecord = cachedPatient.loadedClinicalRecord
-            // Cache loads only resolve names; migration waits for authoritative ownership.
-            patient.localName = nameSync.displayed(patient.id.queryValue, legacy: identityStore.name(for: patient.id))
+            // Offline fallback may use existing local input, but never starts a name request.
+            patient.localName = nameSync.displayed(patient.id.queryValue, legacy: try? nameSync.readLegacy?(patient.id.queryValue))
             return patient
         }
         AppLog.store.info("Patients restored from disk cache: \(self.patients.count)")
@@ -867,10 +920,10 @@ final class PatientStore {
         if isDemoMode || !persistPatientCache { return }
         let snapshot = patients.map { patient in
             CachedPatient(
-                loadedClinicalRecord: patient.loadedClinicalRecord,
+                loadedClinicalRecord: patient.loadedClinicalRecord.map { ClinicalLoadedRecord(values: $0.values.filter { $0.key != "decryptedName" }) },
                 databaseID: patient.id,
-                firstName: patient.firstName,
-                lastName: patient.lastName,
+                firstName: nameSync.hasConfirmed(patient.id.queryValue) ? "" : patient.firstName,
+                lastName: nameSync.hasConfirmed(patient.id.queryValue) ? "" : patient.lastName,
                 active: patient.status == .active,
                 notes: patient.notes,
                 sessions: patient.sessions.map {
@@ -881,17 +934,18 @@ final class PatientStore {
             )
         }
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
-        try? data.write(to: Self.patientsCacheURL, options: [.atomic, .completeFileProtection])
+        try? data.write(to: patientCacheURL, options: [.atomic, .completeFileProtection])
     }
 
     /// Removes the cached patient list, e.g. on sign-out.
     func clearCachedPatients() {
-        try? FileManager.default.removeItem(at: Self.patientsCacheURL)
+        try? FileManager.default.removeItem(at: patientCacheURL)
     }
 
     /// Clears everything cached for the signed-in user (disk snapshot and all
     /// in-memory data), so nothing leaks into the next session on sign-out.
     func clearAllCaches() {
+        nameCreationRecovery = nil
         clinicalLoadEpoch = UUID()
         if isDemoMode {
             clearDemoContent()
@@ -943,14 +997,15 @@ final class PatientStore {
         return iso.date(from: raw) ?? .now
     }
 
-    func addPatient(firstName: String, lastName: String, status: PatientStatus = .active) async throws {
+    @discardableResult
+    func addPatient(firstName: String, lastName: String, status: PatientStatus = .active, creationID: UUID = UUID()) async throws -> Patient? {
         try await EntitlementState.shared.requireWrite(localDemo: isDemoMode)
         if isDemoMode {
             let name = [firstName, lastName]
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
                 .joined(separator: " ")
-            guard !name.isEmpty else { return }
+            guard !name.isEmpty else { return nil }
             let patient = Patient(
                 id: DemoData.makeTutorialPatientID(),
                 firstName: firstName,
@@ -962,33 +1017,39 @@ final class PatientStore {
             patients.append(patient)
             persistDemoClinic()
             AppLog.store.info("Demo patient added: \(patient.id.queryValue, privacy: .public)")
-            return
+            return patient
         }
         guard SupabaseConfig.isConfigured else { throw AuthError.notConfigured }
 
         let enteredName = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
         guard PatientNameRules.valid(enteredName) else { throw NameSyncFailure(code: "invalid_name") }
         let nameOwner = nameSync.account
+        if let recovery = nameCreationRecovery, recovery.owner == nameOwner, recovery.creationID == creationID {
+            try await nameSync.rememberCreated(recovery.patient.id.queryValue, name: enteredName)
+            recovery.patient.localName = enteredName; nameCreationRecovery = nil
+            if !patients.contains(where: { $0.id == recovery.patient.id }) { patients.append(recovery.patient) }
+            saveCachedPatients(); return recovery.patient
+        }
         let encryptedRecord = try await saveEncrypted("save-patient", previous: nil, changes: ["active": .bool(status == .active)])
         let inserted = InsertedRow(id: .text(encryptedRecord.id))
 
-        guard nameOwner == nameSync.account, !isDemoMode else { return }
+        guard nameOwner == nameSync.account, !isDemoMode else { return nil }
         let patient = Patient(id: inserted.id, firstName: firstName, lastName: lastName, status: status)
         patient.loadedClinicalRecord = encryptedRecord
-        // Preserve the entered name locally before consent-gated synchronization.
-        // A failed name-cache write must never make creation appear to have failed after the ID exists.
-        try? identityStore.save(patientID: patient.id, name: enteredName)
-        nameSync.rememberCreated(patient.id.queryValue, name: enteredName)
-        patient.localName = nameSync.displayed(patient.id.queryValue, legacy: identityStore.name(for: patient.id))
+        // Keep the created ID in memory so a name-only retry cannot create another patient.
+        nameCreationRecovery = (nameOwner, creationID, patient)
+        try await nameSync.rememberCreated(patient.id.queryValue, name: enteredName)
+        nameCreationRecovery = nil
+        patient.localName = nameSync.displayed(patient.id.queryValue, legacy: nil)
         patients.append(patient)
         scheduleNameSync()
         AppLog.store.info("Patient added: \(inserted.id.queryValue, privacy: .public)")
         saveCachedPatients()
+        return patient
     }
 
-    /// Renames a patient. Demo names live in `DemoClinicStore`; real names
-    /// become durable account-scoped intents, uploaded only after current consent.
-    func renamePatient(_ patient: Patient, firstName: String, lastName: String) throws {
+    /// Demo names stay local; real names use the encrypted API under the normal terms flow.
+    func renamePatient(_ patient: Patient, firstName: String, lastName: String) async throws {
         try EntitlementState.shared.requireWrite(localDemo: DemoData.isDemoID(patient.id))
         let name = [firstName, lastName]
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -1004,7 +1065,7 @@ final class PatientStore {
             return
         }
         let exactName = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
-        try nameSync.edit(patient.id.queryValue, name: exactName)
+        try await nameSync.edit(patient.id.queryValue, name: exactName)
         patient.localName = exactName
         PatientNameResolver.setDisplayName(exactName, forPatientId: patient.id.queryValue)
     }
