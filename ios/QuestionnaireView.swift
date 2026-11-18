@@ -617,6 +617,7 @@ struct QuestionnaireSections: View {
     /// Therapist-only per-question notes. Patient Mode never shows these.
     var showsTherapistNotes: Bool = true
     var showsClinicalGuidance: Bool = true
+    var showsScores: Bool = true
     var compactPatientResult = false
 
     var marksUnanswered = false
@@ -659,16 +660,18 @@ struct QuestionnaireSections: View {
                 }
                 .id(QuestionnaireItem.gad7(index))
                 .accessibilityIdentifier("questionnaire.gad7.\(index)")
-                .listRowBackground(rowBackground(.middle))
+                .listRowBackground(rowBackground(!showsScores && index == L10n.gad7Questions.indices.last ? .last : .middle))
             }
 
-            ScoreRow(
-                score: questionnaire.gad7Score,
-                classification: L10n.label(for: questionnaire.gad7Severity),
-                previousScore: previous?.questionnaire.gad7Score,
-                previousDate: previous?.answeredDate
-            )
-            .listRowBackground(rowBackground(.last))
+            if showsScores {
+                ScoreRow(
+                    score: questionnaire.gad7Score,
+                    classification: L10n.label(for: questionnaire.gad7Severity),
+                    previousScore: previous?.questionnaire.gad7Score,
+                    previousDate: previous?.answeredDate
+                )
+                .listRowBackground(rowBackground(.last))
+            }
         }
 
         Section(L10n.phq9Title) {
@@ -717,15 +720,17 @@ struct QuestionnaireSections: View {
             }
             .id(QuestionnaireItem.interference)
             .accessibilityIdentifier("questionnaire.interference")
-            .listRowBackground(rowBackground(.middle))
+            .listRowBackground(rowBackground(!showsScores && !showsClinicalGuidance ? .last : .middle))
 
-            ScoreRow(
-                score: questionnaire.phq9Score,
-                classification: L10n.label(for: questionnaire.phq9Severity),
-                previousScore: previous?.questionnaire.phq9Score,
-                previousDate: previous?.answeredDate
-            )
-            .listRowBackground(rowBackground(.middle))
+            if showsScores {
+                ScoreRow(
+                    score: questionnaire.phq9Score,
+                    classification: L10n.label(for: questionnaire.phq9Severity),
+                    previousScore: previous?.questionnaire.phq9Score,
+                    previousDate: previous?.answeredDate
+                )
+                .listRowBackground(rowBackground(showsClinicalGuidance ? .middle : .last))
+            }
 
             if showsClinicalGuidance {
                 Text(L10n.suggestion(for: questionnaire.phq9Severity))

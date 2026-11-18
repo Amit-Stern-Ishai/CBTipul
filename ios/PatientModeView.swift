@@ -956,6 +956,8 @@ struct PatientQuestionnaireView: View {
                     previous: nil,
                     accent: Theme.gold,
                     showsTherapistNotes: false,
+                    showsClinicalGuidance: false,
+                    showsScores: false,
                     marksUnanswered: didAttemptSubmit,
                     requiresInterferenceAnswer: true
                 )

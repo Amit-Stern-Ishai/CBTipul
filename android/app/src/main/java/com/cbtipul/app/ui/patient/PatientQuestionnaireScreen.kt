@@ -51,9 +51,6 @@ import com.cbtipul.app.data.PatientQuestionnaireSubmitError
 import com.cbtipul.app.model.CombinedMoodQuestionnaire
 import com.cbtipul.app.ui.patients.MessageOverlay
 import com.cbtipul.app.ui.patients.aiMarkdown
-import com.cbtipul.app.ui.patients.gad7SeverityLabel
-import com.cbtipul.app.ui.patients.phq9SeverityLabel
-import com.cbtipul.app.ui.patients.phq9Suggestion
 import com.cbtipul.app.ui.theme.BusyOverlay
 import com.cbtipul.app.ui.theme.GroupedListCard
 import com.cbtipul.app.ui.theme.GroupedListDivider
@@ -228,8 +225,6 @@ fun PatientQuestionnaireScreen(
                         )
                     }
                     }
-                    GroupedListDivider()
-                    PatientScoreBlock(score = draft.gad7Score, classification = gad7SeverityLabel(draft.gad7Severity))
                 }
 
                 Text(stringResource(R.string.phq9_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
@@ -264,15 +259,7 @@ fun PatientQuestionnaireScreen(
                         onSelect = { savedDraft.value = draft.copy(interferenceLevel = it) },
                     )
                     }
-                    GroupedListDivider()
-                    PatientScoreBlock(score = draft.phq9Score, classification = phq9SeverityLabel(draft.phq9Severity))
-                    GroupedListDivider()
-                    Text(
-                        phq9Suggestion(draft.phq9Severity),
-                        color = colors.textBody,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(16.dp),
-                    )
+
                 }
 
                 errorMessage?.let { Text(it, color = colors.error) }
@@ -366,23 +353,5 @@ private fun PatientInterferenceBlock(
                 Text(option, color = colors.textBright, modifier = Modifier.weight(1f))
             }
         }
-    }
-}
-
-@Composable
-private fun PatientScoreBlock(score: Int, classification: String) {
-    val colors = Theme.colors
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            stringResource(R.string.total_score_line, score),
-            color = colors.textBright,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f),
-        )
-        Text(classification, color = colors.textBody, fontSize = 14.sp)
     }
 }

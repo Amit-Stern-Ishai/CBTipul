@@ -291,6 +291,18 @@ test('source-matched patient overview: calendar, weekly columns, filters and rec
  await page.getByRole('button',{name:'רשימה',exact:true}).click();
  await expect(page.locator('.pt-week-columns .pt-entry')).toHaveCount(6);
  await expect(page.locator('.pt-toolbar')).toHaveCount(0);
+ // Within each week, entries share a horizontal RTL row inside their category.
+ for (const kind of ['questionnaire','diary']) {
+  const cards=await page.locator(`.pt-week-column > .pt-entry[data-kind="${kind}"]`).evaluateAll(nodes=>nodes.map(node=>{
+   const {x,y,width}=node.getBoundingClientRect();return {x,y,width};
+  }));
+  expect(cards.length).toBeGreaterThan(1);
+  for(let index=1;index<cards.length;index++) {
+   expect(Math.abs(cards[index].y-cards[0].y)).toBeLessThan(1);
+   expect(cards[index].x+cards[index].width).toBeLessThan(cards[index-1].x);
+  }
+ }
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.locator('.pt-diary-add summary').click();
  await expect(page.locator('.pt-diary-add').getByRole('link',{name:'יומן מחשבות 3',exact:true})).toBeVisible();
  await page.locator('.pt-diary-add summary').click();

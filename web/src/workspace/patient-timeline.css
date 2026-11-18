@@ -124,7 +124,9 @@ body:has(.pw-overview) .cb-header .therapist-link {display:none;}
 .pt-week:hover {background:#00244e0d;}
 .pt-week-now {background:#00244e1a;}
 .pt-week-now:hover {background:#00244e1f;}
-.pt-week-column {padding:0 16px;background:transparent;}
+.pt-week-column {display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;padding:0 16px;background:transparent;}
+.pt-week-column > .pt-entry {flex:1 1 0;min-width:0;margin-bottom:0;}
+.pt-week-column > h4 {flex-basis:100%;}
 .pt-entry {gap:12px;border-radius:10px;min-height:64px;margin-bottom:10px;}
 .pt-entry-icon {width:52px;}
 .pt-entry-icon svg {width:22px;height:22px;}
@@ -145,3 +147,9 @@ body:has(.pw-overview) .cb-header-inner {min-height:64px;padding:0 24px;}
 .pt-diary-add summary:hover {background:#ebedf1;}
 .pt-diary-add>div a {border:0;display:block;padding:10px;}
 @media(max-width:850px){.pt-mobile-add{display:block;margin:0 0 16px;width:max-content}.pt-mobile-add>div{inset-inline-start:0;inset-inline-end:auto;}}
+
+/* Keep horizontal weekly cards readable when several entries share a column. */
+.pt-week-column > .pt-entry {gap:8px;}
+.pt-week-column .pt-entry-icon {width:32px;}
+.pt-week-column .pt-entry-copy {overflow-wrap:anywhere;}
+@media(max-width:850px){.pt-week-column > .pt-entry {flex-basis:140px;}}
