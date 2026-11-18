@@ -82,6 +82,8 @@ struct AddPatientView: View {
             }
             }
             }
+            // The popup presenter is zero-sized; keep its screen background full-width.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .themedScreen()
             .dismissesKeyboardOnTap()
             .animation(.easeInOut(duration: 0.2), value: errorMessage)
