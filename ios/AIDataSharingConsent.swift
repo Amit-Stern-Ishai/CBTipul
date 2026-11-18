@@ -205,7 +205,7 @@ struct AIDataSharingConsentView: View {
         NavigationStack {
             ScrollView {
                 Text(L10n.aiConsentBody)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .lineSpacing(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
@@ -221,7 +221,7 @@ struct AIDataSharingConsentView: View {
                         onAccept()
                     } label: {
                         Text(L10n.aiConsentAcceptAction)
-                            .font(.headline)
+                            .font(BrandTypography.headline)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.pressableProminent)
@@ -229,7 +229,7 @@ struct AIDataSharingConsentView: View {
                         onDecline()
                     } label: {
                         Text(L10n.aiConsentDeclineAction)
-                            .font(.subheadline.weight(.semibold))
+                            .font(BrandTypography.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                     }
                 }

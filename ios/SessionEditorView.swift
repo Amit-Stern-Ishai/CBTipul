@@ -182,7 +182,7 @@ struct SessionEditorView: View {
                 }
                 .accessibilityIdentifier("summary.draftMenu")
             }
-            .font(.footnote)
+            .font(BrandTypography.footnote)
             .disabled(isWorking)
             .alert("ניסיון שמירה נוסף", isPresented: $confirmingManualRetry) {
                 Button("בדקתי — לשמור שוב") {
@@ -218,7 +218,7 @@ struct SessionEditorView: View {
                                     VStack {
                                         Text(recoveryListError)
                                         Button("ניסיון טעינה נוסף") { Task { await refreshRecoverySessions() } }
-                                    }.font(.footnote).padding()
+                                    }.font(BrandTypography.footnote).padding()
                                 }
                             }
                             .toolbar { ToolbarItem(placement: .cancellationAction) {
@@ -273,7 +273,7 @@ struct SessionEditorView: View {
 
     @ViewBuilder private var allowanceFeedback: some View {
         if allowanceChecking {
-            HStack { ProgressView(); Text("בודק/ת מכסה…").font(.caption) }
+            HStack { ProgressView(); Text("בודק/ת מכסה…").font(BrandTypography.caption) }
                 .accessibilityElement(children: .combine)
         } else if let allowanceMessage {
             VStack(alignment: .leading, spacing: 6) {
@@ -331,8 +331,7 @@ struct SessionEditorView: View {
     }
 
     private var patientHeaderColor: Color {
-        storePatient.map { PatientAvatarColor.headerBackground(for: $0.id) }
-            ?? Color(uiColor: UIColor(hex: 0x0C1420))
+        Theme.patientHomeHeader
     }
 
     private var patientAccent: Color {
@@ -384,7 +383,7 @@ struct SessionEditorView: View {
                 allowanceFeedback
                 if let feedback = draftStatus {
                     Section {
-                        Text(feedback).font(.footnote).foregroundStyle(recovery.hasError ? Theme.error : Theme.textBody)
+                        Text(feedback).font(BrandTypography.footnote).foregroundStyle(recovery.hasError ? Theme.error : Theme.textBody)
                         if recovery.hasError { Button("שמירת הטיוטה מחדש") { persistRecovery() } }
                     }
                 }
@@ -411,7 +410,7 @@ struct SessionEditorView: View {
                         if session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             Button { openSummary(editing: true) } label: {
                                 Text(L10n.sessionSummaryFieldPlaceholder)
-                                    .font(.subheadline).foregroundStyle(Theme.textBody)
+                                    .font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                                     .contentShape(Rectangle())
                             }
@@ -422,12 +421,12 @@ struct SessionEditorView: View {
                             Button { openSummary(editing: false) } label: {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text(session.notes)
-                                        .font(.body).lineSpacing(5)
+                                        .font(BrandTypography.body).lineSpacing(5)
                                         .foregroundStyle(Theme.textBright)
                                         .lineLimit(5)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     Label(L10n.sessionReadFullSummary, systemImage: "arrow.up.left.and.arrow.down.right")
-                                        .font(.subheadline.weight(.medium))
+                                        .font(BrandTypography.subheadline.weight(.medium))
                                         .foregroundStyle(Theme.gold)
                                         .frame(minHeight: 44)
                                 }
@@ -467,7 +466,7 @@ struct SessionEditorView: View {
             .background(Theme.base)
             .themedScreen()
             .dismissesKeyboardOnTap()
-            .navigationTitle(isNew
+            .brandNavigationTitle(isNew
                              ? L10n.newSessionTitle
                              : L10n.sessionEditorTitle(sessionNumber))
             .navigationBarTitleDisplayMode(.inline)
@@ -508,7 +507,7 @@ struct SessionEditorView: View {
                         Label(saveStatus,
                               systemImage: voiceRecorder.isRecording ? "mic.fill"
                                 : (isWorking ? "hourglass" : "pencil.circle"))
-                            .font(.footnote)
+                            .font(BrandTypography.footnote)
                             .foregroundStyle(voiceRecorder.isRecording ? Theme.error : Theme.textBody)
                             .multilineTextAlignment(.center)
                             .accessibilityIdentifier("session.saveStatus")
@@ -582,12 +581,12 @@ struct SessionEditorView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 10) {
                             Image(systemName: "doc.text")
-                                .font(.title3).foregroundStyle(patientAccent)
+                                .font(BrandTypography.title3).foregroundStyle(patientAccent)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(storePatient?.displayName ?? "")
-                                    .font(.headline).foregroundStyle(Theme.textBright)
+                                    .font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                                 Text(L10n.hebrewDate(session.date))
-                                    .font(.caption).foregroundStyle(Theme.textBody)
+                                    .font(BrandTypography.caption).foregroundStyle(Theme.textBody)
                             }
                             Spacer(minLength: 8)
                         }
@@ -601,7 +600,7 @@ struct SessionEditorView: View {
                                         if let owner = auth.currentUserId, DiscoveryRules.voice(userEdit: text != session.notes, nonempty: !text.isEmpty, therapist: EntitlementState.shared.role == .therapist, demo: store.isDemoMode, seen: FeatureDiscovery.shared.seen("voice", account: owner)) { voiceDiscoveryPending = true }
                                         session.notes = text
                                     }), axis: .vertical)
-                                        .font(.body).lineSpacing(7)
+                                        .font(BrandTypography.body).lineSpacing(7)
                                         .lineLimit(3...max(3, Int((space.size.height - 48) / summaryLineHeight)))
                                         .foregroundStyle(Theme.textBright)
                                         .tint(Theme.gold)
@@ -627,7 +626,7 @@ struct SessionEditorView: View {
                                     notesEditorFocused = true
                                 } label: {
                                     Text(session.notes.isEmpty ? L10n.sessionSummaryStartHelp : session.notes)
-                                        .font(.body).lineSpacing(7)
+                                        .font(BrandTypography.body).lineSpacing(7)
                                         .foregroundStyle(Theme.textBright)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .padding(20)
@@ -644,7 +643,7 @@ struct SessionEditorView: View {
                         }
                     }
                     .background(Theme.base)
-                    .navigationTitle(L10n.sessionOwnSummarySection)
+                    .brandNavigationTitle(L10n.sessionOwnSummarySection)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbarBackground(Theme.surface, for: .navigationBar)
                     .toolbarBackground(.visible, for: .navigationBar)
@@ -686,11 +685,11 @@ struct SessionEditorView: View {
                             }
                             allowanceFeedback
                             if let draftStatus {
-                                Text(draftStatus).font(.caption).foregroundStyle(recovery.hasError ? Theme.error : Theme.textBody)
+                                Text(draftStatus).font(BrandTypography.caption).foregroundStyle(recovery.hasError ? Theme.error : Theme.textBody)
                                 if recovery.hasError { Button("שמירת הטיוטה מחדש") { persistRecovery() } }
                             }
                             if let saveStatus {
-                                Text(saveStatus).font(.caption).foregroundStyle(Theme.textBody)
+                                Text(saveStatus).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
                             }
                             recoveryActions
                             if let errorMessage {
@@ -827,7 +826,7 @@ struct SessionEditorView: View {
                             followUpRow(item)
                         }
                     }
-                    .navigationTitle(L10n.openQuestionsTitle)
+                    .brandNavigationTitle(L10n.openQuestionsTitle)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
@@ -898,7 +897,7 @@ struct SessionEditorView: View {
                                 }
                                 .accessibilityLabel(L10n.discardRecordingAction)
                             }
-                            .font(.subheadline)
+                            .font(BrandTypography.subheadline)
                             .buttonStyle(.borderless)
                             .listRowBackground(groupBorderedRow(.middle))
                         }
@@ -914,7 +913,7 @@ struct SessionEditorView: View {
 
                         if let recorderError = voiceRecorder.errorMessage {
                             Text(recorderError)
-                                .font(.footnote)
+                                .font(BrandTypography.footnote)
                                 .foregroundStyle(Theme.error)
                                 .listRowBackground(groupBorderedRow(.middle))
                         }
@@ -930,12 +929,12 @@ struct SessionEditorView: View {
 
     private var summaryHeading: some View {
         HStack {
-            Text(L10n.sessionOwnSummarySection).font(.headline)
+            Text(L10n.sessionOwnSummarySection).font(BrandTypography.headline)
             Spacer(minLength: 8)
             Button { openSummary(editing: true) } label: {
                 Label(EntitlementState.shared.canWrite ? (session.notes.isEmpty ? L10n.sessionWriteNotes : L10n.reviewEdit) : L10n.sessionViewSummary,
                       systemImage: "square.and.pencil")
-                    .font(.subheadline.weight(.semibold))
+                    .font(BrandTypography.subheadline.weight(.semibold))
                     .frame(minHeight: 44)
             }
             .buttonStyle(.plain)
@@ -950,14 +949,14 @@ struct SessionEditorView: View {
             if let patient = storePatient {
                 HStack(spacing: 10) {
                     Text(patient.displayName.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined())
-                        .font(.headline)
+                        .font(BrandTypography.headline)
                         .foregroundStyle(PatientAvatarColor.foreground(for: patient.id))
                         .frame(width: 42, height: 42)
                         .background(patientAccent, in: Circle())
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(patient.displayName).font(.title2.bold())
+                        Text(patient.displayName).font(BrandTypography.title2.bold())
                         if let sessionNumber {
-                            Text(L10n.session(sessionNumber)).font(.caption)
+                            Text(L10n.session(sessionNumber)).font(BrandTypography.caption)
                         }
                     }
                 }
@@ -967,7 +966,7 @@ struct SessionEditorView: View {
                 VStack(alignment: .leading, spacing: 8) { sessionDateControl; compactTypeControl }
             }
             if isNew && !showsSummaryEditor {
-                Text(L10n.newSessionDetailsHelp).font(.footnote)
+                Text(L10n.newSessionDetailsHelp).font(BrandTypography.footnote)
             }
         }
         .foregroundStyle(Theme.headerInk)
@@ -976,16 +975,7 @@ struct SessionEditorView: View {
         .padding(.bottom, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            ZStack {
-                Theme.isPaper ? Theme.patientHomeHeader : patientHeaderColor
-                LinearGradient(colors: [patientAccent.opacity(Theme.isPaper ? 0.08 : 0.34), .clear], startPoint: .topTrailing, endPoint: .bottomLeading)
-                Canvas { context, size in
-                    var path = Path()
-                    path.addLines([CGPoint(x: 0, y: 0), CGPoint(x: size.width * 0.35, y: 0), CGPoint(x: size.width * 0.65, y: size.height), CGPoint(x: size.width * 0.30, y: size.height)])
-                    path.closeSubpath()
-                    context.fill(path, with: .color(.white.opacity(0.045)))
-                }.accessibilityHidden(true)
-            }
+            Theme.patientHomeHeader
             .ignoresSafeArea(edges: .top)
         }
         .padding(.horizontal, -18)
@@ -1014,9 +1004,9 @@ struct SessionEditorView: View {
         } label: {
             HStack(spacing: 6) {
                 Text(session.type.map { L10n.label(for: $0) } ?? L10n.sessionTypeNone)
-                Image(systemName: "chevron.down").font(.caption)
+                Image(systemName: "chevron.down").font(BrandTypography.caption)
             }
-            .font(.subheadline)
+            .font(BrandTypography.subheadline)
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 8)
             .background(Theme.isPaper ? Theme.surface : Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
@@ -1031,14 +1021,14 @@ struct SessionEditorView: View {
     private var aiSummarySection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label(L10n.sessionAISummaryTitle, systemImage: "sparkles").font(.headline)
+                Label(L10n.sessionAISummaryTitle, systemImage: "sparkles").font(BrandTypography.headline)
                 Spacer(minLength: 4)
-                Text(L10n.sessionOptionalBadge).font(.caption2).foregroundStyle(Theme.textBody)
+                Text(L10n.sessionOptionalBadge).font(BrandTypography.caption2).foregroundStyle(Theme.textBody)
                     .padding(5).overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.borderFaint))
             }
             VStack(alignment: .leading, spacing: 12) {
                 Text(L10n.sessionAIHelp)
-                    .font(.footnote).foregroundStyle(Theme.textBody)
+                    .font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
                 if let structuredNotes = session.structuredNotes {
                     Text(structuredNotes.sessionSummary)
                         .lineLimit(6)
@@ -1054,7 +1044,7 @@ struct SessionEditorView: View {
                     .disabled(isWorking)
                     if session.structuredNotes != initialStructuredNotes {
                         Text(L10n.sessionAISaveHelp)
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(BrandTypography.footnote).foregroundStyle(.secondary)
                     }
                     Divider()
                 }
@@ -1064,26 +1054,26 @@ struct SessionEditorView: View {
                     }.disabled(isAnalyzing)
                 }
                 if isAnalyzing {
-                    HStack { ProgressView(); Text(analysisStatus).font(.subheadline) }
+                    HStack { ProgressView(); Text(analysisStatus).font(BrandTypography.subheadline) }
                 } else {
                     Button { analyze() } label: {
                         Label(session.structuredNotes == nil ? L10n.aiSummaryAction : L10n.sessionRegenerate,
                               systemImage: "sparkles")
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                             .contentShape(Rectangle())
-                            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.purple.opacity(0.4)))
+                            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.accentLine.opacity(0.4)))
                     }
                     .disabled(isWorking || !EntitlementState.shared.canWrite || session.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (voiceRecorder.recordingURL != nil && !transcriptReady))
                 }
             }
-            .font(.subheadline)
+            .font(BrandTypography.subheadline)
             .buttonStyle(.plain)
             .tint(Theme.textBright)
             .listRowBackground(groupBorderedRow(.only))
         }
         .padding(14)
-        .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.purple.opacity(0.30), lineWidth: 1))
+        .background(Theme.accentLine.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.accentLine.opacity(0.30), lineWidth: 1))
         .alert(L10n.aiAnalysisFailedTitle, isPresented: Binding(
             get: { analysisAlert != nil }, set: { if !$0 { analysisAlert = nil } }
         )) { Button(L10n.closeAction) { analysisAlert = nil } }
@@ -1130,16 +1120,16 @@ struct SessionEditorView: View {
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 Text(L10n.sessionOptionalDetails)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 12) {
                     Text(selectionLabel)
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: "chevron.down")
-                        .font(.caption.weight(.semibold))
+                        .font(BrandTypography.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -1158,7 +1148,7 @@ struct SessionEditorView: View {
         if voiceRecorder.isRecording {
             HStack(spacing: 6) {
                 Text(formattedDuration)
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .monospacedDigit()
                     .foregroundStyle(Theme.error)
                 Button {
@@ -1200,7 +1190,7 @@ struct SessionEditorView: View {
                         .frame(width: 36, height: 36)
                         .background(patientAccent.opacity(0.14), in: Circle())
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(L10n.recordSessionNotesAction).font(.subheadline.weight(.semibold))
+                        Text(L10n.recordSessionNotesAction).font(BrandTypography.subheadline.weight(.semibold))
                     }
                     Spacer(minLength: 0)
                 }
@@ -1373,10 +1363,10 @@ struct SessionEditorView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.question.question)
-                    .font(.subheadline.weight(.semibold))
+                    .font(BrandTypography.subheadline.weight(.semibold))
                 if !item.question.reason.isEmpty {
                     Text(item.question.reason)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -1385,7 +1375,7 @@ struct SessionEditorView: View {
 //                appendNotesBlock(item.question.question)
 //            } label: {
 //                Image(systemName: "text.badge.plus")
-//                    .font(.title3)
+//                    .font(BrandTypography.title3)
 //            }
 //            .buttonStyle(.borderless)
 //            .accessibilityLabel("Add to notes")
@@ -1393,7 +1383,7 @@ struct SessionEditorView: View {
                 markFollowUpDiscussed(item)
             } label: {
                 Image(systemName: "checkmark.circle")
-                    .font(.title3)
+                    .font(BrandTypography.title3)
                     .foregroundStyle(Theme.positive)
             }
             .buttonStyle(.borderless)
@@ -1449,16 +1439,16 @@ struct SessionEditorView: View {
             HStack(spacing: 10) {
                 Image(systemName: "list.clipboard")
                     .foregroundStyle(patientAccent)
-                Text(L10n.questionnaireSectionTitle).font(.headline)
+                Text(L10n.questionnaireSectionTitle).font(BrandTypography.headline)
                 Spacer(minLength: 0)
                 if isLoadingQuestionnaire || isRefreshingQuestionnaire { ProgressView() }
             }
             if questionnaireRefreshFailed {
                 VStack(alignment: .leading, spacing: 4) {
                     Label(L10n.questionnaireRefreshFailed, systemImage: "exclamationmark.circle")
-                        .font(.footnote).foregroundStyle(Theme.error)
+                        .font(BrandTypography.footnote).foregroundStyle(Theme.error)
                     Button(L10n.questionnaireRefreshAction) { Task { await refreshQuestionnaireState() } }
-                        .font(.subheadline.weight(.semibold)).frame(minHeight: 44)
+                        .font(BrandTypography.subheadline.weight(.semibold)).frame(minHeight: 44)
                         .disabled(isRefreshingQuestionnaire)
                 }
             }
@@ -1470,9 +1460,9 @@ struct SessionEditorView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
                             Text(L10n.hebrewDate(questionnaire.answeredDate))
-                                .font(.subheadline).foregroundStyle(Theme.textBody)
+                                .font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                             Spacer(minLength: 8)
-                            Image(systemName: "chevron.forward").font(.caption.weight(.semibold)).foregroundStyle(Theme.gold)
+                            Image(systemName: "chevron.forward").font(BrandTypography.caption.weight(.semibold)).foregroundStyle(Theme.gold)
                         }
                         ViewThatFits(in: .horizontal) {
                             HStack(spacing: 12) {
@@ -1513,11 +1503,11 @@ struct SessionEditorView: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 6) {
                         Label("מילוי עכשיו", systemImage: "square.and.pencil")
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.gold)
+                            .font(BrandTypography.subheadline.weight(.semibold)).foregroundStyle(Theme.gold)
                     }
                     Spacer(minLength: 4)
                     Image(systemName: "chevron.forward")
-                        .font(.caption.weight(.semibold)).foregroundStyle(Theme.gold)
+                        .font(BrandTypography.caption.weight(.semibold)).foregroundStyle(Theme.gold)
                 }
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 .contentShape(Rectangle())

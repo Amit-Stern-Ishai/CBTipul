@@ -59,7 +59,7 @@ struct PatientDiaryThreeEntryView: View {
         .busyOverlay(isBusy, label: L10n.patientDiaryOneSubmitting)
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.patientDiaryThreeProgress(draft.currentStep)).font(.subheadline.weight(.semibold))
+                Text(L10n.patientDiaryThreeProgress(draft.currentStep)).font(BrandTypography.subheadline.weight(.semibold))
                 ProgressView(value: Double(draft.currentStep), total: 7).tint(Theme.gold)
             }.padding(.horizontal, 20).padding(.vertical, 12).background(Theme.base)
         }

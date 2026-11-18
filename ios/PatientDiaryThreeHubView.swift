@@ -35,7 +35,7 @@ struct PatientDiaryThreeHubView: View {
             case .failed where entries.isEmpty:
                 VStack(alignment: .leading, spacing: 16) {
                     Text(L10n.diaryThreeLoadFailed)
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .foregroundStyle(Theme.textBody)
                     Button(L10n.retryAction) {
                         Task { await loadEntries() }
@@ -46,7 +46,7 @@ struct PatientDiaryThreeHubView: View {
             case .loading, .loaded, .failed:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(L10n.patientDiaryThreeDescription).font(.subheadline).foregroundStyle(Theme.textBody)
+                        Text(L10n.patientDiaryThreeDescription).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                         if PatientAssignmentType.diaryThreeSendingEnabled {
                             PatientToolStatusView(active: isActive && !locallyInactive)
                         } else {
@@ -58,13 +58,13 @@ struct PatientDiaryThreeHubView: View {
                         }
 
                         Text(L10n.diaryOneMyEntriesTitle)
-                            .font(.headline)
+                            .font(BrandTypography.headline)
                             .foregroundStyle(Theme.textBright)
                             .padding(.top, 8)
 
                         if entries.isEmpty {
                             Text(L10n.diaryThreeEmptyTitle)
-                                .font(.body)
+                                .font(BrandTypography.body)
                                 .foregroundStyle(Theme.textBody)
                         } else {
                             ForEach(entries) { entry in
@@ -120,7 +120,7 @@ struct PatientDiaryThreeHubView: View {
         }
         .safeAreaInset(edge: .top) {
             if didSave {
-                Text(L10n.patientDiaryOneSaved).font(.subheadline.weight(.semibold))
+                Text(L10n.patientDiaryOneSaved).font(BrandTypography.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.success).padding(12)
                     .frame(maxWidth: .infinity).background(Theme.base)
             }
@@ -132,15 +132,15 @@ struct PatientDiaryThreeHubView: View {
     private func patientHistoryRow(_ entry: DiaryThreeEntry) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.hebrewDateTime(entry.createdAt))
-                .font(.headline)
+                .font(BrandTypography.headline)
                 .foregroundStyle(Theme.textBright)
             Text(entry.situation)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .lineLimit(2)
             if !entry.automaticThoughtsPreview.isEmpty {
                 Text(entry.automaticThoughtsPreview)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(Theme.textBody)
                     .lineLimit(2)
             }
@@ -179,7 +179,7 @@ struct PatientDiaryThreeDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(L10n.hebrewDateTime(entry.createdAt))
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                     .foregroundStyle(Theme.textBright)
                 DiaryThreeEntryContent(entry: entry)
             }

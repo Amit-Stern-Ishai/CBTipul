@@ -8,7 +8,7 @@ struct PatientToolStatusView: View {
     var body: some View {
         Label(active ? L10n.patientToolEnabled : L10n.patientHistoryOnly,
               systemImage: active ? "checkmark.circle.fill" : "lock.fill")
-            .font(.caption.weight(.semibold))
+            .font(BrandTypography.caption.weight(.semibold))
             .foregroundStyle(color)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)

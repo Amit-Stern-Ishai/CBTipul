@@ -476,7 +476,7 @@ struct PatientNameSetupView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(PatientNameRules.title).font(.title2.bold())
+                    Text(PatientNameRules.title).font(BrandTypography.title2.bold())
                     Text(PatientNameRules.notice)
                     if sync.approvalFailed { Text(L10n.patientNameApprovalFailed).foregroundStyle(Theme.error) }
 

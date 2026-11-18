@@ -17,7 +17,7 @@ private struct BusyOverlay: ViewModifier {
                             .controlSize(.large)
                         if let label {
                             Text(label)
-                                .font(.footnote)
+                                .font(BrandTypography.footnote)
                                 .foregroundStyle(.secondary)
                         }
                     }

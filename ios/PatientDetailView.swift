@@ -183,10 +183,10 @@ struct PatientDetailView: View {
                         Button { latestSessionToOpen = latest } label: {
                             HStack(spacing: 8) {
                                 Label(L10n.patientLatestSessionAction, systemImage: "clock.arrow.circlepath")
-                                    .font(.subheadline.weight(.semibold))
+                                    .font(BrandTypography.subheadline.weight(.semibold))
                                 Spacer(minLength: 4)
-                                Text(L10n.hebrewDate(latest.date)).font(.caption).foregroundStyle(Theme.textBody)
-                                Image(systemName: "chevron.forward").font(.caption.weight(.semibold))
+                                Text(L10n.hebrewDate(latest.date)).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
+                                Image(systemName: "chevron.forward").font(BrandTypography.caption.weight(.semibold))
                             }
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .padding(.horizontal, 12)
@@ -229,8 +229,8 @@ struct PatientDetailView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             recordLabel("doc.text.magnifyingglass", L10n.lastPreparationAction)
-                            Text(L10n.hebrewDate(savedPreparation.generatedAt)).font(.caption)
-                            if isSavedPreparationOutdated { Text(L10n.outdatedBadge).font(.caption).foregroundStyle(Theme.warning) }
+                            Text(L10n.hebrewDate(savedPreparation.generatedAt)).font(BrandTypography.caption)
+                            if isSavedPreparationOutdated { Text(L10n.outdatedBadge).font(BrandTypography.caption).foregroundStyle(Theme.warning) }
                         }
                     }.buttonStyle(.plain)
                 }
@@ -653,7 +653,7 @@ struct PatientDetailView: View {
                     }
                     .accessibilityLabel(L10n.discardRecordingAction)
                 }
-                .font(.subheadline)
+                .font(BrandTypography.subheadline)
                 .buttonStyle(.borderless)
                 .listRowBackground(groupBorderedRow(
                     voiceRecorder.errorMessage != nil ? .middle : .last))
@@ -671,7 +671,7 @@ struct PatientDetailView: View {
 
             if let recorderError = voiceRecorder.errorMessage {
                 Text(recorderError)
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(Theme.error)
                     .listRowBackground(groupBorderedRow(.last))
             }
@@ -679,7 +679,7 @@ struct PatientDetailView: View {
     }
 
     private func sectionHeading(_ title: String) -> some View {
-        Text(title).font(.headline).foregroundStyle(Theme.textBright)
+        Text(title).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
             .textCase(nil)
     }
 
@@ -690,17 +690,17 @@ struct PatientDetailView: View {
     private var patientIdentity: some View {
         HStack(alignment: .top, spacing: 12) {
             Text(String(patient.displayName.split(separator: " ").prefix(2).compactMap(\.first)))
-                .font(.title2.bold())
+                .font(BrandTypography.title2.bold())
                 .foregroundStyle(PatientAvatarColor.foreground(for: patient.id))
                 .frame(width: 48, height: 48)
                 .background(LinearGradient(colors: [patientColor, patientColor.opacity(0.68)], startPoint: .topTrailing, endPoint: .bottomLeading), in: Circle())
                 .overlay { Circle().strokeBorder(.white.opacity(0.24), lineWidth: 1) }
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(patient.displayName).font(.system(size: patientNameSize, weight: .bold)).foregroundStyle(Theme.headerInk)
+                Text(patient.displayName).font(.custom("Rubik-Light_Regular", fixedSize: patientNameSize).weight(.bold)).foregroundStyle(Theme.headerInk)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text(L10n.patientStatus(patient.status)).font(.caption).foregroundStyle(Theme.headerInk)
+                Text(L10n.patientStatus(patient.status)).font(BrandTypography.caption).foregroundStyle(Theme.headerInk)
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(.black.opacity(0.22), in: Capsule())
             }
@@ -714,14 +714,14 @@ struct PatientDetailView: View {
             Button { isGoalExpanded.toggle() } label: {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
-                        Text(L10n.treatmentGoalSection).font(.caption)
+                        Text(L10n.treatmentGoalSection).font(BrandTypography.caption)
                         Spacer(minLength: 4)
                         if !dynamicTypeSize.isAccessibilitySize {
-                            Image(systemName: isGoalExpanded ? "chevron.up" : "chevron.down").font(.caption2)
+                            Image(systemName: isGoalExpanded ? "chevron.up" : "chevron.down").font(BrandTypography.caption2)
                         }
                     }.foregroundStyle(Theme.headerInk.opacity(0.85))
                     Text(treatmentGoal.wrappedValue.isEmpty ? L10n.noTreatmentGoalPlaceholder : treatmentGoal.wrappedValue)
-                        .font(.subheadline.weight(.medium)).foregroundStyle(Theme.headerInk)
+                        .font(BrandTypography.subheadline.weight(.medium)).foregroundStyle(Theme.headerInk)
                         .lineLimit(isGoalExpanded || dynamicTypeSize.isAccessibilitySize ? nil : 2)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("patient.treatmentGoal")
@@ -763,10 +763,10 @@ struct PatientDetailView: View {
                     Text(L10n.wwNewSession)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .font(.subheadline.weight(.semibold))
+                .font(BrandTypography.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 44)
-                .foregroundStyle(Theme.textOnAccent)
-                .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: 12))
+                .foregroundStyle(Theme.turquoiseInk)
+                .background(Theme.turquoise, in: RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain).entitlementCreateControl()
             .accessibilityIdentifier("patient.newSession")
@@ -774,7 +774,7 @@ struct PatientDetailView: View {
             Button { requestPrepareNextSession() } label: {
                 HStack {
                     if isPreparing { ProgressView().controlSize(.small) }
-                    Text(isPreparing ? (preparationAction.stage == .questionnaires ? L10n.aiPreparationLoadingData : L10n.aiPreparationServerStatus) : L10n.prepareNextSessionAction).font(.subheadline.weight(.semibold))
+                    Text(isPreparing ? (preparationAction.stage == .questionnaires ? L10n.aiPreparationLoadingData : L10n.aiPreparationServerStatus) : L10n.prepareNextSessionAction).font(BrandTypography.subheadline.weight(.semibold))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, minHeight: 44)
@@ -787,9 +787,9 @@ struct PatientDetailView: View {
             if let result = preparationResult {
                 Button(L10n.aiOpenPreparationResult) {
                     preparationResult = NextSessionPreparationResult(response: result.response)
-                }.font(.footnote)
+                }.font(BrandTypography.footnote)
             }
-            if let preparationMessage { Text(preparationMessage).font(.footnote).foregroundStyle(Theme.textBody).fixedSize(horizontal: false, vertical: true) }
+            if let preparationMessage { Text(preparationMessage).font(BrandTypography.footnote).foregroundStyle(Theme.textBody).fixedSize(horizontal: false, vertical: true) }
             }
         .alert(L10n.aiPreparationFailedTitle, isPresented: Binding(
             get: { preparationAlert != nil }, set: { if !$0 { preparationAlert = nil } }
@@ -803,7 +803,7 @@ struct PatientDetailView: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
                                 count: dynamicTypeSize.isAccessibilitySize ? 1 : 2), spacing: 4) {
             Button { recordRoute = .sessions } label: {
-                recordLabel("calendar", L10n.sessionsTitle)
+                recordLabel("calendar", L10n.sessionsTitle, fill: Theme.sessionTint, ink: Theme.sessionInk)
             }.accessibilityIdentifier("patient.sessions")
                 .tutorialPulse(gettingStartedRouter.shouldPulse(.sessionsEntry)
                     && patient.id == gettingStartedRouter.progress.focusPatientID)
@@ -811,29 +811,17 @@ struct PatientDetailView: View {
                 recordLabel("chart.xyaxis.line", L10n.graphsAndTrendsTitle)
             }.accessibilityIdentifier("patient.questionnaireGraphs")
             Button { recordRoute = .diaries } label: {
-                recordLabel("book.closed", L10n.patientDiariesTitle)
+                recordLabel("book.closed", L10n.patientDiariesTitle, fill: Theme.diaryTint, ink: Theme.diaryInk)
             }.accessibilityIdentifier("patient.diaries")
             Button { recordRoute = .questionnaires } label: {
-                recordLabel("list.clipboard", L10n.patientRecordQuestionnaires)
+                recordLabel("list.clipboard", L10n.patientRecordQuestionnaires, fill: Theme.questionnaireTint, ink: Theme.questionnaireInk)
             }.accessibilityIdentifier("patient.questionnaireHistory")
         }
         .buttonStyle(.borderless)
     }
 
-    private func recordLabel(_ icon: String, _ title: String, emphasized: Bool = false) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: 20)).foregroundStyle(emphasized ? Color.purple : patientColor)
-                .frame(width: 24).accessibilityHidden(true)
-            Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textBright)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.forward").font(.caption).foregroundStyle(Theme.textBody).accessibilityHidden(true)
-        }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .padding(.horizontal, 10)
-        .background(emphasized ? Color.purple.opacity(0.14) : Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-        .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(emphasized ? Color.purple.opacity(0.65) : Theme.borderDefault, lineWidth: 1) }
-        .contentShape(Rectangle())
+    private func recordLabel(_ icon: String, _ title: String, emphasized: Bool = false, fill: Color = Theme.surface, ink: Color = Theme.gold) -> PatientRecordLabel {
+        PatientRecordLabel(icon: icon, title: title, emphasized: emphasized, fill: fill, ink: ink)
     }
 
     private var diaryDirectory: some View {
@@ -865,13 +853,13 @@ struct PatientDetailView: View {
     private func diaryDirectoryLabel(_ title: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "book.closed")
-                .font(.title3)
+                .font(BrandTypography.title3)
                 .foregroundStyle(Theme.gold)
                 .frame(width: 40, height: 40)
                 .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 10))
                 .accessibilityHidden(true)
             Text(title)
-                .font(.body.weight(.semibold))
+                .font(BrandTypography.body.weight(.semibold))
                 .foregroundStyle(Theme.textBright)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -924,7 +912,7 @@ struct PatientDetailView: View {
         HStack(spacing: 8) {
             if connectionState == .checking { ProgressView().controlSize(.small) }
             else { Image(systemName: connectionStatusIcon).accessibilityHidden(true) }
-            Text(connectionState == .connected ? L10n.patientConnectedCompact : connectionStatusTitle).font(.caption)
+            Text(connectionState == .connected ? L10n.patientConnectedCompact : connectionStatusTitle).font(BrandTypography.caption)
                 .accessibilityLabel(connectionStatusTitle)
         }
         .foregroundStyle(connectionState == .connected ? Theme.success : Theme.textBody)
@@ -943,7 +931,7 @@ struct PatientDetailView: View {
                 }
             } label: {
                 Label(connectionActionTitle, systemImage: connectionState == .connected ? "slider.horizontal.3" : "person.crop.circle.badge.plus")
-                    .font(.subheadline.weight(.semibold))
+                    .font(BrandTypography.subheadline.weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(minHeight: 44)
                     .padding(.horizontal, 10)
@@ -963,7 +951,7 @@ struct PatientDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(patient.displayName)
-                        .font(.title2.bold())
+                        .font(BrandTypography.title2.bold())
                     if connectionState != .connected { Text(L10n.patientConnectDescription) }
                     switch connectionState {
                     case .notConnected, .connected:
@@ -990,7 +978,7 @@ struct PatientDetailView: View {
                     }
                     if connectionState != .connected {
                         Text(L10n.patientConnectionOptionalExplanation)
-                            .font(.footnote)
+                            .font(BrandTypography.footnote)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -1019,9 +1007,9 @@ struct PatientDetailView: View {
     private var sendingUnavailableNotice: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label(L10n.patientSendingUnavailableTitle, systemImage: "lock.fill")
-                .font(.subheadline.weight(.semibold))
+                .font(BrandTypography.subheadline.weight(.semibold))
             Text(sendingUnavailableDescription)
-                .font(.footnote)
+                .font(BrandTypography.footnote)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .foregroundStyle(.secondary)
@@ -1071,8 +1059,8 @@ struct PatientDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 2) {
-                        Text(L10n.activitiesTitle).font(.headline)
-                        Text(patient.displayName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text(L10n.activitiesTitle).font(BrandTypography.headline)
+                        Text(patient.displayName).font(BrandTypography.caption).foregroundStyle(.secondary).lineLimit(1)
                     }.accessibilityElement(children: .combine)
                 }
                 ToolbarItem(placement: .cancellationAction) {
@@ -1093,16 +1081,16 @@ struct PatientDetailView: View {
         } label: {
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: icon)
-                    .font(.title3)
+                    .font(BrandTypography.title3)
                     .foregroundStyle(Theme.gold)
                     .frame(width: 40, height: 40)
                     .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 10))
                 VStack(alignment: .leading, spacing: 8) {
                     Text(title)
-                        .font(.headline)
+                        .font(BrandTypography.headline)
                         .foregroundStyle(Theme.textBright)
                     Text(detail)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1143,7 +1131,7 @@ struct PatientDetailView: View {
             Label(title, systemImage: "book.closed")
             Spacer()
             Text(L10n.diaryComingSoon)
-                .font(.subheadline)
+                .font(BrandTypography.subheadline)
         }
         .foregroundStyle(.secondary)
         .padding(.vertical, 10)
@@ -1406,7 +1394,7 @@ struct PatientDetailView: View {
         if voiceRecorder.isRecording {
             HStack(spacing: 6) {
                 Text(formattedDuration)
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .monospacedDigit()
                     .foregroundStyle(Theme.error)
                 Button {
@@ -1416,7 +1404,7 @@ struct PatientDetailView: View {
                     transcribe()
                 } label: {
                     Label(L10n.stopPatientNotesRecording, systemImage: "stop.circle.fill")
-                        .font(.title2)
+                        .font(BrandTypography.title2)
                         .foregroundStyle(Theme.error)
                 }
                 .buttonStyle(.plain)
@@ -1426,7 +1414,7 @@ struct PatientDetailView: View {
                 Task { await voiceRecorder.startRecording() }
             } label: {
                 Label(L10n.recordVoiceNoteAction, systemImage: "mic.fill")
-                    .font(.title3)
+                    .font(BrandTypography.title3)
                     .foregroundStyle(.tint)
             }.entitlementCreateControl()
             .buttonStyle(.plain)
@@ -1640,7 +1628,7 @@ struct PatientDetailView: View {
             Text(title)
         } icon: {
             Image(systemName: systemImage)
-                .font(.footnote.weight(.semibold))
+                .font(BrandTypography.footnote.weight(.semibold))
                 .foregroundStyle(Theme.textBody)
                 .frame(width: 28, height: 28)
                 .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 7))
@@ -1675,52 +1663,36 @@ private enum PatientConnectionState {
 /// light source, rather than a single tinted rectangle. No clinical imagery.
 private struct PatientHeaderBackdrop: View {
     let accent: Color
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    var body: some View {
+        Theme.patientHomeHeader
+            .accessibilityHidden(true)
+            .allowsHitTesting(false)
+    }
+}
+
+/// A concrete view boundary keeps the grid's generic metadata shallow on device.
+/// Returning the complete modifier chain as an opaque helper type caused a
+/// Swift runtime metadata crash when constructing the patient action grid.
+private struct PatientRecordLabel: View {
+    let icon: String
+    let title: String
+    let emphasized: Bool
+    let fill: Color
+    let ink: Color
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                if Theme.isPaper {
-                    Theme.patientHomeHeader
-                    accent.opacity(0.08)
-                } else {
-                // A tinted native material lets the underlying surface show through.
-                // Keep the material dark for the white header labels in both appearances.
-                if reduceTransparency {
-                    Color(uiColor: UIColor(hex: 0x0C1420))
-                } else {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .environment(\.colorScheme, .dark)
-                }
-                Color(uiColor: UIColor(hex: 0x0C1420)).opacity(0.5)
-                LinearGradient(colors: [accent.opacity(0.46), accent.opacity(0.15)],
-                               startPoint: .topTrailing, endPoint: .bottomLeading)
-                RadialGradient(colors: [accent.opacity(0.30), .clear],
-                               center: .topTrailing, startRadius: 0, endRadius: geometry.size.width * 1.1)
-                // Preserve white-label contrast when the underlying page is light.
-                Color.black.opacity(colorScheme == .light ? 0.17 : 0)
-                LinearGradient(colors: [.white.opacity(0.05), .white.opacity(0.0175)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-                if !reduceTransparency {
-                    Canvas { context, size in
-                        func plane(_ points: [CGPoint], opacity: Double) {
-                            var path = Path()
-                            path.addLines(points.map { CGPoint(x: $0.x * size.width, y: $0.y * size.height) })
-                            path.closeSubpath()
-                            context.fill(path, with: .color(.white.opacity(opacity)))
-                        }
-                        plane([.init(x: 0.12, y: 0), .init(x: 0.43, y: 0), .init(x: 0.76, y: 1), .init(x: 0.36, y: 1)], opacity: 0.045)
-                        plane([.init(x: 0.62, y: 0), .init(x: 1, y: 0), .init(x: 0.46, y: 1), .init(x: 0.19, y: 1)], opacity: 0.035)
-                        plane([.init(x: 0, y: 0.18), .init(x: 0.21, y: 1), .init(x: 0, y: 1)], opacity: 0.05)
-                    }
-                }
-                LinearGradient(colors: [.clear, .black.opacity(0.09)], startPoint: .top, endPoint: .bottom)
-                }
-            }
+        HStack(spacing: 8) {
+            Image(systemName: icon).font(.system(size: 20)).foregroundStyle(emphasized ? Theme.accentLine : ink)
+                .frame(width: 24).accessibilityHidden(true)
+            Text(title).font(BrandTypography.subheadline.weight(.semibold)).foregroundStyle(Theme.textBright)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.forward").font(BrandTypography.caption).foregroundStyle(Theme.textBody).accessibilityHidden(true)
         }
-        .accessibilityHidden(true)
-        .allowsHitTesting(false)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(.horizontal, 10)
+        .background(emphasized ? Theme.goldGhost : fill, in: RoundedRectangle(cornerRadius: 12))
+        .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(emphasized ? Theme.accentLine.opacity(0.65) : Theme.borderDefault, lineWidth: 1) }
+        .contentShape(Rectangle())
     }
 }

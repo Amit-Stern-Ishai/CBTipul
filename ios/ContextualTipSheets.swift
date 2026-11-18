@@ -9,7 +9,7 @@ struct ContextualTipSheet: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 20) {
                 Text(message)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBright)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
@@ -38,10 +38,10 @@ struct PreparationInsufficientSheet: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
                 Text(L10n.preparationInsufficientTitle)
-                    .font(.title3.bold())
+                    .font(BrandTypography.title3.bold())
                     .foregroundStyle(Theme.textBright)
                 Text(L10n.preparationInsufficientBody)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBody)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)

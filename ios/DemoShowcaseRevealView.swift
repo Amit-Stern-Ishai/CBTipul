@@ -8,12 +8,12 @@ struct DemoShowcaseIntroView: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 20) {
                 Label(L10n.showcaseRevealTitle, systemImage: "sparkles")
-                    .font(.title2.bold())
+                    .font(BrandTypography.title2.bold())
                     .foregroundStyle(Theme.textBright)
                     .labelStyle(.titleAndIcon)
 
                 Text(L10n.showcaseRevealBody)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBody)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -21,7 +21,7 @@ struct DemoShowcaseIntroView: View {
                     Image(systemName: "flask.fill")
                         .foregroundStyle(Theme.warning)
                     Text(L10n.showcaseRevealExitHint)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .foregroundStyle(Theme.textBody)
                 }
                 .padding(14)

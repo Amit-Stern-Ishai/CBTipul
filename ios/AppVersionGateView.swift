@@ -35,7 +35,7 @@ struct AppUpdateNotice: View {
                 if required {
                     Image(systemName: "arrow.down.app.fill").font(.system(size: 48)).foregroundStyle(Theme.gold)
                 }
-                Text(required ? L10n.updateRequiredTitle : L10n.updateOptionalTitle).font(.title2.bold())
+                Text(required ? L10n.updateRequiredTitle : L10n.updateOptionalTitle).font(BrandTypography.title2.bold())
                 Text(required ? L10n.updateRequiredBody : L10n.updateOptionalBody).multilineTextAlignment(.center)
                 if storeFailed { Text(L10n.updateStoreFailed).foregroundStyle(Theme.error) }
                 Button(required ? L10n.updateRequiredAction : L10n.updateOptionalAction) {

@@ -33,7 +33,7 @@ struct PatientDiaryTwoHubView: View {
             case .failed where entries.isEmpty:
                 VStack(alignment: .leading, spacing: 16) {
                     Text(L10n.diaryTwoLoadFailed)
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .foregroundStyle(Theme.textBody)
                     Button(L10n.retryAction) {
                         Task { await loadEntries() }
@@ -47,7 +47,7 @@ struct PatientDiaryTwoHubView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             PatientToolStatusView(active: isActive && !locallyInactive)
                             Text(L10n.patientDiaryTwoDescription)
-                                .font(.subheadline)
+                                .font(BrandTypography.subheadline)
                                 .foregroundStyle(Theme.textBody)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -60,7 +60,7 @@ struct PatientDiaryTwoHubView: View {
                         }
 
                         Text(L10n.diaryOneMyEntriesTitle)
-                            .font(.headline)
+                            .font(BrandTypography.headline)
                             .foregroundStyle(Theme.textBright)
                             .accessibilityAddTraits(.isHeader)
                             .padding(.top, 4)
@@ -68,11 +68,11 @@ struct PatientDiaryTwoHubView: View {
                         if entries.isEmpty {
                             HStack(alignment: .top, spacing: 12) {
                                 Image(systemName: "book.closed")
-                                    .font(.title3)
+                                    .font(BrandTypography.title3)
                                     .foregroundStyle(Theme.textBody)
                                     .accessibilityHidden(true)
                                 Text(L10n.diaryTwoEmptyTitle)
-                                    .font(.subheadline)
+                                    .font(BrandTypography.subheadline)
                                     .foregroundStyle(Theme.textBody)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -132,7 +132,7 @@ struct PatientDiaryTwoHubView: View {
         }
         .safeAreaInset(edge: .top) {
             if didSave {
-                Text(L10n.patientDiaryOneSaved).font(.subheadline.weight(.semibold))
+                Text(L10n.patientDiaryOneSaved).font(BrandTypography.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.success).padding(12)
                     .frame(maxWidth: .infinity).background(Theme.base)
             }
@@ -144,28 +144,28 @@ struct PatientDiaryTwoHubView: View {
     private func patientHistoryRow(_ entry: DiaryTwoEntry) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "book.closed")
-                .font(.title3)
+                .font(BrandTypography.title3)
                 .foregroundStyle(Theme.gold)
                 .frame(width: 24)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 6) {
                 Text(L10n.hebrewDateTime(entry.createdAt))
-                    .font(.subheadline.weight(.semibold))
+                    .font(BrandTypography.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.textBright)
                 Text(entry.event)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBody)
                     .lineLimit(2)
                 if !entry.automaticThoughtsPreview.isEmpty {
                     Text(entry.automaticThoughtsPreview)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .foregroundStyle(Theme.textBody)
                         .lineLimit(2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "chevron.forward")
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .foregroundStyle(Theme.textBody)
                 .padding(.top, 3)
                 .accessibilityHidden(true)
@@ -206,29 +206,29 @@ struct PatientDiaryTwoDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(L10n.hebrewDateTime(entry.createdAt))
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                     .foregroundStyle(Theme.textBright)
                 labeledBlock(L10n.diaryOneEventTitle, entry.event)
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.diaryOneThoughtTitle)
-                        .font(.caption.weight(.semibold))
+                        .font(BrandTypography.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     ForEach(Array(entry.automaticThoughts.enumerated()), id: \.offset) { _, thought in
                         Text(thought)
-                            .font(.body)
+                            .font(BrandTypography.body)
                             .foregroundStyle(Theme.textBright)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.diaryTwoFeelingsTitle).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(L10n.diaryTwoFeelingsTitle).font(BrandTypography.caption.weight(.semibold)).foregroundStyle(.secondary)
                     ForEach(Array(entry.feelings.enumerated()), id: \.offset) { _, feeling in
                         Text("\(feeling.name) — \(feeling.intensity)%")
                     }
                 }
                 labeledBlock(L10n.diaryThinkingErrorsTitle, entry.thinkingErrors.map(\.title).joined(separator: "\n"))
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.diaryAlternativeThoughtsTitle).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(L10n.diaryAlternativeThoughtsTitle).font(BrandTypography.caption.weight(.semibold)).foregroundStyle(.secondary)
                     ForEach(Array(entry.alternativeThoughts.enumerated()), id: \.offset) { _, thought in
                         Text(thought).frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -255,10 +255,10 @@ struct PatientDiaryTwoDetailView: View {
     private func labeledBlock(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBright)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

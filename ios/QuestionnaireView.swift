@@ -88,7 +88,7 @@ struct CombinedMoodQuestionnaireView: View {
             if let errorMessage {
                 Section {
                     Text(errorMessage)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(Theme.error)
                 }
                 .listRowBackground(groupBorderedRow(
@@ -380,7 +380,7 @@ struct PatientQuestionnaireEditorView: View {
             if let errorMessage {
                 Section {
                     Text(errorMessage)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(Theme.error)
                 }
                 .listRowBackground(groupBorderedRow(.only, accent: patientColor))
@@ -653,7 +653,7 @@ struct QuestionnaireSections: View {
                     )
                     if marksUnanswered, questionnaire.gad7Answers[index] == nil {
                         Text(L10n.unansweredQuestionLabel)
-                            .font(.footnote.weight(.semibold))
+                            .font(BrandTypography.footnote.weight(.semibold))
                             .foregroundStyle(Theme.error)
                     }
                 }
@@ -674,7 +674,7 @@ struct QuestionnaireSections: View {
         Section(L10n.phq9Title) {
             
             Text(markdown: L10n.phq9MainQuestion)
-                .font(.body.weight(.semibold))
+                .font(BrandTypography.body.weight(.semibold))
                 .foregroundStyle(Theme.textBright)
                 .listRowBackground(rowBackground(.first))
             
@@ -692,7 +692,7 @@ struct QuestionnaireSections: View {
                     )
                     if marksUnanswered, questionnaire.phq9Answers[index] == nil {
                         Text(L10n.unansweredQuestionLabel)
-                            .font(.footnote.weight(.semibold))
+                            .font(BrandTypography.footnote.weight(.semibold))
                             .foregroundStyle(Theme.error)
                     }
                 }
@@ -711,7 +711,7 @@ struct QuestionnaireSections: View {
                 )
                 if marksUnanswered, requiresInterferenceAnswer, questionnaire.interferenceLevel == nil {
                     Text(L10n.unansweredQuestionLabel)
-                        .font(.footnote.weight(.semibold))
+                        .font(BrandTypography.footnote.weight(.semibold))
                         .foregroundStyle(Theme.error)
                 }
             }
@@ -729,7 +729,7 @@ struct QuestionnaireSections: View {
 
             if showsClinicalGuidance {
                 Text(L10n.suggestion(for: questionnaire.phq9Severity))
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(.secondary)
                     .listRowBackground(rowBackground(.last))
             }
@@ -748,10 +748,10 @@ private struct AnswerKeyView: View {
         VStack(alignment: .leading, spacing: 4) {
             if patientSubmitted {
                 Label(L10n.patientSubmissionReadOnly, systemImage: "eye")
-                    .font(.caption).foregroundStyle(Theme.textBody)
+                    .font(BrandTypography.caption).foregroundStyle(Theme.textBody)
             }
             Text(markdown: L10n.gad7MainQuestion)
-                .font(.body.weight(.semibold))
+                .font(BrandTypography.body.weight(.semibold))
                 .foregroundStyle(Theme.textBright)
             LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 4) {
                 ForEach(L10n.answerFrequencyLabels.indices, id: \.self) { value in
@@ -760,7 +760,7 @@ private struct AnswerKeyView: View {
                         Text(L10n.answerFrequencyLabels[value])
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .font(.caption)
+                    .font(BrandTypography.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine)
@@ -770,7 +770,7 @@ private struct AnswerKeyView: View {
                 Button("יותר מילוי = יותר פעמים · בהיר יותר = יותר לאחרונה") {
                     showsHistoryHelp = true
                 }
-                .font(.caption)
+                .font(BrandTypography.caption)
                 .foregroundStyle(.secondary)
                 .buttonStyle(.plain)
                 .accessibilityHint("הסבר על היסטוריית התשובות")
@@ -781,7 +781,7 @@ private struct AnswerKeyView: View {
                 }
             } else if let previousDate {
                 Text(L10n.previousAnswerLegend(dateText: L10n.hebrewDate(previousDate)))
-                    .font(.caption)
+                    .font(BrandTypography.caption)
                     .lineSpacing(0)
                     .foregroundStyle(Theme.warning)
             }
@@ -806,7 +806,7 @@ private struct InterferencePicker: View {
                 // Regular weight so the string's **bold** words stand out
                 // (headline is semibold, which drowns the emphasis).
                 Text(markdown: L10n.phq9InterferenceQuestion)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                 Spacer()
                 if isEditable, showsTherapistNotes {
                     Button {
@@ -831,11 +831,11 @@ private struct InterferencePicker: View {
                     } label: {
                         HStack(spacing: 6) {
                             Text(L10n.phq9InterferenceOptions[index])
-                                .font(.subheadline)
+                                .font(BrandTypography.subheadline)
                                 .fixedSize(horizontal: false, vertical: true)
                             if previousSelection == index {
                                 Image(systemName: "clock.arrow.circlepath")
-                                    .font(.footnote)
+                                    .font(BrandTypography.footnote)
                                     .foregroundStyle(Theme.warning)
                             }
                             Spacer()
@@ -869,16 +869,16 @@ private struct ScoreRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.totalScoreLine(score))
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                 if let previousScore, let previousDate {
                     Text(L10n.previousScoreLine(dateText: L10n.hebrewDate(previousDate), score: previousScore))
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(Theme.warning)
                 }
             }
             Spacer()
             Text(classification)
-                .font(.subheadline)
+                .font(BrandTypography.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.trailing)
         }
@@ -949,7 +949,7 @@ private struct NoteBox: View {
 
     private var content: some View {
         Text(note)
-            .font(.footnote)
+            .font(BrandTypography.footnote)
             .foregroundStyle(.secondary)
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -970,7 +970,7 @@ private struct QuestionNoteEditor: View {
             Form {
                 Section {
                     Text(markdown: question)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 .listRowBackground(Theme.surface)
@@ -1034,7 +1034,7 @@ struct AnswerScaleView: View {
                     selection = value
                 } label: {
                     Text("\(value)")
-                        .font(.body.weight(.medium))
+                        .font(BrandTypography.body.weight(.medium))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .background {

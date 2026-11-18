@@ -12,7 +12,7 @@ struct AccountActionNotices: View {
         VStack(spacing: 8) {
             if let userID = auth.accountActions.registrationWarningUserID,
                userID == auth.currentUserId, auth.isTherapistAuthenticated {
-                Text(L10n.appleTokenWarning).font(.footnote)
+                Text(L10n.appleTokenWarning).font(BrandTypography.footnote)
                 Button(L10n.appleTokenRetry) { retryError = nil; showingRetry = true }
                     .disabled(auth.accountActions.isRegistering || auth.isProviderSignInInProgress)
             }
@@ -44,7 +44,7 @@ struct AccountActionNotices: View {
                     .disabled(auth.isProviderSignInInProgress || auth.accountActions.isRegistering)
                     if auth.accountActions.isRegistering { ProgressView() }
                     else if auth.accountActions.registrationWarningUserID != nil {
-                        Text(L10n.appleTokenWarning).font(.footnote).foregroundStyle(Theme.error)
+                        Text(L10n.appleTokenWarning).font(BrandTypography.footnote).foregroundStyle(Theme.error)
                     }
                     if let retryError { Text(retryError).foregroundStyle(Theme.error) }
                 }

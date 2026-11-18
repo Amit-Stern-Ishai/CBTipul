@@ -9,11 +9,11 @@ struct PatientActivationIncompleteView: View {
             Spacer(minLength: 24)
             VStack(alignment: .leading, spacing: 16) {
                 Text(L10n.patientActivationIncompleteTitle)
-                    .font(.title.bold())
+                    .font(BrandTypography.title.bold())
                     .foregroundStyle(Theme.textBright)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(L10n.patientActivationIncompleteBody)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBody)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -42,11 +42,11 @@ struct PatientContextRetryView: View {
             Spacer(minLength: 24)
             VStack(alignment: .leading, spacing: 16) {
                 Text(L10n.patientContextRetryTitle)
-                    .font(.title.bold())
+                    .font(BrandTypography.title.bold())
                     .foregroundStyle(Theme.textBright)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(L10n.patientContextRetryBody)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBody)
                     .fixedSize(horizontal: false, vertical: true)
             }

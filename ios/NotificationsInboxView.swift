@@ -15,7 +15,7 @@ struct NotificationsInboxView: View {
         NavigationStack(path: $navigationPath) {
             VStack(spacing: 0) {
                 if workspaces.associationSaved {
-                    Label(L10n.wwDone, systemImage: "checkmark.circle").font(.subheadline).padding(8)
+                    Label(L10n.wwDone, systemImage: "checkmark.circle").font(BrandTypography.subheadline).padding(8)
                 }
                 if notifications.isLoading && notifications.notifications.isEmpty {
                     ProgressView()
@@ -116,7 +116,7 @@ struct NotificationsInboxView: View {
             if notifications.didFailLastLoad {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(L10n.notificationsRefreshFailed).font(.subheadline)
+                        Text(L10n.notificationsRefreshFailed).font(BrandTypography.subheadline)
                         Button(L10n.retry) { Task { await notifications.refresh()
                 await workspaces.refresh() } }
                     }
@@ -169,9 +169,9 @@ struct NotificationsInboxView: View {
 
     private func sectionHeader(_ title: String, count: Int, highlighted: Bool) -> some View {
         HStack(spacing: 8) {
-            Text(title).font(.subheadline.weight(.semibold))
+            Text(title).font(BrandTypography.subheadline.weight(.semibold))
             Text(count, format: .number)
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(highlighted ? Theme.goldGhost : Theme.surface, in: Capsule())
         }
@@ -209,7 +209,7 @@ private struct NotificationInboxRow: View {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(item.type == .webWorkspaceReady ? (workspaceTag.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } ?? L10n.wwUntitled) : patientName)
-                        .font(.title3.weight(item.isUnread ? .semibold : .medium))
+                        .font(BrandTypography.title3.weight(item.isUnread ? .semibold : .medium))
                         .foregroundStyle(Theme.textBright)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -219,7 +219,7 @@ private struct NotificationInboxRow: View {
                     }
                 }
                 Label(NotificationInboxCopy.message(for: item.type), systemImage: symbol)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(Theme.textBody)
                     .fixedSize(horizontal: false, vertical: true)
                 ViewThatFits(in: .horizontal) {
@@ -251,7 +251,7 @@ private struct NotificationInboxRow: View {
 
     private var timestamp: some View {
         Text(L10n.notificationTimestamp(item.createdAt))
-            .font(.caption).foregroundStyle(Theme.textBody)
+            .font(BrandTypography.caption).foregroundStyle(Theme.textBody)
             .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -261,7 +261,7 @@ private struct NotificationInboxRow: View {
                 Text(actionTitle)
                 Image(systemName: "chevron.forward").font(.system(size: 9, weight: .semibold))
             }
-            .font(.caption.weight(.semibold)).foregroundStyle(Theme.gold)
+            .font(BrandTypography.caption.weight(.semibold)).foregroundStyle(Theme.gold)
             .fixedSize(horizontal: false, vertical: true)
         }
     }

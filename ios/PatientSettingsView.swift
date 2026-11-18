@@ -125,7 +125,7 @@ struct PatientSettingsView: View {
                 #endif
                 Section {
                     Text(appVersionLine)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                 }
@@ -199,7 +199,7 @@ struct PatientSettingsView: View {
 
     private func settingsGlyph(_ systemName: String) -> some View {
         Image(systemName: systemName)
-            .font(.footnote.weight(.semibold))
+            .font(BrandTypography.footnote.weight(.semibold))
             .foregroundStyle(Theme.gold)
             .frame(width: 28, height: 28)
             .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
@@ -218,7 +218,7 @@ struct PatientSettingsView: View {
                 }
                 Spacer()
                 Image(systemName: "arrow.up.right")
-                    .font(.footnote.weight(.semibold))
+                    .font(BrandTypography.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
         }

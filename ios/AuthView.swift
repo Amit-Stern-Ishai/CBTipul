@@ -96,15 +96,15 @@ struct AuthView: View {
                 .shadow(color: Theme.accentFill.opacity(0.35), radius: 16, y: 10)
 
             Text(L10n.appTitle)
-                .font(.largeTitle.bold())
+                .font(BrandTypography.largeTitle.bold())
                 .foregroundStyle(Theme.textBright)
 
             if verificationEmail == nil {
                 Text(mode == .signIn
                      ? L10n.authWelcomeSignIn
                      : L10n.authWelcomeSignUp)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(BrandTypography.subheadline)
+                    .foregroundStyle(Theme.textBody)
             }
         }
     }
@@ -120,11 +120,11 @@ struct AuthView: View {
                 .background(Theme.goldGhost, in: Circle())
 
             Text(L10n.verifyEmailTitle)
-                .font(.title3.bold())
+                .font(BrandTypography.title3.bold())
 
             Text(L10n.verifyEmailMessage(email: verificationEmail ?? ""))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(BrandTypography.subheadline)
+                .foregroundStyle(Theme.textBody)
                 .multilineTextAlignment(.center)
 
             if let errorMessage {
@@ -156,7 +156,7 @@ struct AuthView: View {
                 infoMessage = nil
                 mode = .signIn
             }
-            .font(.footnote)
+            .font(BrandTypography.footnote)
             .disabled(isWorking)
         }
         .padding(20)
@@ -264,7 +264,7 @@ struct AuthView: View {
 
             if mode == .signIn {
                 Button(L10n.forgotPasswordAction, action: forgotPassword)
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .disabled(isWorking)
             }
         }
@@ -306,8 +306,8 @@ struct AuthView: View {
             .accessibilityIdentifier("auth.apple")
 
             Text(L10n.existingAccountSignInGuidance)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(BrandTypography.footnote)
+                .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
 
         }
@@ -316,7 +316,7 @@ struct AuthView: View {
     private func inputRow(systemImage: String, @ViewBuilder field: () -> some View) -> some View {
         HStack(spacing: 10) {
             Image(systemName: systemImage)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textBody)
                 .frame(width: 22)
             field()
         }
@@ -329,7 +329,7 @@ struct AuthView: View {
 
     private func message(_ text: String, systemImage: String, color: Color) -> some View {
         Label(text, systemImage: systemImage)
-            .font(.footnote)
+            .font(BrandTypography.footnote)
             .foregroundStyle(color)
             .frame(maxWidth: .infinity, alignment: .leading)
             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -479,7 +479,7 @@ private struct PasswordRulesChecklist: View {
                 let isMet = rule.isMet(by: password)
                 Label(rule.title,
                       systemImage: isMet ? "checkmark.circle.fill" : "xmark.circle")
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(isMet ? Theme.positive : Theme.error)
             }
         }
@@ -529,7 +529,7 @@ struct NewPasswordView: View {
                    password != confirmPassword {
                     Section {
                         Text(L10n.passwordsDontMatchError)
-                            .font(.footnote)
+                            .font(BrandTypography.footnote)
                             .foregroundStyle(Theme.error)
                     }
                     .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
@@ -538,7 +538,7 @@ struct NewPasswordView: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .font(.footnote)
+                            .font(BrandTypography.footnote)
                             .foregroundStyle(Theme.error)
                     }
                     .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))

@@ -89,7 +89,7 @@ struct SummaryRecoveryFixture: View {
     private var metrics: some View {
         TimelineView(.periodic(from: .now, by: 0.5)) { _ in
             Text(["allowance", "transcribe", "anonymize", "insert", "committed"].map { "\($0)=\(UserDefaults.standard.integer(forKey: "summary-fixture." + $0))" }.joined(separator: ";"))
-                .font(.caption2).accessibilityIdentifier("fixture.counts")
+                .font(BrandTypography.caption2).accessibilityIdentifier("fixture.counts")
         }
     }
 }

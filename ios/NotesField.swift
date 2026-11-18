@@ -20,8 +20,7 @@ struct NotesField: UIViewRepresentable {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var font: UIFont {
-        .preferredFont(
-            forTextStyle: .body,
+        BrandTypography.editorFont(
             compatibleWith: UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
         )
     }

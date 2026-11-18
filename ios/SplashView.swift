@@ -19,7 +19,7 @@ struct SplashView: View {
                     .shadow(color: Theme.accentFill.opacity(0.35), radius: 16, y: 10)
 
                 Text(L10n.appTitle)
-                    .font(.largeTitle.bold())
+                    .font(BrandTypography.largeTitle.bold())
                     .foregroundStyle(Theme.textBright)
             }
             .scaleEffect(isVisible ? 1 : 0.85)

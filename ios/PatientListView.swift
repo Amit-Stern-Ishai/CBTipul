@@ -64,7 +64,7 @@ struct PatientListView: View {
                 if !store.isDemoMode && workspaces.associationCount > 0 {
                     NavigationLink(value: WebWorkspaceInboxRoute()) {
                         Label(L10n.wwPendingCount(workspaces.associationCount), systemImage: "tray.full")
-                            .font(.headline).frame(maxWidth: .infinity, minHeight: 44).padding(.horizontal)
+                            .font(BrandTypography.headline).frame(maxWidth: .infinity, minHeight: 44).padding(.horizontal)
                     }.background(Theme.surface).accessibilityIdentifier("workspaces.inbox")
                 }
             }
@@ -78,8 +78,8 @@ struct PatientListView: View {
             .demoModeChrome()
             .subtleAnimation(value: isLoading)
             .subtleAnimation(value: loadError)
-            .navigationTitle(L10n.therapistTabPatients)
-            .navigationBarTitleDisplayMode(.large)
+            .brandNavigationTitle(L10n.therapistTabPatients)
+            .navigationBarTitleDisplayMode(.inline)
             .task { await load(); if !store.isDemoMode { await workspaces.refresh() } }
             .refreshable { await load(); if !store.isDemoMode { await workspaces.refresh() } }
             // Destinations outlive the pending-count banner, including the final association.
@@ -457,7 +457,7 @@ struct PatientListRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                 if let actionSubtitle {
                     Label(actionSubtitle, systemImage: "bubble.left.and.bubble.right")
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .foregroundStyle(Theme.gold)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
@@ -471,7 +471,7 @@ struct PatientListRow: View {
                     .foregroundStyle(Theme.textBody)
                     if recentSubmissionCount > 0 {
                         Label(L10n.recentSubmissionCount(recentSubmissionCount), systemImage: "doc.text")
-                            .font(.footnote.weight(.medium))
+                            .font(BrandTypography.footnote.weight(.medium))
                             .foregroundStyle(Theme.gold)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, directoryStyle ? 8 : 0)
@@ -546,7 +546,7 @@ struct StatusBadge: View {
 
     var body: some View {
         Text(L10n.patientStatus(status))
-            .font(.caption.weight(.semibold))
+            .font(BrandTypography.caption.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(color.opacity(0.12))

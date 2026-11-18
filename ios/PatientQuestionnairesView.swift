@@ -93,9 +93,9 @@ struct PatientQuestionnairesView: View {
             if let loadError, !questionnaires.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L10n.questionnaireRefreshFailed)
-                        .font(.subheadline.weight(.semibold))
+                        .font(BrandTypography.subheadline.weight(.semibold))
                     Text(loadError)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                     Button(L10n.retry) { Task { await load() } }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -186,7 +186,7 @@ struct PatientQuestionnairesView: View {
     private var addQuestionnaireCTA: some View {
         VStack(spacing: 8) {
             Text(L10n.questionnaireLocalEntryHelp)
-                .font(.footnote)
+                .font(BrandTypography.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             NavigationLink {
@@ -234,7 +234,7 @@ struct PatientQuestionnairesView: View {
         let previous = previousQuestionnaire(before: record)?.questionnaire
         return HStack(spacing: 12) {
             Label(L10n.hebrewDate(record.answeredDate), systemImage: "list.clipboard")
-                .font(.headline)
+                .font(BrandTypography.headline)
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 6) {
                 ScoreCapsule.gad7(record.questionnaire, previous: previous)
@@ -279,7 +279,7 @@ struct PatientQuestionnairesView: View {
                     .tint(Theme.accentFill)
                     .controlSize(.large)
                     Text(L10n.questionnaireGraphHelp)
-                        .font(.caption)
+                        .font(BrandTypography.caption)
                         .foregroundStyle(.secondary)
                 }
                 .padding(12)
@@ -374,7 +374,7 @@ struct QuestionnaireChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text(name).font(.headline).accessibilityLabel(subtitle)
+                Text(name).font(BrandTypography.headline).accessibilityLabel(subtitle)
                 Spacer(minLength: 4)
                 if fixedQuestionIndex == nil {
                 Picker(L10n.metricPickerTitle, selection: $metric) {
@@ -390,13 +390,13 @@ struct QuestionnaireChart: View {
             if let latest = points.last {
                 HStack(alignment: .firstTextBaseline) {
                     Text(L10n.questionnaireGraphLatest(score: Int(latest.value), maximum: yDomain.upperBound))
-                        .font(.caption.weight(.semibold))
+                        .font(BrandTypography.caption.weight(.semibold))
                         .foregroundStyle(pointColor(for: latest.value))
                     Spacer(minLength: 4)
                     Text(points.count > 1
                          ? L10n.questionnaireGraphChangeShort(Int(latest.value - points[points.count - 2].value))
                          : L10n.questionnaireGraphSingleShort)
-                        .font(.caption)
+                        .font(BrandTypography.caption)
                         .foregroundStyle(.secondary)
                 }
                 .accessibilityElement(children: .combine)
@@ -405,7 +405,7 @@ struct QuestionnaireChart: View {
                     + (points.count > 1 ? L10n.questionnaireGraphChange(Int(latest.value - points[points.count - 2].value))
                        : L10n.questionnaireGraphSingleResponse))
             } else {
-                Text(L10n.questionnaireGraphNoAnswers).font(.caption).foregroundStyle(.secondary)
+                Text(L10n.questionnaireGraphNoAnswers).font(BrandTypography.caption).foregroundStyle(.secondary)
             }
 
             if !points.isEmpty {

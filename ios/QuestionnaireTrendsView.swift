@@ -36,18 +36,18 @@ struct QuestionnaireTrendsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(L10n.questionTrendsHelp).font(.subheadline)
+                Text(L10n.questionTrendsHelp).font(BrandTypography.subheadline)
                 if let first = chronological.first, let last = chronological.last {
                     Text(L10n.questionTrendsCount(records.count) + " · " + L10n.hebrewDate(first.answeredDate)
                          + " – " + L10n.hebrewDate(last.answeredDate))
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(BrandTypography.caption).foregroundStyle(.secondary)
                 }
                 let matches = questions.filter { $0.trend == selectedTrend }
                 let selectedQuestion = matches.first { $0.id == selectedQuestionID } ?? matches.first
                 Button { showingTrends = true } label: {
                     pickerLabel(L10n.questionTrendsTrendPicker) {
                         HStack(spacing: 12) {
-                            Text(selectedTrend.title).font(.body.weight(.medium))
+                            Text(selectedTrend.title).font(BrandTypography.body.weight(.medium))
                             Spacer(minLength: 0)
                             countBadge(matches.count)
                         }
@@ -56,7 +56,7 @@ struct QuestionnaireTrendsView: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("trends.trendPicker")
                 .onChange(of: selectedTrend) { _, _ in selectedQuestionID = nil }
-                Text(selectedTrend.explanation).font(.caption).foregroundStyle(.secondary)
+                Text(selectedTrend.explanation).font(BrandTypography.caption).foregroundStyle(.secondary)
                 Button { showingQuestions = true } label: {
                     pickerLabel(L10n.questionTrendsQuestionPicker) {
                         if let question = selectedQuestion {
@@ -80,9 +80,9 @@ struct QuestionnaireTrendsView: View {
                         chartHeight: 220,
                         fixedQuestionIndex: 0
                     )
-                    Text(L10n.questionnaireGraphHelp).font(.caption).foregroundStyle(.secondary)
+                    Text(L10n.questionnaireGraphHelp).font(BrandTypography.caption).foregroundStyle(.secondary)
                 }
-                Text(L10n.questionTrendsMissing).font(.footnote).foregroundStyle(.secondary)
+                Text(L10n.questionTrendsMissing).font(BrandTypography.footnote).foregroundStyle(.secondary)
             }
             .padding(16)
         }
@@ -156,7 +156,7 @@ struct QuestionnaireTrendsView: View {
 
     private func countBadge(_ count: Int) -> some View {
         Text(L10n.questionTrendsMatchingCount(count))
-            .font(.subheadline.weight(.semibold).monospacedDigit())
+            .font(BrandTypography.subheadline.weight(.semibold).monospacedDigit())
             .foregroundStyle(Theme.gold)
             .frame(minWidth: 28)
             .padding(.horizontal, 8).padding(.vertical, 5)
@@ -168,14 +168,14 @@ struct QuestionnaireTrendsView: View {
     private func selectionMark(_ selected: Bool) -> some View {
         Image(systemName: selected ? "checkmark.circle.fill" : "circle")
             .foregroundStyle(selected ? Theme.gold : Theme.textFaint)
-            .font(.title3)
+            .font(BrandTypography.title3)
             .accessibilityHidden(true)
     }
 
     private func questionLabel(_ question: Question) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(question.title)
-                .font(.body.weight(.medium)).foregroundStyle(Theme.textBright)
+                .font(BrandTypography.body.weight(.medium)).foregroundStyle(Theme.textBright)
                 .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 6) {
@@ -183,21 +183,21 @@ struct QuestionnaireTrendsView: View {
                 Text(question.number, format: .number).monospacedDigit()
                 Spacer(minLength: 12)
                 Text(question.scale)
-                    .font(.caption.weight(.semibold).monospaced())
+                    .font(BrandTypography.caption.weight(.semibold).monospaced())
                     .environment(\.layoutDirection, .leftToRight)
                     .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(Theme.gold.opacity(0.08), in: Capsule())
             }
-            .font(.caption).foregroundStyle(Theme.textBody)
+            .font(BrandTypography.caption).foregroundStyle(Theme.textBody)
         }
     }
 
     private func pickerLabel<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(title).font(BrandTypography.caption).foregroundStyle(.secondary)
             HStack(spacing: 16) {
                 content().frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "chevron.down").font(.footnote.weight(.semibold)).foregroundStyle(Theme.gold)
+                Image(systemName: "chevron.down").font(BrandTypography.footnote.weight(.semibold)).foregroundStyle(Theme.gold)
             }
             .foregroundStyle(Theme.textBright)
         }

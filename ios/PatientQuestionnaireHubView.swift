@@ -52,7 +52,7 @@ struct PatientQuestionnaireHubView: View {
                     } label: {
                         HStack(spacing: 12) {
                             Label(record.answeredDate.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: Locale(identifier: "he_IL"))), systemImage: "list.clipboard")
-                                .font(.headline)
+                                .font(BrandTypography.headline)
                                 .foregroundStyle(Theme.textBright)
                             Spacer(minLength: 8)
                             VStack(alignment: .trailing, spacing: 6) {

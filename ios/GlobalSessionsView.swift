@@ -288,11 +288,11 @@ private struct GlobalSessionRow: View {
             SessionDateTile(date: item.session.date, accent: PatientAvatarColor.background(for: item.patient.id))
             VStack(alignment: .leading, spacing: 7) {
                 Text(item.patient.displayName)
-                    .font(.title3.weight(.semibold))
+                    .font(BrandTypography.title3.weight(.semibold))
                     .foregroundStyle(Theme.textBright)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(sessionSummary)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(Theme.textBody)
                     .fixedSize(horizontal: false, vertical: true)
                 if let scores {
@@ -304,7 +304,7 @@ private struct GlobalSessionRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "chevron.forward")
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .foregroundStyle(.tertiary)
                 .padding(.top, 7)
                 .accessibilityHidden(true)
@@ -345,15 +345,15 @@ struct SessionDateTile: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(date.formatted(.dateTime.day().locale(Locale(identifier: "he_IL"))))
-                .font(.title2.weight(.bold)).monospacedDigit()
+                .font(BrandTypography.title2.weight(.bold)).monospacedDigit()
             Text(date.formatted(.dateTime.weekday(.abbreviated).locale(Locale(identifier: "he_IL"))))
-                .font(.caption.weight(.medium))
+                .font(BrandTypography.caption.weight(.medium))
         }
         .foregroundStyle(Theme.textBright)
         .frame(minWidth: 48)
         .padding(.vertical, 8)
         .padding(.horizontal, 4)
-        .background(accent.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
+        .background(Theme.sessionTint, in: RoundedRectangle(cornerRadius: 10))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.hebrewDate(date))
     }

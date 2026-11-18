@@ -66,7 +66,7 @@ struct DiaryFeelingChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(BrandTypography.subheadline.weight(.semibold))
                 .foregroundStyle(isEnabled ? Theme.textBright : Theme.textFaint)
                 .padding(.horizontal, 12)
                 .frame(minHeight: 44)
@@ -90,7 +90,7 @@ struct DiaryFeelingIntensityControl: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(title).font(.subheadline)
+                Text(title).font(BrandTypography.subheadline)
                 Spacer()
                 if let current = intensity ?? (requiresExplicitChoice ? nil : 80) {
                     Text(L10n.diaryOneIntensityValue(current))
@@ -107,14 +107,14 @@ struct DiaryFeelingIntensityControl: View {
                     Text(L10n.diaryOneIntensityValue(0)).environment(\.layoutDirection, .leftToRight)
                     Spacer()
                     Text(L10n.diaryOneIntensityValue(100)).environment(\.layoutDirection, .leftToRight)
-                }.font(.caption).foregroundStyle(.secondary).environment(\.layoutDirection, .rightToLeft)
-                Text(L10n.diaryRatingAdjust).font(.caption).foregroundStyle(Theme.textBody)
+                }.font(BrandTypography.caption).foregroundStyle(.secondary).environment(\.layoutDirection, .rightToLeft)
+                Text(L10n.diaryRatingAdjust).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
             } else {
-                Text(L10n.diaryRatingChoose).font(.footnote).foregroundStyle(.secondary)
+                Text(L10n.diaryRatingChoose).font(BrandTypography.footnote).foregroundStyle(.secondary)
                 DiaryFeelingChipFlow(rightToLeft: false) {
                     ForEach([0, 25, 50, 75, 100], id: \.self) { value in
                         Button { intensity = value } label: {
-                            Text(L10n.diaryOneIntensityValue(value)).font(.subheadline.weight(.semibold))
+                            Text(L10n.diaryOneIntensityValue(value)).font(BrandTypography.subheadline.weight(.semibold))
                                 .monospacedDigit().frame(minWidth: 44, minHeight: 44)
                                 .padding(.horizontal, 4)
                                 .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 10))
@@ -146,7 +146,7 @@ struct DiaryFeelingPickerSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(L10n.diaryFeelingsPickerHint).font(.subheadline).foregroundStyle(Theme.textBody)
+                    Text(L10n.diaryFeelingsPickerHint).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                     if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         groupedVocabulary
                     } else {
@@ -181,7 +181,7 @@ struct DiaryFeelingPickerSheet: View {
                 if !available.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(group.title)
-                            .font(.headline)
+                            .font(BrandTypography.headline)
                             .foregroundStyle(Theme.textBright)
                         chipFlow(available)
                     }
@@ -196,7 +196,7 @@ struct DiaryFeelingPickerSheet: View {
         return Group {
             if matches.isEmpty {
                 Text(L10n.diaryFeelingSearchEmpty)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(.secondary)
             } else {
                 chipFlow(matches)
@@ -234,7 +234,7 @@ struct DiaryFeelingPickerSheet: View {
                     .onChange(of: customText) { _, _ in customError = nil }
                 if let customError {
                     Text(customError)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(Theme.error)
                 }
                 Button(L10n.diaryCustomFeelingConfirmAction) {
@@ -281,7 +281,7 @@ struct DiaryFeelingsEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if drafts.isEmpty { Text(L10n.diaryEntryFeelingsHint).font(.subheadline).foregroundStyle(.secondary) }
+            if drafts.isEmpty { Text(L10n.diaryEntryFeelingsHint).font(BrandTypography.subheadline).foregroundStyle(.secondary) }
             ForEach($drafts) { $draft in
                 feelingBlock($draft)
             }
@@ -289,7 +289,7 @@ struct DiaryFeelingsEditor: View {
                 isShowingPicker = true
             } label: {
                 Label(L10n.diaryAddFeelingAction, systemImage: "plus")
-                    .font(.body.weight(.semibold))
+                    .font(BrandTypography.body.weight(.semibold))
             }
             .buttonStyle(.bordered)
             .padding(.top, drafts.isEmpty ? 0 : 4)
@@ -314,7 +314,7 @@ struct DiaryFeelingsEditor: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(draft.wrappedValue.name)
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                 Spacer()
                 if !drafts.isEmpty {
                     Button {
@@ -331,7 +331,7 @@ struct DiaryFeelingsEditor: View {
                 .id(draft.wrappedValue.id)
             if isIncomplete {
                 Text(L10n.diaryOneValidationFeelingIntensity(draft.wrappedValue.trimmedName))
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(Theme.error)
             }
         }
@@ -376,7 +376,7 @@ struct DiaryOneDraftFields: View {
                     NotesField(text: $draft.event, placeholder: L10n.diaryOneEventQuestion, minLines: 3, maxLines: 8)
                 }
                 section(2, L10n.diaryOneThoughtTitle, draft.persistedAutomaticThoughts.joined(separator: " · ")) {
-                    Text(L10n.diaryEntryThoughtHint).font(.subheadline).foregroundStyle(Theme.textBody)
+                    Text(L10n.diaryEntryThoughtHint).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                     DiaryThoughtsEditor(rows: $draft.automaticThoughts, title: L10n.diaryOneThoughtSingularTitle, addTitle: L10n.diaryOneAddThoughtAction)
                 }
                 section(3, L10n.diaryFeelingsTitle, draft.feelings.map(\.name).joined(separator: " · ")) {
@@ -389,7 +389,7 @@ struct DiaryOneDraftFields: View {
                     issue: nil, optional: true, active: $active) {
                     NotesField(text: $draft.physicalSymptoms, placeholder: L10n.diaryOnePhysicalSymptomsQuestion, minLines: 2, maxLines: 8)
                 }
-                if let errorMessage { Text(errorMessage).font(.footnote).foregroundStyle(Theme.error) }
+                if let errorMessage { Text(errorMessage).font(BrandTypography.footnote).foregroundStyle(Theme.error) }
             }
             .onChange(of: didAttemptSave) { _, attempted in
                 if attempted, let missing = issues.firstIndex(where: { $0 != nil }) { active = missing + 1 }

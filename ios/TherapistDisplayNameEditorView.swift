@@ -41,7 +41,7 @@ struct TherapistDisplayNameEditorView: View {
         Form {
             Section {
                 Text(L10n.therapistDisplayNamePromptExplanation)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBody)
                     .listRowBackground(Color.clear)
             }
@@ -64,7 +64,7 @@ struct TherapistDisplayNameEditorView: View {
             if let errorMessage {
                 Section {
                     Text(errorMessage)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(Theme.error)
                 }
                 .listRowBackground(Theme.surface)
@@ -103,7 +103,7 @@ struct TherapistDisplayNameEditorView: View {
                 if requirement == .optional {
                     Button(action: skip) {
                         Text(L10n.therapistDisplayNameSkipAction)
-                            .font(.body.weight(.medium))
+                            .font(BrandTypography.body.weight(.medium))
                             .foregroundStyle(Theme.textBody)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)

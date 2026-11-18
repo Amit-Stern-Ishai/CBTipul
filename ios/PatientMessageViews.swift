@@ -25,10 +25,10 @@ struct SendPatientMessageComposerView: View {
             Form {
                 Section(L10n.messageRecipientLabel) {
                     Text(patient.displayName)
-                        .font(.headline)
+                        .font(BrandTypography.headline)
                         .foregroundStyle(.primary)
                     Text(L10n.therapistMessageDeliveryExplanation)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .foregroundStyle(.secondary)
                 }
 
@@ -50,7 +50,7 @@ struct SendPatientMessageComposerView: View {
 
                 Section {
                     Text(L10n.messageCharacterCount(bodyText.count, maximum: PatientMessageDraft.maxLength))
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(bodyText.count > PatientMessageDraft.maxLength ? Theme.error : Theme.textBody)
                     if bodyText.count > PatientMessageDraft.maxLength {
                         Text(L10n.sendPatientMessageTooLong).foregroundStyle(Theme.error)
@@ -61,7 +61,7 @@ struct SendPatientMessageComposerView: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .font(.footnote)
+                            .font(BrandTypography.footnote)
                             .foregroundStyle(Theme.error)
                     }
                 }
@@ -86,7 +86,7 @@ struct SendPatientMessageComposerView: View {
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
                     Text(didSend ? L10n.sendPatientMessageSuccess : L10n.messageSendExplanation)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                     Button {
@@ -210,9 +210,9 @@ struct TherapistPatientMessagesView: View {
         List {
             Section {
                 Text(patient.displayName)
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                 Text(L10n.therapistMessageDeliveryExplanation)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(.secondary)
             }
 
@@ -249,14 +249,14 @@ struct TherapistPatientMessagesView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(PatientMessage.preview(message.body))
-                            .font(.body)
+                            .font(BrandTypography.body)
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                         Text(L10n.messageSentAt(message.createdAt))
-                            .font(.footnote)
+                            .font(BrandTypography.footnote)
                             .foregroundStyle(.secondary)
                         Text(message.isUnread ? L10n.sentMessageUnreadStatus : L10n.sentMessageReadStatus)
-                            .font(.footnote.weight(.semibold))
+                            .font(BrandTypography.footnote.weight(.semibold))
                             .foregroundStyle(message.isUnread ? Theme.gold : .secondary)
                     }
                     .padding(.vertical, 4)
@@ -295,7 +295,7 @@ struct TherapistPatientMessagesView: View {
                         .buttonStyle(.bordered)
                 }
             }
-            .font(.subheadline)
+            .font(BrandTypography.subheadline)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 24)
@@ -380,13 +380,13 @@ private struct TherapistSentMessageView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(L10n.messageRecipient(patient.displayName))
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                 Text(L10n.messageSentAt(message.createdAt))
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(.secondary)
                 Label(message.isUnread ? L10n.sentMessageUnreadStatus : L10n.sentMessageReadStatus,
                       systemImage: message.isUnread ? "envelope" : "envelope.open")
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(.secondary)
                 Divider()
                 Text(message.body)
@@ -418,23 +418,23 @@ struct PatientModeMessageCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 if message.isUnread {
                     Text(kind == .home ? L10n.newMessageLabel : L10n.messageNewBadge)
-                        .font(.headline)
+                        .font(BrandTypography.headline)
                         .foregroundStyle(Theme.gold)
                 }
                 Text(message.body)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBright)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(L10n.notificationTimestamp(message.createdAt))
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(Theme.textBody)
                     if kind == .list {
                         Spacer(minLength: 8)
                         Image(systemName: "chevron.forward")
-                            .font(.footnote.weight(.semibold))
+                            .font(BrandTypography.footnote.weight(.semibold))
                             .foregroundStyle(Theme.gold)
                             .accessibilityHidden(true)
                     }
@@ -458,9 +458,9 @@ struct PatientModeMessageCard: View {
             Text(L10n.showMessageAction)
                 .fontWeight(.semibold)
             Image(systemName: "chevron.forward")
-                .font(.footnote.weight(.semibold))
+                .font(BrandTypography.footnote.weight(.semibold))
         }
-        .font(.body)
+        .font(BrandTypography.body)
         .foregroundStyle(message.isUnread ? Theme.textOnAccent : Theme.gold)
         .padding(.vertical, message.isUnread ? 13 : 0)
         .padding(.horizontal, message.isUnread ? 16 : 0)
@@ -506,7 +506,7 @@ struct PatientMessagesInboxView: View {
             } else if didFail && messages.isEmpty {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(L10n.patientMessagesLoadFailedTitle)
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .foregroundStyle(Theme.textBright)
                     Button(L10n.retry) {
                         Task { await load() }
@@ -517,7 +517,7 @@ struct PatientMessagesInboxView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             } else if messages.isEmpty {
                 Text(L10n.patientMessagesEmptyTitle)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBody)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
@@ -587,13 +587,13 @@ struct PatientMessageDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text(L10n.messageFromTherapist)
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                     .foregroundStyle(Theme.textBright)
                 Text(L10n.notificationTimestamp(message.createdAt))
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(Theme.textBody)
                 Text(message.body)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBright)
                     .multilineTextAlignment(.leading)
                     .lineSpacing(6)
@@ -640,12 +640,12 @@ struct PatientInboxRow: View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: item.icon).foregroundStyle(Theme.gold).frame(width: 24)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(item.title).font(.subheadline.weight(item.isUnread ? .semibold : .regular)).foregroundStyle(Theme.textBright)
-                    if let preview = item.preview { Text(preview).font(.subheadline).foregroundStyle(Theme.textBody).lineLimit(2) }
-                    Text(L10n.notificationTimestamp(item.createdAt)).font(.caption).foregroundStyle(Theme.textBody)
+                    Text(item.title).font(BrandTypography.subheadline.weight(item.isUnread ? .semibold : .regular)).foregroundStyle(Theme.textBright)
+                    if let preview = item.preview { Text(preview).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody).lineLimit(2) }
+                    Text(L10n.notificationTimestamp(item.createdAt)).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 if item.isUnread { Circle().fill(Theme.gold).frame(width: 7, height: 7).accessibilityLabel(L10n.messageNewBadge) }
-                Image(systemName: "chevron.forward").font(.caption).foregroundStyle(Theme.textBody)
+                Image(systemName: "chevron.forward").font(BrandTypography.caption).foregroundStyle(Theme.textBody)
             }.padding(12).contentShape(Rectangle())
         }.buttonStyle(.plain).accessibilityElement(children: .combine)
     }

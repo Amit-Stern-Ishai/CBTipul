@@ -1,150 +1,326 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-19T16:22:10.611705+00:00",
-  "title": "Design System: CBTipul — iOS Patient Detail",
+  "generatedAt": "2026-11-18T12:31:31.256996+00:00",
+  "title": "Design System: CBTipul — iOS Brand System",
   "extensions": {
     "colorMeta": {
-      "base-dark": {
-        "role": "neutral",
-        "displayName": "Theme.base (dark)"
-      },
       "base-light": {
-        "role": "neutral",
-        "displayName": "Theme.base (light)"
+        "displayName": "base-light",
+        "role": "neutral"
       },
-      "surface-dark": {
-        "role": "neutral",
-        "displayName": "Theme.surface (dark)"
+      "base-dark": {
+        "displayName": "base-dark",
+        "role": "neutral"
       },
       "surface-light": {
-        "role": "neutral",
-        "displayName": "Theme.surface (light)"
+        "displayName": "surface-light",
+        "role": "neutral"
       },
-      "elevated-dark": {
-        "role": "neutral",
-        "displayName": "Theme.elevated (dark)"
+      "surface-dark": {
+        "displayName": "surface-dark",
+        "role": "neutral"
       },
       "elevated-light": {
-        "role": "neutral",
-        "displayName": "Theme.elevated (light)"
+        "displayName": "elevated-light",
+        "role": "neutral"
       },
-      "borderFaint-dark": {
-        "role": "neutral",
-        "displayName": "Theme.borderFaint (dark)"
+      "elevated-dark": {
+        "displayName": "elevated-dark",
+        "role": "neutral"
+      },
+      "hover-light": {
+        "displayName": "hover-light",
+        "role": "neutral"
+      },
+      "hover-dark": {
+        "displayName": "hover-dark",
+        "role": "neutral"
       },
       "borderFaint-light": {
-        "role": "neutral",
-        "displayName": "Theme.borderFaint (light)"
+        "displayName": "borderFaint-light",
+        "role": "neutral"
       },
-      "textBright-dark": {
-        "role": "neutral",
-        "displayName": "Theme.textBright (dark)"
-      },
-      "textBright-light": {
-        "role": "neutral",
-        "displayName": "Theme.textBright (light)"
-      },
-      "textBody-dark": {
-        "role": "neutral",
-        "displayName": "Theme.textBody (dark)"
-      },
-      "textBody-light": {
-        "role": "neutral",
-        "displayName": "Theme.textBody (light)"
-      },
-      "textFaint-dark": {
-        "role": "neutral",
-        "displayName": "Theme.textFaint (dark)"
-      },
-      "textFaint-light": {
-        "role": "neutral",
-        "displayName": "Theme.textFaint (light)"
-      },
-      "gold-dark": {
-        "role": "primary",
-        "displayName": "Theme.gold (dark)"
-      },
-      "gold-light": {
-        "role": "primary",
-        "displayName": "Theme.gold (light)"
-      },
-      "accentFill-dark": {
-        "role": "primary",
-        "displayName": "Theme.accentFill (dark)"
-      },
-      "accentFill-light": {
-        "role": "primary",
-        "displayName": "Theme.accentFill (light)"
-      },
-      "accentFillPressed-dark": {
-        "role": "primary",
-        "displayName": "Theme.accentFillPressed (dark)"
-      },
-      "accentFillPressed-light": {
-        "role": "primary",
-        "displayName": "Theme.accentFillPressed (light)"
-      },
-      "textOnAccent-dark": {
-        "role": "neutral",
-        "displayName": "Theme.textOnAccent (dark)"
-      },
-      "textOnAccent-light": {
-        "role": "neutral",
-        "displayName": "Theme.textOnAccent (light)"
-      },
-      "warning-dark": {
-        "role": "neutral",
-        "displayName": "Theme.warning (dark)"
-      },
-      "warning-light": {
-        "role": "neutral",
-        "displayName": "Theme.warning (light)"
-      },
-      "error-dark": {
-        "role": "neutral",
-        "displayName": "Theme.error (dark)"
-      },
-      "error-light": {
-        "role": "neutral",
-        "displayName": "Theme.error (light)"
-      },
-      "borderDefault-dark": {
-        "role": "neutral",
-        "displayName": "Theme.borderDefault (dark)"
+      "borderFaint-dark": {
+        "displayName": "borderFaint-dark",
+        "role": "neutral"
       },
       "borderDefault-light": {
-        "role": "neutral",
-        "displayName": "Theme.borderDefault (light)"
+        "displayName": "borderDefault-light",
+        "role": "neutral"
       },
-      "borderStrong-dark": {
-        "role": "neutral",
-        "displayName": "Theme.borderStrong (dark)"
+      "borderDefault-dark": {
+        "displayName": "borderDefault-dark",
+        "role": "neutral"
       },
       "borderStrong-light": {
-        "role": "neutral",
-        "displayName": "Theme.borderStrong (light)"
+        "displayName": "borderStrong-light",
+        "role": "neutral"
+      },
+      "borderStrong-dark": {
+        "displayName": "borderStrong-dark",
+        "role": "neutral"
+      },
+      "textBody-light": {
+        "displayName": "textBody-light",
+        "role": "neutral"
+      },
+      "textBody-dark": {
+        "displayName": "textBody-dark",
+        "role": "neutral"
+      },
+      "gold-light": {
+        "displayName": "gold-light",
+        "role": "primary"
+      },
+      "gold-dark": {
+        "displayName": "gold-dark",
+        "role": "primary"
+      },
+      "accentFill-light": {
+        "displayName": "accentFill-light",
+        "role": "primary"
+      },
+      "accentFill-dark": {
+        "displayName": "accentFill-dark",
+        "role": "primary"
+      },
+      "accentFillPressed-light": {
+        "displayName": "accentFillPressed-light",
+        "role": "primary"
+      },
+      "accentFillPressed-dark": {
+        "displayName": "accentFillPressed-dark",
+        "role": "primary"
+      },
+      "textOnAccent-light": {
+        "displayName": "textOnAccent-light",
+        "role": "neutral"
+      },
+      "textOnAccent-dark": {
+        "displayName": "textOnAccent-dark",
+        "role": "neutral"
+      },
+      "patientHomeHeader-light": {
+        "displayName": "patientHomeHeader-light",
+        "role": "neutral"
+      },
+      "patientHomeHeader-dark": {
+        "displayName": "patientHomeHeader-dark",
+        "role": "neutral"
+      },
+      "headerInk-light": {
+        "displayName": "headerInk-light",
+        "role": "neutral"
+      },
+      "headerInk-dark": {
+        "displayName": "headerInk-dark",
+        "role": "neutral"
+      },
+      "accentLine-light": {
+        "displayName": "accentLine-light",
+        "role": "primary"
+      },
+      "accentLine-dark": {
+        "displayName": "accentLine-dark",
+        "role": "primary"
+      },
+      "sessionTint-light": {
+        "displayName": "sessionTint-light",
+        "role": "neutral"
+      },
+      "sessionTint-dark": {
+        "displayName": "sessionTint-dark",
+        "role": "neutral"
+      },
+      "sessionInk-light": {
+        "displayName": "sessionInk-light",
+        "role": "neutral"
+      },
+      "sessionInk-dark": {
+        "displayName": "sessionInk-dark",
+        "role": "neutral"
+      },
+      "questionnaireTint-light": {
+        "displayName": "questionnaireTint-light",
+        "role": "neutral"
+      },
+      "questionnaireTint-dark": {
+        "displayName": "questionnaireTint-dark",
+        "role": "neutral"
+      },
+      "questionnaireInk-light": {
+        "displayName": "questionnaireInk-light",
+        "role": "neutral"
+      },
+      "questionnaireInk-dark": {
+        "displayName": "questionnaireInk-dark",
+        "role": "neutral"
+      },
+      "diaryTint-light": {
+        "displayName": "diaryTint-light",
+        "role": "neutral"
+      },
+      "diaryTint-dark": {
+        "displayName": "diaryTint-dark",
+        "role": "neutral"
+      },
+      "diaryInk-light": {
+        "displayName": "diaryInk-light",
+        "role": "neutral"
+      },
+      "diaryInk-dark": {
+        "displayName": "diaryInk-dark",
+        "role": "neutral"
+      },
+      "success-light": {
+        "displayName": "success-light",
+        "role": "neutral"
+      },
+      "success-dark": {
+        "displayName": "success-dark",
+        "role": "neutral"
+      },
+      "warning-light": {
+        "displayName": "warning-light",
+        "role": "neutral"
+      },
+      "warning-dark": {
+        "displayName": "warning-dark",
+        "role": "neutral"
+      },
+      "error-light": {
+        "displayName": "error-light",
+        "role": "neutral"
+      },
+      "error-dark": {
+        "displayName": "error-dark",
+        "role": "neutral"
+      },
+      "historyBase-light": {
+        "displayName": "historyBase-light",
+        "role": "neutral"
+      },
+      "historyBase-dark": {
+        "displayName": "historyBase-dark",
+        "role": "neutral"
+      },
+      "historyInk-light": {
+        "displayName": "historyInk-light",
+        "role": "neutral"
+      },
+      "historyInk-dark": {
+        "displayName": "historyInk-dark",
+        "role": "neutral"
+      },
+      "historyLow-light": {
+        "displayName": "historyLow-light",
+        "role": "neutral"
+      },
+      "historyLow-dark": {
+        "displayName": "historyLow-dark",
+        "role": "neutral"
+      },
+      "historyMedium-light": {
+        "displayName": "historyMedium-light",
+        "role": "neutral"
+      },
+      "historyMedium-dark": {
+        "displayName": "historyMedium-dark",
+        "role": "neutral"
+      },
+      "historyHigh-light": {
+        "displayName": "historyHigh-light",
+        "role": "neutral"
+      },
+      "historyHigh-dark": {
+        "displayName": "historyHigh-dark",
+        "role": "neutral"
+      },
+      "textBright-light": {
+        "displayName": "textBright-light",
+        "role": "neutral"
+      },
+      "textBright-dark": {
+        "displayName": "textBright-dark",
+        "role": "neutral"
+      },
+      "textFaint-light": {
+        "displayName": "textFaint-light",
+        "role": "neutral"
+      },
+      "textFaint-dark": {
+        "displayName": "textFaint-dark",
+        "role": "neutral"
+      },
+      "turquoise": {
+        "displayName": "turquoise",
+        "role": "primary"
+      },
+      "turquoiseInk": {
+        "displayName": "turquoiseInk",
+        "role": "primary"
+      },
+      "severityMinimal": {
+        "displayName": "severityMinimal",
+        "role": "neutral"
+      },
+      "severityMild": {
+        "displayName": "severityMild",
+        "role": "neutral"
+      },
+      "severityModerate": {
+        "displayName": "severityModerate",
+        "role": "neutral"
+      },
+      "severitySevere": {
+        "displayName": "severitySevere",
+        "role": "neutral"
       }
     },
     "typographyMeta": {
-      "headline": {
-        "displayName": "Native headline",
-        "purpose": "Activity and other native headline labels. No separate journey heading inside the patient header."
+      "largeTitle": {
+        "displayName": "Rubik largeTitle",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
       },
-      "section-title": {
-        "displayName": "Native headline",
-        "purpose": "Heading within the shared record enclosure."
+      "title": {
+        "displayName": "Rubik title",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
+      },
+      "title2": {
+        "displayName": "Rubik title2",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
+      },
+      "title3": {
+        "displayName": "Rubik title3",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
+      },
+      "headline": {
+        "displayName": "Rubik headline",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
+      },
+      "subheadline": {
+        "displayName": "Rubik subheadline",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
       },
       "body": {
-        "displayName": "Native body",
-        "purpose": "Record and submission rows."
+        "displayName": "Rubik body",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
       },
-      "label": {
-        "displayName": "Native caption / subheadline",
-        "purpose": "Dates, counts, status and supporting labels."
+      "callout": {
+        "displayName": "Rubik callout",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
       },
-      "patient-title": {
-        "displayName": "ScaledMetric 24 pt bold",
-        "purpose": "Scales relative to title2; white patient name beside 48 pt gradient avatar."
+      "footnote": {
+        "displayName": "Rubik footnote",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
+      },
+      "caption": {
+        "displayName": "Rubik caption",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
+      },
+      "caption2": {
+        "displayName": "Rubik caption2",
+        "purpose": "Native relative text style; Dynamic Type scales the baseline."
       }
     },
     "shadows": [],
@@ -152,134 +328,152 @@
       {
         "name": "subtle-content",
         "value": "easeInOut 0.18s",
-        "purpose": "Existing Theme.subtleAnimation; disabled by Reduce Motion."
+        "purpose": "Disabled by Reduce Motion."
+      },
+      {
+        "name": "prominent-press",
+        "value": "easeOut 0.15s; scale 0.985; opacity 0.85",
+        "purpose": "Reduce Motion disables scale and animation."
       }
     ],
     "breakpoints": [],
-    "iosPaper20261022": {
-      "scope": "iOS light appearance",
-      "approvedConcept": "B",
-      "patientHomeComposition": "C",
-      "tokens": {
-        "base": "#FAF7F1",
-        "header": "#EDE7F2",
-        "text": "#352144",
-        "body": "#665A6F",
-        "accent": "#5C4476",
-        "pressed": "#49325F"
-      },
-      "nativeVisualVerification": "Five iPhone light-mode checks passed; patient Mode C runtime visual review pending."
+    "scope": {
+      "platform": "iOS",
+      "source": [
+        "ios/Theme.swift",
+        "ios/BrandTypography.swift"
+      ],
+      "verification": "Final review and post-correction native tests pending at documentation refresh.",
+      "legacyAndroid": {
+        "scope": "Historical Android paper appearance; no Android migration in the iOS brand refresh",
+        "approvedConcept": "B",
+        "patientHomeComposition": "C",
+        "secondaryInk": "#6C6073",
+        "verification": "Both native builds pass; 331 Android unit tests pass. Synthetic native patient-home screenshots inspected on both platforms. Live invitations/messages and all-screen walkthrough remain unverified."
+      }
     },
     "webPatientGuide": {
-      "scope": ".pw-patient-guide and application header while that workspace is present",
+      "scope": "Web patient overview plus existing scoped clinical subpages and application header/footer",
       "source": [
+        "web/src/workspace/PatientTimeline.tsx",
+        "web/src/workspace/patient-timeline.css",
         "web/src/workspace/patient-guide.css",
         ".impeccable/surfaces/web-patient-guide.md"
       ],
+      "reference": "https://claude.ai/artifact/6bjtKfJ84NuQvt3NgNSMSV#play-53094030cabe",
+      "compositionStatus": "Reference inspected; overview implements identity band, toolbar, calendar and weekly three-column list. Prior provisional overview sidebar superseded.",
       "documentation": "DESIGN.md — Web patient workspace (scoped)",
-      "fontLoading": "Local Rubik.ttf, font-display swap; declared weights 300–800.",
+      "fontLoading": "Local Rubik.ttf, font-display swap, declared weights 300–800.",
       "breakpoints": [
         {
-          "name": "web-patient-wrap-navigation",
-          "value": "1100px",
-          "purpose": "Single content column; navigation wraps horizontally in DOM order."
+          "name": "timeline-stack",
+          "value": "850px",
+          "purpose": "Wrap identity/actions, stack weekly columns, 16px inset and horizontally scrollable 700px calendar grid."
         },
         {
-          "name": "web-patient-small",
+          "name": "compact-desktop-shell",
+          "value": "1101px",
+          "purpose": "52px minimum header height and 28px logo."
+        },
+        {
+          "name": "clinical-subpage-navigation",
+          "value": "1100px",
+          "purpose": "Existing clinical subpage rail wraps horizontally."
+        },
+        {
+          "name": "clinical-subpage-small",
           "value": "600px",
-          "purpose": "Stacked heading and record preview; two equal picker columns; 16px content inset."
+          "purpose": "Existing clinical subpage compact layout."
         }
       ],
       "focus": {
         "workspace": "3px solid #008480; outline-offset: 3px",
         "header": "3px solid #00E3DB; outline-offset: 3px"
       },
-      "depth": "Flat white and pale-blue surfaces with thin borders; scoped stylesheet adds no shadow or motion tokens.",
+      "depth": "Thin borders and tonal surfaces; add popup shadow 0 8px 24px #00244e20.",
       "rules": [
-        "Entity markers identify record categories, not clinical severity.",
-        "Implemented questionnaire marker uses teal #008480 rather than source-guide green #6B9E7F.",
-        "Preserve existing clinical operations, destinations, patient directory access, public pages and shared Zoom presentation.",
-        "No clinical or backend changes are asserted by this documentation."
+        "Overview start and selected view toggle are turquoise; add is navy.",
+        "Calendar entries use full entity tints; weekly cards use tinted navy-icon strips and white bodies.",
+        "Entry/new parameters open existing editors; navigation does not automatically save.",
+        "Do not invent unavailable contacts, attachments, scheduling, trends or patient data.",
+        "Preserve permissions and existing clinical semantics."
       ],
-      "verification": "148 unit tests and 34 patient-workspace browser tests passed; typecheck, lint and combined build passed; fresh review found no material defects.",
-      "gallery": "../Codex/2026-10-14/got/outputs/web-patient-guide/index.html"
+      "verification": "Typecheck, lint, 152 unit tests, 36 patient-workspace browser tests and the combined production build pass. Desktop calendar/list and phone list captures inspected with synthetic data. Public content/verification preservation test passes; the unchanged clinical-consent hash assertion fails and is outside this design change. No live clinical services exercised. Review gallery: outputs/web-patient-reference/index.html in the Codex workspace."
     }
   },
   "components": [
     {
+      "name": "Primary action",
+      "kind": "button",
+      "description": "Illustrative HTML equivalent; production uses native SwiftUI controls and bundled Rubik.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-control ds-primary\">שמירה</button></div>",
+      "css": ".ds-preview{direction:rtl;font-family:Rubik,system-ui,sans-serif;padding:16px;background:#FFFFFF;color:#00244E}.ds-control{font:inherit;min-height:44px;cursor:pointer}.ds-control:focus-visible{outline:2px solid #008480;outline-offset:3px}.ds-control:hover{filter:brightness(.97)}.ds-control:active{opacity:.85}.ds-primary{background:#0D3B66;color:white;padding:13px 16px;border:0;border-radius:10px;font-weight:600}@media(prefers-color-scheme:dark){.ds-preview{background:#071C2E;color:#F3F5F8}.ds-primary{background:#00E3DB;color:#071C2E;border-radius:16px}}",
+      "refersTo": "button-primary-light"
+    },
+    {
       "name": "New session",
       "kind": "button",
-      "description": "Compact plain native button: 44 pt minimum, subheadline semibold, Theme accent fill/text, 12 pt corners; no shared pressable padding or scaling.",
-      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-primary\">פגישה חדשה</button></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-primary{background:#E2BB76;color:#0C1420;border:0;border-radius:12px;padding:0;min-height:44px;font-weight:600;width:100%}.ds-primary:active{background:#C49C58}@media(prefers-color-scheme:light){.ds-primary{background:#5C4476;color:#FFFFFF}.ds-primary:active{background:#49325F}}",
-      "refersTo": "button-primary-dark"
+      "description": "Illustrative HTML equivalent; production uses native SwiftUI controls and bundled Rubik.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-control ds-session\">פגישה חדשה</button></div>",
+      "css": ".ds-preview{direction:rtl;font-family:Rubik,system-ui,sans-serif;padding:16px;background:#FFFFFF;color:#00244E}.ds-control{font:inherit;min-height:44px;cursor:pointer}.ds-control:focus-visible{outline:2px solid #008480;outline-offset:3px}.ds-control:hover{filter:brightness(.97)}.ds-control:active{opacity:.85}.ds-session{background:#00E3DB;color:#00244E;padding:0 16px;border:0;border-radius:12px;font-weight:600}@media(prefers-color-scheme:dark){.ds-preview{background:#071C2E;color:#F3F5F8}.ds-session{}}",
+      "refersTo": "button-new-session"
     },
     {
-      "name": "Preparation",
-      "kind": "button",
-      "description": "Outlined native preparation button; preserves busy and disabled states.",
-      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-secondary\">הכנה לפגישה</button></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-secondary{border:0;background:transparent;color:#E2BB76;font-weight:600}@media(prefers-color-scheme:light){.ds-secondary{color:#5C4476}}.ds-secondary{border:1px solid #60738C;border-radius:14px;background:#172231;padding:0 8px}@media(prefers-color-scheme:light){.ds-secondary{background:#FFFFFF;border-color:#96849F}}"
-    },
-    {
-      "name": "Patient identity and compact goal",
-      "kind": "card",
-      "description": "Layered PatientHeaderBackdrop behind hidden toolbar background: Explicit existing dark navy #0C1420 in both appearances plus patient accent lights, translucent diagonal planes and bottom shade. Geometry tracks headerBottom and top safe area; lower corners24. Avatar48 uses existing palette/contrast. Goal dark ultraThinMaterial at .25 and border .22. Reduce Transparency omits facets. Native captures reviewed against the illustrative reference. Status capsule uses black .22; AccountActionNotices background excludes safe-area edges. Final dark/light render checks passed. Compact header spacing6/bottom8; ScaledMetric24 relative to title2. Final initial-fit test passed after root-gap6 correction.",
-      "html": "<div class=\"ds-preview\" dir=\"rtl\"><section class=\"ds-identity\"><div class=\"ds-person\"><span class=\"ds-avatar\" aria-hidden=\"true\">מ</span><div><strong class=\"ds-name\">שם המטופל</strong><p>פעיל</p></div></div><div class=\"ds-goalhead\"><span>מטרת הטיפול</span><button class=\"ds-action ds-expand\">הרחבה</button><button class=\"ds-action ds-expand\" aria-label=\"עריכת מטרת הטיפול\">עריכה</button></div><p class=\"ds-goaltext\">מטרת הטיפול תופיע כאן</p></section></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:white;padding:16px}.ds-identity{padding:12px 16px;border-radius:0 0 24px 24px;background:linear-gradient(to bottom,transparent,#0000002E),linear-gradient(60deg,transparent 25%,#FFFFFF0B 25%,#FFFFFF0B 45%,transparent 45%),radial-gradient(circle at top right,#4C9AFF6B,transparent 85%),linear-gradient(to bottom left,#4C9AFF9E,#4C9AFF1F),#0C1420}.ds-person{display:flex;align-items:start;gap:12px}.ds-avatar{display:grid;place-items:center;width:48px;height:48px;flex:none;border-radius:50%;background:linear-gradient(to bottom left,#4C9AFF,#4C9AFFAD);color:black;border:1px solid #FFFFFF3D}.ds-name{font-size:24px;font-weight:700}.ds-person p{color:white;background:#00000038;border-radius:999px;display:inline-block;padding:3px 8px}.ds-goalhead{display:flex;align-items:center;gap:8px;border:1px solid #FFFFFF38;border-radius:10px;padding:4px 10px;background:#17223140;backdrop-filter:blur(6px)}.ds-goalhead span{flex:1}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-expand{border:0;background:transparent;color:white}.ds-action:focus-visible{outline:2px solid white;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}.ds-goaltext{font-weight:500;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}@media(prefers-reduced-transparency:reduce){.ds-identity{background:linear-gradient(to bottom,transparent,#0000002E),radial-gradient(circle at top right,#4C9AFF6B,transparent 85%),linear-gradient(to bottom left,#4C9AFF9E,#4C9AFF1F),#0C1420}}"
-    },
-    {
-      "name": "Record destination",
+      "name": "session record",
       "kind": "nav",
-      "description": "Bordered record button inside shared 16 pt record enclosure with heading, four destinations, AI, notes and messages; 8 pt outer padding, 4 pt vertical gaps and 8 pt column gaps. Accessibility grid uses one column.",
-      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-record\">פגישות</button></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-record{width:100%;text-align:start;min-height:60px;padding:0 4px;background:transparent;color:inherit;border:0;border-bottom:.5px solid #2C394B;font-weight:500}@media(prefers-color-scheme:light){.ds-record{border-bottom-color:#E4DCD2}}.ds-record{min-height:44px;padding:0 10px;background:#172231;border:1px solid #3B4B60;border-radius:12px;font-weight:600}@media(prefers-color-scheme:light){.ds-record{background:#FFFFFF;border-color:#D6C9DE}}"
+      "description": "Illustrative HTML equivalent; production uses native SwiftUI controls and bundled Rubik.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-control ds-session-record\">פגישות</button></div>",
+      "css": ".ds-preview{direction:rtl;font-family:Rubik,system-ui,sans-serif;padding:16px;background:#FFFFFF;color:#00244E}.ds-control{font:inherit;min-height:44px;cursor:pointer}.ds-control:focus-visible{outline:2px solid #008480;outline-offset:3px}.ds-control:hover{filter:brightness(.97)}.ds-control:active{opacity:.85}.ds-session-record{background:#F2EFFF;color:#235DB5;border:1px solid #CBD5E1;border-radius:12px;padding:0 10px;font-weight:600}@media(prefers-color-scheme:dark){.ds-preview{background:#071C2E;color:#F3F5F8}.ds-session-record{background:#182F50;color:#88B8FF;border-color:#3C607A}}"
     },
     {
-      "name": "AI chat",
+      "name": "questionnaire record",
       "kind": "nav",
-      "description": "Full-width violet AI action with native Color.purple icon, 14% fill and 65% outline. CSS purple is illustrative, not a normative native color value.",
-      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-action ds-chat\">צ׳אט AI</button></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-chat{width:100%;text-align:start;background:#172231;color:#E2BB76;border:0;padding:12px 16px;font-weight:600}@media(prefers-color-scheme:light){.ds-chat{background:#FFFFFF;color:#5C4476}}.ds-chat{background:color-mix(in srgb,purple 14%,transparent);color:inherit;border:1px solid color-mix(in srgb,purple 65%,transparent);border-radius:12px;padding:0 10px;min-height:44px}@media(prefers-color-scheme:light){.ds-chat{background:color-mix(in srgb,purple 14%,transparent);color:inherit}}"
+      "description": "Illustrative HTML equivalent; production uses native SwiftUI controls and bundled Rubik.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-control ds-questionnaire-record\">שאלונים</button></div>",
+      "css": ".ds-preview{direction:rtl;font-family:Rubik,system-ui,sans-serif;padding:16px;background:#FFFFFF;color:#00244E}.ds-control{font:inherit;min-height:44px;cursor:pointer}.ds-control:focus-visible{outline:2px solid #008480;outline-offset:3px}.ds-control:hover{filter:brightness(.97)}.ds-control:active{opacity:.85}.ds-questionnaire-record{background:#D8FEF5;color:#356B53;border:1px solid #CBD5E1;border-radius:12px;padding:0 10px;font-weight:600}@media(prefers-color-scheme:dark){.ds-preview{background:#071C2E;color:#F3F5F8}.ds-questionnaire-record{background:#103E3B;color:#8BDAC5;border-color:#3C607A}}"
     },
     {
-      "name": "Horizontal recorded journey",
-      "kind": "custom",
-      "description": "Over the shared layered backdrop; no separate heading in header. Stage controls open timeline. Oldest RIGHT/newest LEFT; >4 stages each use one quarter container width and target latest on appearance/group-ID changes. Full timeline/accessibility fallback newest TOP. Compact-layout final fit and long-journey tests passed.",
-      "html": "<div class=\"ds-preview\" dir=\"rtl\"><section class=\"ds-journey\"><div class=\"ds-stages\"><button class=\"ds-action ds-stage\"><span class=\"ds-marker\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 3h8l4 4v14H6zM9 11h6M9 15h6\"/></svg></span><span>שלב קודם</span></button><button class=\"ds-action ds-stage\"><span class=\"ds-marker\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 3h8l4 4v14H6zM9 11h6M9 15h6\"/></svg></span><span>שלב ביניים</span></button><button class=\"ds-action ds-stage\"><span class=\"ds-marker\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 3h8l4 4v14H6zM9 11h6M9 15h6\"/></svg></span><span>שלב אחרון</span></button></div></section></div>",
-      "css": ".ds-preview{direction:rtl;font-family:system-ui;background:#0C1420;color:#F3F5F8;padding:16px}.ds-action{font:inherit;min-height:44px;cursor:pointer}.ds-action:focus-visible{outline:2px solid #E2BB76;outline-offset:3px}.ds-action:hover{filter:brightness(1.05)}.ds-action:active{opacity:.85}@media(prefers-color-scheme:light){.ds-preview{background:#FAF7F1;color:#352144}.ds-action:focus-visible{outline-color:#5C4476}}.ds-journey{padding:8px 12px 12px;background:linear-gradient(#4C9AFF1F,#4C9AFF1F),#172231}.ds-journeytitle{font-weight:600;background:transparent;color:inherit;border:0}.ds-stages{display:flex;direction:rtl}.ds-stage{display:flex;flex:1;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;color:inherit;min-width:0}.ds-marker{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#4C9AFF;color:#000}@media(prefers-color-scheme:light){.ds-journey{background:linear-gradient(#4C9AFF1F,#4C9AFF1F),#FFFFFF}}.ds-journey{background:#183357;color:white}.ds-marker{background:#183357;border:1.5px solid #4C9AFF;color:white}.ds-stage:last-child .ds-marker{background:#4C9AFF;border-width:3px;color:black}@media(prefers-color-scheme:light){.ds-journey{background:#183357;color:white}}.ds-marker{width:24px;height:24px}.ds-marker svg{width:13px;height:13px}.ds-stage{gap:2px}"
+      "name": "diary record",
+      "kind": "nav",
+      "description": "Illustrative HTML equivalent; production uses native SwiftUI controls and bundled Rubik.",
+      "html": "<div class=\"ds-preview\" dir=\"rtl\"><button class=\"ds-control ds-diary-record\">יומנים</button></div>",
+      "css": ".ds-preview{direction:rtl;font-family:Rubik,system-ui,sans-serif;padding:16px;background:#FFFFFF;color:#00244E}.ds-control{font:inherit;min-height:44px;cursor:pointer}.ds-control:focus-visible{outline:2px solid #008480;outline-offset:3px}.ds-control:hover{filter:brightness(.97)}.ds-control:active{opacity:.85}.ds-diary-record{background:#FFF5D5;color:#845921;border:1px solid #CBD5E1;border-radius:12px;padding:0 10px;font-weight:600}@media(prefers-color-scheme:dark){.ds-preview{background:#071C2E;color:#F3F5F8}.ds-diary-record{background:#3A3222;color:#E5BD7C;border-color:#3C607A}}"
+    },
+    {
+      "name": "Native input",
+      "kind": "input",
+      "description": "Illustrative field; native editors retain their own focus and keyboard behavior.",
+      "html": "<div class=\"ds-field\" dir=\"rtl\"><label>סיכום הפגישה<textarea placeholder=\"כתיבת סיכום\"></textarea></label></div>",
+      "css": ".ds-field{font-family:Rubik,system-ui,sans-serif;color:#00244E;padding:16px;background:white}.ds-field textarea{display:block;font:inherit;color:inherit;background:#E8F0F8;border:1px solid #CBD5E1;border-radius:10px;padding:12px}.ds-field textarea:focus-visible{outline:2px solid #008480;outline-offset:2px}@media(prefers-color-scheme:dark){.ds-field{background:#071C2E;color:#F3F5F8}.ds-field textarea{background:#123751;border-color:#3C607A}}"
     }
   ],
   "narrative": {
-    "northStar": "Activity digest",
-    "overview": "This document captures the rebuilt native iOS PatientDetailView only. Final compact-layout verification passed: 2 journey unit tests and 5 iPhone UI tests using synthetic data. At default text size, AI, notes and messages are initially hittable and the notes control clears the tab bar; large text remains scrollable. This document describes current source behavior and makes no claim of pixel-perfect mockup fidelity. Its calm, compact treatment workspace uses the existing CBTipul navy/gold identity and adaptive Theme.swift values. It establishes no new app-wide visual identity and does not apply the screen composition to Android, the web workspace, or other iOS screens.\n\nExisting brand tokens remain authoritative in ios/Theme.swift. The approved screen composition and interaction contract live in .impeccable/surfaces/ios-patient-detail.md, with the A-horizontal and C-patient-color approval recorded in .impeccable/mocks/patient-horizontal/approval.json; PRODUCT.md supplies the Hebrew, accessibility, and clinical privacy constraints. The UI presents recorded activity without implying clinical improvement.",
+    "northStar": "Operate — native RTL",
+    "overview": "The approved iOS replacement uses the supplied CBTipul color guide, Rubik typography and a native Hebrew RTL workspace. White and pale-blue surfaces in light appearance become layered navy surfaces in dark appearance, with the same clear action hierarchy and record-type meaning. The existing logo is retained; no new raster imagery is introduced.\n\nThis is the app-wide iOS visual system. It supersedes the earlier iOS paper/plum palette, system-type direction and patient-colored header planes. Source authority is ios/Theme.swift and ios/BrandTypography.swift. Existing surface briefs retain interaction contracts; conflicting historical palette and typography descriptions defer here. Android and web have not been migrated by this work.",
     "keyCharacteristics": [
-      "Native Hebrew RTL navigation and system typography.",
-      "Existing adaptive navy/gold and cool light surfaces.",
-      "Compact recorded activity with explicit, accessible actions.",
-      "Patient-color identity header and horizontal recorded journey."
+      "Rubik with native Dynamic Type and Hebrew RTL.",
+      "White and pale-blue light surfaces; coordinated navy dark surfaces.",
+      "Turquoise new-session action and distinct record-type tiles.",
+      "Native controls, preserved destinations and clinical meaning."
     ],
-    "rules": [],
+    "rules": [
+      {
+        "name": "The Meaning Rule",
+        "body": "Entity tints identify record types. Severity fills use navy ink and explicit labels; success, warning and error retain their clinical/status meaning. Clinical improvement follows the instrument's meaning, not the direction of a number alone.",
+        "section": "colors"
+      }
+    ],
     "dos": [
-      "Do preserve adaptive Theme body surfaces, layered patient-hue backdrop and the scoped native purple AI treatment.",
-      "Do preserve Hebrew RTL order, readable wrapping, Dynamic Type and labeled native actions.",
-      "Do preserve all existing destinations and safety behavior.",
-      "Do derive activity counts and journey groups from recorded data.",
-      "Do place the newest stage at the left horizontally and at the top vertically.",
-      "Do derive header and journey colors from the existing patient palette, using white header text and adaptive body text."
+      "Do resolve colors through Theme and text through BrandTypography.",
+      "Do preserve Hebrew RTL, Dynamic Type, labeled actions and existing safety behavior.",
+      "Do pair record-type and clinical colors with text or symbols.",
+      "Do keep the newest journey stage at the left horizontally and at the top vertically."
     ],
     "donts": [
-      "Don't apply this screen's composition as an app-wide redesign.",
-      "Don't invent clinical summaries, progress stages, scores or trends.",
-      "Don't use color alone to express connection, failure or clinical meaning.",
-      "Don't replace native iOS interactions with web-style controls."
+      "Don't reintroduce paper/plum iOS tokens or patient-colored header planes.",
+      "Don't treat entity tints as clinical severity or infer improvement from raw score direction.",
+      "Don't claim this iOS replacement migrated Android or web.",
+      "Don't replace the retained logo or native controls with new raster assets or web controls."
     ]
-  },
-  "nativePaper20261022": {
-    "scope": "iOS and Android light appearance",
-    "approvedConcept": "B",
-    "patientHomeComposition": "C",
-    "secondaryInk": "#6C6073",
-    "verification": "Both native builds pass; 331 Android unit tests pass. Synthetic native patient-home screenshots inspected on both platforms. Live invitations/messages and all-screen walkthrough remain unverified."
   }
 }

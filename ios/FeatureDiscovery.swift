@@ -134,15 +134,15 @@ private struct DiscoveryPromptContent: View {
                 Image(systemName: symbol).font(.system(size: 34, weight: .medium))
                     .foregroundStyle(Theme.textOnAccent).frame(width: web ? 56 : 72, height: web ? 56 : 72)
                     .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: 20)).accessibilityHidden(true)
-                Text(title).font(.title2.bold()).foregroundStyle(Theme.textBright).accessibilityAddTraits(.isHeader)
-                Text(bodyText).font(.body).foregroundStyle(Theme.textBody).fixedSize(horizontal: false, vertical: true)
+                Text(title).font(BrandTypography.title2.bold()).foregroundStyle(Theme.textBright).accessibilityAddTraits(.isHeader)
+                Text(bodyText).font(BrandTypography.body).foregroundStyle(Theme.textBody).fixedSize(horizontal: false, vertical: true)
                 if web {
-                    Text("cbtipul.com/app").font(.title3.weight(.semibold)).foregroundStyle(Theme.gold)
+                    Text("cbtipul.com/app").font(BrandTypography.title3.weight(.semibold)).foregroundStyle(Theme.gold)
                         .textSelection(.enabled).environment(\.layoutDirection, .leftToRight)
                         .frame(maxWidth: .infinity).padding(16)
                         .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 12))
-                    Text(DiscoveryCopy.webDetail).font(.body).foregroundStyle(Theme.textBody)
-                    if copied { Text("הכתובת הועתקה").font(.subheadline).foregroundStyle(Theme.success).accessibilityAddTraits(.updatesFrequently) }
+                    Text(DiscoveryCopy.webDetail).font(BrandTypography.body).foregroundStyle(Theme.textBody)
+                    if copied { Text("הכתובת הועתקה").font(BrandTypography.subheadline).foregroundStyle(Theme.success).accessibilityAddTraits(.updatesFrequently) }
                 }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(web ? 20 : 24).padding(.top, 12)
         }

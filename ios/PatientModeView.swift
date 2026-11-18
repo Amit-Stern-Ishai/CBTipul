@@ -114,7 +114,7 @@ struct PatientModeView: View {
                             }
                         }.padding(20)
                     }
-                    .background(Theme.base).navigationTitle(L10n.patientInboxTitle)
+                    .background(Theme.base).brandNavigationTitle(L10n.patientInboxTitle)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.closeAction) { isShowingMessages = false } } }
                     .refreshable { await refreshPatientHome() }
@@ -304,7 +304,7 @@ struct PatientModeView: View {
     private var errorState: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(L10n.patientTasksLoadError)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
             Button {
@@ -323,9 +323,9 @@ struct PatientModeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("טוב שחזרת.").font(.largeTitle.bold()).foregroundStyle(Theme.textBright)
+                    Text("טוב שחזרת.").font(BrandTypography.largeTitle.bold()).foregroundStyle(Theme.textBright)
                         .accessibilityAddTraits(.isHeader)
-                    Text("המרחב שלך בין המפגשים.").font(.body).foregroundStyle(Theme.textBody)
+                    Text("המרחב שלך בין המפגשים.").font(BrandTypography.body).foregroundStyle(Theme.textBody)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(22)
@@ -341,16 +341,16 @@ struct PatientModeView: View {
                     Divider().overlay(Theme.borderFaint)
                         .padding(.bottom, 4)
                     Text(L10n.patientToolsAndHistoryTitle)
-                        .font(.headline).foregroundStyle(Theme.textBright)
+                        .font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                         .accessibilityAddTraits(.isHeader)
                     Text(L10n.patientAvailableHelp)
-                        .font(.footnote).foregroundStyle(Theme.textBody)
+                        .font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 12)
                 .padding(.bottom, 2)
                 if !EntitlementState.shared.canPatientWrite {
-                    Text(L10n.entitlementPatientUnavailable).font(.footnote).foregroundStyle(Theme.textBody)
+                    Text(L10n.entitlementPatientUnavailable).font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
                 }
                 ForEach([PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo, .diaryThree], id: \.self) { type in
                     let active = openAssignments.contains { $0.type == type } && (type != .diaryThree || PatientAssignmentType.diaryThreeSendingEnabled)
@@ -362,12 +362,12 @@ struct PatientModeView: View {
                     emptyState
                 }
                 if case .failed = loadState {
-                    Text(L10n.patientTasksLoadError).font(.footnote).foregroundStyle(Theme.error)
+                    Text(L10n.patientTasksLoadError).font(BrandTypography.footnote).foregroundStyle(Theme.error)
                 }
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
         }
-        .navigationTitle(L10n.appTitle)
+        .brandNavigationTitle(L10n.appTitle)
         .onAppear { refreshDrafts() }
         .refreshable { await manualRefresh() }
     }
@@ -408,19 +408,19 @@ struct PatientModeView: View {
         if let type = assignment.type, resumableTypes.contains(type) {
             VStack(alignment: .leading, spacing: 14) {
                 Text(type == .questionnaire ? "ממשיכים מאיפה שעצרת." : "חוזרים למחשבה שהתחלנו.")
-                    .font(.largeTitle.weight(.bold))
+                    .font(BrandTypography.largeTitle.weight(.bold))
                     .foregroundStyle(Theme.textBright)
                     .accessibilityAddTraits(.isHeader)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(toolTitle(type))
-                        .font(.headline).foregroundStyle(Theme.textBright)
+                        .font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                     if type != .questionnaire {
                         Text(toolPurposeTitle(type))
-                            .font(.subheadline).foregroundStyle(Theme.textBody)
+                            .font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                     }
                 }
                 Label(L10n.patientLocalOnly, systemImage: "iphone")
-                    .font(.footnote).foregroundStyle(Theme.textBody)
+                    .font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
                 Button(L10n.patientResumeAction) {
                     resume(assignment)
                 }
@@ -450,33 +450,36 @@ struct PatientModeView: View {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: type == .questionnaire ? "list.clipboard" : "book.closed")
-                        .font(.title3).foregroundStyle(active ? Theme.gold : Theme.textBody).frame(width: 26)
+                        .font(BrandTypography.title3)
+                        .foregroundStyle(type == .questionnaire ? Theme.questionnaireInk : Theme.diaryInk)
+                        .frame(width: 44, height: 44)
+                        .background(type == .questionnaire ? Theme.questionnaireTint : Theme.diaryTint, in: RoundedRectangle(cornerRadius: 12))
                     VStack(alignment: .leading, spacing: 4) {
                         Text(toolTitle(type))
-                            .font(.headline).foregroundStyle(Theme.textBright)
+                            .font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                         if type != .questionnaire {
                             Text(toolPurposeTitle(type))
-                                .font(.subheadline).foregroundStyle(Theme.textBody)
+                                .font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                         }
                         if type == .questionnaire || type == .diaryThree {
                             Text(type == .questionnaire ? L10n.toolQuestionnairePurpose : L10n.patientDiaryThreeDescription)
-                                .font(.subheadline).foregroundStyle(Theme.textBody)
+                                .font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         PatientToolStatusView(active: active)
                         if let last = lastSubmission(type) {
                             Text(L10n.toolLastSent(L10n.hebrewDate(last)))
-                                .font(.caption).foregroundStyle(Theme.textBody)
+                                .font(BrandTypography.caption).foregroundStyle(Theme.textBody)
                         }
                     }
                     Spacer(minLength: 4)
-                    Image(systemName: "chevron.forward").font(.footnote).foregroundStyle(Theme.textBody)
+                    Image(systemName: "chevron.forward").font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
                 }.frame(minHeight: 48).contentShape(Rectangle())
             }.buttonStyle(.plain)
             if active, resumableTypes.contains(type), nextAssignment?.type != type,
                let assignment = openAssignments.first(where: { $0.type == type }) {
                 Button(L10n.patientResumeAction) { resume(assignment) }
-                    .font(.subheadline.weight(.semibold))
+                    .font(BrandTypography.subheadline.weight(.semibold))
                     .frame(minHeight: 44)
                     .buttonStyle(.bordered)
                     .entitlementCreateControl()
@@ -489,9 +492,9 @@ struct PatientModeView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(L10n.patientInboxTitle).font(.headline).foregroundStyle(Theme.textBright)
+                    Text(L10n.patientInboxTitle).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                     let unread = inboxItems.filter(\.isUnread).count
-                    if unread > 0 { Text(L10n.patientInboxUnread(unread)).font(.caption).foregroundStyle(Theme.gold) }
+                    if unread > 0 { Text(L10n.patientInboxUnread(unread)).font(BrandTypography.caption).foregroundStyle(Theme.gold) }
                 }
                 Spacer()
                 Button(L10n.patientInboxAll) { isShowingMessages = true }.frame(minHeight: 44)
@@ -502,7 +505,7 @@ struct PatientModeView: View {
             }
             if refreshingHome && inboxItems.isEmpty { ProgressView().padding(8) }
             if inboxFailed || inbox.didFailLastLoad {
-                Text(L10n.patientInboxRefreshFailed).font(.footnote).foregroundStyle(Theme.error).padding(12)
+                Text(L10n.patientInboxRefreshFailed).font(BrandTypography.footnote).foregroundStyle(Theme.error).padding(12)
             }
         }.themedCard()
     }
@@ -514,9 +517,9 @@ struct PatientModeView: View {
             HStack(spacing: 6) {
                 Text(L10n.allMessagesAction)
                 Image(systemName: "chevron.forward")
-                    .font(.footnote.weight(.semibold))
+                    .font(BrandTypography.footnote.weight(.semibold))
             }
-            .font(.subheadline.weight(.semibold))
+            .font(BrandTypography.subheadline.weight(.semibold))
             .foregroundStyle(Theme.gold)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 4)
@@ -529,10 +532,10 @@ struct PatientModeView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.patientTasksEmptyTitle)
-                .font(.headline)
+                .font(BrandTypography.headline)
                 .foregroundStyle(Theme.textBright)
             Text(L10n.patientTasksEmptyBody)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -560,14 +563,14 @@ struct PatientModeView: View {
     private func availabilityLabel(_ active: Bool) -> some View {
         Label(active ? L10n.patientToolEnabled : L10n.patientToolDisabled,
               systemImage: active ? "checkmark.circle.fill" : "lock.fill")
-            .font(.subheadline.weight(.semibold))
+            .font(BrandTypography.subheadline.weight(.semibold))
             .foregroundStyle(active ? Theme.textBright : Theme.textBody)
     }
 
     private func inactiveDiaryCard(title: String, subtitle: String, openHistory: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.headline).foregroundStyle(Theme.textBright)
-            Text(subtitle).font(.caption).foregroundStyle(Theme.textBody)
+            Text(title).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
+            Text(subtitle).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
             availabilityLabel(false)
             Text(L10n.patientToolActivationHelp).foregroundStyle(Theme.textBody)
             Button(L10n.diaryOneMyEntriesTitle, action: openHistory).buttonStyle(.bordered)
@@ -578,15 +581,15 @@ struct PatientModeView: View {
         let active = openAssignments.contains { $0.type == .questionnaire }
         return VStack(alignment: .leading, spacing: 12) {
             Text(L10n.patientQuestionnaireCardTitle)
-                .font(.headline)
+                .font(BrandTypography.headline)
                 .foregroundStyle(Theme.textBright)
             availabilityLabel(active)
             Text(active ? L10n.patientQuestionnaireCardBody : L10n.patientQuestionnaireInactiveHint)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
             if let date = lastQuestionnaireDate {
-                Text(L10n.patientLastQuestionnaire(date)).font(.caption).foregroundStyle(Theme.textBody)
+                Text(L10n.patientLastQuestionnaire(date)).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
             }
             if active {
                 Button { isShowingQuestionnaireHub = true } label: {
@@ -606,16 +609,16 @@ struct PatientModeView: View {
     private var diaryOneCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.diaryOneTitle)
-                .font(.headline)
+                .font(BrandTypography.headline)
                 .foregroundStyle(Theme.textBright)
-            Text(L10n.patientDiaryOnePurpose).font(.caption).foregroundStyle(Theme.textBody)
+            Text(L10n.patientDiaryOnePurpose).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
             availabilityLabel(true)
             Text(L10n.patientDiaryOneCardBody)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
             Text(L10n.patientDiaryOneOngoingHint)
-                .font(.footnote)
+                .font(BrandTypography.footnote)
                 .foregroundStyle(Theme.textBody)
             Button { showingDiaryOneHistory = true } label: {
                 Text(L10n.patientDiaryOneStartAction)
@@ -631,11 +634,11 @@ struct PatientModeView: View {
 
     private var diaryTwoCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.diaryTwoTitle).font(.headline).foregroundStyle(Theme.textBright)
-            Text(L10n.patientDiaryTwoPurpose).font(.caption).foregroundStyle(Theme.textBody)
+            Text(L10n.diaryTwoTitle).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
+            Text(L10n.patientDiaryTwoPurpose).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
             availabilityLabel(true)
             Text(L10n.patientDiaryTwoCardBody).foregroundStyle(Theme.textBody)
-            Text(L10n.patientDiaryOneOngoingHint).font(.footnote).foregroundStyle(Theme.textBody)
+            Text(L10n.patientDiaryOneOngoingHint).font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
             Button { isShowingDiaryTwoHub = true } label: {
                 Text(L10n.patientDiaryOneStartAction).fontWeight(.semibold)
                     .frame(maxWidth: .infinity, minHeight: 24)
@@ -646,11 +649,11 @@ struct PatientModeView: View {
     private var diaryThreeCard: some View {
         let active = PatientAssignmentType.diaryThreeSendingEnabled && openAssignments.contains { $0.type == .diaryThree }
         return VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.diaryThreeTitle).font(.headline).foregroundStyle(Theme.textBright)
+            Text(L10n.diaryThreeTitle).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
             availabilityLabel(active)
             Text(PatientAssignmentType.diaryThreeSendingEnabled ? L10n.patientDiaryThreeCardBody : L10n.diaryThreeSendingPaused).foregroundStyle(Theme.textBody)
             if active {
-                Text(L10n.patientDiaryOneOngoingHint).font(.footnote).foregroundStyle(Theme.textBody)
+                Text(L10n.patientDiaryOneOngoingHint).font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
             }
             Button { isShowingDiaryThreeHub = true } label: {
                 Text(active ? L10n.patientDiaryOneStartAction : L10n.diaryOneMyEntriesTitle).fontWeight(.semibold)
@@ -662,10 +665,10 @@ struct PatientModeView: View {
     private var upcomingTaskCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.patientUpcomingTaskTitle)
-                .font(.headline)
+                .font(BrandTypography.headline)
                 .foregroundStyle(Theme.textBright)
             Text(L10n.patientUpcomingTaskBody)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -963,27 +966,27 @@ struct PatientQuestionnaireView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.questionnaireCompletion(completion.answered, total: completion.total))
-                        .font(.subheadline.weight(.semibold))
+                        .font(BrandTypography.subheadline.weight(.semibold))
                         .accessibilityIdentifier("questionnaire.progress")
                     ProgressView(value: Double(completion.answered), total: Double(completion.total))
                         .accessibilityLabel(L10n.questionnaireCompletion(completion.answered, total: completion.total))
                     if completion.firstUnanswered != nil {
                         Button(L10n.nextUnansweredAction) { revealUnanswered(using: proxy) }
-                            .font(.subheadline)
+                            .font(BrandTypography.subheadline)
                             .accessibilityIdentifier("questionnaire.nextUnanswered")
                     } else if !didSubmit {
-                        Text(L10n.questionnaireReadyToSend).font(.footnote)
+                        Text(L10n.questionnaireReadyToSend).font(BrandTypography.footnote)
                     }
                     DeviceDraftFeedback(message: deviceDraft.feedback, isError: deviceDraft.hasError)
                     if let errorMessage {
-                        Text(errorMessage).font(.footnote).foregroundStyle(Theme.error)
+                        Text(errorMessage).font(BrandTypography.footnote).foregroundStyle(Theme.error)
                     }
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.base)
             }
-            .navigationTitle(L10n.patientQuestionnaireCardTitle)
+            .brandNavigationTitle(L10n.patientQuestionnaireCardTitle)
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .interactiveDismissDisabled(!questionnaire.isEmpty || isSubmitting)

@@ -58,17 +58,17 @@ struct PatientToolAccessControl: View {
         VStack(alignment: .leading, spacing: 10) {
             if !compact {
                 Label(title, systemImage: type == .questionnaire ? "list.clipboard" : "book.closed")
-                    .font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(.secondary)
+                    .font(BrandTypography.headline)
+                Text(detail).font(BrandTypography.subheadline).foregroundStyle(.secondary)
             }
             if loaded && (!compact || assignmentID != nil) {
                 Label(assignmentID == nil ? L10n.accessInactive : L10n.accessActive,
                       systemImage: assignmentID == nil ? "minus.circle" : "checkmark.circle.fill")
-                    .font(.subheadline.weight(.medium))
+                    .font(BrandTypography.subheadline.weight(.medium))
                     .foregroundStyle(assignmentID == nil ? Color.secondary : Theme.success)
             }
             if !available {
-                Text(L10n.questionnaireDemoSendingUnavailable).font(.footnote)
+                Text(L10n.questionnaireDemoSendingUnavailable).font(BrandTypography.footnote)
             } else if !loaded {
                 if error == nil { ProgressView() }
             } else if assignmentID != nil {
@@ -83,11 +83,11 @@ struct PatientToolAccessControl: View {
                 .entitlementCreateControl()
                 .accessibilityIdentifier("activity.enable.\(type.rawValue)")
             } else {
-                Text(compact ? "המטופל/ת עדיין לא מחובר/ת" : L10n.patientSendingRequiresConnection).font(.footnote).foregroundStyle(.secondary)
+                Text(compact ? "המטופל/ת עדיין לא מחובר/ת" : L10n.patientSendingRequiresConnection).font(BrandTypography.footnote).foregroundStyle(.secondary)
             }
             if busy { ProgressView() }
             if let error {
-                Text(error).font(.footnote).foregroundStyle(Theme.error)
+                Text(error).font(BrandTypography.footnote).foregroundStyle(Theme.error)
                 Button(L10n.questionnaireAssignmentRetryAction) { Task { await refresh() } }.disabled(busy || parentBusy)
             }
         }
@@ -111,40 +111,40 @@ struct PatientToolAccessControl: View {
                 : AnyLayout(HStackLayout(spacing: 12))
             layout {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(rowTitle).font(.body.weight(.medium)).foregroundStyle(Theme.textBright)
+                    Text(rowTitle).font(BrandTypography.body.weight(.medium)).foregroundStyle(Theme.textBright)
                     if loaded {
                         Label(assignmentID == nil ? L10n.activityInactive(type) : L10n.activityActive(type),
                               systemImage: assignmentID == nil ? "minus.circle" : "checkmark.circle.fill")
-                            .font(.caption).foregroundStyle(assignmentID == nil ? Theme.textBody : Theme.success)
+                            .font(BrandTypography.caption).foregroundStyle(assignmentID == nil ? Theme.textBody : Theme.success)
                     }
                 }
                 if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
                 activityAction
             }
-            if let error { Text(error).font(.footnote).foregroundStyle(Theme.error).fixedSize(horizontal: false, vertical: true) }
+            if let error { Text(error).font(BrandTypography.footnote).foregroundStyle(Theme.error).fixedSize(horizontal: false, vertical: true) }
         }.frame(minHeight: 48).accessibilityElement(children: .contain)
     }
     @ViewBuilder private var activityAction: some View {
         if !available {
-            Text(L10n.questionnaireDemoSendingUnavailable).font(.footnote).foregroundStyle(Theme.textBody)
+            Text(L10n.questionnaireDemoSendingUnavailable).font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
         } else if busy || (!loaded && error == nil) {
             ProgressView().controlSize(.small).frame(minWidth: 44, minHeight: 44).accessibilityLabel(L10n.activityLoading)
         } else if error != nil {
             Button(L10n.retry) { Task { await refresh() } }.frame(minHeight: 44).disabled(parentBusy)
         } else if assignmentID != nil {
             Button(L10n.accessStop) { confirmingStop = true }
-                .font(.subheadline.weight(.medium)).frame(minHeight: 44)
+                .font(BrandTypography.subheadline.weight(.medium)).frame(minHeight: 44)
                 .foregroundStyle(Theme.error).disabled(parentBusy).entitlementCreateControl()
                 .accessibilityLabel(L10n.accessStop + " — " + rowTitle)
                 .accessibilityIdentifier("activity.stop.\(type.rawValue)")
         } else if connected {
             Button(L10n.activityEnable) { Task { await changeAccess() } }
-                .font(.subheadline.weight(.semibold)).buttonStyle(.bordered).tint(Theme.gold)
+                .font(BrandTypography.subheadline.weight(.semibold)).buttonStyle(.bordered).tint(Theme.gold)
                 .frame(minHeight: 44).disabled(parentBusy).entitlementCreateControl()
                 .accessibilityLabel(L10n.activityEnable + " — " + rowTitle)
                 .accessibilityIdentifier("activity.enable.\(type.rawValue)")
         } else {
-            Text(L10n.patientSendingRequiresConnection).font(.footnote).foregroundStyle(Theme.textBody)
+            Text(L10n.patientSendingRequiresConnection).font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
         }
     }
 

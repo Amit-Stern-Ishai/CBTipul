@@ -74,7 +74,7 @@ struct AddPatientView: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .font(.footnote)
+                            .font(BrandTypography.footnote)
                             .foregroundStyle(Theme.error)
                     }
                     .listRowBackground(Theme.surface)
@@ -87,7 +87,7 @@ struct AddPatientView: View {
             .themedScreen()
             .dismissesKeyboardOnTap()
             .animation(.easeInOut(duration: 0.2), value: errorMessage)
-            .navigationTitle(L10n.newPatientTitle)
+            .brandNavigationTitle(L10n.newPatientTitle)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.cancel) { dismiss() }

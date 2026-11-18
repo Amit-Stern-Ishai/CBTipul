@@ -89,6 +89,7 @@ private struct AppTextSizeModifier: ViewModifier {
             .environment(\.layoutDirection, .rightToLeft)
             .environment(\.colorScheme, resolvedScheme)
             .preferredColorScheme(resolvedScheme)
+            .font(BrandTypography.body)
             .toolbarBackground(Theme.isPaper ? Theme.patientHomeHeader : Theme.base, for: .navigationBar, .tabBar)
             .toolbarColorScheme(resolvedScheme, for: .navigationBar, .tabBar)
             .foregroundStyle(Theme.textBright, Theme.textBody, Theme.textFaint)
@@ -242,7 +243,7 @@ struct SettingsView: View {
 //                            Text(L10n.settingsResponseStyleTitle)
 //                        } icon: {
 //                            Image(systemName: "text.cursor")
-//                                .font(.footnote.weight(.semibold))
+//                                .font(BrandTypography.footnote.weight(.semibold))
 //                                .foregroundStyle(.white)
 //                                .frame(width: 28, height: 28)
 //                                .background(Color.purple.gradient, in: RoundedRectangle(cornerRadius: 7))
@@ -269,7 +270,7 @@ struct SettingsView: View {
                                     Text(store.isDemoMode ? L10n.sampleDataActiveTitle : L10n.gettingStartedGuideSettingsTitle)
                                     if store.isDemoMode {
                                         Text(L10n.exitDemoModeAction)
-                                            .font(.subheadline)
+                                            .font(BrandTypography.subheadline)
                                     }
                                 }
                             } icon: {
@@ -278,7 +279,7 @@ struct SettingsView: View {
                             .foregroundStyle(Theme.gold)
                             Spacer(minLength: 8)
                             Image(systemName: "chevron.forward")
-                                .font(.footnote.weight(.semibold))
+                                .font(BrandTypography.footnote.weight(.semibold))
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
@@ -317,7 +318,7 @@ struct SettingsView: View {
                                 Text(L10n.settingsTextSizeTitle)
                             } icon: {
                                 Image(systemName: "textformat.size")
-                                    .font(.footnote.weight(.semibold))
+                                    .font(BrandTypography.footnote.weight(.semibold))
                                     .foregroundStyle(Theme.gold)
                                     .frame(width: 28, height: 28)
                                     .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
@@ -338,7 +339,7 @@ struct SettingsView: View {
                             Text(L10n.termsTitle)
                         } icon: {
                             Image(systemName: "doc.plaintext")
-                                .font(.footnote.weight(.semibold))
+                                .font(BrandTypography.footnote.weight(.semibold))
                                 .foregroundStyle(Theme.gold)
                                 .frame(width: 28, height: 28)
                                 .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
@@ -365,7 +366,7 @@ struct SettingsView: View {
                                 Text(L10n.settingsAIConsentTitle)
                             } icon: {
                                 Image(systemName: "sparkles")
-                                    .font(.footnote.weight(.semibold))
+                                    .font(BrandTypography.footnote.weight(.semibold))
                                     .foregroundStyle(Theme.gold)
                                     .frame(width: 28, height: 28)
                                     .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
@@ -385,7 +386,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         } icon: {
                             Image(systemName: "person.crop.circle")
-                                .font(.footnote.weight(.semibold))
+                                .font(BrandTypography.footnote.weight(.semibold))
                                 .foregroundStyle(Theme.gold)
                                 .frame(width: 28, height: 28)
                                 .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
@@ -403,7 +404,7 @@ struct SettingsView: View {
                                 Text(L10n.settingsTherapistDisplayNameTitle)
                             } icon: {
                                 Image(systemName: "person.text.rectangle")
-                                    .font(.footnote.weight(.semibold))
+                                    .font(BrandTypography.footnote.weight(.semibold))
                                     .foregroundStyle(Theme.gold)
                                     .frame(width: 28, height: 28)
                                     .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
@@ -442,7 +443,7 @@ struct SettingsView: View {
 
                 Section {
                     Text(appVersionLine)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                 }
@@ -545,14 +546,14 @@ struct SettingsView: View {
                         .foregroundStyle(.primary)
                 } icon: {
                     Image(systemName: icon)
-                        .font(.footnote.weight(.semibold))
+                        .font(BrandTypography.footnote.weight(.semibold))
                         .foregroundStyle(Theme.gold)
                         .frame(width: 28, height: 28)
                         .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 7))
                 }
                 Spacer()
                 Image(systemName: "arrow.up.right")
-                    .font(.footnote.weight(.semibold))
+                    .font(BrandTypography.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
         }
@@ -728,7 +729,7 @@ struct AppearancePickerView: View {
                         VStack(spacing: 16) {
                             appearancePreview(option)
                             HStack(spacing: 8) {
-                                Text(option.label).font(.headline)
+                                Text(option.label).font(BrandTypography.headline)
                                 Image(systemName: appearance == option ? "checkmark.circle.fill" : "circle")
                                     .foregroundStyle(appearance == option ? Theme.gold : Theme.textFaint)
                             }
@@ -756,14 +757,14 @@ struct AppearancePickerView: View {
 
     private func appearancePreview(_ option: AppAppearance) -> some View {
         let dark = option == .dark
-        let base = Color(uiColor: UIColor(hex: dark ? 0x0C1420 : 0xFAF7F1))
-        let surface = Color(uiColor: UIColor(hex: dark ? 0x172231 : 0xFFFFFF))
-        let ink = Color(uiColor: UIColor(hex: dark ? 0xB4C0D0 : 0x665A6F))
+        let base = Color(uiColor: UIColor(hex: dark ? 0x071C2E : 0xF4FBFF))
+        let surface = Color(uiColor: UIColor(hex: dark ? 0x0C2A44 : 0xFFFFFF))
+        let ink = Color(uiColor: UIColor(hex: dark ? 0xB4C0D0 : 0x5B6B82))
         return VStack(alignment: .leading, spacing: 12) {
             Capsule().fill(ink).frame(width: 52, height: 6)
             ForEach(0..<2) { _ in
                 HStack(spacing: 8) {
-                    Circle().fill(Color(uiColor: UIColor(hex: dark ? 0xE2BB76 : 0x5C4476))).frame(width: 20, height: 20)
+                    Circle().fill(Color(uiColor: UIColor(hex: dark ? 0x00E3DB : 0x0D3B66))).frame(width: 20, height: 20)
                     VStack(alignment: .leading, spacing: 5) {
                         Capsule().fill(ink.opacity(0.7)).frame(height: 4)
                         Capsule().fill(ink.opacity(0.25)).frame(width: 32, height: 4)
@@ -773,7 +774,7 @@ struct AppearancePickerView: View {
                 .background(surface, in: RoundedRectangle(cornerRadius: 10))
             }
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(uiColor: UIColor(hex: dark ? 0xE2BB76 : 0x5C4476))).frame(height: 24)
+                .fill(Color(uiColor: UIColor(hex: dark ? 0x00E3DB : 0x0D3B66))).frame(height: 24)
         }
         .padding(12)
         .frame(maxWidth: .infinity)
@@ -797,7 +798,7 @@ struct SampleDataPreviewView: View {
                             .padding(16)
                             .background(Theme.goldGhost, in: RoundedRectangle(cornerRadius: 18))
                         Text(L10n.gettingStartedGuideSettingsTitle)
-                            .font(.title.bold())
+                            .font(BrandTypography.title.bold())
                         Text(L10n.gettingStartedGuideSettingsSubtitle)
                             .foregroundStyle(.secondary)
                     }
@@ -838,14 +839,14 @@ struct SampleDataPreviewView: View {
     private func explanation(_ icon: String, title: String, body: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: icon)
-                .font(.title3)
+                .font(BrandTypography.title3)
                 .foregroundStyle(Theme.gold)
                 .frame(width: 26)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(.headline)
+                Text(title).font(BrandTypography.headline)
                 Text(body)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)

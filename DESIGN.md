@@ -1,205 +1,223 @@
 ---
-name: CBTipul — iOS Patient Detail
-description: Screen-scoped activity digest using the existing adaptive native theme
+name: CBTipul — iOS Brand System
+description: Native Hebrew RTL workspace in the approved navy, turquoise and Rubik identity
 colors:
-  base-dark: "#0C1420"
-  base-light: "#FAF7F1"
-  surface-dark: "#172231"
+  base-light: "#FFFFFF"
+  base-dark: "#071C2E"
   surface-light: "#FFFFFF"
-  elevated-dark: "#202E40"
-  elevated-light: "#EDE7F2"
-  borderFaint-dark: "#2C394B"
-  borderFaint-light: "#E4DCD2"
-  borderDefault-dark: "#3B4B60"
-  borderDefault-light: "#D6C9DE"
-  borderStrong-dark: "#60738C"
-  borderStrong-light: "#96849F"
-  textBright-dark: "#F3F5F8"
-  textBright-light: "#352144"
+  surface-dark: "#0C2A44"
+  elevated-light: "#E8F0F8"
+  elevated-dark: "#123751"
+  hover-light: "#D6EAF8"
+  hover-dark: "#19445F"
+  borderFaint-light: "#DCE6EF"
+  borderFaint-dark: "#25465E"
+  borderDefault-light: "#CBD5E1"
+  borderDefault-dark: "#3C607A"
+  borderStrong-light: "#A3B1C2"
+  borderStrong-dark: "#7994AB"
+  textBody-light: "#5B6B82"
   textBody-dark: "#B4C0D0"
-  textBody-light: "#665A6F"
-  textFaint-dark: "#8999AE"
-  textFaint-light: "#73677A"
-  gold-dark: "#E2BB76"
-  gold-light: "#5C4476"
-  accentFill-dark: "#E2BB76"
-  accentFill-light: "#5C4476"
-  accentFillPressed-dark: "#C49C58"
-  accentFillPressed-light: "#49325F"
-  textOnAccent-dark: "#0C1420"
+  gold-light: "#0D3B66"
+  gold-dark: "#00E3DB"
+  accentFill-light: "#0D3B66"
+  accentFill-dark: "#00E3DB"
+  accentFillPressed-light: "#09345F"
+  accentFillPressed-dark: "#00CCC7"
   textOnAccent-light: "#FFFFFF"
-  warning-dark: "#FFC94A"
+  textOnAccent-dark: "#071C2E"
+  patientHomeHeader-light: "#D0F0FF"
+  patientHomeHeader-dark: "#0C304C"
+  headerInk-light: "#00244E"
+  headerInk-dark: "#FFFFFF"
+  accentLine-light: "#008480"
+  accentLine-dark: "#00E3DB"
+  sessionTint-light: "#F2EFFF"
+  sessionTint-dark: "#182F50"
+  sessionInk-light: "#235DB5"
+  sessionInk-dark: "#88B8FF"
+  questionnaireTint-light: "#D8FEF5"
+  questionnaireTint-dark: "#103E3B"
+  questionnaireInk-light: "#356B53"
+  questionnaireInk-dark: "#8BDAC5"
+  diaryTint-light: "#FFF5D5"
+  diaryTint-dark: "#3A3222"
+  diaryInk-light: "#845921"
+  diaryInk-dark: "#E5BD7C"
+  success-light: "#18724D"
+  success-dark: "#42D98B"
   warning-light: "#946000"
-  error-dark: "#FF5C68"
+  warning-dark: "#FFC94A"
   error-light: "#BC3346"
+  error-dark: "#FF5C68"
+  historyBase-light: "#E8F0F8"
+  historyBase-dark: "#213143"
+  historyInk-light: "#00244E"
+  historyInk-dark: "#F3F7FA"
+  historyLow-light: "#D6EAF8"
+  historyLow-dark: "#263F56"
+  historyMedium-light: "#B6D8EB"
+  historyMedium-dark: "#355C78"
+  historyHigh-light: "#85BBD7"
+  historyHigh-dark: "#46728F"
+  textBright-light: "#00244E"
+  textBright-dark: "#F3F5F8"
+  textFaint-light: "#5B6B82"
+  textFaint-dark: "#9CADBF"
+  turquoise: "#00E3DB"
+  turquoiseInk: "#00244E"
+  severityMinimal: "#B9FFEF"
+  severityMild: "#FFC516"
+  severityModerate: "#FF9C45"
+  severitySevere: "#FB513A"
 typography:
-  patient-title:
-    fontFamily: "system-ui"
-    fontWeight: 700
+  largeTitle:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "34px"
+  title:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "28px"
+  title2:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "22px"
+  title3:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "20px"
   headline:
-    fontFamily: "system-ui"
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "17px"
     fontWeight: 600
-  section-title:
-    fontFamily: "system-ui"
-    fontWeight: 600
+  subheadline:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "15px"
   body:
-    fontFamily: "system-ui"
-  label:
-    fontFamily: "system-ui"
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "17px"
+  callout:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "16px"
+  footnote:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "13px"
+  caption:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "12px"
+  caption2:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "11px"
 rounded:
-  prominent-button: "12px"
-  goal: "10px"
+  primary-light: "10px"
+  primary-dark: "16px"
   record: "12px"
-  content-card: "14px"
-  records-container: "16px"
-  header-bottom: "24px"
+  card: "14px"
+  enclosure: "16px"
 spacing:
-  row-detail: "4px"
   compact: "8px"
   group: "12px"
-  section: "6px"
+  inset: "16px"
 components:
-  button-primary-dark:
-    backgroundColor: "{colors.accentFill-dark}"
-    textColor: "{colors.textOnAccent-dark}"
-    rounded: "{rounded.prominent-button}"
-    height: "44px"
   button-primary-light:
     backgroundColor: "{colors.accentFill-light}"
     textColor: "{colors.textOnAccent-light}"
-    rounded: "{rounded.prominent-button}"
+    rounded: "{rounded.primary-light}"
+    padding: "13px 16px"
+  button-primary-dark:
+    backgroundColor: "{colors.accentFill-dark}"
+    textColor: "{colors.textOnAccent-dark}"
+    rounded: "{rounded.primary-dark}"
+    padding: "13px 16px"
+  button-new-session:
+    backgroundColor: "{colors.turquoise}"
+    textColor: "{colors.turquoiseInk}"
+    rounded: "{rounded.record}"
     height: "44px"
 ---
 
-# Design System: CBTipul — iOS Patient Detail
+# Design System: CBTipul — iOS Brand System
 
 ## Overview
 
-**Creative North Star: "Activity digest"**
+**Creative North Star: "Operate — native RTL"**
 
-This document captures the rebuilt native iOS PatientDetailView only. Final compact-layout verification passed: 2 journey unit tests and 5 iPhone UI tests using synthetic data. At default text size, AI, notes and messages are initially hittable and the notes control clears the tab bar; large text remains scrollable. This document describes current source behavior and makes no claim of pixel-perfect mockup fidelity. Its calm, compact treatment workspace uses the existing CBTipul navy/gold identity and adaptive Theme.swift values. It establishes no new app-wide visual identity and does not apply the screen composition to Android, the web workspace, or other iOS screens.
+The approved iOS replacement uses the supplied CBTipul color guide, Rubik typography and a native Hebrew RTL workspace. White and pale-blue surfaces in light appearance become layered navy surfaces in dark appearance, with the same clear action hierarchy and record-type meaning. The existing logo is retained; no new raster imagery is introduced.
 
-Existing brand tokens remain authoritative in ios/Theme.swift. The approved screen composition and interaction contract live in .impeccable/surfaces/ios-patient-detail.md, with the A-horizontal and C-patient-color approval recorded in .impeccable/mocks/patient-horizontal/approval.json; PRODUCT.md supplies the Hebrew, accessibility, and clinical privacy constraints. The UI presents recorded activity without implying clinical improvement.
+This is the app-wide iOS visual system. It supersedes the earlier iOS paper/plum palette, system-type direction and patient-colored header planes. Source authority is ios/Theme.swift and ios/BrandTypography.swift. Existing surface briefs retain interaction contracts; conflicting historical palette and typography descriptions defer here. Android and web have not been migrated by this work.
 
 **Key Characteristics:**
-- Native Hebrew RTL navigation and system typography.
-- Existing adaptive navy/gold and cool light surfaces.
-- Compact recorded activity with explicit, accessible actions.
-- Patient-color identity header and horizontal recorded journey.
+- Rubik with native Dynamic Type and Hebrew RTL.
+- White and pale-blue light surfaces; coordinated navy dark surfaces.
+- Turquoise new-session action and distinct record-type tiles.
+- Native controls, preserved destinations and clinical meaning.
 
 ## Colors
 
-The dark appearance combines midnight navy surfaces and warm gold actions; light appearance uses cool neutral surfaces, navy primary fills and blue links.
-
 ### Primary
-Use Theme.accentFill for new-session emphasis, Theme.textOnAccent for its label, and Theme.accentFillPressed for the pressed fill. Theme.gold identifies links and preparation. The full-width AI row now uses native Color.purple for its icon, a 14% purple fill and a 65% purple outline. This is a screen-local treatment, not a replacement brand palette; retain the native color rather than asserting an unverified fixed hex. The frontmatter suffixes describe the two resolved appearances of each existing token; they are not new Swift tokens.
+Light-mode primary fills and links use navy through accentFill and gold; dark-mode equivalents use turquoise with dark ink for contrast. The legacy token name gold is a compatibility name, not a gold color. Pressed fills use accentFillPressed. The new-session action uses turquoise with turquoiseInk in both appearances.
+
+### Secondary
+Session tiles use sessionTint/sessionInk (lavender and blue in light); questionnaires use questionnaireTint/questionnaireInk (mint and green); diaries use diaryTint/diaryInk (cream and brown). Dark variants preserve these identities with darker fills and brighter ink. AI uses the shared accent family rather than the prior local purple treatment.
 
 ### Neutral
-Theme.base supports the screen and Theme.surface the bordered content blocks. Theme.textBright, textBody and textFaint preserve body hierarchy. Theme.borderDefault supplies content outlines and dividers; borderFaint outlines the activity card and borderStrong outlines preparation.
+Base, surface, elevated and hover form the surface stack. TextBright, textBody and textFaint define readable hierarchy. Border tokens define structural edges. Patient and session headers share patientHomeHeader and headerInk: pale blue with navy ink in light, navy with white ink in dark. Patient identity colors remain on avatars and journey markers, not large header planes.
 
-The identity, goal and horizontal journey share PatientHeaderBackdrop, a layered patient-hue treatment extending behind the toolbar. Its base is the explicit existing dark navy value recorded as colors.base-dark in the frontmatter (UIColor hex 0x0C1420 in source), kept dark in both appearances. It does not rely on the dynamic Theme.base provider or a local color-scheme override to force the header dark. Over this canvas, patient accent forms a top-trailing to bottom-leading linear light at 62% to 12% opacity and a top-trailing radial light at 42% to transparent, with radius 1.1 times the available width. Three translucent white diagonal planes use 4.5%, 3.5% and 5% opacity, followed by a clear-to-black 18% vertical shade. This replaces the earlier opaque header fill.
+**The Meaning Rule.** Entity tints identify record types. Severity fills use navy ink and explicit labels; success, warning and error retain their clinical/status meaning. Clinical improvement follows the instrument's meaning, not the direction of a number alone.
 
-Header text is white; secondary header text uses white at 85%, and the status capsule uses black at 22%. Native toolbar background is hidden, with dark toolbar color scheme, allowing the screen-level backdrop to continue through the top safe area. Body surfaces retain adaptive Theme values. AccountActionNotices applies its Theme.surface background with ignoresSafeAreaEdges: [], keeping even an empty banner from painting over the status/header region; authentication behavior is unchanged. The goal has dark ultraThinMaterial at 25% opacity with a 1 pt white-at-22% border. The 48 pt initials avatar uses the existing patient accent fading to 68% opacity, a 1 pt white-at-24% outline, and PatientAvatarColor.foreground(for:) for its initials. No new patient palette is introduced.
-
-Journey marker outlines and connectors use the existing patient accent. The newest marker has a solid accent fill and 3 pt ring; earlier markers use the dark patient header fill and 1.5 pt ring. Connectors are 2 pt with accent at 80%. Preserve the existing patientAtmosphere background.
-
-Theme.warning marks an outdated preparation; Theme.error marks actual failures. Pair state color with readable text or icons. Appearance follows the app's existing appAppearance setting, with dark as its current default; do not replace this with a new system-appearance policy.
+Appearance follows the existing appAppearance setting (default dark). Frontmatter light/dark suffixes represent resolved values, not new Swift identifiers. HeaderLine is a light border token in light mode and white at 22% in dark. GoldGhost uses navy at 10% in light and turquoise at 12% in dark.
 
 ## Typography
 
-Use SwiftUI system text styles and Hebrew system fallback. Frontmatter fontFamily is a portable representation of native system type, not a new web-font dependency. Point sizes and line heights remain controlled by the native text styles and Dynamic Type rather than fixed CSS sizes.
+Rubik is bundled in ios/Fonts/Rubik.ttf with Rubik-OFL.txt under the SIL Open Font License. SwiftUI uses the font's actual PostScript name Rubik-Light_Regular. BrandTypography binds each role to the matching native relative text style; frontmatter sizes represent baseline SwiftUI points, not fixed sizing or a web implementation. Headline is semibold; other weights are supplied by component context.
 
-- Record section heading: headline, natural casing.
-- Patient name: bold system type at ScaledMetric 24 pt relative to title2, with a header accessibility trait; status: caption in a capsule.
-- Goal: subheadline, medium, compact at two lines with inline expand/collapse; accessibility Dynamic Type shows the full text.
-- The header journey has no separate visible heading; its stage buttons open the timeline. Other primary labels use native headline where implemented.
-- Record actions and activity titles: subheadline, semibold.
-- Horizontal journey labels: caption, semibold; preparation: subheadline, semibold.
-- Journey symbols: horizontal 13 pt medium inside 24 pt circles; vertical accessibility fallback 16 pt inside 36 pt circles. Horizontal stack and label gaps are 2 pt; interactive areas remain at least 44 pt high and labels follow Dynamic Type.
-- Dates and counts: caption; supporting errors: footnote.
+Use the title hierarchy for screen headings, headline/subheadline for actions and sections, body/callout for content, and footnote/caption for helpers, dates and counts. Patient-name typography scales from its existing 24 pt ScaledMetric. UIKit editors use UIFontMetrics with a system-font fallback. Native navigation title appearances use Rubik. Preserve Dynamic Type rather than fixing text containers to baseline dimensions.
 
 ## Layout
 
-Scope: this screen alone. Root layout is ScrollView with a leading VStack, 6 pt section spacing and 12 pt horizontal padding, and 16 pt bottom padding. Navigation title stays empty and inline. The patient name appears once beside the 48 pt gradient initials avatar. Identity, compact material goal and horizontal journey sit over one screen-level backdrop. The header content uses 6 pt internal gaps, 16 pt horizontal padding, 8 pt bottom padding and negative 12 pt outer inset. Header geometry reports its global bottom edge into headerBottom; the background height is the nonnegative difference between that bottom and the background origin. The backdrop ignores the top safe area, continues behind the hidden native toolbar background, and clips only its two lower corners at 24 pt. Height tracks content and scroll geometry rather than a fixed header size.
+Keep native NavigationStack, List/Form/ScrollView, sheets, system keyboard and toolbar behavior. RTL determines reading order; dates and numeric data keep appropriate locale treatment. Controls retain accessible targets and content wraps or scrolls at accessibility sizes. Existing screen composition is preserved, including patient detail's compact activity digest and session editor's summary-first hierarchy; visual identity does not impose one layout on every screen.
 
-Read top to bottom: identity/status, goal and journey within the header; connection/send block; recent submissions; session actions; one enclosing record surface containing its heading, four record buttons, full-width AI chat, and notes/messages; saved preparation when present below the enclosure. The record enclosure uses 8 pt padding, 4 pt internal spacing, Theme.surface, a 1 pt Theme.borderFaint outline and 16 pt corners. Records use two flexible columns with 8 pt column gaps and 4 pt row gaps, becoming one column at accessibility sizes. Session actions and notes/messages also stack at accessibility sizes. Record order remains sessions, graphs, diaries, questionnaires in RTL reading order.
-
-Up to four journey groups fit with equal widths. More than four use a horizontal scroller with each stage sized to one quarter of the container width, preserving four equal visible slots. For overflow, the scroller uses a physical left-to-right origin with reversed group iteration and right-to-left stage content; default scroll anchor is leading. Scroll indicators are hidden. On appearance and when the group-ID sequence changes, the scroller targets the latest group with a center anchor; at the chronological end the intended visible arrangement keeps the latest stage at the left. The final compact-layout long-journey check passed. Horizontal order is oldest at the RIGHT and newest at the LEFT; the newest marker is visually emphasized. Full vertical timeline and accessibility fallback place newest at the TOP. Groups remain recorded consecutive types, not predetermined treatment stages.
-
-The goal has 4 pt vertical padding and starts at two lines and expands in place; accessibility sizes show full text. Keep separate expansion and edit actions. Interactive areas have at least 44 pt minimum height. Record rows retain 44 pt minimum height and 10 pt horizontal padding, with no added vertical padding. Other clinical text wraps without fixed heights. CSS pixel values in portable frontmatter represent observed numerical point values; SwiftUI points remain authoritative.
+Patient detail retains 6 pt section gaps and 12 pt horizontal inset, compact record rows with 44 pt minimum height, two record columns becoming one at accessibility sizes, and the horizontal recorded journey with vertical accessibility fallback. Session editor retains its 18 pt rhythm/inset and pinned save action. See the existing surface briefs for complete behavior contracts.
 
 ## Elevation & Depth
 
-Use the layered patient-hue light, translucent diagonal planes and native goal material described in Colors, with bordered body surfaces and the existing patient atmosphere. The backdrop is decorative, hidden from accessibility and excluded from hit testing. Reduce Transparency removes the three Canvas planes; the accent lights and bottom shade remain. Native sheets and navigation retain platform depth and transitions. Reuse existing restrained state motion and honor Reduce Motion. Final compact-layout native verification remains pending; documentation does not establish exact mockup fidelity.
+Depth comes primarily from tonal surfaces, thin borders and native sheet/material behavior. The shared header is a flat adaptive brand surface; the previous patient-tinted lights and diagonal planes are superseded. The compact goal retains native material. Shared content transitions use easeInOut over 0.18 s and disable animation for Reduce Motion. Prominent button press feedback uses easeOut over 0.15 s, opacity 0.85 and scale 0.985; Reduce Motion removes the scale/animation.
 
 ## Shapes
 
-The compact new-session action uses 12 pt corners, Theme.accentFill and Theme.textOnAccent with 44 pt minimum height and plain native button style; it no longer uses the shared padded pressableProminent style. The outlined goal uses 10 pt corners and dark ultraThinMaterial at 25% opacity and a 1 pt white-at-22% outline. Connection, activity and preparation use 14 pt corners with 1 pt outlines; record and AI controls use 12 pt corners with 1 pt outlines. Status is a capsule. Journey circles are 24 pt horizontally and 36 pt in the accessibility fallback. These are explicit ScrollView components, not native List row shapes.
+The shared prominent button has 10 pt corners in light and 16 pt in dark. Compact record and new-session controls use 12 pt corners; standard themed cards use 14 pt and a 0.75 pt faint outline. Patient record enclosure uses 16 pt corners. Existing circles for avatars/journey markers and capsules for statuses remain native, compact identity cues.
 
 ## Components
 
-- **Identity and goal:** the 48 pt gradient initials avatar, ScaledMetric 24 pt bold white patient name and status capsule sit above the outlined compact goal over the layered patient-hue backdrop. Goal text uses two lines initially, with a tappable text area and chevron for expand/collapse, plus a separate labeled pencil action. Accessibility Dynamic Type exposes the full text without requiring expansion. Empty goals use the existing localized placeholder and keep editing available.
-- **Journey:** show all consecutive recorded session-type groups, with actual counts, fixed-size SF Symbols inside outlined patient-color circles and connecting rules. The newest LEFT marker has the stronger ring and solid accent fill. Four or fewer fit horizontally; longer histories scroll. Horizontal chronology runs oldest right to newest left. There is no separate journey heading inside the patient header; stage controls open the full read-only stage timeline, which shows newest at top with counts and date ranges. The accessibility-size in-place fallback also shows newest at top. Preserve unknown types and exclude future calendar days. The timeline is not a session browser/editor or clinical progress meter; session browsing remains in the explicit sessions destination.
-- **Connection/send strip:** a full-width 44 pt minimum rounded bordered strip with 10 pt horizontal padding and no added vertical padding, compact caption status and a short outlined send action in the connected state. The connected label and send action retain their full accessibility labels. Status/action use a horizontal layout normally and vertical layout at accessibility sizes. Reinvite is in the top toolbar overflow menu, not another control in the status strip; preserve checking, connected, disconnected, failed/retry and unavailable states, invitation guidance and sending flows.
-- **Recent activity:** a compact bordered card with zero stack spacing, 12 pt horizontal/4 pt vertical padding and 44 pt header controls and rows, showing the two latest non-dismissed submissions by default, with actual count, dates and destinations. More than two exposes a show-all/show-less chevron in the header. An ellipsis menu dismisses the current activity IDs for the owner/patient; clinical records remain accessible through their destinations. Row title/date share a line normally and stack at accessibility sizes. Preserve failure/retry and hidden-empty behavior; do not invent summaries or trends.
-- **Session actions:** compact plain-style 44 pt minimum new-session button and outlined rounded preparation action. Busy preparation shows its native progress indicator and disables repeat requests. Preserve entitlement controls and saved-preparation stale labeling.
-- **Records and AI chat:** four explicit record destinations, then the fifth full-width violet AI chat action. The heading, four record buttons, AI row and notes/messages share a single enclosing bordered surface. Record buttons are bordered rounded controls with patient-color icons; AI uses the sparkle icon and native purple treatment. Compact AI and notes labels retain their full accessibility labels. Diaries open the existing diary directory. Graphs enter the graph destination directly. Icons supplement text and decorative chevrons stay hidden from accessibility.
-- **Notes/messages and editing:** retain native destinations, voice transcription, save/discard protections, patient status/name editing, goal editing and deletion protections. Inputs remain existing native editors; this document introduces no new input styling.
+- **Primary action:** BrandTypography body semibold, accentFill/textOnAccent, 13 pt vertical and 16 pt horizontal padding. Press uses accentFillPressed; disabled uses elevated/textFaint. Preserve the existing enabled and loading behavior.
+- **New session:** turquoise/turquoiseInk, subheadline semibold, 12 pt corners and 44 pt minimum height; compact plain-style behavior.
+- **Record tiles:** session, questionnaire and diary tint/ink pairs with text and SF Symbols, neutral borders and 12 pt corners. The AI destination uses the shared accent fill/outline treatment.
+- **Headers:** shared patientHomeHeader/headerInk; Rubik identity/title, retained avatar colors, native toolbars and explicit contrast-aware helper text. Patient detail keeps goal and journey beneath identity.
+- **Inputs:** native editors and fields on adaptive surfaces; Rubik in custom UIKit editors, with existing keyboard, dictation, focus, draft and save/discard behavior.
+- **Navigation and status:** native toolbar/tab/sheet semantics with branded typography and tint. Status and severity always retain readable labels; color supplements meaning.
 
-Repository UI assertions require AI, notes and messages to be hittable initially and the notes control to remain above the tab bar. These assertions passed with the final 6 pt root gap on iPhone 17 Pro Simulator in dark and light appearance.
+The sidecar's HTML snippets are illustrative native-component equivalents for the design panel, not production UI or screenshots. They include basic keyboard focus/press states for preview use. The iOS brand surface brief records verification status and the gallery path.
 
-The sidecar previews are illustrative HTML equivalents of native patterns for the design panel, not production assets or pixel-exact SwiftUI renderings. Production uses SF Symbols and native Button/NavigationLink semantics, focus, disabled state and VoiceOver behavior.
-
-## Do's and Don'ts
-
-- Do preserve adaptive Theme body surfaces, layered patient-hue backdrop and the scoped native purple AI treatment.
-- Do preserve Hebrew RTL order, readable wrapping, Dynamic Type and labeled native actions.
-- Do preserve all existing destinations and safety behavior.
-- Do derive activity counts and journey groups from recorded data.
-- Do place the newest stage at the left horizontally and at the top vertically.
-- Do derive header and journey colors from the existing patient palette, using white header text and adaptive body text.
-- Don't apply this screen's composition as an app-wide redesign.
-- Don't invent clinical summaries, progress stages, scores or trends.
-- Don't use color alone to express connection, failure or clinical meaning.
-- Don't replace native iOS interactions with web-style controls.
-
-
-### Patient header translucency refinement
-The header now uses dark ultraThinMaterial instead of an opaque navy base. The patient-color tint is 28% to 8%, with an 18% radial accent and 6% bottom shade. The previous white brightness wash is removed. The existing translucent facets and compact geometry remain. Reduce Transparency uses the solid navy fallback. This supersedes the earlier opaque-backdrop description.
-
-The selected midpoint retains ultraThinMaterial under a 50% navy veil, with 46%–15% patient tint, 30% radial accent, 5%–1.75% light wash and 9% bottom shade. Light appearance uses a 17% contrast scrim. This replaces the stronger-translucency values above; geometry is unchanged.
-
-
-### iOS session editor — approved A (screen-local)
-
-The session editor uses the approved summary-first A direction and the heading **סיכום הפגישה**. Its contract and validation are recorded in [.impeccable/surfaces/ios-session-editor.md](.impeccable/surfaces/ios-session-editor.md). This extension does not change the patient-detail decisions above or establish a global redesign.
-
-`SessionEditorView` uses an 18 pt scroll rhythm and horizontal inset, a patient identity/date/type header, the existing summary editing sheet, recording, an optional AI panel, the existing questionnaire and a pinned save action. Preserve date/type-first creation, stop → transcription → anonymization, AI review and save/discard protections. Native system typography, Hebrew RTL, patient palette and adaptive Theme body tokens remain authoritative.
-
-Session-local header values are #233D44 with a 34% patient-color gradient and a 4.5% white plane; the toolbar is #285454. Identity uses a 42 pt initials circle; date/type controls have 9 pt corners and 44 pt minimum height. Recording uses 12 pt corners, 10% patient-accent fill and 40% outline. AI uses native purple at 8% fill/30% outline, 12 pt corners and 14 pt padding. Summary and AI help use Theme.textBody following contrast review. These observed values do not replace patient-header styling or the existing frontmatter tokens. Build, creation and dark/light summary/edit/discard checks passed, including the final contrast-corrected build and dark/light edit/discard rerun. Final captures are complete; reviewer contrast verification passed in both appearances; the finding is resolved. Live microphone/backend behavior was not tested.
-
-The summary interaction refinement separates full-text reading from writing, preserves the draft across modes, and shares recording/recovery controls between overview and summary. See the session surface brief for the current interaction contract and verification limits.
-
-
-## Approved iOS light redesign — 22 October 2026
-
-The user approved concept B (personal notebook) as the entire iOS light visual direction, superseding the cool-neutral/blue light appearance described above. Paper #FAF7F1, lilac #EDE7F2, plum ink #352144 and plum actions #5C4476 are authoritative in Theme.swift. Headers, shared cards/buttons, settings preview and questionnaire-history fills follow this direction. Dark tokens and clinical semantics remain unchanged. Patient Mode uses concept C’s composition on both platforms, with B’s visual treatment in iOS light appearance. See .impeccable/surfaces/patient-home-c-and-ios-paper.md for scope and verification.
-
-
-### Approved Android paper appearance (2026-10-22)
-Extend Concept B's approved iOS light direction to Android with native Material controls. Warm paper, lilac sections, plum ink/actions; retain dark mode and clinical status semantics. Secondary ink is #6C6073 for contrast on lilac. Patient Mode uses approved Concept C information hierarchy on both platforms.
+Android's previously approved paper appearance remains separately scoped: warm paper, lilac sections, plum ink/actions and secondary ink #6C6073, with native Material controls, existing dark mode and clinical semantics. Patient Mode retains its approved Concept C hierarchy. This work changes no Android or web design contract.
 
 ### Web patient workspace (scoped)
 
-The web patient-detail workspace separately adopts the supplied sky-blue guide. Its authority is `web/src/workspace/patient-guide.css`, scoped to `.pw-patient-guide`, plus the application header only while that workspace is present. Earlier statements about web above describe the iOS-only refresh; this section records the subsequent web patient work. The iOS frontmatter and Android contract remain separately scoped. See `.impeccable/surfaces/web-patient-guide.md`.
+The overview follows the inspected “מסך מטופל כחול שמיים” live artifact linked in the supplied `design-system (1).md`: [visual reference](https://claude.ai/artifact/6bjtKfJ84NuQvt3NgNSMSV#play-53094030cabe). The source reference is now available; the prior provisional sidebar composition is superseded for the overview. Implementation authority is `web/src/workspace/PatientTimeline.tsx`, `patient-timeline.css` and shared `patient-guide.css`. The existing iOS frontmatter and Android contract remain separately scoped; earlier web exclusions describe the iOS-only refresh. See `.impeccable/surfaces/web-patient-guide.md`.
 
-**Colors.** Main ink is `#00244E`, muted text `#5B6B82`, primary links/actions `#0D3B66`, and pressed primary `#09345F`. White is the working canvas, `#D0F0FF` the identity band, `#F4FBFF` the picker and row-hover surface, and `#E8F0F8` selected navigation. Borders use `#CBD5E1`, with `#A3B1C2` on identity-band buttons. The application header uses `#002B5D`, white text, `#6D89A8` control borders and `#1F4470` hover. New session uses `#00E3DB` with navy ink and `#00CCCA` hover. Navigation markers pair session `#F2EFFF`/`#3B82F6`, questionnaire `#D8FEF5`/`#008480`, and diary `#FFF5D5`/`#A9733A`. The questionnaire marker uses implemented teal rather than the source guide's `#6B9E7F`. Navigation hover is `#F2F4F6`; text selection uses `#D6EAF8` with navy ink. Entity treatments do not define clinical severity.
+**Colors.** White canvas, sky identity band `#D0F0FF`, navy ink `#00244E`, muted text `#5B6B82`, compact navy application shell `#002B5D`, primary navy `#0D3B66` and hover `#09345F`. The overview start action and selected calendar/list toggle use turquoise `#00E3DB`, with `#00CCCA` hover; the start action has a teal `#008480` border and navy text. The add menu uses navy with white text. Selected category filters use `#D6EAF8` and `#082A4A` ink. Borders use `#CBD5E1` and `#A3B1C2`; ordinary hover uses `#EBEDF1`, entry hover border `#A6B2C1`. Entity treatments use lavender/session `#F2EFFF`, mint/questionnaire `#D8FEF5` and cream/diary `#FFF5D5`, with navy `#002B5D` icons. Calendar entries use full entity tints; weekly-list cards use white bodies with tinted icon strips. Severity fills use minimal `#B9FFEF`, mild `#FFC516`, moderate `#FF9C45`, severe `#FB513A` and navy labels. Existing score interpretation and risk attention labels remain clinical data, separate from entity colors.
 
-**Typography.** Rubik loads locally from `web/src/assets/Rubik.ttf` with `font-display: swap`, declared weights 300–800, and `system-ui, sans-serif` fallback. The workspace uses 1.4 line height and tabular numerals. Patient identity is `clamp(1.7rem, 2.8vw, 2.4rem)`, weight 600, line height 1.2. Section titles are 1.5rem/600, reducing to 1.25rem on small screens. Record previews are .96rem with 1.65 line height. Navigation labels are .96rem/500, selected at 600, reducing to .9rem then .85rem at the responsive breakpoints. This CSS hierarchy is independent of native Dynamic Type roles.
+**Typography.** Local Rubik from `web/src/assets/Rubik.ttf`, `font-display: swap`, declared weights 300–800, with `system-ui, sans-serif` fallback. Workspace and header/footer use 1.4 line height and tabular numerals. The overview base is 14px; patient title 28px/700 with 1.2 line height, reducing to 24px below 850px. Month title is 16px/600 (15px below 850px), weekly category headings 15px, entry titles 13px/500, helper labels 12px and compact calendar titles 11px. Native Dynamic Type roles remain independent.
 
-**Layout.** The Hebrew RTL workspace places the identity band above compact patient search/switch controls and a clinical navigation rail beside white content. Desktop uses a 210px rail, `minmax(0, 1fr)` content and 40px gap, with `clamp(20px, 4vw, 64px)` horizontal inset. At widths up to 1100px it becomes one column with wrapping horizontal navigation in DOM order and a 28px gap. At widths up to 600px the heading stacks, search/switch controls remain two equal columns, and content uses 16px horizontal inset with a 24px gap. Session rows move from date/content/action/chevron columns to date/content/chevron, then a stacked preview with a separate chevron column.
+**Overview layout.** Hebrew RTL identity band contains patient title, available score labels, shared-view access, turquoise start action and calendar/list switch. A toolbar contains calendar month/today controls, entity filters and an add menu. Calendar is the default view: seven equal day columns with 126px minimum cell height, current-day navy circle and linked compact records. List view groups dated records by week, newest first, into three equal sessions/questionnaires/diaries columns with 22px gaps and pale-blue `#F4FBFF` column surfaces. Current-week heading uses `#E6E9ED`; undated records have a separate section. Main inset is 28px. At 850px and below, identity/actions wrap, inset becomes 16px, weekly columns stack with category labels, and the calendar scrolls horizontally over a 700px minimum grid. Above 1100px the surrounding application header uses a compact 52px minimum height and 28px logo. The existing clinical subpages retain their scoped rail/wrapped-navigation layout; that rail no longer describes the overview.
 
-**Shapes, depth and states.** Flat white and pale-blue surfaces use thin borders. Record lists have 10px corners; navigation and section actions 8px; picker fields and navigation marker tiles 7px; score chips 6px. Desktop record rows have 22px by 20px padding and 94px minimum height, with 18px by 14px padding on small screens. Navigation has 50px minimum height (44px on small screens); section actions have 44px minimum height and picker controls 42px. Keyboard focus uses a 3px `#008480` outline with 3px offset; header controls use turquoise. Disabled buttons retain a not-allowed cursor. Existing shared controls supply behavior outside these overrides.
+**Shapes and states.** Overview actions and calendar enclosure use 6px corners, record cards 8px, compact calendar records 4px, score badges 5px and filter pills 18px. Primary start has 36px minimum height; toggle/filter controls 32px; toolbar controls 34px. White cards and thin borders provide depth; only the add popup uses `0 8px 24px #00244e20`. Focus uses a 3px teal outline with 3px offset; shell focus is turquoise. Calendar/list and category buttons expose pressed state.
 
-**Scope and verification.** This records visual implementation only, preserving patient directory access, existing destinations and clinical operations. It introduces no calendar, fabricated metrics, clinical interpretation or backend behavior. Public pages and shared Zoom presentation retain their existing contracts. Do not apply these scoped styles as app-wide native tokens or infer a web dark theme from iOS dark values. Validation reported for this web change: 148 unit tests, 34 patient-workspace browser tests, typecheck, lint and combined build passed; fresh review found no material defects. Synthetic responsive evidence is in `../Codex/2026-10-14/got/outputs/web-patient-guide/index.html`.
+**Behavior and verification.** The overview presents existing session, questionnaire and diary records. Entry links open existing editors through `entry` parameters; start/add links use `new=1` and open forms without automatic saves. Start does not create a scheduled event or start an inferred timer. Shared-view access and write actions preserve permissions. Missing model data does not become invented contacts, attachments, appointments, trends or patient facts. Public pages and shared Zoom presentation retain their contracts. Typecheck, lint, 152 unit tests, 36 patient-workspace browser tests and the combined production build pass. Desktop calendar/list and phone list captures inspected with synthetic data. Public content/verification preservation test passes; the unchanged clinical-consent hash assertion fails and is outside this design change. No live clinical services exercised. Review gallery: outputs/web-patient-reference/index.html in the Codex workspace.
 
+## Do's and Don'ts
+
+- Do resolve colors through Theme and text through BrandTypography.
+- Do preserve Hebrew RTL, Dynamic Type, labeled actions and existing safety behavior.
+- Do pair record-type and clinical colors with text or symbols.
+- Do keep the newest journey stage at the left horizontally and at the top vertically.
+- Don't reintroduce paper/plum iOS tokens or patient-colored header planes.
+- Don't treat entity tints as clinical severity or infer improvement from raw score direction.
+- Don't claim this iOS replacement migrated Android or web.
+- Don't replace the retained logo or native controls with new raster assets or web controls.

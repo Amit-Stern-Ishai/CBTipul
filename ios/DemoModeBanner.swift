@@ -22,7 +22,7 @@ struct DemoModeBanner: View {
     var body: some View {
         HStack(spacing: 12) {
             Label(L10n.demoModeBannerTitle, systemImage: "person.2.crop.square.stack")
-                .font(.footnote.weight(.semibold))
+                .font(BrandTypography.footnote.weight(.semibold))
                 .foregroundStyle(Theme.gold)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
@@ -34,7 +34,7 @@ struct DemoModeBanner: View {
                     dismiss()
                 }
             }
-            .font(.footnote.weight(.semibold))
+            .font(BrandTypography.footnote.weight(.semibold))
             .disabled(isExiting)
             .accessibilityIdentifier("demo.exit")
         }

@@ -4,32 +4,32 @@ struct WebAssociationCandidateSummary: View {
     let candidate: WebAssociationCandidate
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(candidate.source == "incoming" ? L10n.wwIncomingResult : L10n.wwExistingResult).font(.caption).foregroundStyle(Theme.textBody)
-            Text(L10n.wwMeasurementDate + (candidate.measurement_date ?? L10n.wwDateUnavailable)).font(.subheadline)
-            Text((candidate.time_kind == "completed_at" ? L10n.wwCompletedTime : L10n.wwRecordedTime) + (candidate.recorded_at.map(WebWorkspaceDate.display) ?? L10n.wwDateUnavailable)).font(.caption)
+            Text(candidate.source == "incoming" ? L10n.wwIncomingResult : L10n.wwExistingResult).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
+            Text(L10n.wwMeasurementDate + (candidate.measurement_date ?? L10n.wwDateUnavailable)).font(BrandTypography.subheadline)
+            Text((candidate.time_kind == "completed_at" ? L10n.wwCompletedTime : L10n.wwRecordedTime) + (candidate.recorded_at.map(WebWorkspaceDate.display) ?? L10n.wwDateUnavailable)).font(BrandTypography.caption)
             ViewThatFits(in: .horizontal) {
             HStack {
                 if let score = candidate.gad7_score {
                     ScoreCapsule(text: L10n.scoreBadge(name: L10n.gad7ShortName, score: score), color: GAD7Severity(score: score).color)
-                } else { Text(L10n.gad7ShortName + ": " + L10n.wwScoreUnavailable).font(.caption) }
+                } else { Text(L10n.gad7ShortName + ": " + L10n.wwScoreUnavailable).font(BrandTypography.caption) }
                 if let score = candidate.phq9_score {
                     ScoreCapsule(text: L10n.scoreBadge(name: L10n.phq9ShortName, score: score), color: PHQ9Severity(score: score).color)
-                } else { Text(L10n.phq9ShortName + ": " + L10n.wwScoreUnavailable).font(.caption) }
+                } else { Text(L10n.phq9ShortName + ": " + L10n.wwScoreUnavailable).font(BrandTypography.caption) }
             }
                 VStack(alignment: .leading, spacing: 5) { scoreLabels }
             }
-            if candidate.is_current_session_questionnaire { Label(L10n.wwCurrentResult, systemImage: "link").font(.subheadline) }
-            if !candidate.selectable { Text(L10n.wwOtherSessionResult).font(.footnote).foregroundStyle(Theme.textBody) }
-            if candidate.flagsQuestionNine { Label(L10n.wwQuestionNineFlag, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Theme.error) }
+            if candidate.is_current_session_questionnaire { Label(L10n.wwCurrentResult, systemImage: "link").font(BrandTypography.subheadline) }
+            if !candidate.selectable { Text(L10n.wwOtherSessionResult).font(BrandTypography.footnote).foregroundStyle(Theme.textBody) }
+            if candidate.flagsQuestionNine { Label(L10n.wwQuestionNineFlag, systemImage: "exclamationmark.triangle").font(BrandTypography.footnote).foregroundStyle(Theme.error) }
         }
     }
     @ViewBuilder private var scoreLabels: some View {
                 if let score = candidate.gad7_score {
                     ScoreCapsule(text: L10n.scoreBadge(name: L10n.gad7ShortName, score: score), color: GAD7Severity(score: score).color)
-                } else { Text(L10n.gad7ShortName + ": " + L10n.wwScoreUnavailable).font(.caption) }
+                } else { Text(L10n.gad7ShortName + ": " + L10n.wwScoreUnavailable).font(BrandTypography.caption) }
                 if let score = candidate.phq9_score {
                     ScoreCapsule(text: L10n.scoreBadge(name: L10n.phq9ShortName, score: score), color: PHQ9Severity(score: score).color)
-                } else { Text(L10n.phq9ShortName + ": " + L10n.wwScoreUnavailable).font(.caption) }
+                } else { Text(L10n.phq9ShortName + ": " + L10n.wwScoreUnavailable).font(BrandTypography.caption) }
     }
 
 }
@@ -43,12 +43,12 @@ struct WebAssociationCandidateRow: View {
             if let choose, candidate.selectable, candidate.choice != nil {
                 Button(action: choose) {
                     HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: selected ? "checkmark.circle.fill" : "circle").font(.title3).foregroundStyle(Theme.gold)
+                        Image(systemName: selected ? "checkmark.circle.fill" : "circle").font(BrandTypography.title3).foregroundStyle(Theme.gold)
                         WebAssociationCandidateSummary(candidate: candidate).frame(maxWidth: .infinity, alignment: .leading)
                     }.padding(.vertical, 8).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityLabel(candidate.selectionDescription).accessibilityAddTraits(selected ? .isSelected : [])
             } else { WebAssociationCandidateSummary(candidate: candidate) }
-            Button(L10n.wwInspectAnswers, action: inspect).font(.subheadline)
+            Button(L10n.wwInspectAnswers, action: inspect).font(BrandTypography.subheadline)
         }
     }
 }

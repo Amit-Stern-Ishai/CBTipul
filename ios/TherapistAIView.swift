@@ -41,11 +41,11 @@ struct TherapistAIView: View {
                                 .foregroundStyle(Theme.gold)
                                 .accessibilityHidden(true)
                             Text(L10n.aiPatientPickerPrompt)
-                                .font(.title2.weight(.bold))
+                                .font(BrandTypography.title2.weight(.bold))
                                 .foregroundStyle(Theme.textBright)
                                 .fixedSize(horizontal: false, vertical: true)
                             Text(L10n.aiPatientPickerExplanation)
-                                .font(.subheadline)
+                                .font(BrandTypography.subheadline)
                                 .foregroundStyle(Theme.textBody)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -99,11 +99,11 @@ struct TherapistAIView: View {
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(patient.displayName)
-                                    .font(.title3.weight(.semibold))
+                                    .font(BrandTypography.title3.weight(.semibold))
                                     .foregroundStyle(Theme.textBright)
                                     .fixedSize(horizontal: false, vertical: true)
                                 Label(L10n.aiPatientPickerAction, systemImage: "bubble.left")
-                                    .font(.subheadline)
+                                    .font(BrandTypography.subheadline)
                                     .foregroundStyle(Theme.gold)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)

@@ -11,6 +11,7 @@ export const escapeHtml = text => text.replaceAll("&", "&amp;").replaceAll("<", 
 const stores = `<div class="store-actions" aria-label="הורדת האפליקציה"><a class="store-button" href="https://apps.apple.com/il/app/cbtipul/id6809343831?l=he" rel="noopener noreferrer"><img class="store-mark" src="/site-assets/store-apple.svg" alt="" width="28" height="32" /><span>הורדה מ-App Store</span></a><a class="store-button secondary" href="https://play.google.com/store/apps/details?id=com.CBTipul.app" rel="noopener noreferrer"><img class="store-mark" src="/site-assets/store-google-play.svg" alt="" width="28" height="32" /><span>הורדה מ-Google Play</span></a></div>`;
 export const redirects = `/app /app/ 302
 /app/login /app/ 200
+/app/patients/:patient/overview /app/ 200
 /app/patients/:patient/sessions /app/ 200
 /app/patients/:patient/questionnaire /app/ 200
 /app/patients/:patient/diary_one /app/ 200

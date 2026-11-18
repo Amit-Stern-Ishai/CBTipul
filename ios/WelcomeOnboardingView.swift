@@ -16,12 +16,12 @@ struct WelcomeOnboardingView: View {
 
                 VStack(alignment: .leading, spacing: 16) {
                     Text(L10n.welcomeTitle)
-                        .font(.title.bold())
+                        .font(BrandTypography.title.bold())
                         .foregroundStyle(Theme.textBright)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(L10n.welcomeBody)
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .foregroundStyle(Theme.textBody)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -40,7 +40,7 @@ struct WelcomeOnboardingView: View {
                     if allowsSkip {
                         Button(action: onSkip) {
                             Text(L10n.welcomeSecondaryAction)
-                                .font(.body.weight(.medium))
+                                .font(BrandTypography.body.weight(.medium))
                                 .foregroundStyle(Theme.textBody)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
@@ -52,7 +52,7 @@ struct WelcomeOnboardingView: View {
                         isShowingInfo = true
                     } label: {
                         Text(L10n.welcomeInfoLink)
-                            .font(.subheadline.weight(.semibold))
+                            .font(BrandTypography.subheadline.weight(.semibold))
                             .foregroundStyle(Theme.gold)
                     }
                     .buttonStyle(.plain)
@@ -86,7 +86,7 @@ private struct WelcomeInfoSheet: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
                 Text(L10n.welcomeInfoBody)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBright)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -94,7 +94,7 @@ private struct WelcomeInfoSheet: View {
                     openURL(privacyURL)
                 } label: {
                     Text(L10n.privacyPolicyTitle)
-                        .font(.body.weight(.semibold))
+                        .font(BrandTypography.body.weight(.semibold))
                         .foregroundStyle(Theme.gold)
                 }
                 .buttonStyle(.plain)

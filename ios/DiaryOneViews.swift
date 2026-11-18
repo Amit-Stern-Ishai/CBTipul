@@ -138,7 +138,7 @@ struct PatientDiaryOneView: View {
             } else if case .failed = loadState {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(L10n.diaryOneLoadFailed)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(Theme.error)
                     Button(L10n.retryAction) {
                         Task { await loadEntries() }
@@ -162,10 +162,10 @@ struct PatientDiaryOneView: View {
             } else if loadState == .loaded {
                 VStack(spacing: 12) {
                     Text(L10n.diaryOneEmptyTitle)
-                        .font(.title3.weight(.semibold))
+                        .font(BrandTypography.title3.weight(.semibold))
                         .multilineTextAlignment(.center)
                     Text(L10n.diaryOneEmptyBody)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -185,21 +185,21 @@ struct PatientDiaryOneView: View {
     private var patientModeControl: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.diaryPatientModeTitle)
-                .font(.subheadline.weight(.semibold))
+                .font(BrandTypography.subheadline.weight(.semibold))
             switch patientModeStatus {
             case .loading:
                 ProgressView()
                     .tint(Theme.gold)
                     .controlSize(.small)
             case .connected:
-                Text(L10n.patientConnectedStatus).font(.footnote).foregroundStyle(.secondary)
+                Text(L10n.patientConnectedStatus).font(BrandTypography.footnote).foregroundStyle(.secondary)
             case .notConnected:
                 Text(L10n.diaryPatientModeNotConnected)
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(.secondary)
             case .inactive:
                 Text(L10n.diaryPatientModeInactiveBody)
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button {
@@ -215,18 +215,18 @@ struct PatientDiaryOneView: View {
                         .fill(Theme.success)
                         .frame(width: 8, height: 8)
                     Text(L10n.diaryPatientModeActive)
-                        .font(.footnote.weight(.semibold))
+                        .font(BrandTypography.footnote.weight(.semibold))
                 }
                 Button(role: .destructive) {
                     isShowingStopConfirmation = true
                 } label: {
                     Text(L10n.diaryPatientModeStopAction)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                 }
                 .disabled(isUpdatingAssignment)
             case .failed:
                 Text(assignmentError ?? L10n.patientConnectionCheckError)
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(Theme.error)
                     .fixedSize(horizontal: false, vertical: true)
                 Button(L10n.retryAction) {
@@ -236,7 +236,7 @@ struct PatientDiaryOneView: View {
             }
             if let assignmentError, patientModeStatus == .inactive || patientModeStatus == .active {
                 Text(assignmentError)
-                    .font(.footnote)
+                    .font(BrandTypography.footnote)
                     .foregroundStyle(Theme.error)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -247,7 +247,7 @@ struct PatientDiaryOneView: View {
     private func diarySummary(_ entry: DiaryOneEntry) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L10n.hebrewNumericDate(entry.createdAt))
-                .font(.headline)
+                .font(BrandTypography.headline)
             labeledLine(L10n.diaryOneEventTitle, entry.event)
             labeledLine(L10n.diaryOneThoughtTitle, entry.automaticThoughtsPreview)
             labeledLine(
@@ -261,10 +261,10 @@ struct PatientDiaryOneView: View {
     private func labeledLine(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.body)
+                .font(BrandTypography.body)
                 .lineLimit(2)
         }
     }

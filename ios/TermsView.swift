@@ -32,7 +32,7 @@ struct TermsView: View {
                         onAgree()
                     } label: {
                         Text(L10n.termsAgreeAction)
-                            .font(.headline)
+                            .font(BrandTypography.headline)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.pressableProminent)
@@ -61,11 +61,11 @@ struct LegalDocumentView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if let title = document.title {
                         Text(title)
-                            .font(.title2.bold())
+                            .font(BrandTypography.title2.bold())
                     }
                     if let updated = document.updated {
                         Text(updated)
-                            .font(.caption)
+                            .font(BrandTypography.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -84,18 +84,18 @@ struct LegalDocumentView: View {
         VStack(alignment: .leading, spacing: 10) {
             if let heading = section.heading {
                 Text(heading)
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                     .foregroundStyle(Theme.gold)
             }
             ForEach(section.blocks.indices, id: \.self) { index in
                 switch section.blocks[index] {
                 case .paragraph(let text):
                     Text(text)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .lineSpacing(3)
                 case .bullet(let text):
                     Text(L10n.bulleted(text))
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .lineSpacing(3)
                         .padding(.leading, 4)
                 }

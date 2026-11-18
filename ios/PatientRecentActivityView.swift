@@ -102,9 +102,9 @@ struct PatientRecentActivityView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 8) {
                         Text(cutoff == nil ? L10n.recentPatientSubmissions : L10n.sinceLastSession)
-                            .font(.headline).foregroundStyle(Theme.textBright)
+                            .font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                         if count > 0 {
-                            Text("\(count)").font(.subheadline.bold()).foregroundStyle(Theme.textOnAccent)
+                            Text("\(count)").font(BrandTypography.subheadline.bold()).foregroundStyle(Theme.textOnAccent)
                                 .padding(7).background(Theme.accentFill, in: Circle())
                                 .accessibilityLabel(L10n.recentSubmissionCount(count))
                         }
@@ -138,12 +138,12 @@ struct PatientRecentActivityView: View {
                                 }
                                 row(submission.title, icon: submission.icon, date: submission.date)
                                 Spacer(minLength: 8)
-                                Image(systemName: "chevron.forward").font(.caption).foregroundStyle(Theme.textBody)
+                                Image(systemName: "chevron.forward").font(BrandTypography.caption).foregroundStyle(Theme.textBody)
                             }.contentShape(Rectangle())
                         }.buttonStyle(.plain)
                     }
                     if failed {
-                        Text(L10n.recentRefreshFailed).font(.footnote).foregroundStyle(Theme.error)
+                        Text(L10n.recentRefreshFailed).font(BrandTypography.footnote).foregroundStyle(Theme.error)
                         Button(L10n.retry) { revision += 1 }.frame(minHeight: 44)
                     }
                 }
@@ -177,9 +177,9 @@ struct PatientRecentActivityView: View {
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
                 : AnyLayout(HStackLayout(spacing: 8))
             layout {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textBright)
+                Text(title).font(BrandTypography.subheadline.weight(.semibold)).foregroundStyle(Theme.textBright)
                 if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
-                Text(L10n.hebrewDateTime(date)).font(.caption).foregroundStyle(.secondary)
+                Text(L10n.hebrewDateTime(date)).font(BrandTypography.caption).foregroundStyle(.secondary)
             }
         }.frame(minHeight: 44)
     }

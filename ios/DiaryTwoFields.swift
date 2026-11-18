@@ -31,7 +31,7 @@ struct DiaryTwoDraftFields: View {
                     NotesField(text: $draft.event, placeholder: L10n.diaryOneEventQuestion, minLines: 3, maxLines: 8)
                 }
                 section(2, L10n.diaryOneThoughtTitle, draft.persistedAutomaticThoughts.joined(separator: " · ")) {
-                    Text(L10n.diaryEntryThoughtHint).font(.subheadline).foregroundStyle(Theme.textBody)
+                    Text(L10n.diaryEntryThoughtHint).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                     DiaryThoughtsEditor(rows: $draft.automaticThoughts, title: L10n.diaryOneThoughtSingularTitle, addTitle: L10n.diaryOneAddThoughtAction)
                 }
                 section(3, L10n.diaryFeelingsTitle, draft.feelings.map(\.name).joined(separator: " · ")) {
@@ -42,11 +42,11 @@ struct DiaryTwoDraftFields: View {
                     DiaryThinkingErrorPicker(selection: $draft.thinkingErrors)
                 }
                 section(5, L10n.diaryAlternativeThoughtsTitle, draft.persistedAlternativeThoughts.joined(separator: " · ")) {
-                    Text(L10n.diaryEntryAlternativeHint).font(.subheadline).foregroundStyle(Theme.textBody)
+                    Text(L10n.diaryEntryAlternativeHint).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                     DiaryOriginalThoughts(thoughts: draft.persistedAutomaticThoughts)
                     DiaryThoughtsEditor(rows: $draft.alternativeThoughts, title: L10n.diaryAlternativeThoughtTitle, addTitle: L10n.diaryAddAlternativeThought)
                 }
-                if let errorMessage { Text(errorMessage).font(.footnote).foregroundStyle(Theme.error) }
+                if let errorMessage { Text(errorMessage).font(BrandTypography.footnote).foregroundStyle(Theme.error) }
             }
             .onChange(of: didAttemptSave) { _, attempted in
                 if attempted, let missing = issues.firstIndex(where: { $0 != nil }) { active = missing + 1 }
@@ -74,9 +74,9 @@ struct DiaryTwoEntryDetailView: View {
         ScrollView {
             if let entry {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(entry.createdAt.formatted(date: .numeric, time: .shortened)).font(.subheadline)
+                    Text(entry.createdAt.formatted(date: .numeric, time: .shortened)).font(BrandTypography.subheadline)
                     Text(entry.createdBy == .patient ? L10n.diaryEntryPatientSource : L10n.diaryEntryTherapistSource)
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(BrandTypography.caption).foregroundStyle(.secondary)
                     DiaryTwoEntryContent(event: entry.event, automaticThoughts: entry.automaticThoughts,
                         feelings: entry.feelings, thinkingErrors: entry.thinkingErrors, alternativeThoughts: entry.alternativeThoughts)
                 }.padding(20)
@@ -120,7 +120,7 @@ struct DiaryTwoEntryContent: View {
     }
     private func section(_ title: String, _ values: [String]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.headline)
+            Text(title).font(BrandTypography.headline)
             ForEach(Array(values.enumerated()), id: \.offset) { _, value in
                 Text(value).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
             }

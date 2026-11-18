@@ -23,11 +23,11 @@ struct WebWorkspaceInboxView: View {
             ForEach(workspaces.items) { item in
                 NavigationLink(value: WebWorkspaceRoute(id: item.id)) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(item.reference_label ?? L10n.wwUntitled).font(.headline)
+                        Text(item.reference_label ?? L10n.wwUntitled).font(BrandTypography.headline)
                         Text(L10n.wwStarted + WebWorkspaceDate.display(item.started_at))
                         Text(L10n.wwFinished + WebWorkspaceDate.display(item.finished_at))
                         Text(L10n.wwActivityCount(item.item_count, notes: item.has_notes)).foregroundStyle(Theme.textBody)
-                    }.font(.subheadline).padding(.vertical, 6)
+                    }.font(BrandTypography.subheadline).padding(.vertical, 6)
                 }
             }
             }.listRowBackground(Theme.surface).listRowSeparatorTint(Theme.borderFaint)
@@ -175,7 +175,7 @@ struct WebWorkspaceAssociationView: View {
                 }
             }
             if let locked {
-                Section { Text(L10n.wwUncertain); Text(destination(locked)).font(.subheadline); if locked.p_acknowledge_existing_notes { Text(L10n.wwAppendExistingNotes) } }
+                Section { Text(L10n.wwUncertain); Text(destination(locked)).font(BrandTypography.subheadline); if locked.p_acknowledge_existing_notes { Text(L10n.wwAppendExistingNotes) } }
             } else {
                 Section(L10n.wwPatient) {
                     HStack {
@@ -189,7 +189,7 @@ struct WebWorkspaceAssociationView: View {
                 if payload?.hasQuestionnaire == true || hasNotes && (preview?.eligibleQuestionnaires.isEmpty == false || linkQuestionnaire) {
                     Section {
                         Toggle(L10n.wwLinkOptional, isOn: $linkQuestionnaire)
-                        if !linkQuestionnaire { Text(L10n.wwQuestionnairePatientLevel).font(.footnote).foregroundStyle(Theme.textBody) }
+                        if !linkQuestionnaire { Text(L10n.wwQuestionnairePatientLevel).font(BrandTypography.footnote).foregroundStyle(Theme.textBody) }
                     }
                 }
                 if needsSession { sessionSection }
@@ -197,7 +197,7 @@ struct WebWorkspaceAssociationView: View {
                     if p.notes_will_append {
                         Section {
                             Text(L10n.wwAppendExistingNotes)
-                            DisclosureGroup(L10n.wwAnalysisHelp) { Text(L10n.wwRegenerateAnalysis).font(.footnote).foregroundStyle(Theme.textBody) }
+                            DisclosureGroup(L10n.wwAnalysisHelp) { Text(L10n.wwRegenerateAnalysis).font(BrandTypography.footnote).foregroundStyle(Theme.textBody) }
                         }
                     }
                     if linkQuestionnaire { questionnaireSection(p) }
@@ -271,7 +271,7 @@ struct WebWorkspaceAssociationView: View {
     @ViewBuilder private func questionnaireSection(_ p: WebAssociationPreview) -> some View {
         if p.eligibleQuestionnaires.count > 1 {
             Section(L10n.wwChooseResult) {
-                Text(L10n.wwPreserveResults).font(.footnote).foregroundStyle(Theme.textBody)
+                Text(L10n.wwPreserveResults).font(BrandTypography.footnote).foregroundStyle(Theme.textBody)
                 ForEach(p.questionnaires) { candidate in
                     WebAssociationCandidateRow(candidate: candidate, selected: choice == candidate.choice, choose: {
                         choice = candidate.choice; choiceWasExplicit = true; error = nil
@@ -279,7 +279,7 @@ struct WebWorkspaceAssociationView: View {
                 }
             }
         } else if let candidate = p.eligibleQuestionnaires.first {
-            Section { WebAssociationCandidateRow(candidate: candidate, selected: true, choose: nil, inspect: { inspected = candidate }); Text(L10n.wwPreserveResults).font(.footnote).foregroundStyle(Theme.textBody) }
+            Section { WebAssociationCandidateRow(candidate: candidate, selected: true, choose: nil, inspect: { inspected = candidate }); Text(L10n.wwPreserveResults).font(BrandTypography.footnote).foregroundStyle(Theme.textBody) }
         } else { Section { Text(L10n.wwNoLinkedQuestionnaire).foregroundStyle(Theme.error) } }
     }
     private func restore(_ request: WebAssociationRequest) {
@@ -358,26 +358,26 @@ struct WebWorkspaceContext: View {
     let payload: WebWorkspacePayload
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(context?.reference_label.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } ?? L10n.wwUntitled).font(.headline)
+            Text(context?.reference_label.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } ?? L10n.wwUntitled).font(BrandTypography.headline)
             if let context {
-                Text(L10n.wwStarted + WebWorkspaceDate.display(context.started_at)).font(.caption)
-                if let finished = context.finished_at { Text(L10n.wwFinished + WebWorkspaceDate.display(finished)).font(.caption) }
+                Text(L10n.wwStarted + WebWorkspaceDate.display(context.started_at)).font(BrandTypography.caption)
+                if let finished = context.finished_at { Text(L10n.wwFinished + WebWorkspaceDate.display(finished)).font(BrandTypography.caption) }
             }
-            Text(L10n.wwActivityCount(payload.items.count, notes: payload.hasNotes)).font(.subheadline).foregroundStyle(Theme.textBody)
+            Text(L10n.wwActivityCount(payload.items.count, notes: payload.hasNotes)).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
             if payload.hasNotes {
-                Text(L10n.wwNotes).font(.subheadline.weight(.semibold))
+                Text(L10n.wwNotes).font(BrandTypography.subheadline.weight(.semibold))
                 Text(payload.notes).lineLimit(3).textSelection(.enabled)
             }
             ForEach(payload.items.prefix(3)) { item in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.title).font(.subheadline.weight(.semibold))
+                    Text(item.title).font(BrandTypography.subheadline.weight(.semibold))
                     switch item.content {
                     case .diaryOne(let d), .diaryTwo(let d): Text(d.event).lineLimit(2)
                     case .diaryThree(let d): Text(d.situation).lineLimit(2)
                     case .questionnaire(let q):
-                        if let date = item.measurement_date { Text(L10n.wwMeasurementDate + date).font(.caption) }
+                        if let date = item.measurement_date { Text(L10n.wwMeasurementDate + date).font(BrandTypography.caption) }
                         HStack { ScoreCapsule.gad7(q.questionnaire); ScoreCapsule.phq9(q.questionnaire) }
-                        if q.flagsQuestionNine { Text(L10n.wwQuestionNineFlag).font(.footnote).foregroundStyle(Theme.error) }
+                        if q.flagsQuestionNine { Text(L10n.wwQuestionNineFlag).font(BrandTypography.footnote).foregroundStyle(Theme.error) }
                     }
                 }
             }
@@ -419,8 +419,8 @@ struct WebWorksheetPreview: View {
         }.navigationTitle(item.title).navigationBarTitleDisplayMode(.inline).webWorkspaceStyle().textSelection(.enabled)
     }
     @ViewBuilder private var metadata: some View {
-        Text(WebWorkspaceDate.display(item.completed_at)).font(.subheadline).foregroundStyle(Theme.textBody)
-        if let date = item.measurement_date { Text(L10n.wwMeasurementDate + date).font(.subheadline) }
+        Text(WebWorkspaceDate.display(item.completed_at)).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
+        if let date = item.measurement_date { Text(L10n.wwMeasurementDate + date).font(BrandTypography.subheadline) }
     }
     @ViewBuilder private var diaryContent: some View {
         switch item.content {

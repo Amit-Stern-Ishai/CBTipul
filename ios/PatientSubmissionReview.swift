@@ -24,12 +24,12 @@ struct PatientSubmissionReview: View {
                         VStack(alignment: .leading, spacing: 10) {
                             ViewThatFits(in: .horizontal) {
                                 HStack {
-                                    Text(sections[index].title).font(.headline).fixedSize()
+                                    Text(sections[index].title).font(BrandTypography.headline).fixedSize()
                                     Spacer()
                                     editButton(index).fixedSize()
                                 }
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text(sections[index].title).font(.headline)
+                                    Text(sections[index].title).font(BrandTypography.headline)
                                         .fixedSize(horizontal: false, vertical: true)
                                     editButton(index)
                                 }

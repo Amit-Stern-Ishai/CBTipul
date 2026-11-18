@@ -96,8 +96,8 @@ struct AIUsageNotice: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "info.circle").foregroundStyle(Theme.gold).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 5) {
-                Text(parts.count > 1 ? parts[0] : title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textBright)
-                Text(parts.count > 1 ? parts[1] : message).font(.subheadline).foregroundStyle(Theme.textBody)
+                Text(parts.count > 1 ? parts[0] : title).font(BrandTypography.subheadline.weight(.semibold)).foregroundStyle(Theme.textBright)
+                Text(parts.count > 1 ? parts[1] : message).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

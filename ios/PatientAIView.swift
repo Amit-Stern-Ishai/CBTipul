@@ -89,7 +89,7 @@ struct PatientAIView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             HStack(spacing: 10) {
                 InitialsAvatar(name: patient.displayName, size: 36, patientID: patient.id)
-                Text(patient.displayName).font(.headline).foregroundStyle(Theme.textBright)
+                Text(patient.displayName).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                 Spacer(minLength: 0)
                 Image(systemName: "sparkles").foregroundStyle(Theme.gold).accessibilityHidden(true)
             }
@@ -116,7 +116,7 @@ struct PatientAIView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text(L10n.aiEmptyMessage)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 0) {
@@ -127,13 +127,13 @@ struct PatientAIView: View {
                     } label: {
                         HStack(alignment: .top, spacing: 12) {
                             Text(question)
-                                .font(.body)
+                                .font(BrandTypography.body)
                                 .foregroundStyle(Theme.textBright)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Image(systemName: "arrow.up.backward")
-                                .font(.subheadline.weight(.medium))
+                                .font(BrandTypography.subheadline.weight(.medium))
                                 .foregroundStyle(Theme.gold)
                                 .accessibilityHidden(true)
                         }
@@ -165,7 +165,7 @@ struct PatientAIView: View {
                 .padding(.leading, 4)
             Button(action: send) {
                 Image(systemName: "arrow.up")
-                    .font(.headline.weight(.bold))
+                    .font(BrandTypography.headline.weight(.bold))
                     .foregroundStyle(canSend ? Theme.textOnAccent : Theme.textFaint)
                     .frame(width: 44, height: 44)
                     .background(canSend ? Theme.accentFill : Theme.surface, in: RoundedRectangle(cornerRadius: 12))
@@ -188,12 +188,12 @@ struct PatientAIView: View {
             VStack(alignment: .leading, spacing: 8) {
                 if entry.role == .assistant {
                     Label("AI", systemImage: "sparkles")
-                        .font(.caption.weight(.semibold))
+                        .font(BrandTypography.caption.weight(.semibold))
                         .foregroundStyle(Theme.gold)
                 }
                 Text(entry.displayedText
                      ?? (entry.role == .assistant ? aiMarkdown(entry.text) : AttributedString(entry.text)))
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBright)
                     .lineSpacing(4)
                     .textSelection(.enabled)

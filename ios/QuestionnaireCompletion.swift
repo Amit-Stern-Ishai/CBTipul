@@ -88,7 +88,7 @@ struct TherapistQuestionnaireCompletionGuide: ViewModifier {
     private var completionRow: some View {
         HStack(spacing: 8) {
             Text(L10n.questionnaireCompletion(completion.answered, total: completion.total))
-                .font(.subheadline)
+                .font(BrandTypography.subheadline)
             Spacer(minLength: 8)
             Image(systemName: completion.firstUnanswered == nil ? "checkmark.circle" : "arrow.down.circle")
                 .accessibilityHidden(true)

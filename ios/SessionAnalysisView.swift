@@ -70,19 +70,19 @@ struct SessionAnalysisView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     if requiresSaveDecision {
-                        Text(L10n.sessionDraftReviewHint).font(.subheadline).foregroundStyle(.secondary)
+                        Text(L10n.sessionDraftReviewHint).font(BrandTypography.subheadline).foregroundStyle(.secondary)
                     } else if onSave != nil {
-                        Text(L10n.sessionAISaveHelp).font(.subheadline).foregroundStyle(.secondary)
+                        Text(L10n.sessionAISaveHelp).font(BrandTypography.subheadline).foregroundStyle(.secondary)
                     }
                     TextField(L10n.sessionSummaryPlaceholder, text: $edited.sessionSummary, axis: .vertical).entitlementWriteControl()
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .lineSpacing(4)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     if !edited.keySituations.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(L10n.keySituationsSection)
-                                .font(.title3.bold())
+                                .font(BrandTypography.title3.bold())
 
                             ForEach(edited.keySituations.indices, id: \.self) { index in
                                 keySituationCard(index: index)
@@ -93,7 +93,7 @@ struct SessionAnalysisView: View {
                     if !edited.possibleNats.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(L10n.possibleAutomaticThoughtsSection)
-                                .font(.title3.bold())
+                                .font(BrandTypography.title3.bold())
 
                             ForEach(edited.possibleNats.indices, id: \.self) { index in
                                 natCard(index: index)
@@ -104,7 +104,7 @@ struct SessionAnalysisView: View {
                     if !edited.cbtCycles.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(L10n.cbtCycleSection)
-                                .font(.title3.bold())
+                                .font(BrandTypography.title3.bold())
 
                             ForEach(edited.cbtCycles.indices, id: \.self) { index in
                                 cycleCard(edited.cbtCycles[index])
@@ -115,7 +115,7 @@ struct SessionAnalysisView: View {
                     if !edited.therapistHypotheses.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(L10n.therapistHypothesesSection)
-                                .font(.title3.bold())
+                                .font(BrandTypography.title3.bold())
 
                             ForEach(edited.therapistHypotheses.indices, id: \.self) { index in
                                 hypothesisCard(edited.therapistHypotheses[index])
@@ -126,7 +126,7 @@ struct SessionAnalysisView: View {
                     if !edited.followUpQuestions.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(L10n.questionsToRevisitSection)
-                                .font(.title3.bold())
+                                .font(BrandTypography.title3.bold())
 
                             ForEach(edited.followUpQuestions.indices, id: \.self) { index in
                                 followUpCard(index: index)
@@ -137,7 +137,7 @@ struct SessionAnalysisView: View {
                     if !edited.assignmentsForNextWeek.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(L10n.assignmentsForNextWeekSection)
-                                .font(.title3.bold())
+                                .font(BrandTypography.title3.bold())
 
                             ForEach(edited.assignmentsForNextWeek.indices, id: \.self) { index in
                                 assignmentCard(edited.assignmentsForNextWeek[index])
@@ -181,7 +181,7 @@ struct SessionAnalysisView: View {
             .safeAreaInset(edge: .bottom) {
                 if requiresSaveDecision {
                     VStack(spacing: 8) {
-                        Text(L10n.sessionAIAddHelp).font(.footnote).foregroundStyle(.secondary)
+                        Text(L10n.sessionAIAddHelp).font(BrandTypography.footnote).foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Button {
                             guard EntitlementState.shared.allowMutation(), let onSave else { return }
@@ -190,7 +190,7 @@ struct SessionAnalysisView: View {
                         } label: {
                             Text(L10n.sessionAcceptDraft).frame(maxWidth: .infinity, minHeight: 30)
                         }.buttonStyle(.borderedProminent)
-                        Button(L10n.sessionReturnToNotes) { dismiss() }.font(.subheadline)
+                        Button(L10n.sessionReturnToNotes) { dismiss() }.font(BrandTypography.subheadline)
                     }.padding().background(.regularMaterial)
                 }
             }
@@ -219,7 +219,7 @@ struct SessionAnalysisView: View {
             sourceBadge(for: edited.possibleNats[index].source)
 
             TextField(L10n.thoughtLabel, text: $edited.possibleNats[index].thought, axis: .vertical).entitlementWriteControl()
-                .font(.body.weight(.semibold).italic())
+                .font(BrandTypography.body.weight(.semibold).italic())
 
             Divider()
 
@@ -240,7 +240,7 @@ struct SessionAnalysisView: View {
                 let patterns = sortedByConfidence(edited.possibleNats[index].cognitivePatterns)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L10n.possibleCognitivePatternsLabel)
-                        .font(.caption)
+                        .font(BrandTypography.caption)
                         .foregroundStyle(.secondary)
                     ForEach(patterns.indices, id: \.self) { patternIndex in
                         cognitivePatternRow(patterns[patternIndex])
@@ -283,14 +283,14 @@ struct SessionAnalysisView: View {
         let (label, isReported) = sourceLabel(for: source)
         if isReported {
             Label(label, systemImage: "quote.opening")
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .foregroundStyle(.tint)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(.tint.opacity(0.12)))
         } else {
             Label(label, systemImage: "lightbulb")
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .foregroundStyle(Theme.warning)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
@@ -305,18 +305,18 @@ struct SessionAnalysisView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline) {
                 Text(item.pattern)
-                    .font(.subheadline.weight(.medium))
+                    .font(BrandTypography.subheadline.weight(.medium))
                     .foregroundStyle(.tint)
                 Spacer()
                 if let caption = confidenceCaption(for: item.confidence) {
                     Text(caption)
-                        .font(.caption)
+                        .font(BrandTypography.caption)
                         .foregroundStyle(.secondary)
                 }
             }
             if !item.evidence.isEmpty {
                 Text(item.evidence)
-                    .font(.caption)
+                    .font(BrandTypography.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -359,10 +359,10 @@ struct SessionAnalysisView: View {
     private func labeledField(_ title: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.caption)
+                .font(BrandTypography.caption)
                 .foregroundStyle(.secondary)
             TextField(title, text: text, axis: .vertical).entitlementWriteControl()
-                .font(.subheadline)
+                .font(BrandTypography.subheadline)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -393,10 +393,10 @@ struct SessionAnalysisView: View {
             ForEach(stages.indices, id: \.self) { index in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(stages[index].title)
-                        .font(.caption.weight(.semibold))
+                        .font(BrandTypography.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(stages[index].text)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if index < stages.count - 1 {
@@ -405,7 +405,7 @@ struct SessionAnalysisView: View {
             }
             if !cycle.evidence.isEmpty {
                 Text("\(L10n.evidenceLabel): \(cycle.evidence)")
-                    .font(.caption)
+                    .font(BrandTypography.caption)
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
             }
@@ -417,7 +417,7 @@ struct SessionAnalysisView: View {
 
     private var cycleArrow: some View {
         Image(systemName: "arrow.down")
-            .font(.caption.weight(.semibold))
+            .font(BrandTypography.caption.weight(.semibold))
             .foregroundStyle(.tertiary)
             .padding(.vertical, 2)
     }
@@ -428,10 +428,10 @@ struct SessionAnalysisView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 Text(item.hypothesis)
-                    .font(.body.weight(.medium))
+                    .font(BrandTypography.body.weight(.medium))
                 Spacer()
                 Label(L10n.possibleInferenceBadge, systemImage: "lightbulb")
-                    .font(.caption.weight(.semibold))
+                    .font(BrandTypography.caption.weight(.semibold))
                     .foregroundStyle(Theme.warning)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -439,7 +439,7 @@ struct SessionAnalysisView: View {
             }
             if !item.evidence.isEmpty {
                 Text(item.evidence)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(.secondary)
             }
         }
@@ -454,22 +454,22 @@ struct SessionAnalysisView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("\(index + 1).")
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                     .foregroundStyle(.secondary)
                 TextField(L10n.questionPlaceholder,
                           text: $edited.followUpQuestions[index].question,
                           axis: .vertical).entitlementWriteControl()
-                    .font(.headline)
+                    .font(BrandTypography.headline)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.whyItMattersLabel)
-                    .font(.caption.weight(.semibold))
+                    .font(BrandTypography.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 TextField(L10n.reasonPlaceholder,
                           text: $edited.followUpQuestions[index].reason,
                           axis: .vertical).entitlementWriteControl()
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(.secondary)
             }
 
@@ -492,11 +492,11 @@ struct SessionAnalysisView: View {
     private func assignmentCard(_ item: WhisperService.AssignmentForNextWeek) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(item.assignment)
-                .font(.headline)
+                .font(BrandTypography.headline)
             if let details = item.details,
                !details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text(details)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(.secondary)
             }
         }
@@ -515,7 +515,7 @@ struct SessionAnalysisView: View {
             edited.followUpQuestions[index].status = isSelected ? nil : status
         } label: {
             Label(title, systemImage: systemImage)
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .foregroundStyle(isSelected ? color : .secondary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
@@ -529,9 +529,9 @@ struct SessionAnalysisView: View {
     private func keySituationCard(index: Int) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             TextField(L10n.situationLabel, text: $edited.keySituations[index].situation, axis: .vertical).entitlementWriteControl()
-                .font(.headline)
+                .font(BrandTypography.headline)
             TextField(L10n.whyItMattersLabel, text: $edited.keySituations[index].whyItMatters, axis: .vertical).entitlementWriteControl()
-                .font(.subheadline)
+                .font(BrandTypography.subheadline)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -205,7 +205,7 @@ struct DeviceDraftFeedback: View {
     var body: some View {
         if isError, let message {
             Label(message, systemImage: isError ? "exclamationmark.triangle" : "iphone")
-                .font(.footnote)
+                .font(BrandTypography.footnote)
                 .foregroundStyle(isError ? Theme.error : Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("form.draftStatus")

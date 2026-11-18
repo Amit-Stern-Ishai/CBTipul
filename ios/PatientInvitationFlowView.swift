@@ -42,7 +42,7 @@ struct PatientInvitationFlowView: View {
 
     private var switchConfirmation: some View {
         invitationChrome {
-            Text(L10n.inviteSwitchTitle).font(.title.bold()).foregroundStyle(Theme.textBright)
+            Text(L10n.inviteSwitchTitle).font(BrandTypography.title.bold()).foregroundStyle(Theme.textBright)
             Text(L10n.inviteSwitchBody).foregroundStyle(Theme.textBody)
         } footer: {
             Button(L10n.inviteSwitchConfirm) {
@@ -74,7 +74,7 @@ struct PatientInvitationFlowView: View {
                     .tint(Theme.gold)
                     .controlSize(.large)
                 Text(L10n.patientActivationConnecting)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBody)
                     .multilineTextAlignment(.center)
             }
@@ -86,11 +86,11 @@ struct PatientInvitationFlowView: View {
         let copy = Self.copy(for: failure)
         return invitationChrome {
             Text(copy.title)
-                .font(.title.bold())
+                .font(BrandTypography.title.bold())
                 .foregroundStyle(Theme.textBright)
                 .fixedSize(horizontal: false, vertical: true)
             Text(copy.body)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
         } footer: {
@@ -105,7 +105,7 @@ struct PatientInvitationFlowView: View {
             Button(L10n.invitePreviewCloseAction) {
                 flow.dismiss()
             }
-            .font(.body.weight(.medium))
+            .font(BrandTypography.body.weight(.medium))
             .foregroundStyle(Theme.textBody)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
@@ -125,17 +125,17 @@ struct PatientInvitationFlowView: View {
     private func preview(therapistDisplayName: String) -> some View {
         invitationChrome {
             Text(L10n.invitePreviewTitle)
-                .font(.title.bold())
+                .font(BrandTypography.title.bold())
                 .foregroundStyle(Theme.textBright)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(L10n.invitePreviewTherapistLine(therapistDisplayName))
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(L10n.invitePreviewExplanation)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
         } footer: {
@@ -150,7 +150,7 @@ struct PatientInvitationFlowView: View {
             Button(L10n.invitePreviewCloseAction) {
                 flow.dismiss()
             }
-            .font(.body.weight(.medium))
+            .font(BrandTypography.body.weight(.medium))
             .foregroundStyle(Theme.textBody)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
@@ -166,13 +166,13 @@ struct PatientInvitationFlowView: View {
     private func messageScreen(title: String, body: String, showsClose: Bool) -> some View {
         invitationChrome {
             Text(title)
-                .font(.title.bold())
+                .font(BrandTypography.title.bold())
                 .foregroundStyle(Theme.textBright)
                 .fixedSize(horizontal: false, vertical: true)
 
             if !body.isEmpty {
                 Text(body)
-                    .font(.body)
+                    .font(BrandTypography.body)
                     .foregroundStyle(Theme.textBody)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -268,12 +268,12 @@ private struct PatientInvitationConsentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(L10n.inviteConsentTitle)
-                        .font(.title.bold())
+                        .font(BrandTypography.title.bold())
                         .foregroundStyle(Theme.textBright)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(L10n.inviteConsentIntro)
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .foregroundStyle(Theme.textBody)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -295,7 +295,7 @@ private struct PatientInvitationConsentView: View {
                             openURL(privacyURL)
                         } label: {
                             Text(L10n.privacyPolicyTitle)
-                                .font(.body.weight(.semibold))
+                                .font(BrandTypography.body.weight(.semibold))
                                 .foregroundStyle(Theme.gold)
                         }
                         .buttonStyle(.plain)
@@ -304,7 +304,7 @@ private struct PatientInvitationConsentView: View {
                             openURL(termsURL)
                         } label: {
                             Text(L10n.termsTitle)
-                                .font(.body.weight(.semibold))
+                                .font(BrandTypography.body.weight(.semibold))
                                 .foregroundStyle(Theme.gold)
                         }
                         .buttonStyle(.plain)
@@ -315,10 +315,10 @@ private struct PatientInvitationConsentView: View {
                     } label: {
                         HStack(alignment: .top, spacing: 12) {
                             Image(systemName: hasAccepted ? "checkmark.square.fill" : "square")
-                                .font(.title3)
+                                .font(BrandTypography.title3)
                                 .foregroundStyle(hasAccepted ? Theme.gold : Theme.textBody)
                             Text(L10n.inviteConsentAcceptance)
-                                .font(.body)
+                                .font(BrandTypography.body)
                                 .foregroundStyle(Theme.textBright)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -356,7 +356,7 @@ private struct PatientInvitationConsentView: View {
                     Button(L10n.inviteConsentBackAction) {
                         flow.returnToPreview()
                     }
-                    .font(.body.weight(.medium))
+                    .font(BrandTypography.body.weight(.medium))
                     .foregroundStyle(Theme.textBody)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -376,10 +376,10 @@ private struct PatientInvitationConsentView: View {
     private func consentCard(title: String, body: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.headline)
+                .font(BrandTypography.headline)
                 .foregroundStyle(Theme.textBright)
             Text(body)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
         }

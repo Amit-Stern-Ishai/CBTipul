@@ -32,7 +32,7 @@ struct PatientDiaryOneHubView: View {
             case .failed where entries.isEmpty:
                 VStack(alignment: .leading, spacing: 16) {
                     Text(L10n.diaryOneLoadFailed)
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .foregroundStyle(Theme.textBody)
                     Button(L10n.retryAction) {
                         Task { await loadEntries() }
@@ -43,17 +43,17 @@ struct PatientDiaryOneHubView: View {
             case .loading, .loaded, .failed:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(L10n.patientDiaryDescription).font(.subheadline).foregroundStyle(Theme.textBody)
+                        Text(L10n.patientDiaryDescription).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
 
                         Text(L10n.diaryOneMyEntriesTitle)
-                            .font(.headline)
+                            .font(BrandTypography.headline)
                             .foregroundStyle(Theme.textBright)
                             .padding(.top, 8)
 
                         PatientToolStatusView(active: isActive && !locallyInactive)
                         if entries.isEmpty {
                             Text(L10n.diaryOneEmptyTitle)
-                                .font(.body)
+                                .font(BrandTypography.body)
                                 .foregroundStyle(Theme.textBody)
                         } else {
                             ForEach(entries) { entry in
@@ -110,15 +110,15 @@ struct PatientDiaryOneHubView: View {
     private func patientHistoryRow(_ entry: DiaryOneEntry) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.hebrewDateTime(entry.createdAt))
-                .font(.headline)
+                .font(BrandTypography.headline)
                 .foregroundStyle(Theme.textBright)
             Text(entry.event)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .lineLimit(2)
             if !entry.automaticThoughtsPreview.isEmpty {
                 Text(entry.automaticThoughtsPreview)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(Theme.textBody)
                     .lineLimit(2)
             }
@@ -157,7 +157,7 @@ struct PatientDiaryOneDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
 
                 Text(L10n.hebrewDateTime(entry.createdAt))
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                     .foregroundStyle(Theme.textBright)
                 DiaryOneEntryContent(event: entry.event, automaticThoughts: entry.automaticThoughts,
                     feelings: entry.feelings, behaviour: entry.behaviour, physicalSymptoms: entry.physicalSymptoms)
@@ -198,11 +198,11 @@ struct DiaryOneEntryContent: View {
             labeledBlock(L10n.diaryOneEventTitle, event)
             VStack(alignment: .leading, spacing: 8) {
                 Text(L10n.diaryOneThoughtTitle)
-                    .font(.caption.weight(.semibold))
+                    .font(BrandTypography.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 ForEach(Array(automaticThoughts.enumerated()), id: \.offset) { _, thought in
                     Text(thought)
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .foregroundStyle(Theme.textBright)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -217,10 +217,10 @@ struct DiaryOneEntryContent: View {
     private func labeledBlock(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.body)
+                .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBright)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

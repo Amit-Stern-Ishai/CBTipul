@@ -90,11 +90,11 @@ struct PatientSessionsView: View {
             if patient.sessions.isEmpty {
                 VStack(spacing: 12) {
                     Text(L10n.emptySessionsTitle)
-                        .font(.title3.weight(.semibold))
+                        .font(BrandTypography.title3.weight(.semibold))
                         .multilineTextAlignment(.center)
                     Text(L10n.emptySessionsBody)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(BrandTypography.subheadline)
+                        .foregroundStyle(Theme.textBody)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -265,18 +265,18 @@ private struct SessionRow: View {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 6) {
                     Text(L10n.session(number))
-                        .font(.title3.weight(.semibold))
+                        .font(BrandTypography.title3.weight(.semibold))
                         .foregroundStyle(Theme.textBright)
                     if session.structuredNotes != nil {
                         Image(systemName: "doc.text")
-                            .font(.caption)
+                            .font(BrandTypography.caption)
                             .foregroundStyle(Theme.textBody)
                             .accessibilityLabel(L10n.hasStructuredSummaryLabel)
                     }
                 }
                 if let type = session.type {
                     Text(L10n.label(for: type))
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .foregroundStyle(Theme.textBody)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -289,7 +289,7 @@ private struct SessionRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "chevron.forward")
-                .font(.caption.weight(.semibold))
+                .font(BrandTypography.caption.weight(.semibold))
                 .foregroundStyle(.tertiary)
                 .padding(.top, 7)
                 .accessibilityHidden(true)

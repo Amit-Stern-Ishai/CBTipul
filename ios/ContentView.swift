@@ -24,6 +24,16 @@ struct MyApp: App {
         // (e.g. placeholders jumping sides). Force the UIKit layer too.
         UIView.appearance().semanticContentAttribute = .forceRightToLeft
 
+        let navigation = UINavigationBar.appearance()
+        navigation.titleTextAttributes = [
+            .font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: UIFont(name: "Rubik-Light_SemiBold", size: 17) ?? UIFont.boldSystemFont(ofSize: 17)),
+            .foregroundColor: Theme.uiTextBright
+        ]
+        navigation.largeTitleTextAttributes = [
+            .font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: UIFont(name: "Rubik-Light_Bold", size: 34) ?? UIFont.boldSystemFont(ofSize: 34)),
+            .foregroundColor: Theme.uiTextBright
+        ]
+
         // Segmented controls are UIKit-backed and ignore the SwiftUI tint,
         // which leaves them system-gray; align them with the theme instead.
         let segmented = UISegmentedControl.appearance()
@@ -156,7 +166,7 @@ struct ContentView: View {
         return VStack(spacing: 0) {
             if auth.hasSession && appContext.current != nil && appContext.loadError != nil && !invitationFlow.isActive {
                 HStack {
-                    Text(L10n.patientContextRetryTitle).font(.footnote)
+                    Text(L10n.patientContextRetryTitle).font(BrandTypography.footnote)
                     Button(L10n.retry) { Task { _ = try? await appContext.getCurrentAppContext() } }
                         .disabled(appContext.isLoading)
                 }.padding(8).background(Theme.surface)
@@ -168,7 +178,7 @@ struct ContentView: View {
                 && !onboarding.shouldShowIntroduction && !entitlement.isLocalDemo {
                 Button { entitlement.showExplanation = true } label: {
                     Label(L10n.entitlementReadOnlyTitle, systemImage: "eye")
-                        .font(.footnote).frame(maxWidth: .infinity).padding(8)
+                        .font(BrandTypography.footnote).frame(maxWidth: .infinity).padding(8)
                 }
                 .background(Theme.surface)
                 .accessibilityIdentifier("entitlement.readOnlyNotice")
@@ -347,7 +357,7 @@ struct ContentView: View {
         if let claim = appContext.emailClaim, [.confirmation, .unavailable, .verification, .failed].contains(claim.state) {
             VStack(spacing: 20) {
                 Text(claim.state == .confirmation ? "לעבור למצב מטופל/ת?" : claim.state == .unavailable ? "ההזמנה אינה זמינה" : claim.state == .verification ? L10n.verifyEmailTitle : "לא ניתן לבדוק את ההזמנה")
-                    .font(.title2.bold())
+                    .font(BrandTypography.title2.bold())
                 Text(claim.state == .confirmation ? "נמצאה הזמנה ממטפל/ת. האם לעבור לחשבון המטופל/ת?" : claim.state == .unavailable ? "לא ניתן להשתמש בהזמנה הזו. אפשר להמשיך לחשבון הקיים." : claim.state == .verification ? L10n.verifyEmailMessage(email: auth.currentUserEmail ?? "") : "נסו שוב כדי לבדוק אם החשבון כבר חובר.")
                     .multilineTextAlignment(.center)
                 if claim.state == .confirmation {
@@ -372,7 +382,7 @@ struct ContentView: View {
                             if owner == auth.currentUserId { resendingClaimVerification = false }
                         }
                     }.disabled(resendingClaimVerification)
-                    if let claimVerificationNotice { Text(claimVerificationNotice).font(.footnote) }
+                    if let claimVerificationNotice { Text(claimVerificationNotice).font(BrandTypography.footnote) }
                 }
                 Button("יציאה מהחשבון") { auth.signOut() }
             }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.base).tint(Theme.gold)
@@ -398,7 +408,7 @@ struct ContentView: View {
                         .tint(Theme.gold)
                         .controlSize(.large)
                     Text(L10n.patientActivationConnecting)
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .foregroundStyle(Theme.textBody)
                         .multilineTextAlignment(.center)
                 }

@@ -40,14 +40,14 @@ struct PatientJourneySection: View {
         VStack(alignment: .leading, spacing: 4) {
                 if inHeader {
                     Text(L10n.patientJourneyTitle)
-                        .font(.subheadline.weight(.bold)).foregroundStyle(Theme.headerInk)
+                        .font(BrandTypography.subheadline.weight(.bold)).foregroundStyle(Theme.headerInk)
                         .accessibilityAddTraits(.isHeader)
                 } else {
                 Button { onOpen(nil) } label: {
                     HStack {
                         Text(L10n.patientJourneyTitle).font(inHeader ? .subheadline.weight(.bold) : .headline)
                         Spacer()
-                        Image(systemName: "chevron.forward").font(.caption)
+                        Image(systemName: "chevron.forward").font(BrandTypography.caption)
                     }
                     .foregroundStyle(inHeader ? Theme.headerInk : Theme.textBright).frame(minHeight: 44)
                     .contentShape(Rectangle())
@@ -55,7 +55,7 @@ struct PatientJourneySection: View {
                 .accessibilityIdentifier("patient.journey.full")
                 }
                 if groups.isEmpty {
-                    Text(L10n.patientJourneyEmpty).font(.subheadline).foregroundStyle(Theme.textBody)
+                    Text(L10n.patientJourneyEmpty).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                 } else if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(Array(groups.reversed())) { group in stage(group, horizontal: false) }
@@ -126,9 +126,9 @@ struct PatientJourneySection: View {
                 }.frame(height: horizontal ? 26 : 36).frame(maxWidth: horizontal ? .infinity : 36)
                     .accessibilityHidden(true)
                 VStack(alignment: horizontal ? .center : .leading, spacing: horizontal ? 2 : 4) {
-                    Text(group.title).font(.caption.weight(.semibold)).foregroundStyle(inHeader ? Theme.headerInk : Theme.textBright)
+                    Text(group.title).font(BrandTypography.caption.weight(.semibold)).foregroundStyle(inHeader ? Theme.headerInk : Theme.textBright)
                         .multilineTextAlignment(horizontal ? .center : .leading)
-                    Text(L10n.patientJourneyCount(group.sessions.count)).font(.caption).foregroundStyle(inHeader ? Theme.headerInk.opacity(0.85) : Theme.textBody)
+                    Text(L10n.patientJourneyCount(group.sessions.count)).font(BrandTypography.caption).foregroundStyle(inHeader ? Theme.headerInk.opacity(0.85) : Theme.textBody)
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 0)
@@ -151,7 +151,7 @@ struct PatientJourneyHistory: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text(patient.displayName).font(.title2.bold()).foregroundStyle(Theme.textBright)
+                Text(patient.displayName).font(BrandTypography.title2.bold()).foregroundStyle(Theme.textBright)
                 if groups.isEmpty {
                     Text(L10n.patientJourneyEmpty).foregroundStyle(Theme.textBody)
                 } else {
@@ -166,13 +166,13 @@ struct PatientJourneyHistory: View {
                                         .opacity(group.id == groups.last?.id ? 0 : 1)
                                 }.frame(width: 16).accessibilityHidden(true)
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(group.title).font(.headline).foregroundStyle(Theme.textBright)
+                                    Text(group.title).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                                     Text(L10n.patientJourneyCount(group.sessions.count))
-                                        .font(.subheadline).foregroundStyle(Theme.textBody)
+                                        .font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
                                     if let first = group.sessions.first, let last = group.sessions.last {
                                         Text(first.date == last.date ? L10n.hebrewDate(first.date) :
                                                 L10n.hebrewDate(first.date) + " – " + L10n.hebrewDate(last.date))
-                                            .font(.caption).foregroundStyle(Theme.textBody)
+                                            .font(BrandTypography.caption).foregroundStyle(Theme.textBody)
                                     }
                                 }
                                 .fixedSize(horizontal: false, vertical: true)

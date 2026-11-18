@@ -27,7 +27,7 @@ struct DiaryThinkingErrorPicker: View {
             NavigationStack {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(L10n.diaryThinkingChoose).font(.subheadline).foregroundStyle(.secondary)
+                        Text(L10n.diaryThinkingChoose).font(BrandTypography.subheadline).foregroundStyle(.secondary)
                         ForEach(ThinkingError.allCases) { error in
                             HStack(spacing: 8) {
                                 Button {

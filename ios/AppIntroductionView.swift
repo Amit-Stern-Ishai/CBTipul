@@ -105,7 +105,7 @@ struct AppIntroductionView: View {
                         .accessibilityHidden(true)
                     VStack(spacing: 10) {
                         Text(title(for: index))
-                            .font(.title.bold())
+                            .font(BrandTypography.title.bold())
                             .foregroundStyle(Theme.textBright)
                             .accessibilityAddTraits(.isHeader)
                             .accessibilityFocused($focusedPage, equals: index)
@@ -119,12 +119,12 @@ struct AppIntroductionView: View {
                                 .accessibilityElement(children: .combine)
                             }
                         }
-                        .font(.body)
+                        .font(BrandTypography.body)
                         .foregroundStyle(Theme.textBody)
                         .multilineTextAlignment(.leading)
                         if !isPatientMode && index == pageCount - 1 {
                             Text(L10n.introductionSampleHint)
-                                .font(.callout)
+                                .font(BrandTypography.callout)
                                 .foregroundStyle(Theme.textBody)
                                 .padding(12)
                                 .frame(maxWidth: .infinity)
@@ -142,7 +142,7 @@ struct AppIntroductionView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !isPatientMode && index == 2 {
                     Text(L10n.introductionChatDisclaimer)
-                        .font(.footnote)
+                        .font(BrandTypography.footnote)
                         .foregroundStyle(Theme.textBody)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: 492)
@@ -161,7 +161,7 @@ struct AppIntroductionView: View {
             HStack(spacing: 8) {
                 Button { go(to: page - 1) } label: {
                     Image(systemName: "chevron.backward")
-                        .font(.body.weight(.semibold))
+                        .font(BrandTypography.body.weight(.semibold))
                         .frame(width: 44, height: 44)
                 }
                 .foregroundStyle(Theme.gold)
@@ -171,9 +171,9 @@ struct AppIntroductionView: View {
                 .accessibilityLabel(L10n.back)
                 .accessibilityIdentifier("introduction.back")
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(L10n.appTitle).font(.title3.weight(.bold)).foregroundStyle(Theme.gold)
+                    Text(L10n.appTitle).font(BrandTypography.title3.weight(.bold)).foregroundStyle(Theme.gold)
                     Text(L10n.introductionPage(page + 1, total: pageCount))
-                        .font(.caption).foregroundStyle(Theme.textBody)
+                        .font(BrandTypography.caption).foregroundStyle(Theme.textBody)
                         .accessibilityIdentifier("introduction.page.\(page + 1)")
                 }
                 Spacer()
@@ -228,7 +228,7 @@ struct AppIntroductionView: View {
                 .accessibilityIdentifier("introduction.sample")
             }
             Button(isLastPage ? L10n.closeAction : L10n.introductionSkip, action: onContinue)
-                .font(.subheadline.weight(.semibold))
+                .font(BrandTypography.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textBody)
                 .frame(minWidth: 48, minHeight: 48)
                 .accessibilityIdentifier("introduction.skip")
@@ -255,7 +255,7 @@ struct AppIntroductionView: View {
     private func illustrationRow(_ text: String, symbol: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol).foregroundStyle(Theme.gold).frame(width: 24)
-            Text(text).font(.subheadline.weight(.medium)).foregroundStyle(Theme.textBright)
+            Text(text).font(BrandTypography.subheadline.weight(.medium)).foregroundStyle(Theme.textBright)
             Spacer(minLength: 0)
         }
         .padding(12)
@@ -269,7 +269,7 @@ struct AppIntroductionView: View {
             case 0:
                 HStack(spacing: 14) {
                     icon("person.crop.rectangle")
-                    Text(L10n.patientRecordsTitle).font(.headline).foregroundStyle(Theme.textBright)
+                    Text(L10n.patientRecordsTitle).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                     Spacer()
                 }
                 illustrationRow(L10n.introductionRecord, symbol: "mic")
@@ -280,13 +280,13 @@ struct AppIntroductionView: View {
             case 2:
                 HStack(spacing: 14) {
                     icon("bubble.left.and.bubble.right")
-                    Text(L10n.aiPatientPickerTitle).font(.headline).foregroundStyle(Theme.textBright)
+                    Text(L10n.aiPatientPickerTitle).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                     Spacer()
                 }
                 illustrationRow(L10n.introductionChatPatterns, symbol: "sparkles")
                 illustrationRow(L10n.introductionChatPreparation, symbol: "calendar")
             case 3:
-                Text(L10n.introductionConnected).font(.caption.weight(.semibold)).foregroundStyle(Theme.gold)
+                Text(L10n.introductionConnected).font(BrandTypography.caption.weight(.semibold)).foregroundStyle(Theme.gold)
                 illustrationRow(L10n.introductionMessage, symbol: "bubble.left")
                 illustrationRow(L10n.introductionQuestionnaire, symbol: "list.clipboard")
                 illustrationRow(L10n.introductionDiary, symbol: "book.closed")
@@ -294,7 +294,7 @@ struct AppIntroductionView: View {
                 HStack {
                     icon("chart.xyaxis.line")
                     Spacer()
-                    Text(L10n.introductionTrend).font(.headline).foregroundStyle(Theme.textBright)
+                    Text(L10n.introductionTrend).font(BrandTypography.headline).foregroundStyle(Theme.textBright)
                 }
                 GeometryReader { geometry in
                     let points: [CGFloat] = [0.22, 0.39, 0.32, 0.61, 0.58, 0.79]
@@ -328,7 +328,7 @@ struct AppIntroductionView: View {
             default:
                 HStack(spacing: 14) {
                     icon("person.2.crop.square.stack")
-                    Text(L10n.introductionSampleBadge).font(.headline).foregroundStyle(Theme.gold)
+                    Text(L10n.introductionSampleBadge).font(BrandTypography.headline).foregroundStyle(Theme.gold)
                     Spacer()
                 }
                 illustrationRow(L10n.introductionSamplePatient, symbol: "person.crop.circle")

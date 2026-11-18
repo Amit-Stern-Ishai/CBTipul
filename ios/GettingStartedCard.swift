@@ -332,27 +332,27 @@ struct TutorialCoachCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "figure.walk")
-                    .font(.title3.weight(.bold))
+                    .font(BrandTypography.title3.weight(.bold))
                     .foregroundStyle(Theme.textOnAccent)
                     .symbolEffect(.bounce, options: .repeating.speed(0.5))
 
                 VStack(alignment: .leading, spacing: 6) {
                     if progress.isComplete {
                         Text(L10n.gettingStartedCompleteMessage)
-                            .font(.subheadline.weight(.bold))
+                            .font(BrandTypography.subheadline.weight(.bold))
                             .foregroundStyle(Theme.textOnAccent)
                     } else if let step = progress.currentStep {
                         Text(L10n.gettingStartedProgress(
                             progress.currentStepNumber,
                             total: GettingStartedStep.allCases.count))
-                            .font(.caption.weight(.heavy))
+                            .font(BrandTypography.caption.weight(.heavy))
                             .foregroundStyle(Theme.textOnAccent.opacity(0.85))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
                             .background(Color.white.opacity(0.22), in: Capsule())
 
                         Text(step.title)
-                            .font(.headline.weight(.bold))
+                            .font(BrandTypography.headline.weight(.bold))
                             .foregroundStyle(Theme.textOnAccent)
 
                         Text(TutorialCoach.hint(
@@ -361,7 +361,7 @@ struct TutorialCoachCard: View {
                             progress: progress,
                             viewingPatientID: viewingPatientID
                         ))
-                            .font(.subheadline)
+                            .font(BrandTypography.subheadline)
                             .foregroundStyle(Theme.textOnAccent.opacity(0.92))
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -371,7 +371,7 @@ struct TutorialCoachCard: View {
 
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
-                        .font(.footnote.weight(.bold))
+                        .font(BrandTypography.footnote.weight(.bold))
                         .foregroundStyle(Theme.textOnAccent.opacity(0.85))
                         .padding(8)
                         .contentShape(Rectangle())
@@ -391,7 +391,7 @@ struct TutorialCoachCard: View {
                     if !showcaseLoaded {
                         Button(action: onSkipToShowcase) {
                             Label(L10n.tutorialCoachSkipToShowcase, systemImage: "sparkles")
-                                .font(.subheadline.weight(.semibold))
+                                .font(BrandTypography.subheadline.weight(.semibold))
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
@@ -401,7 +401,7 @@ struct TutorialCoachCard: View {
 
                     Button(action: onRestart) {
                         Text(L10n.gettingStartedRestartAction)
-                            .font(.subheadline.weight(.semibold))
+                            .font(BrandTypography.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -410,7 +410,7 @@ struct TutorialCoachCard: View {
             } else if !showcaseLoaded {
                 Button(action: onSkipToShowcase) {
                     Label(L10n.tutorialCoachSkipToShowcase, systemImage: "sparkles")
-                        .font(.subheadline.weight(.semibold))
+                        .font(BrandTypography.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -466,10 +466,10 @@ struct ShowcaseAdvanceButton: View {
                         .lineLimit(1)
                     Spacer(minLength: 4)
                     Text("\(seconds)")
-                        .font(.subheadline.weight(.bold).monospacedDigit())
+                        .font(BrandTypography.subheadline.weight(.bold).monospacedDigit())
                         .contentTransition(.numericText())
                 }
-                .font(.subheadline)
+                .font(BrandTypography.subheadline)
                 .foregroundStyle(Theme.gold)
                 .padding(.horizontal, 16)
                 .frame(maxWidth: .infinity, minHeight: buttonHeight, maxHeight: buttonHeight)

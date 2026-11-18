@@ -23,7 +23,7 @@ struct DiaryThreeDraftFields: View {
                 }
                 if step == nil || step == 2 {
                     card(2, L10n.diaryOneThoughtTitle) {
-                        if step == nil { Text(L10n.diaryEntryThoughtHint).font(.subheadline).foregroundStyle(.secondary) }
+                        if step == nil { Text(L10n.diaryEntryThoughtHint).font(BrandTypography.subheadline).foregroundStyle(.secondary) }
                         ForEach($draft.automaticThoughts) { row in
                             DiaryThoughtRow(id: row.wrappedValue.id,
                                 number: (draft.automaticThoughts.firstIndex { $0.id == row.wrappedValue.id } ?? 0) + 1,
@@ -49,7 +49,7 @@ struct DiaryThreeDraftFields: View {
                 }
                 if step == nil || step == 3 {
                     card(3, L10n.diaryThreeFeelingsBefore) {
-                        if draft.feelings.isEmpty { Text(L10n.diaryEntryFeelingsHint).font(.subheadline).foregroundStyle(.secondary) }
+                        if draft.feelings.isEmpty { Text(L10n.diaryEntryFeelingsHint).font(BrandTypography.subheadline).foregroundStyle(.secondary) }
                         ForEach($draft.feelings) { row in
                             HStack {
                                 Text(row.wrappedValue.name).fontWeight(.semibold)
@@ -71,7 +71,7 @@ struct DiaryThreeDraftFields: View {
                 }
                 if step == nil || step == 5 {
                     card(5, L10n.diaryAlternativeThoughtsTitle) {
-                        if step == nil { Text(L10n.diaryEntryAlternativeHint).font(.subheadline).foregroundStyle(.secondary) }
+                        if step == nil { Text(L10n.diaryEntryAlternativeHint).font(BrandTypography.subheadline).foregroundStyle(.secondary) }
                         DiaryOriginalThoughts(thoughts: draft.automaticThoughts.map(\.text).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
                         ForEach($draft.alternativeThoughts) { row in
                             DiaryThoughtRow(id: row.wrappedValue.id,
@@ -140,7 +140,7 @@ struct DiaryThreeDraftFields: View {
             Text(title)
             Spacer()
             Text(L10n.diaryOneIntensityValue(value)).monospacedDigit().environment(\.layoutDirection, .leftToRight)
-        }.font(.subheadline).foregroundStyle(Theme.textBody)
+        }.font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
     }
     private func remove(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) { Image(systemName: "minus.circle").frame(minWidth: 44, minHeight: 44) }.accessibilityLabel(title)
@@ -155,7 +155,7 @@ struct DiaryThreeDraftFields: View {
                     issue: PatientDiaryThreeDraft(entry: draft).validationMessage(for: number), attempted: didAttemptSave,
                     active: $active, next: number < 7 ? { active = number + 1 } : nil, content: content)
             } else {
-                VStack(alignment: .leading, spacing: 14) { Text(title).font(.headline); content() }
+                VStack(alignment: .leading, spacing: 14) { Text(title).font(BrandTypography.headline); content() }
                     .padding(16).frame(maxWidth: .infinity, alignment: .leading).themedCard()
             }
         }
@@ -180,8 +180,8 @@ struct DiaryThreeEntryDetailView: View {
         ScrollView {
             if let entry {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(entry.createdAt.formatted(date: .numeric, time: .shortened)).font(.subheadline)
-                    Text(entry.createdBy == .patient ? L10n.diaryEntryPatientSource : L10n.diaryEntryTherapistSource).font(.caption).foregroundStyle(.secondary)
+                    Text(entry.createdAt.formatted(date: .numeric, time: .shortened)).font(BrandTypography.subheadline)
+                    Text(entry.createdBy == .patient ? L10n.diaryEntryPatientSource : L10n.diaryEntryTherapistSource).font(BrandTypography.caption).foregroundStyle(.secondary)
                     DiaryThreeEntryContent(entry: entry)
                 }.padding(20)
                 .task(id: entry.id) {
@@ -223,7 +223,7 @@ struct DiaryThreeEntryContent: View {
         section(L10n.diaryAlternativeThoughtsTitle) {
             ForEach(Array(entry.alternativeThoughts.enumerated()), id: \.offset) { _, thought in
                 Text(thought.text)
-                Text(L10n.diaryThreeBelief + ": " + L10n.diaryOneIntensityValue(thought.belief)).font(.subheadline).foregroundStyle(Theme.textBody)
+                Text(L10n.diaryThreeBelief + ": " + L10n.diaryOneIntensityValue(thought.belief)).font(BrandTypography.subheadline).foregroundStyle(Theme.textBody)
             }
         }
     }
@@ -235,12 +235,12 @@ struct DiaryThreeEntryContent: View {
     }
     private func rating(_ label: String, _ value: Int) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption).foregroundStyle(Theme.textBody)
-            Text(L10n.diaryOneIntensityValue(value)).font(.title3.weight(.semibold)).monospacedDigit().environment(\.layoutDirection, .leftToRight)
+            Text(label).font(BrandTypography.caption).foregroundStyle(Theme.textBody)
+            Text(L10n.diaryOneIntensityValue(value)).font(BrandTypography.title3.weight(.semibold)).monospacedDigit().environment(\.layoutDirection, .leftToRight)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private func section<C: View>(_ title: String, @ViewBuilder content: @escaping () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 12) { Text(title).font(.headline); content() }
+        VStack(alignment: .leading, spacing: 12) { Text(title).font(BrandTypography.headline); content() }
             .padding(16).frame(maxWidth: .infinity, alignment: .leading).themedCard().textSelection(.enabled)
     }
 }

@@ -97,7 +97,7 @@ struct NextSessionPreparationView: View {
                     if isOutdated {
                         Label(L10n.preparationOutdatedMessage,
                               systemImage: "clock.badge.exclamationmark")
-                            .font(.footnote.weight(.semibold))
+                            .font(BrandTypography.footnote.weight(.semibold))
                             .foregroundStyle(Theme.warning)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(12)
@@ -110,7 +110,7 @@ struct NextSessionPreparationView: View {
                     if !preparation.executiveSummary.isEmpty {
                         card {
                             Text(preparation.executiveSummary)
-                                .font(.body)
+                                .font(BrandTypography.body)
                                 .lineSpacing(4)
                         }
                     }
@@ -123,14 +123,14 @@ struct NextSessionPreparationView: View {
                         card {
                             Label {
                                 Text(item.assignment)
-                                    .font(.headline)
+                                    .font(BrandTypography.headline)
                             } icon: {
                                 Image(systemName: "checkmark.circle")
                                     .foregroundStyle(.secondary)
                             }
                             if let details = item.details, !details.isEmpty {
                                 Text(details)
-                                    .font(.subheadline)
+                                    .font(BrandTypography.subheadline)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -140,15 +140,15 @@ struct NextSessionPreparationView: View {
                             items: preparation.priorityFollowUps) { item in
                         card {
                             Text(item.item)
-                                .font(.headline)
+                                .font(BrandTypography.headline)
                             if !item.reason.isEmpty {
                                 Text(item.reason)
-                                    .font(.subheadline)
+                                    .font(BrandTypography.subheadline)
                                     .foregroundStyle(.secondary)
                             }
                             if !item.source.isEmpty {
                                 Text(L10n.sourceLine(item.source))
-                                    .font(.caption)
+                                    .font(BrandTypography.caption)
                                     .foregroundStyle(.tertiary)
                             }
                         }
@@ -169,10 +169,10 @@ struct NextSessionPreparationView: View {
                             items: preparation.questionnaireInsights) { item in
                         card {
                             Text(item.observation)
-                                .font(.headline)
+                                .font(BrandTypography.headline)
                             if !item.clinicalRelevance.isEmpty {
                                 Text(item.clinicalRelevance)
-                                    .font(.subheadline)
+                                    .font(BrandTypography.subheadline)
                                     .foregroundStyle(.secondary)
                             }
                             evidenceDisclosure(item.evidence)
@@ -187,10 +187,10 @@ struct NextSessionPreparationView: View {
                             items: preparation.suggestedQuestions) { item in
                         card {
                             Text(item.question)
-                                .font(.body.weight(.medium).italic())
+                                .font(BrandTypography.body.weight(.medium).italic())
                             if !item.purpose.isEmpty {
                                 Text(item.purpose)
-                                    .font(.subheadline)
+                                    .font(BrandTypography.subheadline)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -202,10 +202,10 @@ struct NextSessionPreparationView: View {
 
                     VStack(spacing: 4) {
                         Text(L10n.aiDisclaimer)
-                            .font(.footnote)
+                            .font(BrandTypography.footnote)
                             .foregroundStyle(.secondary)
 //                        Text(L10n.tokensUsed(response.usage.totalTokens))
-//                            .font(.caption2)
+//                            .font(BrandTypography.caption2)
 //                            .foregroundStyle(.tertiary)
                     }
                     .frame(maxWidth: .infinity)
@@ -241,7 +241,7 @@ struct NextSessionPreparationView: View {
         card {
             HStack(alignment: .top) {
                 Text(item.thought)
-                    .font(.body.weight(.semibold).italic())
+                    .font(BrandTypography.body.weight(.semibold).italic())
                 Spacer()
                 hypothesisBadge
             }
@@ -252,7 +252,7 @@ struct NextSessionPreparationView: View {
             if !item.cognitivePatterns.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L10n.possibleThinkingPatternsLabel)
-                        .font(.caption)
+                        .font(BrandTypography.caption)
                         .foregroundStyle(.secondary)
                     ForEach(item.cognitivePatterns.indices, id: \.self) { index in
                         cognitivePatternRow(item.cognitivePatterns[index])
@@ -269,18 +269,18 @@ struct NextSessionPreparationView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline) {
                 Text(item.pattern)
-                    .font(.subheadline.weight(.medium))
+                    .font(BrandTypography.subheadline.weight(.medium))
                     .foregroundStyle(.tint)
                 Spacer()
                 if let caption = confidenceCaption(for: item.confidence) {
                     Text(caption)
-                        .font(.caption)
+                        .font(BrandTypography.caption)
                         .foregroundStyle(.secondary)
                 }
             }
             if !item.evidence.isEmpty {
                 Text(item.evidence)
-                    .font(.caption)
+                    .font(BrandTypography.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -309,7 +309,7 @@ struct NextSessionPreparationView: View {
         return card {
             HStack {
                 Text(L10n.possibleMaintenanceCycleLabel)
-                    .font(.caption.weight(.semibold))
+                    .font(BrandTypography.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
                 hypothesisBadge
@@ -317,10 +317,10 @@ struct NextSessionPreparationView: View {
             ForEach(stages.indices, id: \.self) { index in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(stages[index].title)
-                        .font(.caption.weight(.semibold))
+                        .font(BrandTypography.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(stages[index].text)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
@@ -330,7 +330,7 @@ struct NextSessionPreparationView: View {
                 )
                 if index < stages.count - 1 {
                     Image(systemName: "arrow.down")
-                        .font(.caption.weight(.semibold))
+                        .font(BrandTypography.caption.weight(.semibold))
                         .foregroundStyle(.tertiary)
                         .padding(.leading, 16)
                 }
@@ -362,27 +362,27 @@ struct NextSessionPreparationView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.possibleCoreBeliefSection)
-                    .font(.title3.bold())
+                    .font(BrandTypography.title3.bold())
                 Text(L10n.coreBeliefSubtitle)
-                    .font(.caption)
+                    .font(BrandTypography.caption)
                     .foregroundStyle(.secondary)
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top) {
                     Text(item.belief)
-                        .font(.body.weight(.medium).italic())
+                        .font(BrandTypography.body.weight(.medium).italic())
                     Spacer()
                     hypothesisBadge
                 }
                 if !item.evidence.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(L10n.evidenceLabel)
-                            .font(.caption.weight(.semibold))
+                            .font(BrandTypography.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                         ForEach(item.evidence.indices, id: \.self) { index in
                             Text(L10n.bulleted(item.evidence[index]))
-                                .font(.subheadline)
+                                .font(BrandTypography.subheadline)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -411,18 +411,18 @@ struct NextSessionPreparationView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.treatmentFocusSection)
-                    .font(.title3.bold())
+                    .font(BrandTypography.title3.bold())
                 Text(L10n.treatmentFocusSubtitle)
-                    .font(.caption)
+                    .font(BrandTypography.caption)
                     .foregroundStyle(.secondary)
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Label(item.focus, systemImage: "scope")
-                    .font(.headline)
+                    .font(BrandTypography.headline)
                 if !item.rationale.isEmpty {
                     Text(item.rationale)
-                        .font(.subheadline)
+                        .font(BrandTypography.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -451,10 +451,10 @@ struct NextSessionPreparationView: View {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.title3.bold())
+                        .font(BrandTypography.title3.bold())
                     if let subtitle {
                         Text(subtitle)
-                            .font(.caption)
+                            .font(BrandTypography.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -484,7 +484,7 @@ struct NextSessionPreparationView: View {
     /// Marks content the AI inferred, so hypotheses never read as facts.
     private var hypothesisBadge: some View {
         Label(L10n.hypothesisBadge, systemImage: "lightbulb")
-            .font(.caption.weight(.semibold))
+            .font(BrandTypography.caption.weight(.semibold))
             .foregroundStyle(Theme.warning)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -494,10 +494,10 @@ struct NextSessionPreparationView: View {
     private func labeledText(_ title: String, _ text: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.caption)
+                .font(BrandTypography.caption)
                 .foregroundStyle(.secondary)
             Text(text)
-                .font(.subheadline)
+                .font(BrandTypography.subheadline)
         }
     }
 
@@ -507,13 +507,13 @@ struct NextSessionPreparationView: View {
         if !evidence.isEmpty {
             DisclosureGroup {
                 Text(evidence)
-                    .font(.subheadline)
+                    .font(BrandTypography.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
             } label: {
                 Text(L10n.evidenceLabel)
-                    .font(.caption.weight(.semibold))
+                    .font(BrandTypography.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
         }

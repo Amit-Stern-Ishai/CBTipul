@@ -9,7 +9,7 @@ struct PressableProminentButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.body.weight(.semibold))
+            .font(BrandTypography.body.weight(.semibold))
             .multilineTextAlignment(.center)
             .foregroundStyle(isEnabled ? Theme.textOnAccent : Theme.textFaint)
             .padding(.vertical, 13)

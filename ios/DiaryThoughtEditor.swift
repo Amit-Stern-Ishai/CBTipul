@@ -16,7 +16,7 @@ struct DiaryThoughtRow<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(L10n.diaryThoughtNumber(title, number)).font(.subheadline.weight(.semibold))
+                Text(L10n.diaryThoughtNumber(title, number)).font(BrandTypography.subheadline.weight(.semibold))
                 Spacer()
                 Button {
                     if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { onRemove() }
