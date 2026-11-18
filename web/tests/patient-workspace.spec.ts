@@ -232,3 +232,25 @@ test('failed names never render unnamed directory rows',async({context,page})=>{
  await expect(page.getByRole('option',{name:'טעינת השמות נכשלה'})).toBeAttached();
  await expect(page.locator('.pw-directory .pw-patient-row')).toHaveCount(0);
 });
+
+test('patient brand guide: responsive navigation and record presentation',async({context,page},info)=>{
+ const f=await fixture(context);
+ f.records.Sessions=[{id:'session-guide',patient_id:patient,session_date:'2026-11-16',type:'intake',notes:'סיכום לדוגמה בלבד. בפגישה שוחחנו על מטרות הטיפול ועל הצעדים לקראת הפגישה הבאה.'}];
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:900});
+  for(const section of ['sessions','questionnaire','diary_one']){
+   await page.goto(`/app/patients/${patient}/${section}`);
+   await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א',exact:true})).toBeVisible();
+   await expect(page.locator('.pw-record-list')).toBeVisible();
+   await page.evaluate(()=>document.fonts.ready);
+   await page.addStyleTag({content:"*,*::before,*::after{transition:none!important;animation:none!important}"});
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+   await page.screenshot({path:info.outputPath(`guide-${section}-${width}.png`),fullPage:true});
+  }
+ }
+ await page.getByRole('link',{name:'פגישות',exact:true}).click();
+ await page.getByRole('button',{name:'פגישה חדשה',exact:true}).click();
+ await expect(page.getByRole('dialog')).toBeVisible();
+ await page.getByRole('button',{name:'ביטול',exact:true}).click();
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+});

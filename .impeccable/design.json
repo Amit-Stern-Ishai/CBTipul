@@ -169,6 +169,40 @@
         "pressed": "#49325F"
       },
       "nativeVisualVerification": "Five iPhone light-mode checks passed; patient Mode C runtime visual review pending."
+    },
+    "webPatientGuide": {
+      "scope": ".pw-patient-guide and application header while that workspace is present",
+      "source": [
+        "web/src/workspace/patient-guide.css",
+        ".impeccable/surfaces/web-patient-guide.md"
+      ],
+      "documentation": "DESIGN.md — Web patient workspace (scoped)",
+      "fontLoading": "Local Rubik.ttf, font-display swap; declared weights 300–800.",
+      "breakpoints": [
+        {
+          "name": "web-patient-wrap-navigation",
+          "value": "1100px",
+          "purpose": "Single content column; navigation wraps horizontally in DOM order."
+        },
+        {
+          "name": "web-patient-small",
+          "value": "600px",
+          "purpose": "Stacked heading and record preview; two equal picker columns; 16px content inset."
+        }
+      ],
+      "focus": {
+        "workspace": "3px solid #008480; outline-offset: 3px",
+        "header": "3px solid #00E3DB; outline-offset: 3px"
+      },
+      "depth": "Flat white and pale-blue surfaces with thin borders; scoped stylesheet adds no shadow or motion tokens.",
+      "rules": [
+        "Entity markers identify record categories, not clinical severity.",
+        "Implemented questionnaire marker uses teal #008480 rather than source-guide green #6B9E7F.",
+        "Preserve existing clinical operations, destinations, patient directory access, public pages and shared Zoom presentation.",
+        "No clinical or backend changes are asserted by this documentation."
+      ],
+      "verification": "148 unit tests and 34 patient-workspace browser tests passed; typecheck, lint and combined build passed; fresh review found no material defects.",
+      "gallery": "../Codex/2026-10-14/got/outputs/web-patient-guide/index.html"
     }
   },
   "components": [

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, CalendarDays, ExternalLink, Plus, Search, ChevronLeft, UserRound, AlertCircle } from 'lucide-react';
+import { BookOpen, CalendarDays, ExternalLink, Plus, Search, ChevronLeft, UserRound, AlertCircle, ClipboardList } from 'lucide-react';
 import { names as displayNames } from '../domain/privacy';
 import { useAuth } from '../auth/Auth';
 import { useWrite } from '../ui/hooks';
@@ -16,6 +16,7 @@ import { questionnaireScore } from './scores';
 import mobile from '../mobile-he.json';
 import { ww } from './he';
 import './patient-workspace.css';
+import './patient-guide.css';
 
 const labels: Record<string,string> = {sessions:'פגישות',questionnaire:'שאלונים',diary_one:'יומן מחשבות 1',diary_two:'יומן מחשבות 2',diary_three:'יומן מחשבות 3'};
 export function NamesConsent({children}:{children:ReactNode}) {
@@ -54,9 +55,9 @@ export function PatientWorkspace({shared=false}:{shared?:boolean}) {
   const available=Object.entries(labels).filter(([key])=>!shared || (shareTypes.includes(selectedForm) && (key===selectedForm || (selectedForm!=='questionnaire' && key==='questionnaire'))));
   const sharedSearch=`?${new URLSearchParams({...Object.fromEntries(new URLSearchParams(location.search)),form:selectedForm})}`;
   if (shared && (!patientId || !available.some(([key])=>key===section))) return <main className="pw-neutral">התצוגה אינה זמינה.</main>;
-  return <main className={`ww pw ${shared?'pw-shared':''}`} dir="rtl">
+  return <main className={`ww pw ${shared?'pw-shared':patientId?'pw-patient-guide':'pw-directory-guide'}`} dir="rtl">
     {shared ? <header className="pw-share-header"><strong>CBTipul · תצוגה משותפת</strong><h1>{sharedName||"תיק המטופל/ת"}</h1>{!sharedName&&<p>השם זמין בפתיחת תצוגה משותפת מתוך החלון הפרטי.</p>}<p>שתפו ב־Zoom את החלון הזה בלבד, ולא את שולחן העבודה כולו.</p></header> : <>
-      <header className="pw-heading"><div><h1>{patientId?name:'בחירת מטופל/ת'}</h1><p>עובדים יחד בפגישה. שומרים ישירות בתיק המטופל/ת.</p></div>{patientId && <button className="secondary" disabled={!namesReady} onClick={()=>{setShareForm('');setChoosingShare(true);}}><ExternalLink size={18}/>תצוגה משותפת</button>}</header>
+      <header className="pw-heading"><div>{patientId&&<Link className="pw-back" to="/">כל המטופלים</Link>}<h1>{patientId?name:'בחירת מטופל/ת'}</h1><p>{patientId?"התיק הטיפולי · פגישות, שאלונים ויומני מחשבות":"עובדים יחד בפגישה. שומרים ישירות בתיק המטופל/ת."}</p></div>{patientId && <button className="secondary" disabled={!namesReady} onClick={()=>{setShareForm('');setChoosingShare(true);}}><ExternalLink size={18}/>תצוגה משותפת</button>}</header>
       <div className="pw-picker"><label><Search size={18}/>חיפוש מטופל/ת<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="חיפוש לפי שם"/></label><label>מעבר למטופל/ת<select disabled={!namesReady || !directory.isSuccess} aria-busy={!namesReady} value={patientId} onChange={e=>navigate(e.target.value?`/patients/${e.target.value}/sessions`:'/')}><option value="">{names.isError?"טעינת השמות נכשלה":!namesReady?"טוענים שמות…":"בחירת מטופל/ת"}</option>{namesReady && directory.data?.filter(p=>p.id===patientId || !search || (names.data?.[canonical(p.id)]??'').includes(search)).map(p=><option key={p.id} value={p.id}>{names.data?.[canonical(p.id)]??'מטופל/ת ללא שם'}{p.active===false?' · לא פעיל/ה':''}</option>)}</select></label></div>
       {(directory.isPending||names.isPending)&&<Loading/>}{directory.isError&&<ErrorBox error={directory.error} retry={()=>void directory.refetch()}/>} {names.isError&&<ErrorBox error={names.error} retry={()=>void names.refetch()}/>}
       {!patientId&&namesReady&&directory.data&&<section aria-label="רשימת מטופלים" className="pw-directory">
@@ -72,8 +73,8 @@ export function PatientWorkspace({shared=false}:{shared?:boolean}) {
       {shareForm && <><p>{shareForm==='questionnaire'?'השאלון בלבד יוצג בחלון השיתוף.':'היומן שבחרתם יוצג, עם אפשרות לעבור לשאלון.'}</p><a className="button" href={`${import.meta.env.BASE_URL}shared/${patientId}/${shareForm}?view=${privateChannel}&form=${shareForm}`} onClick={()=>{opened.current.add(patientId);setChoosingShare(false);}} target="_blank" rel="noopener noreferrer"><ExternalLink size={18}/>פתיחת חלון לשיתוף</a></>}
     </EditorDialog>}
     {patientId && (authorized.isPending?<Loading/>:authorized.isError?<ErrorBox error={authorized.error} retry={()=>void authorized.refetch()}/>:<>
-      <nav className="pw-tabs" aria-label="כלים בתיק">{available.map(([key,title])=><NavLink key={key} to={`${path}/${key}${shared?sharedSearch:""}`}>{key==='sessions'?<CalendarDays size={17}/>:<BookOpen size={17}/>} {title}</NavLink>)}</nav>
-      {section==='sessions'&&!shared ? <PatientSessions key={`${account}:${patientId}`} patient={patientId}/> : available.some(([key])=>key===section) ? <Records key={`${account}:${patientId}:${section}:${shared}`} patient={patientId} type={section as WorksheetType} shared={shared}/> : <p>העמוד אינו זמין.</p>}
+      <div className="pw-clinical-layout"><nav className="pw-tabs" aria-label="כלים בתיק">{available.map(([key,title])=><NavLink key={key} data-category={key==='sessions'?'session':key==='questionnaire'?'questionnaire':'diary'} to={`${path}/${key}${shared?sharedSearch:""}`}>{key==='sessions'?<CalendarDays size={20}/>:key==='questionnaire'?<ClipboardList size={20}/>:<BookOpen size={20}/>} {title}</NavLink>)}</nav>
+      <div className="pw-clinical-content">{section==='sessions'&&!shared ? <PatientSessions key={`${account}:${patientId}`} patient={patientId}/> : available.some(([key])=>key===section) ? <Records key={`${account}:${patientId}:${section}:${shared}`} patient={patientId} type={section as WorksheetType} shared={shared}/> : <p>העמוד אינו זמין.</p>}</div></div>
     </>)}
   </main>;
 }
