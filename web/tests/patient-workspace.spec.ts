@@ -201,7 +201,8 @@ for(const width of [1280,1440])test(`laptop presentation remains legible when sc
  await page.getByRole('button',{name:'תצוגה מלאה',exact:true}).click();await expect(page.locator('.ww-diary-section')).toHaveCount(7);
  await page.evaluate(()=>window.scrollTo(0,0));
  const overviewImage=await page.screenshot({path:info.outputPath(`laptop-${width}-overview.png`)});
- expect(await text.evaluate(e=>parseFloat(getComputedStyle(e).fontSize))/width).toBeGreaterThan(.04);
+ expect(await text.evaluate(e=>parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(18);
+ const panels=await page.locator('.diary-flow-panel').evaluateAll(elements=>elements.map(e=>e.getBoundingClientRect().top));expect(new Set(panels).size).toBe(1);
  await page.getByRole('button',{name:'תצוגה ממוקדת',exact:true}).click();await expect(page.getByLabel('מעבר לחלק',{exact:true})).toHaveValue('2');
  await page.getByLabel('מעבר לחלק',{exact:true}).selectOption('0');await expect(text).toHaveValue('כשלא קיבלתי תשובה להודעה, חשבתי שעשיתי משהו לא בסדר.');
  await page.getByRole('button',{name:'מסך מלא',exact:true}).click();await expect(page.locator('.pw-shared')).toHaveJSProperty('nodeName','MAIN');
@@ -438,4 +439,17 @@ for(const failure of [false,true])test(`shared exit guard covers pending and fai
  await expect(page.getByRole('heading',{name:'חזרה לתיק הפרטי?'})).toBeVisible();
  await expect(page.locator('.pt,.cb-header')).toHaveCount(0);
  await page.getByRole('dialog').getByRole('button').last().click();await expect(page.locator('.pt')).toBeVisible();
+});
+
+for(const type of ['diary_two','diary_three'])test(`alternative thoughts show current automatic thoughts ${type}`,async({context,page},info)=>{
+ await fixture(context);await openEntry(page,type,true);
+ await page.getByLabel('מעבר לחלק',{exact:true}).selectOption('1');
+ await page.locator('[data-part="thought"] textarea').fill('מחשבה מקורית לצורך בדיקה');
+ await page.getByLabel('מעבר לחלק',{exact:true}).selectOption('4');
+ await expect(page.getByRole('complementary',{name:'המחשבות האוטומטיות'})).toContainText('מחשבה מקורית לצורך בדיקה');
+ await page.locator('[data-part="alternative"] textarea').fill('אפשרות אחרת');
+ await page.screenshot({path:info.outputPath(`${type}-alternative-context.png`)});
+ await page.getByRole('button',{name:'תצוגה מלאה',exact:true}).click();
+ await expect(page.locator('[data-part="alternative"] textarea')).toHaveValue('אפשרות אחרת');
+ await expect(page.locator('[data-part="thought"] textarea')).toHaveValue('מחשבה מקורית לצורך בדיקה');
 });

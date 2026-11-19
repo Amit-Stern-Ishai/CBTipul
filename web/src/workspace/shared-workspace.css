@@ -116,12 +116,49 @@
 .pw-shared .pw-history .pw-list-scores{display:flex;gap:20px}
 .pw-shared .pw-history .pw-list-scores>span{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 @media(max-width:850px){.pw-shared .diary-flow-focus>.ww-diary-grid{max-height:none;overflow:visible}.pw-shared .pw-record-actions{gap:6px}.pw-shared .pw-section-heading{gap:12px}.pw-shared .pw-history .pw-list-scores{flex-wrap:wrap}}
-/* Full review is also read over Zoom: preserve presentation scale, not desktop density. */
-.pw-shared .diary-flow-all>.ww-diary-grid{grid-template-columns:minmax(0,1fr)}
-.pw-shared .diary-flow-all .diary-flow-panel{--diary-body:clamp(32px,4.6vw,76px)}
-.pw-shared .diary-flow-all .ww-diary-heading h2{font-size:clamp(28px,3.2vw,48px)}
-.pw-shared .diary-flow-all :is(label,.ww-quiet){font-size:clamp(24px,3vw,44px)}
-.pw-shared .diary-flow-all .ww-rating input[type=number]{font-size:clamp(32px,3.6vw,56px);width:140px;min-height:64px}
-.pw-shared .diary-flow-all .ww-rating-scale{font-size:28px}
-.pw-shared .diary-flow-all .ww-thinking-selected button{font-size:clamp(24px,3vw,44px)}
-@media(max-width:850px){.pw-shared .diary-flow-all .ww-rating input[type=number]{width:100px}}
+/* Full review puts the clinical sequence side by side; focused mode stays large. */
+.pw-shared .diary-flow-all>.ww-diary-grid{grid-template-columns:repeat(var(--diary-columns),minmax(0,1fr));gap:10px;align-items:stretch}
+.pw-shared .diary-flow-all .diary-flow-panel:first-child{grid-column:auto}
+.pw-shared .diary-flow-all .diary-flow-panel{--diary-body:18px;overflow:visible}
+.pw-shared .diary-flow-all .diary-flow-panel>.ww-diary-section{padding:12px;background:transparent}
+.pw-shared .diary-flow-all .diary-overview-section{padding:8px;gap:4px;flex-wrap:wrap;font-size:12px;border-radius:14px 14px 0 0}
+.pw-shared .diary-flow-all .diary-overview-section button{font-size:12px;padding:6px;min-height:32px}
+.pw-shared .diary-flow-all .ww-diary-heading{margin-bottom:10px;padding-bottom:10px;gap:4px}
+.pw-shared .diary-flow-all .ww-diary-heading h2{font-size:18px}
+.pw-shared .diary-flow-all .ww-diary-heading>svg{width:18px;height:18px}
+.pw-shared .diary-flow-all :is(label,.ww-quiet){font-size:14px}
+.pw-shared .diary-flow-all textarea,.pw-shared .diary-flow-all .ww-thought-row textarea{font-size:18px;min-height:64px;padding:8px}
+.pw-shared .diary-flow-all .ww-thought-row{grid-template-columns:minmax(0,1fr) 28px}
+.pw-shared .diary-flow-all .ww-rating input[type=number]{font-size:18px;width:64px;min-height:36px}
+.pw-shared .diary-flow-all .ww-rating input[type=range]{min-height:32px;height:32px}
+.pw-shared .diary-flow-all .ww-rating-scale{font-size:12px}
+.pw-shared .diary-flow-all .ww-thinking-selected button{font-size:14px}
+.pw-shared .diary-flow-all .ww-diary-section>.secondary,.pw-shared .diary-flow-all .ww-feeling-add{font-size:14px;min-height:36px;padding:6px}
+.pw-shared .diary-flow-all .ww-thought-reference{display:none}
+.pw-shared .diary-flow-focus .ww-thought-reference{font-size:clamp(24px,3vw,42px)}
+@media(max-width:850px){.pw-shared .diary-flow-all>.ww-diary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:500px){.pw-shared .diary-flow-all>.ww-diary-grid{grid-template-columns:1fr}}
+.pw-shared .diary-flow-all .ww-diary-heading{padding:0 0 8px;display:flex;flex-wrap:wrap;align-items:center}
+.pw-shared .diary-flow-all .ww-diary-heading h2{order:3;flex-basis:100%;overflow-wrap:normal;word-break:normal;font-size:16px;line-height:1.35}
+.pw-shared .diary-flow-all .ww-thought-row{display:block}
+.pw-shared .diary-flow-all .ww-thought-row::before{display:none}
+.pw-shared .diary-flow-all .ww-thought-row .ww-diary-row-head{justify-content:flex-end}
+.pw-shared .diary-flow-all .ww-thought-row textarea{width:100%;line-height:1.35}
+.pw-shared .diary-flow-all .ww-diary-row-head .ww-text-button{min-height:28px;height:28px;min-width:28px;padding:4px}
+.pw-shared .diary-flow-all .ww-rating{margin:6px 0}
+.pw-shared .diary-flow-all .ww-diary-section .ww-rows{gap:6px;margin-bottom:6px}
+.pw-shared .diary-flow-all .ww-original-text{margin:6px 0}
+.pw-shared .diary-flow-all .ww-quiet{margin:4px 0}
+@media(min-width:851px){
+ .pw-shared:has(.diary-flow-all) .pw-share-header{padding:4px 20px}
+ .pw-shared:has(.diary-flow-all) .pw-tabs{padding:4px 20px}
+ .pw-shared:has(.diary-flow-all) .pw-clinical-content{padding:8px 20px}
+ .pw-shared:has(.diary-flow-all) .pw-section-heading{margin-bottom:4px}
+ .pw-shared:has(.diary-flow-all) .pw-section-heading h2{font-size:20px}
+ .pw-shared:has(.diary-flow-all) .pw-editor>.pw-section-heading{margin-bottom:4px}
+ .pw-shared .diary-flow-all .diary-flow-toolbar{padding:4px 0;margin-bottom:8px}
+ .pw-shared .diary-flow-all .diary-overview-section{padding:4px 8px}
+ .pw-shared .diary-flow-all .diary-flow-panel>.ww-diary-section{padding:8px}
+ .pw-shared .diary-flow-all .ww-diary-heading{margin-bottom:6px;padding-bottom:6px}
+ .pw-shared .diary-flow-all textarea,.pw-shared .diary-flow-all .ww-thought-row textarea{line-height:1.3}
+}

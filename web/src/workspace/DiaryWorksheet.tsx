@@ -411,6 +411,13 @@ export function DiaryWorksheet({
     const values = Array.isArray(d[key]) ? (d[key] as unknown[]) : [];
     return (
       <Section title={title} kind={key === "automatic_thoughts" ? "thought" : "alternative"} hint={third ? (key === "automatic_thoughts" ? ww.thoughtBeforeHelp : ww.alternativeBeliefHelp) : undefined}>
+        {key === "alternative_thoughts" && <aside className="ww-thought-reference" aria-label="המחשבות האוטומטיות">
+          <strong>המחשבות האוטומטיות</strong>
+          <ul>{(Array.isArray(d.automatic_thoughts) ? d.automatic_thoughts : []).map((value, index) => {
+            const text = third ? String((value as Row).text ?? "") : String(value);
+            return text.trim() ? <li key={index}>{text}</li> : null;
+          })}</ul>
+        </aside>}
         <div className="ww-rows">
           {values.map((value, index) => (
             <div className="ww-diary-row ww-thought-row" key={index}>

@@ -29,7 +29,7 @@ export function DiaryFlow({children,presentation=false}:{children:ReactNode;pres
       if(presentation)root.current?.querySelector('.ww-diary-grid')?.scrollTo({top:0});else root.current?.scrollIntoView({block:'start',behavior:'instant'});
     });
   }
-  return <div ref={root} className={`diary-flow ${all?'diary-flow-all':'diary-flow-focus'} ${presentation?'diary-presentation':''}`} style={presentation?{'--presentation-type':`${textSize}vw`} as CSSProperties:undefined}>
+  return <div ref={root} className={`diary-flow ${all?'diary-flow-all':'diary-flow-focus'} ${presentation?'diary-presentation':''}`} style={presentation?{'--presentation-type':`${textSize}vw`,'--diary-columns':parts.length} as CSSProperties:undefined}>
     <header className="diary-flow-toolbar">
       <div className="diary-flow-mode" role="group" aria-label="תצוגת היומן">
         <button type="button" aria-pressed={!all} onClick={()=>setAll(false)}><Rows3 size={18} aria-hidden="true"/>{presentation?'תצוגה ממוקדת':'חלק אחד'}</button>
