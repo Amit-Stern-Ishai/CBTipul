@@ -105,14 +105,14 @@ export function Heading({
     </header>
   );
 }
-export function DirtyGuard({ dirty, busy = false }: { dirty: boolean; busy?: boolean }) {
+export function DirtyGuard({ dirty, busy = false, privateExit = false }: { dirty: boolean; busy?: boolean; privateExit?: boolean }) {
   useEffect(() => {
     unsaved.active = dirty;
     return () => {
       unsaved.active = false;
     };
   }, [dirty]);
-  const blocker = useBlocker(dirty);
+  const blocker = useBlocker(({nextLocation})=>dirty || (privateExit && !nextLocation.pathname.startsWith("/shared/")));
   useEffect(() => { if (busy && blocker.state === "blocked") blocker.reset(); }, [busy, blocker]);
   useEffect(() => {
     const f = (e: BeforeUnloadEvent) => {
@@ -152,8 +152,8 @@ export function DirtyGuard({ dirty, busy = false }: { dirty: boolean; busy?: boo
         aria-labelledby="dirty-title"
         className="modal"
       >
-        <h2 id="dirty-title">{he.shared011}</h2>
-        <p>{he.shared012}</p>
+        <h2 id="dirty-title">{privateExit && !blocker.location.pathname.startsWith("/shared/")?"חזרה לתיק הפרטי?":he.shared011}</h2>
+        {privateExit && !blocker.location.pathname.startsWith("/shared/")&&<p>מידע פרטי יופיע במסך. הפסיקו את שיתוף המסך לפני המעבר.</p>}{dirty&&<p>{he.shared012}</p>}
         <div className="actions">
           <button autoFocus onClick={() => blocker.reset()}>
             {he.shared013}

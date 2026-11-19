@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, CalendarDays, ExternalLink, Plus, Search, ChevronLeft, UserRound, AlertCircle, ClipboardList } from 'lucide-react';
+import { BookOpen, CalendarDays, Monitor, Plus, Search, ChevronLeft, UserRound, AlertCircle, ClipboardList } from 'lucide-react';
 import { names as displayNames } from '../domain/privacy';
 import { useAuth } from '../auth/Auth';
 import { useWrite } from '../ui/hooks';
@@ -17,6 +17,7 @@ import mobile from '../mobile-he.json';
 import { ww } from './he';
 import './patient-workspace.css';
 import './patient-guide.css';
+import './shared-workspace.css';
 import {PatientTimeline} from './PatientTimeline';
 
 const labels: Record<string,string> = {sessions:'פגישות',questionnaire:'שאלונים',diary_one:'יומן מחשבות 1',diary_two:'יומן מחשבות 2',diary_three:'יומן מחשבות 3'};
@@ -24,41 +25,25 @@ export function NamesConsent({children}:{children:ReactNode}) {
   const {session,logout}=useAuth();
   return <ConsentBoundary account={session!.user.id} type="patient_name_storage" title={copy.nameTitle} description={copy.nameNotice} accept={copy.accept} decline={logout} declineLabel={copy.decline}>{children}</ConsentBoundary>;
 }
-export function PatientWorkspace({shared=false}:{shared?:boolean}) {
+type DraftStateListener=(state:{dirty:boolean;busy:boolean})=>void;
+export function PatientWorkspace({shared=false,onDraftState}:{shared?:boolean;onDraftState?:DraftStateListener}) {
   const {session}=useAuth(), account=session!.user.id;
   const {patientId='',section='sessions'}=useParams();
   const navigate=useNavigate(), location=useLocation(), [search,setSearch]=useState('');
-  const [privateChannel]=useState(()=>crypto.randomUUID()), [sharedName,setSharedName]=useState('');
-  const opened=useRef(new Set<string>());
-  const [choosingShare,setChoosingShare]=useState(false), [shareForm,setShareForm]=useState('');
-  const channel=shared?new URLSearchParams(location.search).get('view'):privateChannel;
   const directory=useQuery({queryKey:[account,'directory'],queryFn:patientDirectory,enabled:!shared});
   const names=useQuery({queryKey:[account,'server-names'],queryFn:()=>patientNames(account),enabled:!shared,staleTime:Infinity});
   useEffect(()=>{if(names.data)Object.entries(names.data).forEach(([id,name])=>displayNames.set(localStorage,account,id,name));},[account,names.data]);
   const authorized=useQuery({queryKey:[account,shared?'shared-patient':'private-patient',patientId],queryFn:()=>verifyPatient(patientId),enabled:!!patientId});
   const namesReady=names.isSuccess;
-  useEffect(()=>{
-    if(!channel || (shared && !authorized.isSuccess))return;
-    const bus=new BroadcastChannel(`cbtipul.shared-name.${channel}`);
-    bus.onmessage=({data})=>{
-      if(data?.account!==account)return;
-      if(!shared && namesReady && data?.kind==='request' && opened.current.has(data.patient)) {
-        bus.postMessage({kind:'name',account,patient:data.patient,name:names.data?.[canonical(data.patient)]??'מטופל/ת ללא שם'});
-      } else if(shared && data?.kind==='name' && data.patient===patientId && typeof data.name==='string') setSharedName(data.name);
-    };
-    if(shared)bus.postMessage({kind:'request',account,patient:patientId});
-    return()=>bus.close();
-  },[account,channel,shared,patientId,names.data,namesReady,authorized.isSuccess]);
   const name=namesReady?(names.data[canonical(patientId)] ?? 'מטופל/ת ללא שם'):(names.isError?'השם אינו זמין':'טוענים שם…');
   const path=shared?`/shared/${patientId}`:`/patients/${patientId}`;
-  const selectedForm=new URLSearchParams(location.search).get('form') ?? section;
-  const shareTypes=['questionnaire','diary_one','diary_two','diary_three'];
-  const available=Object.entries(labels).filter(([key])=>!shared || (shareTypes.includes(selectedForm) && (key===selectedForm || (selectedForm!=='questionnaire' && key==='questionnaire'))));
-  const sharedSearch=`?${new URLSearchParams({...Object.fromEntries(new URLSearchParams(location.search)),form:selectedForm})}`;
+  const available=Object.entries(labels).filter(([key])=>!shared || key!=='sessions');
+  const sharedName=location.state?.patient===patientId&&location.state?.account===account?location.state.name:'';
+  const sharingState={patient:patientId,account,name:shared?sharedName:name};
   if (shared && (!patientId || !available.some(([key])=>key===section))) return <main className="pw-neutral">התצוגה אינה זמינה.</main>;
   return <main className={`ww pw ${shared?'pw-shared':patientId?'pw-patient-guide':'pw-directory-guide'} ${!shared&&section==='overview'?'pw-overview':''}`} dir="rtl">
-    {shared ? <header className="pw-share-header"><strong>CBTipul · תצוגה משותפת</strong><h1>{sharedName||"תיק המטופל/ת"}</h1>{!sharedName&&<p>השם זמין בפתיחת תצוגה משותפת מתוך החלון הפרטי.</p>}<p>שתפו ב־Zoom את החלון הזה בלבד, ולא את שולחן העבודה כולו.</p></header> : <>
-      {section!=='overview'&&<><header className="pw-heading"><div>{patientId&&<Link className="pw-back" to="/">כל המטופלים</Link>}<h1>{patientId?name:'בחירת מטופל/ת'}</h1><p>{patientId?"התיק הטיפולי · פגישות, שאלונים ויומני מחשבות":"עובדים יחד בפגישה. שומרים ישירות בתיק המטופל/ת."}</p></div>{patientId && <button className="secondary" disabled={!namesReady} onClick={()=>{setShareForm('');setChoosingShare(true);}}><ExternalLink size={18}/>תצוגה משותפת</button>}</header>
+    {shared ? <header className="pw-share-header"><div><Monitor size={22}/><strong>מרחב הפגישה · לשיתוף מסך</strong><h1>{sharedName||'עובדים יחד'}</h1></div><Link className="secondary button" to={`/patients/${patientId}/overview`}>יציאה לתיק הפרטי</Link></header> : <>
+      {section!=='overview'&&<><header className="pw-heading"><div>{patientId&&<Link className="pw-back" to="/">כל המטופלים</Link>}<h1>{patientId?name:'בחירת מטופל/ת'}</h1><p>{patientId?"התיק הטיפולי · פגישות, שאלונים ויומני מחשבות":"עובדים יחד בפגישה. שומרים ישירות בתיק המטופל/ת."}</p></div>{patientId && <Link className="button" state={{patient:patientId,account,name}} to={`/shared/${patientId}/questionnaire`}>התחלת פגישה כעת</Link>}</header>
       <div className="pw-picker"><label><Search size={18}/>חיפוש מטופל/ת<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="חיפוש לפי שם"/></label><label>מעבר למטופל/ת<select disabled={!namesReady || !directory.isSuccess} aria-busy={!namesReady} value={patientId} onChange={e=>navigate(e.target.value?`/patients/${e.target.value}/overview`:'/')}><option value="">{names.isError?"טעינת השמות נכשלה":!namesReady?"טוענים שמות…":"בחירת מטופל/ת"}</option>{namesReady && directory.data?.filter(p=>p.id===patientId || !search || (names.data?.[canonical(p.id)]??'').includes(search)).map(p=><option key={p.id} value={p.id}>{names.data?.[canonical(p.id)]??'מטופל/ת ללא שם'}{p.active===false?' · לא פעיל/ה':''}</option>)}</select></label></div>
       </>}
       {(directory.isPending||names.isPending)&&<Loading/>}{directory.isError&&<ErrorBox error={directory.error} retry={()=>void directory.refetch()}/>} {names.isError&&<ErrorBox error={names.error} retry={()=>void names.refetch()}/>}
@@ -68,15 +53,9 @@ export function PatientWorkspace({shared=false}:{shared?:boolean}) {
         {directory.data.length===0?<p className="pw-list-empty">אין עדיין מטופלים בתיק. ניתן להוסיף מטופלים באפליקציה.</p>:search&&!directory.data.some(p=>(names.data?.[canonical(p.id)]??'').includes(search))&&<p className="pw-list-empty" role="status">לא נמצאו מטופלים בחיפוש זה.</p>}
       </section>}
     </>}
-    {choosingShare && <EditorDialog title="מה נפתח בתצוגה המשותפת?" closeLabel="ביטול" busy={false} onClose={()=>setChoosingShare(false)}>
-      <p>בחרו את הטופס שעובדים עליו יחד. החלון מותאם לשיתוף מהמחשב ב־Zoom, כשהמטופל/ת צופה בטלפון. יומנים אחרים לא יופיעו בו.</p>
-      <label htmlFor="share-form">הטופס לפגישה</label>
-      <select id="share-form" value={shareForm} onChange={e=>setShareForm(e.target.value)}><option value="">בחירת טופס</option>{Object.entries(labels).filter(([key])=>shareTypes.includes(key)).map(([key,title])=><option key={key} value={key}>{title}</option>)}</select>
-      {shareForm && <><p>{shareForm==='questionnaire'?'השאלון בלבד יוצג בחלון השיתוף.':'היומן שבחרתם יוצג, עם אפשרות לעבור לשאלון.'}</p><a className="button" href={`${import.meta.env.BASE_URL}shared/${patientId}/${shareForm}?view=${privateChannel}&form=${shareForm}`} onClick={()=>{opened.current.add(patientId);setChoosingShare(false);}} target="_blank" rel="noopener noreferrer"><ExternalLink size={18}/>פתיחת חלון לשיתוף</a></>}
-    </EditorDialog>}
     {patientId && (authorized.isPending?<Loading/>:authorized.isError?<ErrorBox error={authorized.error} retry={()=>void authorized.refetch()}/>:<>
-      {!shared&&section==='overview'?<PatientTimeline key={`${account}:${patientId}`} patient={patientId} name={name} canShare={namesReady} onShare={()=>{setShareForm('');setChoosingShare(true);}}/>:<div className="pw-clinical-layout"><nav className="pw-tabs" aria-label="כלים בתיק">{!shared&&<NavLink to={`${path}/overview`}>התיק הטיפולי</NavLink>}{available.map(([key,title])=><NavLink key={key} data-category={key==='sessions'?'session':key==='questionnaire'?'questionnaire':'diary'} to={`${path}/${key}${shared?sharedSearch:""}`}>{key==='sessions'?<CalendarDays size={20}/>:key==='questionnaire'?<ClipboardList size={20}/>:<BookOpen size={20}/>} {title}</NavLink>)}</nav>
-      <div className="pw-clinical-content">{section==='sessions'&&!shared ? <PatientSessions key={`${account}:${patientId}`} patient={patientId}/> : available.some(([key])=>key===section) ? <Records key={`${account}:${patientId}:${section}:${shared}`} patient={patientId} type={section as WorksheetType} shared={shared}/> : <p>העמוד אינו זמין.</p>}</div></div>}
+      {!shared&&section==='overview'?<PatientTimeline key={`${account}:${patientId}`} patient={patientId} name={name} />:<div className="pw-clinical-layout"><nav className="pw-tabs" aria-label="כלים בתיק">{!shared&&<NavLink to={`${path}/overview`}>התיק הטיפולי</NavLink>}{available.map(([key,title])=><NavLink key={key} data-category={key==='sessions'?'session':key==='questionnaire'?'questionnaire':'diary'} to={`${path}/${key}`} state={shared?sharingState:undefined}>{key==='sessions'?<CalendarDays size={20}/>:key==='questionnaire'?<ClipboardList size={20}/>:<BookOpen size={20}/>} {title}</NavLink>)}</nav>
+      <div className="pw-clinical-content">{section==='sessions'&&!shared ? <PatientSessions key={`${account}:${patientId}`} patient={patientId}/> : available.some(([key])=>key===section) ? <Records key={`${account}:${patientId}:${section}:${shared}`} patient={patientId} type={section as WorksheetType} shared={shared} onDraftState={onDraftState}/> : <p>העמוד אינו זמין.</p>}</div></div>}
     </>)}
   </main>;
 }
@@ -114,13 +93,13 @@ function useSaveState(patient: string) {
 function SaveFeedback({state,onInspect}:{state:ReturnType<typeof useSaveState>;onInspect:()=>void}) {
   return <>{state.saved&&<p className="success" role="status">הרשומה נשמרה בתיק המטופל/ת</p>}{state.uncertain?<section className="notice" role="alert"><p>לא ניתן לוודא אם הרשומה נשמרה. התוכן נשאר פתוח בחלון זה. בדקו את ההיסטוריה לפני ניסיון נוסף — שמירה נוספת עלולה ליצור כפילות.</p><button type="button" className="secondary" onClick={onInspect}>בדיקת ההיסטוריה</button> <button type="button" className="secondary" onClick={()=>{if(window.confirm('בדקתם את ההיסטוריה? ניסיון שמירה נוסף עלול ליצור רשומה כפולה.'))state.retryAfterCheck();}}>בדקתי — לאפשר ניסיון נוסף</button></section>:state.error instanceof ApiError&&state.error.code==='record_changed'?<section className="notice" role="alert"><p>הרשומה השתנתה מאז שנפתחה. השינויים שלכם נשארו במסך. בדקו את הרשומה המעודכנת לפני שמירה נוספת.</p><button className="secondary" onClick={onInspect}>בדיקת הרשומה המעודכנת</button></section>:state.error?<ErrorBox error={state.error}/>:null}</>;
 }
-function Records({patient,type,shared}:{patient:string;type:WorksheetType;shared:boolean}) {
+function Records({patient,type,shared,onDraftState}:{patient:string;type:WorksheetType;shared:boolean;onDraftState?:DraftStateListener}) {
   const {session}=useAuth(), write=useWrite(), account=session!.user.id;
   const history=useQuery({queryKey:[account,shared?'shared-records':'private-records',patient,type],queryFn:()=>recordHistory(patient,type,shared)});
   const [edit,setEdit]=useState<{item:Worksheet;id:string|null;original:RecordRow|null}|null>(null);
   const [baseline,setBaseline]=useState(''),[notes,setNotes]=useState<unknown>(undefined),[target,setTarget]=useState<string>('');
   const [showHistory,setShowHistory]=useState(false);
-  const HistoryContainer=type==='questionnaire'?'section':'details';
+  const HistoryContainer=shared?'details':type==='questionnaire'?'section':'details';
   const state=useSaveState(patient);
   const requested=new URLSearchParams(useLocation().search), requestedEntry=requested.get('entry'), requestedNew=requested.has('new');
   const consumed=useRef(false);
@@ -129,6 +108,8 @@ function Records({patient,type,shared}:{patient:string;type:WorksheetType;shared
   const sessions=useQuery({queryKey:[account,'session-choices',patient],queryFn:()=>api.sessions(patient),enabled:!shared&&type==='questionnaire'});
   const fingerprint=edit?JSON.stringify([edit.item,notes,target]):'';
   const dirty=!!edit && fingerprint!==baseline;
+  useEffect(()=>{onDraftState?.({dirty:dirty||state.busy,busy:state.busy});return()=>onDraftState?.({dirty:false,busy:false});},[onDraftState,dirty,state.busy]);
+  const editable=write && !(type==='questionnaire' && edit?.original?.created_by==='patient');
   const canReplace=()=>!state.busy&&(!dirty||window.confirm('יש שינויים שלא נשמרו. לוותר עליהם?'));
   function open(row?:RecordRow) {
     if(!canReplace())return;
@@ -146,20 +127,20 @@ function Records({patient,type,shared}:{patient:string;type:WorksheetType;shared
       setEdit({item,id:String(row.id),original:row});setBaseline(JSON.stringify([item,notes,target]));
     });
   }
-  return <><DirtyGuard dirty={dirty||state.busy} busy={state.busy}/><div className="pw-section-heading"><div><h2>{labels[type]}</h2><p>{type==='questionnaire'?'שאלונים בתיק המטופל/ת ובפגישות':'כל הרשומות, כולל רשומות שמולאו באפליקציה ובפגישה'}</p></div><button disabled={!write||state.busy||state.uncertain} onClick={()=>open()}><Plus size={18}/>{type==='questionnaire'?'שאלון חדש':'רשומה חדשה'}</button></div>
-    {history.isPending?<Loading/>:history.isError?<ErrorBox error={history.error} retry={()=>void history.refetch()}/>:<HistoryContainer {...(type==='questionnaire'?{}:{open:!edit||showHistory})} className="pw-history">{type==='questionnaire'?<h3 className="pw-history-title">היסטוריה · {history.data.length} רשומות</h3>:<summary onClick={e=>{e.preventDefault();setShowHistory(v=>!v);}}>היסטוריה · {history.data.length} רשומות</summary>}<ul className="pw-record-list">{history.data.length===0?<li className="pw-list-empty">אין עדיין רשומות.</li>:history.data.map(row=><li key={String(row.id)}><button className={`pw-list-row ${type==='questionnaire'?'pw-questionnaire-row':'pw-diary-row'}`} aria-current={edit?.id===String(row.id)?'true':undefined} disabled={state.busy} onClick={()=>open(row)}><RecordSummary row={row} type={type}/><ChevronLeft size={18} aria-hidden="true"/></button></li>)}</ul></HistoryContainer>}
+  return <>{!shared&&<DirtyGuard dirty={dirty||state.busy} busy={state.busy}/>}<div className="pw-section-heading"><div><h2>{labels[type]}</h2>{!shared&&<p>{type==='questionnaire'?'שאלונים בתיק המטופל/ת ובפגישות':'כל הרשומות, כולל רשומות שמולאו באפליקציה ובפגישה'}</p>}</div><div className="pw-record-actions">{shared&&edit&&<button className="secondary" onClick={()=>setShowHistory(v=>!v)}>היסטוריה</button>}<button disabled={!write||state.busy||state.uncertain} onClick={()=>open()}><Plus size={18}/>{type==='questionnaire'?'שאלון חדש':'רשומה חדשה'}</button></div></div>
+    {history.isPending?<Loading/>:history.isError?<ErrorBox error={history.error} retry={()=>void history.refetch()}/>:<HistoryContainer {...(type==='questionnaire'&&!shared?{}:{open:!edit||showHistory})} className={`pw-history ${shared&&edit&&!showHistory?'pw-history-collapsed':''}`}>{type==='questionnaire'&&!shared?<h3 className="pw-history-title">היסטוריה · {history.data.length} רשומות</h3>:<summary onClick={e=>{e.preventDefault();setShowHistory(v=>!v);}}>היסטוריה · {history.data.length} רשומות</summary>}<ul className="pw-record-list">{history.data.length===0?<li className="pw-list-empty">אין עדיין רשומות.</li>:history.data.map(row=><li key={String(row.id)}><button className={`pw-list-row ${type==='questionnaire'?'pw-questionnaire-row':'pw-diary-row'}`} aria-current={edit?.id===String(row.id)?'true':undefined} disabled={state.busy} onClick={()=>open(row)}><RecordSummary row={row} type={type}/><ChevronLeft size={18} aria-hidden="true"/></button></li>)}</ul></HistoryContainer>}
     {edit&&type==='questionnaire'&&showHistory&&<button className="secondary" onClick={()=>setShowHistory(false)}>חזרה לשאלון הפתוח</button>}
-    {edit&&(type!=='questionnaire'||!showHistory)&&<RecordEditorFrame type={type} isNew={!edit.id} busy={state.busy} onClose={()=>{if(canReplace()){setEdit(null);state.reset();}}}><section className="pw-editor">{edit.id && history.data?.some(row=>String(row.id)===edit.id&&JSON.stringify(row)!==JSON.stringify(edit.original))&&<p className="notice">קיימים נתונים עדכניים בהיסטוריה. <button className="text-button" disabled={state.busy} onClick={()=>open(history.data?.find(row=>String(row.id)===edit.id))}>טעינת הרשומה מחדש</button></p>}<div className="pw-section-heading"><h3>{type==='questionnaire'?'תשובות וציונים':edit.id?'עריכת הרשומה':'רשומה חדשה'}</h3><span>{edit.original?date(String(edit.original.created_at??edit.original.answered_date??'')):''}</span></div>
+    {edit&&(type!=='questionnaire'||!showHistory)&&<RecordEditorFrame type={type} shared={shared} isNew={!edit.id} busy={state.busy} onClose={()=>{if(canReplace()){setEdit(null);state.reset();}}}><section className="pw-editor">{edit.id && history.data?.some(row=>String(row.id)===edit.id&&JSON.stringify(row)!==JSON.stringify(edit.original))&&<p className="notice">קיימים נתונים עדכניים בהיסטוריה. <button className="text-button" disabled={state.busy} onClick={()=>open(history.data?.find(row=>String(row.id)===edit.id))}>טעינת הרשומה מחדש</button></p>}<div className="pw-section-heading"><h3>{!editable?'לצפייה בלבד':state.saved?'נשמר בתיק':dirty?'שינויים שלא נשמרו':edit.id?'רשומה מההיסטוריה':'רשומה חדשה'}</h3><span>{edit.original?date(String(edit.original.created_at??edit.original.answered_date??'')):''}</span></div>
       {type==='questionnaire'&&!shared&&<label>שיוך לפגישה{edit.id?<p>{target?date(sessions.data?.find(s=>String(s.id)===target)?.session_date):'ללא פגישה'}</p>:<select value={target} disabled={state.busy} onChange={e=>{setTarget(e.target.value);state.changed();}}><option value="">ללא פגישה</option>{sessions.data?.map(s=><option value={String(s.id)} key={s.id}>{date(s.session_date)}</option>)}</select>}</label>}
-      <WorksheetEditor item={edit.item} shared presentation={shared} onChange={item=>{setEdit({...edit,item});state.changed();}} disabled={!write||state.busy}/>
+      <WorksheetEditor item={edit.item} shared presentation={shared} onChange={item=>{setEdit({...edit,item});state.changed();}} disabled={!editable||state.busy}/>
       {type==='questionnaire'&&!shared&&<details className="pw-private-notes"><summary>הערות פרטיות למטפל/ת — אינן מוצגות בחלון השיתוף</summary><QuestionnaireNotes value={notes} disabled={!write||state.busy} onChange={value=>{setNotes(value);state.changed();}}/></details>}
       <SaveFeedback state={state} onInspect={()=>{setShowHistory(true);void history.refetch();}}/>
-      {type==='questionnaire'&&!shared&&notes!==undefined&&notes!==edit.original?.combined_notes?<ProcessingConsent><SaveButton state={state} valid={write&&isFormComplete(edit.item)} save={save}/></ProcessingConsent>:<SaveButton state={state} valid={write&&isFormComplete(edit.item)} save={save}/>}
+      {type==='questionnaire'&&!shared&&notes!==undefined&&notes!==edit.original?.combined_notes?<ProcessingConsent><SaveButton state={state} valid={editable&&isFormComplete(edit.item)} save={save}/></ProcessingConsent>:<SaveButton state={state} valid={editable&&isFormComplete(edit.item)} save={save}/>}
       {!isFormComplete(edit.item)&&<p className="pw-hint">יש להשלים את השדות הנדרשים לפני השמירה.</p>}
     </section></RecordEditorFrame>}</>;
 }
-function RecordEditorFrame({type,isNew,busy,onClose,children}:{type:WorksheetType;isNew:boolean;busy:boolean;onClose:()=>void;children:ReactNode}) {
-  return type==='questionnaire'?<EditorDialog title={isNew?'שאלון חדש':'עריכת שאלון'} closeLabel={isNew?'ביטול':'חזרה לשאלונים'} busy={busy} onClose={onClose}>{children}</EditorDialog>:<><header className="pw-diary-editor-heading"><h2>{labels[type]}</h2><button type="button" className="secondary" disabled={busy} onClick={onClose}>חזרה לרשומות</button></header>{children}</>;
+function RecordEditorFrame({type,shared=false,isNew,busy,onClose,children}:{type:WorksheetType;shared?:boolean;isNew:boolean;busy:boolean;onClose:()=>void;children:ReactNode}) {
+  return type==='questionnaire'&&!shared?<EditorDialog title={isNew?'שאלון חדש':'עריכת שאלון'} closeLabel={isNew?'ביטול':'חזרה לשאלונים'} busy={busy} onClose={onClose}>{children}</EditorDialog>:<><header className={`pw-diary-editor-heading ${shared?'pw-shared-editor-heading':''}`}><h2>{labels[type]}</h2><button type="button" className="secondary" disabled={busy} onClick={onClose}>חזרה לרשומות</button></header>{children}</>;
 }
 function RecordSummary({row,type}:{row:RecordRow;type:WorksheetType}) {
   const author=row.created_by==='patient'?'מולא על ידי המטופל/ת':'מולא על ידי המטפל/ת';
@@ -174,7 +155,7 @@ function RecordSummary({row,type}:{row:RecordRow;type:WorksheetType}) {
   return <><span className="pw-record-date"><strong>{date(String(row.created_at??''))}</strong><small>{author}</small></span><span className="pw-record-content"><span className="pw-record-preview">{event||'ללא תיאור אירוע'}</span>{feelings.length>0&&<small className="pw-record-meta">{feelings.join(' · ')}</small>}</span></>;
 }
 function SaveButton({state,valid,save}:{state:ReturnType<typeof useSaveState>;valid:boolean;save:()=>Promise<void>}) {
-  return <div className="pw-save"><button disabled={!valid||state.busy||state.uncertain} aria-busy={state.busy} onClick={()=>void save()}>{state.busy?'שומר…':state.error?'ניסיון שמירה נוסף':'שמירה בתיק המטופל/ת'}</button><small>השמירה מאושרת לאחר קבלת תשובת השרת.</small></div>;
+  return <div className="pw-save"><button disabled={!valid||state.busy||state.uncertain} aria-busy={state.busy} onClick={()=>void save()}>{state.busy?'שומר…':state.error?'ניסיון שמירה נוסף':'שמירה בתיק המטופל/ת'}</button></div>;
 }
 function QuestionnaireNotes({value,onChange,disabled}:{value:unknown;onChange:(v:unknown)=>void;disabled:boolean}) {
   const obj=value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};

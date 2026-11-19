@@ -490,7 +490,7 @@ export function DiaryWorksheet({
     );
   };
   return (
-    <DiaryFlow presentation={presentation} key={`${item.type}:${item.id}`}>
+    <DiaryFlow presentation={presentation} key={item.type}>
       {third && <div id={`${item.id}-stage-0`} className="ww-diary-stage" tabIndex={-1}><h2>{ww.diaryThreeBefore}</h2><details><summary>הנחיה</summary><p>{ww.diaryThreeBeforeHelp}</p></details></div>}
       <Section title={third ? ww.situation : ww.event} hint={third ? ww.diaryThreeBeforeHelp : undefined}>
         <label className="ww-sr" htmlFor={`${item.id}-event`}>

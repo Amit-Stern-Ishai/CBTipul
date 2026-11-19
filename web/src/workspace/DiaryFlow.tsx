@@ -22,9 +22,9 @@ export function DiaryFlow({children,presentation=false}:{children:ReactNode;pres
   const parts=flatten(children).filter(child=>isValidElement<{className?:string}>(child) && child.props.className!=='ww-diary-stage');
   const titles=parts.map(part=>isValidElement<{title?:string}>(part)?part.props.title??'':'' );
   function move(next:number) {
-    setStep(next);
+    setAll(false);setStep(next);
     requestAnimationFrame(()=>{
-      const heading=root.current?.querySelector<HTMLElement>('.ww-diary-section h2');
+      const heading=root.current?.querySelector<HTMLElement>('.diary-flow-panel:not([hidden]) .ww-diary-section h2, .ww-diary-grid > .ww-diary-section h2');
       heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true});
       if(presentation)root.current?.querySelector('.ww-diary-grid')?.scrollTo({top:0});else root.current?.scrollIntoView({block:'start',behavior:'instant'});
     });
@@ -32,20 +32,22 @@ export function DiaryFlow({children,presentation=false}:{children:ReactNode;pres
   return <div ref={root} className={`diary-flow ${all?'diary-flow-all':'diary-flow-focus'} ${presentation?'diary-presentation':''}`} style={presentation?{'--presentation-type':`${textSize}vw`} as CSSProperties:undefined}>
     <header className="diary-flow-toolbar">
       <div className="diary-flow-mode" role="group" aria-label="תצוגת היומן">
-        <button type="button" aria-pressed={!all} onClick={()=>setAll(false)}><Rows3 size={18} aria-hidden="true"/>חלק אחד</button>
-        <button type="button" aria-pressed={all} onClick={()=>setAll(true)}><List size={18} aria-hidden="true"/>היומן המלא</button>
+        <button type="button" aria-pressed={!all} onClick={()=>setAll(false)}><Rows3 size={18} aria-hidden="true"/>{presentation?'תצוגה ממוקדת':'חלק אחד'}</button>
+        <button type="button" aria-pressed={all} onClick={()=>setAll(true)}><List size={18} aria-hidden="true"/>{presentation?'תצוגה מלאה':'היומן המלא'}</button>
       </div>
-      <p>{all?'כל חלקי היומן לפניכם. אפשר לחזור לעבודה בחלק אחד בכל רגע.':'מתמקדים בחלק אחד בכל פעם. אפשר לחזור ולשנות כל תשובה.'}</p>
+      <p hidden={presentation}>{all?'כל חלקי היומן לפניכם. אפשר לחזור לעבודה בחלק אחד בכל רגע.':'מתמקדים בחלק אחד בכל פעם. אפשר לחזור ולשנות כל תשובה.'}</p>
       {!all && <div className="diary-flow-location"><label htmlFor={id}>מעבר לחלק</label><select id={id} value={step} onChange={e=>move(Number(e.target.value))}>{titles.map((title,i)=><option key={i} value={i}>{i+1}. {title}</option>)}</select><span role="status" aria-live="polite">חלק {step+1} מתוך {parts.length}</span></div>}
       {presentation && <div className="diary-presentation-controls" role="group" aria-label="התאמה לצפייה בשיתוף מסך">
-        <button type="button" className="secondary" aria-label="הקטנת טקסט בשיתוף" disabled={textSize<=3.4} onClick={()=>setTextSize(v=>Math.max(3.4,v-.6))}><Minus size={18}/></button>
+        {!all&&<><button type="button" className="secondary" aria-label="הקטנת טקסט בשיתוף" disabled={textSize<=3.4} onClick={()=>setTextSize(v=>Math.max(3.4,v-.6))}><Minus size={18}/></button>
         <span>גודל הטקסט</span>
-        <button type="button" className="secondary" aria-label="הגדלת טקסט בשיתוף" disabled={textSize>=6.4} onClick={()=>setTextSize(v=>Math.min(6.4,v+.6))}><Plus size={18}/></button>
+        <button type="button" className="secondary" aria-label="הגדלת טקסט בשיתוף" disabled={textSize>=6.4} onClick={()=>setTextSize(v=>Math.min(6.4,v+.6))}><Plus size={18}/></button></>}
         <button type="button" className="secondary" aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{fullscreen?<Minimize size={18}/>:<Maximize size={18}/>}מסך מלא</button>
         {screenError&&<span role="status">{screenError}</span>}
       </div>}
     </header>
-    <div className="ww-diary-grid">{all?children:parts[step]}</div>
+    <div className="ww-diary-grid">{presentation?parts.map((part,index)=><div key={index} className="diary-flow-panel" hidden={!all&&index!==step} data-stage={parts.length===7?(index<3?'before':index<5?'examine':'after'):undefined}>
+      {all&&<div className="diary-overview-section"><span>{index+1} / {parts.length}{parts.length===7?` · ${index<3?'לפני':index<5?'בחינה מחדש':'אחרי'}`:''}</span><button type="button" className="secondary" onClick={()=>move(index)}>התמקדות בחלק</button></div>}{part}
+    </div>):all?children:parts[step]}</div>
     {!all && <nav className="diary-flow-navigation" aria-label="ניווט בחלקי היומן">
       <button type="button" className="secondary" disabled={step===0} onClick={()=>move(step-1)}><ArrowRight size={20} aria-hidden="true"/>הקודם</button>
       {step<parts.length-1?<button type="button" onClick={()=>move(step+1)}>הבא<ArrowLeft size={20} aria-hidden="true"/></button>:<button type="button" onClick={()=>{setAll(true);requestAnimationFrame(()=>root.current?.scrollIntoView({block:'start'}));}}>סקירת היומן<List size={20} aria-hidden="true"/></button>}

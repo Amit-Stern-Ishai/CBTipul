@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {useQueries} from '@tanstack/react-query';
 import {Link} from 'react-router-dom';
-import {ArrowRight,ArrowLeft,ChevronDown,Plus,BookOpen,ClipboardList,Users,AlertCircle,ExternalLink} from 'lucide-react';
+import {ArrowRight,ArrowLeft,ChevronDown,Plus,BookOpen,ClipboardList,Users,AlertCircle} from 'lucide-react';
 import {useAuth} from '../auth/Auth';
 import {useWrite} from '../ui/hooks';
 import {api} from '../data/api';
@@ -11,11 +11,11 @@ import {latestScore,localDay,weekStart,monthDays,severity,timelineEntries,type T
 import './patient-timeline.css';
 const categories=[['session','פגישות',Users],['questionnaire','שאלונים',ClipboardList],['diary','יומנים',BookOpen]] as const;
 const forms=[['sessions','פגישה חדשה'],['questionnaire','שאלון חדש'],['diary_one','יומן מחשבות 1'],['diary_two','יומן מחשבות 2'],['diary_three','יומן מחשבות 3']];
-export function PatientTimeline({patient,name,canShare,onShare}:{patient:string;name:string;canShare:boolean;onShare:()=>void}){
+export function PatientTimeline({patient,name}:{patient:string;name:string}){
  const identityRef=useRef<HTMLElement>(null),rootRef=useRef<HTMLElement>(null);
  useEffect(()=>{const el=identityRef.current;if(!el)return;const observer=new ResizeObserver(()=>rootRef.current?.style.setProperty('--pt-identity-height',`${el.offsetHeight}px`));observer.observe(el);return()=>observer.disconnect();},[]);
  const {session}=useAuth(),write=useWrite(),account=session!.user.id;
- const [view,setView]=useState<'calendar'|'list'>('calendar'),[filter,setFilter]=useState<TimelineKind|'all'>('all');
+ const [view,setView]=useState<'calendar'|'list'>('list'),[filter,setFilter]=useState<TimelineKind|'all'>('all');
  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1,12));
  const queries=useQueries({queries:[
   {queryKey:[account,'record-sessions',patient],queryFn:()=>api.sessions(patient).then(rows=>rows.map(r=>({...r,id:String(r.id),patient_id:String(r.patient_id)})))},
@@ -40,8 +40,8 @@ export function PatientTimeline({patient,name,canShare,onShare}:{patient:string;
   </Link>;
  }
  return <section ref={rootRef} className="pt" aria-label="תיק המטופל/ת">
-  <header ref={identityRef} className="pt-identity"><div className="pt-patient"><div className="pt-patient-title"><Link className="pt-back" to="/" aria-label="כל המטופלים"><ArrowRight size={20}/></Link><h1>{name}</h1><div className="pt-head-scores">{headingScores.map(e=><span key={e.key} className="pt-score" data-severity={severity(e.score!.total)}>{e.score!.label}</span>)}{headingScores.some(e=>e.flagged)&&<span className="pt-score" data-severity="severe">לתשומת לב: שאלה 9</span>}</div></div><button className="pt-share" disabled={!canShare} onClick={onShare}><ExternalLink size={15}/>תצוגה משותפת</button></div>
-   <div className="pt-primary-actions">{write&&<Link className="button pt-start" to={open('sessions')}><Plus size={17}/>התחלת פגישה כעת</Link>}<div className="pt-view" role="group" aria-label="תצוגת התיק"><button aria-pressed={view==='calendar'} onClick={()=>setView('calendar')}>לוח שנה</button><button aria-pressed={view==='list'} onClick={()=>{setFilter('all');setView('list');}}>רשימה</button></div></div>
+  <header ref={identityRef} className="pt-identity"><div className="pt-patient"><div className="pt-patient-title"><Link className="pt-back" to="/" aria-label="כל המטופלים"><ArrowRight size={20}/></Link><h1>{name}</h1><div className="pt-head-scores">{headingScores.map(e=><span key={e.key} className="pt-score" data-severity={severity(e.score!.total)}>{e.score!.label}</span>)}{headingScores.some(e=>e.flagged)&&<span className="pt-score" data-severity="severe">לתשומת לב: שאלה 9</span>}</div></div></div>
+   <div className="pt-primary-actions">{write&&<Link className="button pt-start" to={`/shared/${patient}/questionnaire`} state={{patient,account,name}}><Plus size={17}/>התחלת פגישה כעת</Link>}<div className="pt-view" role="group" aria-label="תצוגת התיק"><button aria-pressed={view==='calendar'} onClick={()=>setView('calendar')}>לוח שנה</button><button aria-pressed={view==='list'} onClick={()=>{setFilter('all');setView('list');}}>רשימה</button></div></div>
   </header>
   {view==='calendar'&&<div className="pt-toolbar"><div className="pt-period">{view==='calendar'&&<><button className="secondary" onClick={()=>setMonth(new Date(new Date().getFullYear(),new Date().getMonth(),1,12))}>היום</button><button className="secondary" aria-label="החודש הקודם" onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()-1,1,12))}><ArrowRight size={16}/></button><button className="secondary" aria-label="החודש הבא" onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()+1,1,12))}><ArrowLeft size={16}/></button></>}<h2>{view==='calendar'?monthLabel:'התיעוד בתיק'}</h2></div>
    <div className="pt-filters" role="group" aria-label="סינון לפי סוג">{(['all',...categories.map(c=>c[0])] as const).map(key=><button key={key} aria-pressed={filter===key} onClick={()=>setFilter(key)}>{key!=='all'&&<span className="pt-filter-icon" data-kind={key}>{key==='session'?<Users size={14}/>:key==='questionnaire'?<ClipboardList size={14}/>:<BookOpen size={14}/>}</span>}{key==='all'?'הכל':categories.find(c=>c[0]===key)![1]}</button>)}</div>

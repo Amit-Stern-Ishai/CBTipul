@@ -6,7 +6,7 @@ import { Login } from "../auth/Login";
 import { therapistAllowed, names } from "../domain/privacy";
 import { api } from "../data/api";
 import { useContextAccess } from "./hooks";
-import { Loading, ErrorBox } from "./shared";
+import { Loading, ErrorBox, DirtyGuard } from "./shared";
 import { PatientWorkspace, NamesConsent } from "../workspace/PatientWorkspace";
 import { notificationTarget } from "./Inbox";
 import { he } from "../he";
@@ -36,9 +36,10 @@ function Denied({ logout }: { logout: () => Promise<void> }) { return <main clas
 function WorkspaceRoute() { const {session}=useAuth(); return <NamesConsent><PatientWorkspace key={session!.user.id}/></NamesConsent>; }
 function SharedRoute() {
   const [cache]=useState(()=>new QueryClient({defaultOptions:{queries:{retry:1,refetchOnWindowFocus:true},mutations:{retry:false}}}));
-  return <QueryClientProvider client={cache}><SharedGate/></QueryClientProvider>;
+  const [draft,setDraft]=useState({dirty:false,busy:false});
+  return <QueryClientProvider client={cache}><DirtyGuard privateExit dirty={draft.dirty} busy={draft.busy}/><SharedGate onDraftState={setDraft}/></QueryClientProvider>;
 }
-function SharedGate() {
+function SharedGate({onDraftState}:{onDraftState:(state:{dirty:boolean;busy:boolean})=>void}) {
   const {session,ready}=useAuth(), access=useContextAccess(true);
   const consent=useQuery({queryKey:[session?.user.id,'shared-consent'],enabled:!!session,queryFn:async()=>{await consents.require(session!.user.id,'terms_privacy');await consents.require(session!.user.id,'patient_name_storage');return true;},refetchOnWindowFocus:true});
   const firstAccount=useRef<string|null>(null), expired=useRef(false);
@@ -48,7 +49,7 @@ function SharedGate() {
   if(expired.current)return <main className="pw-neutral"><h1>תוקף התצוגה הסתיים</h1><p>חזרו לחלון הפרטי כדי להתחבר מחדש ולפתוח חלון שיתוף חדש.</p></main>;
   if(access.isPending||consent.isPending)return <Loading/>;
   if(access.isError || consent.isError || !therapistAllowed(session?.user??null,access.data??null))return <main className="pw-neutral"><h1>התצוגה אינה זמינה</h1><p>לא ניתן לאמת הרשאה. חזרו לחלון הפרטי.</p><button onClick={()=>void Promise.allSettled([access.refetch(),consent.refetch()])}>ניסיון נוסף</button></main>;
-  return <PatientWorkspace key={session!.user.id} shared/>;
+  return <PatientWorkspace key={session!.user.id} shared onDraftState={onDraftState}/>;
 }
 function LegalPage() { const l = useLocation(); const {session}=useAuth(); return <main className="gate legal"><Link to={session?"/":"/login"}>{session?nav.workspace:he.Login022}</Link><h1>{l.pathname.endsWith("privacy") ? he.Login025 : he.Login024}</h1><p className="prose">{l.pathname.endsWith("privacy") ? legal.privacyBody : legal.termsBody}</p></main>; }
 function Callback() {
