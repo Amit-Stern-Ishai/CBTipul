@@ -402,6 +402,15 @@ export function DiaryWorksheet({
         i === index ? { ...row, [field]: value } : row,
       ),
     );
+  const automaticThoughtReference = (
+    <aside className="ww-thought-reference" aria-label="המחשבות האוטומטיות">
+          <strong>המחשבות האוטומטיות</strong>
+          <ul>{(Array.isArray(d.automatic_thoughts) ? d.automatic_thoughts : []).map((value, index) => {
+            const text = third ? String((value as Row).text ?? "") : String(value);
+            return text.trim() ? <li key={index}>{text}</li> : null;
+          })}</ul>
+        </aside>
+  );
   const textList = (
     key: string,
     title: string,
@@ -411,13 +420,7 @@ export function DiaryWorksheet({
     const values = Array.isArray(d[key]) ? (d[key] as unknown[]) : [];
     return (
       <Section title={title} kind={key === "automatic_thoughts" ? "thought" : "alternative"} hint={third ? (key === "automatic_thoughts" ? ww.thoughtBeforeHelp : ww.alternativeBeliefHelp) : undefined}>
-        {key === "alternative_thoughts" && <aside className="ww-thought-reference" aria-label="המחשבות האוטומטיות">
-          <strong>המחשבות האוטומטיות</strong>
-          <ul>{(Array.isArray(d.automatic_thoughts) ? d.automatic_thoughts : []).map((value, index) => {
-            const text = third ? String((value as Row).text ?? "") : String(value);
-            return text.trim() ? <li key={index}>{text}</li> : null;
-          })}</ul>
-        </aside>}
+        {key === "alternative_thoughts" && automaticThoughtReference}
         <div className="ww-rows">
           {values.map((value, index) => (
             <div className="ww-diary-row ww-thought-row" key={index}>
@@ -586,6 +589,7 @@ export function DiaryWorksheet({
         <>
           {third && <div id={`${item.id}-stage-1`} className="ww-diary-stage" tabIndex={-1}><h2>{ww.diaryThreeExamine}</h2><details><summary>הנחיה</summary><p>{ww.diaryThreeExamineHelp}</p></details></div>}
           <Section kind="examine" title={he.Diaries020} hint={third ? ww.diaryThreeExamineHelp : undefined}>
+            {automaticThoughtReference}
             <ThinkingErrorPicker
               value={d.thinking_errors}
               disabled={disabled}
