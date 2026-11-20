@@ -156,7 +156,7 @@ struct DiaryThreeDraftFields: View {
                     active: $active, next: number < 7 ? { active = number + 1 } : nil, content: content)
             } else {
                 VStack(alignment: .leading, spacing: 14) { Text(title).font(BrandTypography.headline); content() }
-                    .padding(16).frame(maxWidth: .infinity, alignment: .leading).themedCard()
+                    .padding(.vertical, 16).frame(maxWidth: .infinity, alignment: .leading).overlay(alignment: .bottom) { Rectangle().fill(Theme.borderFaint).frame(height: 1) }
             }
         }
     }
@@ -192,7 +192,7 @@ struct DiaryThreeEntryDetailView: View {
             }
         }.themedScreen().demoModeChrome().navigationTitle(L10n.diaryThreeTitle)
         .toolbar {
-            if let entry {
+            if let entry, EntitlementState.shared.canWrite {
                 ToolbarItem(placement: .primaryAction) {
                     NavigationLink { DiaryThreeEntryFormView(patient: patient, mode: .edit(entry)).id(entry.updatedAt) }
                     label: { Label(L10n.diaryEntryEdit, systemImage: "pencil") }
@@ -219,7 +219,7 @@ struct DiaryThreeEntryContent: View {
                 comparison(feeling.intensityBefore, feeling.intensityAfter, beforeLabel: L10n.diaryThreeIntensityBefore, afterLabel: L10n.diaryThreeIntensityAfter)
             }
         }
-        section(L10n.diaryThinkingErrorsTitle) { ForEach(entry.thinkingErrors) { Text($0.title) } }
+        section(L10n.diaryThinkingErrorsTitle) { if entry.thinkingErrors.isEmpty { Text("לא זוהתה טעות חשיבה") }; ForEach(entry.thinkingErrors) { Text($0.title) } }
         section(L10n.diaryAlternativeThoughtsTitle) {
             ForEach(Array(entry.alternativeThoughts.enumerated()), id: \.offset) { _, thought in
                 Text(thought.text)
@@ -241,6 +241,6 @@ struct DiaryThreeEntryContent: View {
     }
     private func section<C: View>(_ title: String, @ViewBuilder content: @escaping () -> C) -> some View {
         VStack(alignment: .leading, spacing: 12) { Text(title).font(BrandTypography.headline); content() }
-            .padding(16).frame(maxWidth: .infinity, alignment: .leading).themedCard().textSelection(.enabled)
+            .padding(.vertical, 16).frame(maxWidth: .infinity, alignment: .leading).overlay(alignment: .bottom) { Rectangle().fill(Theme.borderFaint).frame(height: 1) }.textSelection(.enabled)
     }
 }

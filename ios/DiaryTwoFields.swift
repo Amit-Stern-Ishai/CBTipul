@@ -90,7 +90,7 @@ struct DiaryTwoEntryDetailView: View {
         .themedScreen().demoModeChrome()
         .navigationTitle(L10n.diaryTwoTitle)
         .toolbar {
-            if let entry {
+            if let entry, EntitlementState.shared.canWrite {
                 ToolbarItem(placement: .primaryAction) {
                     NavigationLink {
                         DiaryTwoEntryFormView(patient: patient, mode: .edit(entry)).id(entry.updatedAt)
@@ -114,7 +114,7 @@ struct DiaryTwoEntryContent: View {
             section(L10n.diaryOneEventTitle, [event])
             section(L10n.diaryOneThoughtTitle, automaticThoughts)
             section(L10n.diaryTwoFeelingsTitle, feelings.map { "\($0.name) — \($0.intensity)%" })
-            section(L10n.diaryThinkingErrorsTitle, thinkingErrors.map(\.title))
+            section(L10n.diaryThinkingErrorsTitle, thinkingErrors.isEmpty ? ["לא זוהתה טעות חשיבה"] : thinkingErrors.map(\.title))
             section(L10n.diaryAlternativeThoughtsTitle, alternativeThoughts)
         }
     }
@@ -124,6 +124,6 @@ struct DiaryTwoEntryContent: View {
             ForEach(Array(values.enumerated()), id: \.offset) { _, value in
                 Text(value).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
             }
-        }.padding(16).frame(maxWidth: .infinity, alignment: .leading).themedCard()
+        }.padding(.vertical, 16).frame(maxWidth: .infinity, alignment: .leading).overlay(alignment: .bottom) { Rectangle().fill(Theme.borderFaint).frame(height: 1) }
     }
 }

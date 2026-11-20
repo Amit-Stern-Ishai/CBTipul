@@ -129,8 +129,8 @@ fun TherapistDiaryThreeScreen(
             var delete by rememberSaveable { mutableStateOf(false) }
             DiaryThreeFrame(patientName, atmosphere, { if (!state.busy) closeDetail() }, actions = {
                 if (entry != null) {
-                    IconButton(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) { vm.openEditor(entry.id); nav.navigate("edit/${entry.id}") } }, enabled = !state.busy) {
-                        Icon(Icons.Outlined.Edit, stringResource(R.string.diary_entry_edit))
+                    if(com.cbtipul.app.ui.entitlementCanWrite()) TextButton(onClick = { if (com.cbtipul.app.data.Entitlements.allowMutation()) { vm.openEditor(entry.id); nav.navigate("edit/${entry.id}") } }, enabled = !state.busy) {
+                        Text(stringResource(R.string.diary_entry_edit))
                     }
                     if (entry.createdBy == DiaryOneEntryCreator.Therapist) IconButton(onClick = { delete = true }, enabled = com.cbtipul.app.ui.entitlementCanWrite() && !state.busy) {
                         Icon(Icons.Outlined.Delete, stringResource(R.string.diary_one_delete_action))
@@ -219,8 +219,9 @@ private fun DiaryThreeFrame(patientName: String, atmosphere: Color?, onBack: () 
 
 @Composable
 private fun DiaryThreeCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    GroupedListCard(accent = Theme.colors.gold) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column {
+        HorizontalDivider(color=Theme.colors.borderFaint)
+        Column(Modifier.fillMaxWidth().padding(vertical=16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, fontWeight = FontWeight.SemiBold)
             content()
         }

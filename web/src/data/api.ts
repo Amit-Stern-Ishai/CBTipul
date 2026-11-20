@@ -503,6 +503,25 @@ export const api = {
       unavailable,
     };
   },
+  async conceptualizationSuggestions(id: string, section: string, document: import('./conceptualization').ConceptDocument, active:()=>boolean) {
+    const done = await guard(true);
+    const check=()=>{done();if(!active())throw new ApiError('stale');};
+    await consents.require(identity!, 'ai_data_sharing');check();
+    const bundle=await api.bundle(id);check();
+    const patient_context=chatContext(safeBundle(bundle,scrub));
+    const {data,error}=await db.functions.invoke('suggest-conceptualization-section',{body:{patient_id:id,section,document,patient_context}});check();
+    if(error){
+      let code=error.context?.status===403?'access':error.context?.status===413?'too_large':error.context?.status===429?'rate_limit':'failed';
+      try {const detail=await error.context?.json();check();const reason=detail?.error??detail?.code;
+        if(['input_too_large','context_too_large','payload_too_large'].includes(reason))code='too_large';
+        if(['AI_LIMIT_REACHED','ai_quota_exceeded','quota_exceeded','monthly_limit_exceeded','chat_tokens_exhausted','AI_QUOTA_EXCEEDED','THERAPIST_AI_QUOTA_EXCEEDED'].includes(reason)||detail?.remainingTokens===0)code='quota';
+        if(reason==='consent_required'){consents.refuse(identity!,'ai_data_sharing');code='consent';}
+      }catch{/* Never log clinical response bodies. */}
+      throw new ApiError(code);
+    }
+    if(!data||!Array.isArray(data.suggestions)||data.suggestions.length>4||!data.suggestions.every((v:unknown)=>typeof v==='string'&&v.trim()&&Array.from(v).length<=1500))throw new ApiError();
+    return [...new Set<string>(data.suggestions)];
+  },
   async chat(id: Id, turns: Turn[]) {
     const done = await guard(true);
     const b = await api.bundle(id);

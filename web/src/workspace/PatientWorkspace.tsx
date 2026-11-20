@@ -1,3 +1,4 @@
+import {DiaryReading} from './DiaryReading';
 import { useEffect, useEffectEvent, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,9 +19,10 @@ import { ww } from './he';
 import './patient-workspace.css';
 import './patient-guide.css';
 import './shared-workspace.css';
+import {ConceptualizationEditor} from './ConceptualizationEditor';
 import {PatientTimeline} from './PatientTimeline';
 
-const labels: Record<string,string> = {sessions:'פגישות',questionnaire:'שאלונים',diary_one:'יומן מחשבות 1',diary_two:'יומן מחשבות 2',diary_three:'יומן מחשבות 3'};
+const labels: Record<string,string> = {conceptualization:'המשגה',sessions:'פגישות',questionnaire:'שאלונים',diary_one:'יומן מחשבות 1',diary_two:'יומן מחשבות 2',diary_three:'יומן מחשבות 3'};
 export function NamesConsent({children}:{children:ReactNode}) {
   const {session,logout}=useAuth();
   return <ConsentBoundary account={session!.user.id} type="patient_name_storage" title={copy.nameTitle} description={copy.nameNotice} accept={copy.accept} decline={logout} declineLabel={copy.decline}>{children}</ConsentBoundary>;
@@ -55,7 +57,7 @@ export function PatientWorkspace({shared=false,onDraftState}:{shared?:boolean;on
     </>}
     {patientId && (authorized.isPending?<Loading/>:authorized.isError?<ErrorBox error={authorized.error} retry={()=>void authorized.refetch()}/>:<>
       {!shared&&section==='overview'?<PatientTimeline key={`${account}:${patientId}`} patient={patientId} name={name} />:<div className="pw-clinical-layout"><nav className="pw-tabs" aria-label="כלים בתיק">{!shared&&<NavLink to={`${path}/overview`}>התיק הטיפולי</NavLink>}{available.map(([key,title])=><NavLink key={key} data-category={key==='sessions'?'session':key==='questionnaire'?'questionnaire':'diary'} to={`${path}/${key}`} state={shared?sharingState:undefined}>{key==='sessions'?<CalendarDays size={20}/>:key==='questionnaire'?<ClipboardList size={20}/>:<BookOpen size={20}/>} {title}</NavLink>)}</nav>
-      <div className="pw-clinical-content">{section==='sessions'&&!shared ? <PatientSessions key={`${account}:${patientId}`} patient={patientId}/> : available.some(([key])=>key===section) ? <Records key={`${account}:${patientId}:${section}:${shared}`} patient={patientId} type={section as WorksheetType} shared={shared} onDraftState={onDraftState}/> : <p>העמוד אינו זמין.</p>}</div></div>}
+      <div className="pw-clinical-content">{section==='conceptualization'?<ConceptualizationEditor key={`${account}:${patientId}:${shared}`} patient={patientId} shared={shared} onDraftState={onDraftState}/>:section==='sessions'&&!shared ? <PatientSessions key={`${account}:${patientId}`} patient={patientId}/> : available.some(([key])=>key===section) ? <Records key={`${account}:${patientId}:${section}:${shared}`} patient={patientId} type={section as WorksheetType} shared={shared} onDraftState={onDraftState}/> : <p>העמוד אינו זמין.</p>}</div></div>}
     </>)}
   </main>;
 }
@@ -99,6 +101,9 @@ function Records({patient,type,shared,onDraftState}:{patient:string;type:Workshe
   const [edit,setEdit]=useState<{item:Worksheet;id:string|null;original:RecordRow|null}|null>(null);
   const [baseline,setBaseline]=useState(''),[notes,setNotes]=useState<unknown>(undefined),[target,setTarget]=useState<string>('');
   const [showHistory,setShowHistory]=useState(false);
+  const [editing,setEditing]=useState(false);
+  const editorRoot=useRef<HTMLElement>(null);
+  useEffect(()=>{if(type==='questionnaire')return;const frame=requestAnimationFrame(()=>{const target=editorRoot.current?.querySelector<HTMLElement>(editing?'textarea':'h3');if(target?.matches('h2,h3'))target.setAttribute('tabindex','-1');target?.focus({preventScroll:true});});return()=>cancelAnimationFrame(frame);},[editing,edit?.id,type]);
   const HistoryContainer=shared?'details':type==='questionnaire'?'section':'details';
   const state=useSaveState(patient);
   const requested=new URLSearchParams(useLocation().search), requestedEntry=requested.get('entry'), requestedNew=requested.has('new');
@@ -117,26 +122,28 @@ function Records({patient,type,shared,onDraftState}:{patient:string;type:Workshe
     if(type==='questionnaire')delete item.data.notes;
     const value=!shared&&row?row.combined_notes:undefined;
     const link=String(row?.session_id??'');
-    setShowHistory(false);setNotes(value);setTarget(link);setEdit({item,id:row?String(row.id):null,original:row??null});setBaseline(JSON.stringify([item,value,link]));state.reset();
+    setEditing(!row||type==='questionnaire');setShowHistory(false);setNotes(value);setTarget(link);setEdit({item,id:row?String(row.id):null,original:row??null});setBaseline(JSON.stringify([item,value,link]));state.reset();
   }
   async function save() {
     if(!edit)return;
     const submitted=edit;
     await state.run(()=>saveRecord(patient,submitted.id,submitted.item,shared,target||null,notes===submitted.original?.combined_notes?undefined:notes,submitted.original),row=>{
-      const item={...submitted.item,id:String(row.id)};
+      const item={...submitted.item,id:String(row.id),data:{...row}};
+      if(type!=='questionnaire')setEditing(false);
       setEdit({item,id:String(row.id),original:row});setBaseline(JSON.stringify([item,notes,target]));
     });
   }
   return <>{!shared&&<DirtyGuard dirty={dirty||state.busy} busy={state.busy}/>}<div className="pw-section-heading"><div><h2>{labels[type]}</h2>{!shared&&<p>{type==='questionnaire'?'שאלונים בתיק המטופל/ת ובפגישות':'כל הרשומות, כולל רשומות שמולאו באפליקציה ובפגישה'}</p>}</div><div className="pw-record-actions">{shared&&edit&&<button className="secondary" onClick={()=>setShowHistory(v=>!v)}>היסטוריה</button>}<button disabled={!write||state.busy||state.uncertain} onClick={()=>open()}><Plus size={18}/>{type==='questionnaire'?'שאלון חדש':'רשומה חדשה'}</button></div></div>
     {history.isPending?<Loading/>:history.isError?<ErrorBox error={history.error} retry={()=>void history.refetch()}/>:<HistoryContainer {...(type==='questionnaire'&&!shared?{}:{open:!edit||showHistory})} className={`pw-history ${shared&&edit&&!showHistory?'pw-history-collapsed':''}`}>{type==='questionnaire'&&!shared?<h3 className="pw-history-title">היסטוריה · {history.data.length} רשומות</h3>:<summary onClick={e=>{e.preventDefault();setShowHistory(v=>!v);}}>היסטוריה · {history.data.length} רשומות</summary>}<ul className="pw-record-list">{history.data.length===0?<li className="pw-list-empty">אין עדיין רשומות.</li>:history.data.map(row=><li key={String(row.id)}><button className={`pw-list-row ${type==='questionnaire'?'pw-questionnaire-row':'pw-diary-row'}`} aria-current={edit?.id===String(row.id)?'true':undefined} disabled={state.busy} onClick={()=>open(row)}><RecordSummary row={row} type={type}/><ChevronLeft size={18} aria-hidden="true"/></button></li>)}</ul></HistoryContainer>}
     {edit&&type==='questionnaire'&&showHistory&&<button className="secondary" onClick={()=>setShowHistory(false)}>חזרה לשאלון הפתוח</button>}
-    {edit&&(type!=='questionnaire'||!showHistory)&&<RecordEditorFrame type={type} shared={shared} isNew={!edit.id} busy={state.busy} onClose={()=>{if(canReplace()){setEdit(null);state.reset();}}}><section className="pw-editor">{edit.id && history.data?.some(row=>String(row.id)===edit.id&&JSON.stringify(row)!==JSON.stringify(edit.original))&&<p className="notice">קיימים נתונים עדכניים בהיסטוריה. <button className="text-button" disabled={state.busy} onClick={()=>open(history.data?.find(row=>String(row.id)===edit.id))}>טעינת הרשומה מחדש</button></p>}<div className="pw-section-heading"><h3>{!editable?'לצפייה בלבד':state.saved?'נשמר בתיק':dirty?'שינויים שלא נשמרו':edit.id?'רשומה מההיסטוריה':'רשומה חדשה'}</h3><span>{edit.original?date(String(edit.original.created_at??edit.original.answered_date??'')):''}</span></div>
+    {edit&&(type!=='questionnaire'||!showHistory)&&<RecordEditorFrame type={type} shared={shared} isNew={!edit.id} busy={state.busy} onClose={()=>{if(canReplace()){setEdit(null);state.reset();}}}><section className="pw-editor" ref={editorRoot}>{edit.id && history.data?.some(row=>String(row.id)===edit.id&&JSON.stringify(row)!==JSON.stringify(edit.original))&&<p className="notice">קיימים נתונים עדכניים בהיסטוריה. <button className="text-button" disabled={state.busy} onClick={()=>open(history.data?.find(row=>String(row.id)===edit.id))}>טעינת הרשומה מחדש</button></p>}<div className="pw-section-heading"><h3>{!editable?'לצפייה בלבד':state.saved?'נשמר בתיק':dirty?'שינויים שלא נשמרו':edit.id?'רשומה מההיסטוריה':'רשומה חדשה'}</h3><span>{edit.original?date(String(edit.original.created_at??edit.original.answered_date??'')):''}</span></div>
       {type==='questionnaire'&&!shared&&<label>שיוך לפגישה{edit.id?<p>{target?date(sessions.data?.find(s=>String(s.id)===target)?.session_date):'ללא פגישה'}</p>:<select value={target} disabled={state.busy} onChange={e=>{setTarget(e.target.value);state.changed();}}><option value="">ללא פגישה</option>{sessions.data?.map(s=><option value={String(s.id)} key={s.id}>{date(s.session_date)}</option>)}</select>}</label>}
-      <WorksheetEditor item={edit.item} shared presentation={shared} onChange={item=>{setEdit({...edit,item});state.changed();}} disabled={!editable||state.busy}/>
+      {type!=='questionnaire'&&<div className="reading-actions">{editing?<button className="secondary" disabled={state.busy} onClick={()=>{if(edit.original)open(edit.original);else if(canReplace()){setEdit(null);state.reset();}}}>ביטול עריכה</button>:editable&&<button className="secondary" onClick={()=>setEditing(true)}>עריכה</button>}</div>}
+      {type!=='questionnaire'&&!editing?<DiaryReading item={edit.item} shared={shared}/>:<WorksheetEditor item={edit.item} shared presentation={shared} onChange={item=>{setEdit({...edit,item});state.changed();}} disabled={!editable||state.busy}/>}
       {type==='questionnaire'&&!shared&&<details className="pw-private-notes"><summary>הערות פרטיות למטפל/ת — אינן מוצגות בחלון השיתוף</summary><QuestionnaireNotes value={notes} disabled={!write||state.busy} onChange={value=>{setNotes(value);state.changed();}}/></details>}
       <SaveFeedback state={state} onInspect={()=>{setShowHistory(true);void history.refetch();}}/>
-      {type==='questionnaire'&&!shared&&notes!==undefined&&notes!==edit.original?.combined_notes?<ProcessingConsent><SaveButton state={state} valid={editable&&isFormComplete(edit.item)} save={save}/></ProcessingConsent>:<SaveButton state={state} valid={editable&&isFormComplete(edit.item)} save={save}/>}
-      {!isFormComplete(edit.item)&&<p className="pw-hint">יש להשלים את השדות הנדרשים לפני השמירה.</p>}
+      {(type==='questionnaire'||editing)&&(type==='questionnaire'&&!shared&&notes!==undefined&&notes!==edit.original?.combined_notes?<ProcessingConsent><SaveButton state={state} valid={editable&&isFormComplete(edit.item)} save={save}/></ProcessingConsent>:<SaveButton state={state} valid={editable&&isFormComplete(edit.item)} save={save}/>)}
+      {(type==='questionnaire'||editing)&&!isFormComplete(edit.item)&&<p className="pw-hint">יש להשלים את השדות הנדרשים לפני השמירה.</p>}
     </section></RecordEditorFrame>}</>;
 }
 function RecordEditorFrame({type,shared=false,isNew,busy,onClose,children}:{type:WorksheetType;shared?:boolean;isNew:boolean;busy:boolean;onClose:()=>void;children:ReactNode}) {

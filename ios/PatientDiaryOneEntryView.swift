@@ -196,10 +196,10 @@ struct DiaryOneEntryContent: View {
     var body: some View {
         Group {
             labeledBlock(L10n.diaryOneEventTitle, event)
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text(L10n.diaryOneThoughtTitle)
-                    .font(BrandTypography.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .font(BrandTypography.headline)
+                    .foregroundStyle(Theme.textBody)
                 ForEach(Array(automaticThoughts.enumerated()), id: \.offset) { _, thought in
                     Text(thought)
                         .font(BrandTypography.body)
@@ -215,10 +215,10 @@ struct DiaryOneEntryContent: View {
         }.textSelection(.enabled)
     }
     private func labeledBlock(_ title: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(BrandTypography.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(BrandTypography.headline)
+                .foregroundStyle(Theme.textBody)
             Text(value)
                 .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBright)

@@ -85,7 +85,7 @@ struct PatientDiaryOneView: View {
         .demoModeChrome()
         .navigationDestination(item: $presentedEntryID) { id in
             if let entry = diary.entries(for: patient.id).first(where: { $0.id == id }) {
-                DiaryOneEntryFormView(patient: patient, mode: .edit(entry))
+                DiaryOneReadingView(patient: patient, entryID: entry.id)
                     .id(id)
             } else {
                 ContentUnavailableView {
@@ -150,7 +150,7 @@ struct PatientDiaryOneView: View {
             if !entries.isEmpty {
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                     NavigationLink {
-                        DiaryOneEntryFormView(patient: patient, mode: .edit(entry))
+                        DiaryOneReadingView(patient: patient, entryID: entry.id)
                             .id(entry.id)
                     } label: {
                         diarySummary(entry)

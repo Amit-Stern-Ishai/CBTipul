@@ -688,6 +688,8 @@ internal fun PatientHomeContent(
     val colors = Theme.colors
     val openAssignments = assignments.filter { if (it.type == PatientAssignmentType.DiaryTwo || it.type == PatientAssignmentType.DiaryThree) it.cancelledAt == null else it.isOpen }
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+    var showConceptualization by remember(patientId) { mutableStateOf(false) }
+    if (showConceptualization) com.cbtipul.app.ui.patients.ConceptualizationDialog(app, patientId, readOnly = true, onDismiss = { showConceptualization = false })
     val account = app.authRepository.currentUserId()
     var draftRevision by remember { mutableStateOf(0) }
     var resumable by remember(account, patientId) { mutableStateOf<List<PatientAssignment>>(emptyList()) }
@@ -778,6 +780,7 @@ internal fun PatientHomeContent(
                     if (!com.cbtipul.app.ui.entitlementCanWrite()) {
                         Text(stringResource(R.string.entitlement_patient_unavailable), color = colors.textBody, fontSize = 13.sp)
                     }
+                    androidx.compose.material3.OutlinedButton(onClick = { showConceptualization = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("המשגה") }
                     PatientAssignmentType.entries.forEach { type ->
                         val active = openAssignments.any { it.type == type } && (type != PatientAssignmentType.DiaryThree || PatientAssignmentType.diaryThreeSendingEnabled)
                         if (type != PatientAssignmentType.Questionnaire || active || type in historyTypes) {

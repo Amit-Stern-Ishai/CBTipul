@@ -191,6 +191,9 @@ fun PatientDetailScreen(
         BoxMissing(onBack)
         return
     }
+    var showConceptualization by remember(patient.id) { mutableStateOf(false) }
+    val conceptApp = LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+    if (showConceptualization) ConceptualizationDialog(conceptApp, patient.id.queryValue, onDismiss = { showConceptualization = false })
     var showNotes by remember { mutableStateOf(false) }
     var diariesExpanded by remember { mutableStateOf(false) }
     val diariesArrowRotation by animateFloatAsState(
@@ -443,6 +446,7 @@ fun PatientDetailScreen(
                     Triple(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), onOpenGraphs),
                     Triple(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title), { diariesExpanded = true }),
                     Triple(Icons.Outlined.Assignment, stringResource(R.string.questionnaires_title), onOpenQuestionnaires),
+                    Triple(Icons.Outlined.Assignment, "המשגה", { if (!isDemo) showConceptualization = true }),
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     actions.chunked(if (singleColumn) 1 else 2).forEach { row ->

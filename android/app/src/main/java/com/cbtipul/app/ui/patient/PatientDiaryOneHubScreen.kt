@@ -253,10 +253,10 @@ fun DiaryOneEntryContent(event: String, automaticThoughts: List<String>, feeling
             stringResource(R.string.diary_one_thought_title),
             color = colors.textBody,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp,
+            fontSize = 16.sp,
         )
         automaticThoughts.forEach { thought ->
-            Text(thought, color = colors.textBright)
+            Text(thought, color = colors.textBright, style=androidx.compose.material3.MaterialTheme.typography.bodyLarge)
         }
     }
     DetailBlock(
@@ -273,7 +273,7 @@ fun DiaryOneEntryContent(event: String, automaticThoughts: List<String>, feeling
 private fun DetailBlock(title: String, value: String) {
     val colors = Theme.colors
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title, color = colors.textBody, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+        Text(title, color = colors.textBody, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Text(value, color = colors.textBright)
     }
 }

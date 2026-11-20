@@ -3,7 +3,7 @@ import {createWorksheet,type WorksheetType} from '../src/workspace/model';
 const patient='11111111-1111-4111-8111-111111111111', other='22222222-2222-4222-8222-222222222222';
 const user={id:'therapist-fixture',email:'fixture@example.invalid',is_anonymous:false,app_metadata:{provider:'email'},user_metadata:{},aud:'authenticated',created_at:'2026-01-01T00:00:00Z'};
 function diary(type:WorksheetType){return {...createWorksheet(type).data,id:'entry',patient_id:patient,created_by:'patient',created_at:'2026-10-30T12:00:00Z',updated_at:'2026-10-30T12:00:00Z',[type==='diary_three'?'situation':'event']:'אירוע סינתטי',automatic_thoughts:type==='diary_three'?[{text:'מחשבה סינתטית',beliefBefore:80,beliefAfter:20}]:['מחשבה סינתטית'],feelings:type==='diary_three'?[{name:'עצב',intensityBefore:70,intensityAfter:20}]:[{name:'עצב',intensity:70}],thinking_errors:[],alternative_thoughts:type==='diary_three'?[{text:'חלופה סינתטית',belief:80}]:['חלופה סינתטית'],behaviour:'פעולה סינתטית',physical_symptoms:''};}
-async function fixture(context:BrowserContext,options:{nameDelay?:Promise<void>;nameFailure?:boolean;missingName?:boolean;nameConsent?:boolean;deny?:boolean;fail?:boolean;uncertain?:boolean;loseAfterSave?:boolean;delay?:Promise<void>}={}) {
+async function fixture(context:BrowserContext,options:{readOnly?:boolean;nameDelay?:Promise<void>;nameFailure?:boolean;missingName?:boolean;nameConsent?:boolean;deny?:boolean;fail?:boolean;uncertain?:boolean;loseAfterSave?:boolean;delay?:Promise<void>}={}) {
  const requests:{path:string;select:string;method:string;body:Record<string,unknown>|null;patient:string|null}[]=[];
  let approved=options.nameConsent!==false;
  const records:Record<string,Record<string,unknown>[]>= {Sessions:[],CombinedMood:[{id:'9007199254740993',patient_id:patient,session_id:null,created_by:'therapist',answered_date:'2026-10-30',gad7_answers:Array(7).fill(1),phq9_answers:Array(9).fill(0),interference_level:1,combined_notes:{gad7:['PRIVATE_NOTE_SENTINEL'],phq9:[],interference:''}}],diary_one_entries:[diary('diary_one')],diary_two_entries:[diary('diary_two')],diary_three_entries:[diary('diary_three')]};
@@ -17,14 +17,14 @@ async function fixture(context:BrowserContext,options:{nameDelay?:Promise<void>;
   let data:unknown,status=200;
   if(path.endsWith('/user'))data=user;
   else if(path.endsWith('/logout'))data={};
-  else if(path.endsWith('/get-app-context'))data={role:'therapist',entitlement:{access:'full'}};
+  else if(path.endsWith('/get-app-context'))data={role:'therapist',entitlement:{access:options.readOnly?'read_only':'full'}};
   else if(path.endsWith('/get_my_consent')||path.endsWith('/record_my_consent')){if(path.endsWith('/record_my_consent')&&body.p_consent_type==='patient_name_storage')approved=body.p_decision==='accepted';const ok=body.p_consent_type!=='patient_name_storage'||approved;data={therapist_id:user.id,consent_type:body.p_consent_type,required_version:body.p_required_version,accepted_version:ok?body.p_required_version:null,status:ok?'accepted':'required',accepted_at:ok?'2026-10-30T10:00:00Z':null,revoked_at:null,revision:ok?1:0};}
   else if(path.endsWith('/patient-names')) {
    if(options.nameDelay)await options.nameDelay;
    if(options.nameFailure){status=503;data={code:'service_unavailable'};}
    else data={names:[{patient_id:patient.toUpperCase(),name:options.missingName?null:'מטופלת לדוגמה א',revision:'1',updated_at:null},{patient_id:other,name:'מטופל לדוגמה ב',revision:'2',updated_at:null}],next_after:null};
   }
-  else if(path.endsWith('/load-patients'))data={records:[{id:patient,active:true,notes:null,formulation:null,_version:'v'},{id:other,active:true,notes:null,formulation:null,_version:'v'}],next_cursor:null};
+  else if(path.endsWith('/load-patients'))data={records:[{id:patient,active:true,notes:null,formulation:null,_version:'v'},{id:other,active:true,notes:null,formulation:null,_version:'v'}].filter(r=>!body.id||r.id===body.id),next_cursor:null};
   else if(path.endsWith('/load-sessions')||path.endsWith('/load-questionnaires')) {
     const table=path.endsWith('/load-sessions')?'Sessions':'CombinedMood';
     data={records:records[table].filter(r=>!body.patient_id||r.patient_id===body.patient_id).map(r=>Object.fromEntries(Object.entries({...r,_version:'v'}).filter(([k])=>body.view!=='shared'||!['notes','combined_notes'].includes(k)))),next_cursor:null};
@@ -57,7 +57,7 @@ async function fixture(context:BrowserContext,options:{nameDelay?:Promise<void>;
   await route.fulfill({status,contentType:'application/json',headers,body:JSON.stringify(data)});
  });return {requests,records};
 }
-async function openEntry(page:Page,type:string,shared=false){await page.goto(`/app/${shared?'shared':'patients'}/${patient}/${type}`);await page.locator('.pw-history button').first().click();}
+async function openEntry(page:Page,type:string,shared=false){await page.goto(`/app/${shared?'shared':'patients'}/${patient}/${type}`);await page.locator('.pw-history button').first().click();if(type!=='questionnaire')await page.getByRole('button',{name:'עריכה',exact:true}).click();}
 
 test('consent gates name lookup; choose patient and save directly',async({context,page},info)=>{
  const f=await fixture(context,{nameConsent:false});await page.goto('/app/');await expect(page.getByRole('heading',{name:'שמירת שמות מטופלים וסנכרון בין מכשירים'})).toBeVisible();expect(f.requests.some(r=>r.path.endsWith('/patient-names'))).toBe(false);
@@ -81,7 +81,7 @@ test('single shared entry is isolated and exiting requires confirmation',async({
  await page.getByRole('link',{name:'התחלת פגישה כעת',exact:true}).click();
  await expect(page).toHaveURL(new RegExp(`/shared/${patient}/questionnaire`));
  await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א',exact:true})).toBeVisible();
- await expect(page.locator('.pw-tabs a')).toHaveCount(4);
+ await expect(page.locator('.pw-tabs a')).toHaveCount(5);
  await expect(page.locator('.cb-header,.pw-picker')).toHaveCount(0);
  await expect(page.locator('body')).not.toContainText(user.email);
  await page.screenshot({path:info.outputPath('workspace.png'),fullPage:true});
@@ -174,13 +174,13 @@ for(const type of ['diary_one','diary_two','diary_three'])test(`guided diary nav
 });
 for(const chosen of ['questionnaire','diary_one','diary_two','diary_three'])test(`shared tools and history scope ${chosen}`,async({context,page})=>{
  const f=await fixture(context);await page.goto(`/app/shared/${patient}/${chosen}?form=diary_one`);
- await expect(page.locator('.pw-tabs a')).toHaveCount(4);
+ await expect(page.locator('.pw-tabs a')).toHaveCount(5);
  await page.locator('.pw-history button').first().click();
  await expect(page.locator('body')).not.toContainText('PRIVATE_NOTE_SENTINEL');
  expect(f.requests.some(r=>r.path.endsWith('/load-sessions')||r.path.endsWith('/load-patients')||r.path.endsWith('/patient-names'))).toBe(false);
  expect(f.requests.filter(r=>r.path.endsWith('/load-questionnaires')).every(r=>r.body?.view==='shared')).toBe(true);
  for(const r of f.requests.filter(r=>/diary_.*entries/.test(r.path)))expect(r.patient).toBe(`eq.${patient}`);
- await page.reload();await expect(page.locator('.pw-tabs a')).toHaveCount(4);
+ await page.reload();await expect(page.locator('.pw-tabs a')).toHaveCount(5);
 });
 
 for(const width of [1280,1440])test(`laptop presentation remains legible when screen-shared ${width}`,async({context,page},info)=>{
@@ -455,4 +455,109 @@ for(const type of ['diary_two','diary_three'])test(`thinking errors and alternat
  await page.getByRole('button',{name:'תצוגה מלאה',exact:true}).click();
  await expect(page.locator('[data-part="alternative"] textarea')).toHaveValue('אפשרות אחרת');
  await expect(page.locator('[data-part="thought"] textarea')).toHaveValue('מחשבה מקורית לצורך בדיקה');
+});
+
+test('conceptualization saved draft, publication, conflict and shared privacy',async({context,page},info)=>{
+ const f=await fixture(context);
+ let current:Record<string,unknown>={patient_id:patient,document:null,revision:null,published_revision:null,published_at:null,updated_at:null};let sent:unknown=null;let serial=0;
+ const calls:Record<string,unknown>[]=[];
+ await context.route('**/functions/v1/patient-conceptualization',async route=>{
+  const body=route.request().postDataJSON();calls.push(body);
+  if(body.action==='load_draft')return route.fulfill({json:current});
+  if(body.expected_revision!==current.revision)return route.fulfill({status:409,json:{error:'revision_conflict'}});
+  if(body.action==='save')current={...current,document:structuredClone(body.document),revision:`opaque-${++serial}`,updated_at:'2026-11-20T12:00:00Z'};
+  if(body.action==='publish'){sent=structuredClone(current.document);current={...current,published_revision:current.revision,published_at:'2026-11-20T12:00:00Z'};}
+  return route.fulfill({json:current});
+ });
+ await page.goto(`/app/shared/${patient}/conceptualization`);
+ await expect(page.getByRole('heading',{name:'המשגה',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'יצירת המשגה',exact:true}).click();await page.locator('.concept-section').first().getByRole('button',{name:'הוספת משפט'}).click();
+ await page.getByLabel('חוויות ילדות 1',{exact:true}).fill('A — משפט סינתטי');
+ await expect(page.getByRole('button',{name:'שליחה למטופל/ת',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:'שמירה',exact:true}).click();await expect(page.getByText('ההמשגה נשמרה',{exact:true})).toBeVisible();
+ expect(sent).toBeNull();expect(calls.find(c=>c.action==='save')?.expected_revision).toBeNull();
+ await page.getByRole('button',{name:'שליחה למטופל/ת',exact:true}).click();await expect(page.getByText('ההמשגה נשלחה למטופל/ת',{exact:true})).toBeVisible();
+ const a=structuredClone(sent);
+ const second=await context.newPage();await second.goto(`/app/shared/${patient}/conceptualization`);
+ await second.getByRole('button',{name:'עריכה',exact:true}).click();await second.getByLabel('חוויות ילדות 1',{exact:true}).fill('B — משפט סינתטי');await second.getByRole('button',{name:'שמירה',exact:true}).click();await expect(second.getByText('ההמשגה נשמרה',{exact:true})).toBeVisible();expect(sent).toEqual(a);
+ await page.getByRole('button',{name:'שליחה למטופל/ת',exact:true}).click();await expect(page.getByRole('alert')).toContainText('השתנתה במכשיר אחר');expect(sent).toEqual(a);
+ await page.getByRole('button',{name:'עריכה',exact:true}).click();await page.getByLabel('חוויות ילדות 1',{exact:true}).fill('עריכה מקומית שלא תימחק');
+ await page.getByRole('button',{name:'שמירה',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();await expect(page.getByLabel('חוויות ילדות 1',{exact:true})).toHaveValue('עריכה מקומית שלא תימחק');
+ page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'טעינת הגרסה העדכנית',exact:true}).click();await expect(page.locator('.concept-reading')).toContainText('B — משפט סינתטי');
+ await page.getByRole('button',{name:'חזרה לשינויים שלי',exact:true}).click();await expect(page.getByLabel('חוויות ילדות 1',{exact:true})).toHaveValue('עריכה מקומית שלא תימחק');
+ await second.getByRole('button',{name:'שליחה למטופל/ת',exact:true}).click();await expect(second.getByText('ההמשגה נשלחה למטופל/ת',{exact:true})).toBeVisible();expect(sent).toEqual(current.document);expect(sent).not.toEqual(a);
+ expect(f.requests.some(r=>r.path.endsWith('/load-sessions')||r.path.endsWith('/load-patients')||r.path.endsWith('/patient-names'))).toBe(false);
+ await expect(page.getByText('PRIVATE_NOTE_SENTINEL')).toHaveCount(0);await expect(page.locator('.cb-header,.pw-picker')).toHaveCount(0);
+ await second.screenshot({path:info.outputPath('conceptualization-shared.png'),fullPage:true});
+ await second.setViewportSize({width:390,height:844});
+ await expect(second.getByRole('button',{name:'שליחה למטופל/ת',exact:true})).toBeVisible();
+ expect(await second.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ await second.screenshot({path:info.outputPath('conceptualization-narrow.png'),fullPage:true});await second.close();
+});
+
+const conceptKeys=['childhood_experiences','core_beliefs','assumptions','rules','biased_expectations'];
+async function conceptFixture(context:BrowserContext){
+ const f=await fixture(context);const document=Object.fromEntries(conceptKeys.map(k=>[k,k==='core_beliefs'?['משפט קיים']:[]]));
+ await context.route('**/functions/v1/patient-conceptualization',r=>r.fulfill({json:{patient_id:patient,document,revision:'v1',published_revision:null,published_at:null}}));return f;
+}
+for(const [index,key] of conceptKeys.entries())test(`concept AI section ${key} appends without saving`,async({context,page},info)=>{
+ const f=await conceptFixture(context);let request:Record<string,unknown>|null=null;
+ await context.route('**/functions/v1/suggest-conceptualization-section',r=>{request=r.request().postDataJSON();return r.fulfill({json:{suggestions:['הצעה סינתטית ראשונה','הצעה סינתטית שנייה']}});});
+ await page.goto(`/app/patients/${patient}/conceptualization`);await page.getByRole('button',{name:'עריכה',exact:true}).click();
+ const section=page.locator('.concept-section').nth(index);
+ await page.getByLabel('אמונת יסוד 1',{exact:true}).fill('עריכה שטרם נשמרה');
+ await section.getByRole('button',{name:'הצעות AI',exact:true}).click();
+ await expect(section.getByText('הצעה סינתטית ראשונה',{exact:true})).toBeVisible();
+ expect(request!.patient_id).toBe(patient);expect(request!.section).toBe(key);expect(request!.document).toMatchObject({core_beliefs:['עריכה שטרם נשמרה']});expect(Object.keys(request!.document as object)).toHaveLength(5);expect(typeof request!.patient_context).toBe('string');
+ await section.getByRole('checkbox').first().check();await section.getByRole('checkbox').last().check();await section.getByRole('button',{name:'הוספת הנבחרות'}).click();
+ const fields=section.locator('textarea');await expect(fields).toHaveCount(key==='core_beliefs'?3:2);await fields.last().fill('הצעה שנערכה');
+ await expect(page.getByLabel('אמונת יסוד 1',{exact:true})).toHaveValue('עריכה שטרם נשמרה');
+ expect(f.requests.some(r=>r.body?.action==='save'||r.body?.action==='publish')).toBe(false);
+ if(index===0)await page.screenshot({path:info.outputPath('concept-ai-private.png'),fullPage:true});
+});
+test('concept AI empty and actionable errors',async({context,page})=>{
+ await conceptFixture(context);let status=200;
+ await context.route('**/functions/v1/suggest-conceptualization-section',r=>r.fulfill({status,json:status===200?{suggestions:[]}:{error:status===413?'input_too_large':'temporary_failure'}}));
+ await page.goto(`/app/patients/${patient}/conceptualization`);await page.getByRole('button',{name:'עריכה',exact:true}).click();const section=page.locator('.concept-section').first();
+ await section.getByRole('button',{name:'הצעות AI',exact:true}).click();await expect(section.getByText('אין מספיק מידע להצעות')).toBeVisible();
+ for(const [code,text] of [[403,'אין הרשאה'],[413,'המידע ארוך'],[429,'בקשות רבות'],[503,'לא הצלחנו']] as const){status=code;await section.getByRole('button',{name:/הצעות AI/}).click();await expect(section.getByRole('alert')).toContainText(text);}
+});
+test('concept AI late reply cannot enter shared mode',async({context,page})=>{
+ await conceptFixture(context);let release!:()=>void;const wait=new Promise<void>(r=>release=r);let calls=0;
+ await context.route('**/functions/v1/suggest-conceptualization-section',async r=>{calls++;await wait;await r.fulfill({json:{suggestions:['PRIVATE_AI_SENTINEL']}});});
+ await page.goto(`/app/patients/${patient}/conceptualization`);await page.getByRole('button',{name:'עריכה',exact:true}).click();
+ await page.locator('.concept-section').first().getByRole('button',{name:'הצעות AI',exact:true}).click();await expect.poll(()=>calls).toBe(1);
+ await expect(page.getByRole('button',{name:'מכינים הצעות…'})).toBeDisabled();
+ await page.getByRole('link',{name:'התחלת פגישה כעת',exact:true}).click();await expect(page).toHaveURL(/\/shared\//);
+ await page.getByRole('link',{name:'המשגה',exact:true}).click();release();
+ await expect(page.locator('.concept-reading')).toHaveCount(1);await expect(page.getByRole('button',{name:/הצעות AI/})).toHaveCount(0);await expect(page.getByText('PRIVATE_AI_SENTINEL')).toHaveCount(0);expect(calls).toBe(1);
+});
+
+for(const type of ['diary_one','diary_two','diary_three'])test(`reading first ${type} history edit cancel save`,async({context,page},info)=>{
+ const f=await fixture(context);await page.goto(`/app/patients/${patient}/${type}?entry=entry`);
+ await expect(page.locator('.diary-reading')).toBeVisible();await expect(page.locator('.pw-editor textarea')).toHaveCount(0);
+ await expect(page.locator('.diary-reading')).toContainText('מחשבה סינתטית');
+ expect(f.requests.filter(r=>r.method==='PATCH'||r.method==='POST'&&r.path.includes('save-'))).toHaveLength(0);
+ await page.screenshot({path:info.outputPath(`${type}-reading.png`),fullPage:true});
+ await page.getByRole('button',{name:'עריכה',exact:true}).click();const field=page.locator('[data-part="event"] textarea').first();await field.fill('שינוי לביטול');
+ page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'ביטול עריכה',exact:true}).click();await expect(page.locator('.diary-reading')).not.toContainText('שינוי לביטול');
+ await page.getByRole('button',{name:'עריכה',exact:true}).click();await field.fill('שינוי שנשמר');await page.getByRole('button',{name:'שמירה בתיק המטופל/ת',exact:true}).click();
+ await expect(page.locator('.diary-reading')).toContainText('שינוי שנשמר');expect(f.requests.filter(r=>r.method==='PATCH')).toHaveLength(1);expect(f.records[`${type}_entries`]).toHaveLength(1);
+ await page.getByRole('button',{name:'רשומה חדשה',exact:true}).click();await expect(page.locator('[data-part="event"] textarea')).toBeVisible();
+});
+test('reading shared long content focus full and narrow',async({context,page},info)=>{
+ const f=await fixture(context);const long='טקסט עברי ארוך עם מספרים 123 וסימני פיסוק (בדיקה). '.repeat(30);f.records.diary_three_entries[0].situation=long;
+ await page.setViewportSize({width:1366,height:768});await page.goto(`/app/shared/${patient}/diary_three?entry=entry`);
+ await expect(page.locator('.diary-reading')).toBeVisible();await expect(page.locator('textarea')).toHaveCount(0);await expect(page.locator('.diary-reading')).toContainText(long.trim());
+ await page.screenshot({path:info.outputPath('shared-focused-reading.png'),fullPage:true});
+ await page.getByRole('button',{name:'תצוגה מלאה',exact:true}).click();await expect(page.locator('.reading-section').last()).toBeVisible();await expect(page.locator('body')).not.toContainText('PRIVATE_NOTE_SENTINEL');
+ await page.screenshot({path:info.outputPath('shared-full-reading.png'),fullPage:true});
+ await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:info.outputPath('shared-narrow-reading.png'),fullPage:true});
+});
+
+for(const type of ['diary_one','diary_two','diary_three'])test(`reading ${type} read-only permission`,async({context,page})=>{
+ const f=await fixture(context,{readOnly:true});await page.goto(`/app/patients/${patient}/${type}?entry=entry`);
+ await expect(page.locator('.diary-reading')).toBeVisible();await expect(page.getByRole('button',{name:'עריכה',exact:true})).toHaveCount(0);await expect(page.locator('.pw-editor textarea')).toHaveCount(0);
+ expect(f.requests.filter(r=>r.method==='PATCH')).toHaveLength(0);
 });

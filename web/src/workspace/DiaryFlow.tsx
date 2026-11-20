@@ -5,8 +5,8 @@ function flatten(children: ReactNode): ReactNode[] {
   return Children.toArray(children).flatMap(child => isValidElement<{children?:ReactNode}>(child) && child.type === Fragment ? flatten(child.props.children) : [child]);
 }
 /** Presentation state only: clinical values stay controlled by the parent worksheet. */
-export function DiaryFlow({children,presentation=false}:{children:ReactNode;presentation?:boolean}) {
-  const [step,setStep]=useState(0), [all,setAll]=useState(false);
+export function DiaryFlow({children,presentation=false,reading=false,initialOverview=false}:{children:ReactNode;presentation?:boolean;reading?:boolean;initialOverview?:boolean}) {
+  const [step,setStep]=useState(0), [all,setAll]=useState(initialOverview);
   const [textSize,setTextSize]=useState(4.6), [fullscreen,setFullscreen]=useState(false), [screenError,setScreenError]=useState('');
   useEffect(()=>{
     const update=()=>setFullscreen(!!document.fullscreenElement);
@@ -35,7 +35,7 @@ export function DiaryFlow({children,presentation=false}:{children:ReactNode;pres
         <button type="button" aria-pressed={!all} onClick={()=>setAll(false)}><Rows3 size={18} aria-hidden="true"/>{presentation?'תצוגה ממוקדת':'חלק אחד'}</button>
         <button type="button" aria-pressed={all} onClick={()=>setAll(true)}><List size={18} aria-hidden="true"/>{presentation?'תצוגה מלאה':'היומן המלא'}</button>
       </div>
-      <p hidden={presentation}>{all?'כל חלקי היומן לפניכם. אפשר לחזור לעבודה בחלק אחד בכל רגע.':'מתמקדים בחלק אחד בכל פעם. אפשר לחזור ולשנות כל תשובה.'}</p>
+      <p hidden={presentation||reading}>{all?'כל חלקי היומן לפניכם. אפשר לחזור לעבודה בחלק אחד בכל רגע.':'מתמקדים בחלק אחד בכל פעם. אפשר לחזור ולשנות כל תשובה.'}</p>
       {!all && <div className="diary-flow-location"><label htmlFor={id}>מעבר לחלק</label><select id={id} value={step} onChange={e=>move(Number(e.target.value))}>{titles.map((title,i)=><option key={i} value={i}>{i+1}. {title}</option>)}</select><span role="status" aria-live="polite">חלק {step+1} מתוך {parts.length}</span></div>}
       {presentation && <div className="diary-presentation-controls" role="group" aria-label="התאמה לצפייה בשיתוף מסך">
         {!all&&<><button type="button" className="secondary" aria-label="הקטנת טקסט בשיתוף" disabled={textSize<=3.4} onClick={()=>setTextSize(v=>Math.max(3.4,v-.6))}><Minus size={18}/></button>

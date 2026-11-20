@@ -104,6 +104,7 @@ fun TherapistDiaryOneScreen(
     var isUpdatingAssignment by remember { mutableStateOf(false) }
     var assignmentError by remember { mutableStateOf<String?>(null) }
     var showStopConfirm by remember { mutableStateOf(false) }
+    var editingEntry by remember { mutableStateOf(false) }
     var editor by remember { mutableStateOf<DiaryOneEntry?>(null) }
     var consumedFocus by remember(patientId.queryValue, focusEntryId) { mutableStateOf(false) }
     var focusRetry by remember { mutableStateOf(0) }
@@ -192,6 +193,19 @@ fun TherapistDiaryOneScreen(
         return
     }
 
+    if (editor != null && !editingEntry && !isCreating) {
+        val current = entries.firstOrNull { it.id == editor?.id } ?: editor!!
+        val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+        LaunchedEffect(current.id) {
+            if(current.createdBy == com.cbtipul.app.data.DiaryOneEntryCreator.Patient) {
+                com.cbtipul.app.data.DiaryNotificationKey.of(patientId.queryValue,"diary_one_entry",current.id)?.let { key -> app.applicationScope.launch { app.notifications.markDiaryEntryRead(key) } }
+            }
+        }
+        com.cbtipul.app.ui.patient.PatientDiaryOneDetailScreen(entry=current, therapistViewing=false,
+            onBack={if(returnDirectly) onBack() else editor=null},
+            onEdit=if(com.cbtipul.app.ui.entitlementCanWrite()) { { editor=current; editingEntry=true } } else null)
+        return
+    }
     if (isCreating || editor != null) {
         val existing = editor
         val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
@@ -208,7 +222,7 @@ fun TherapistDiaryOneScreen(
             patientName = patientName,
             atmosphere = atmosphere,
             onBack = {
-                if (returnDirectly && existing?.id == focusEntryId) { onBack(); return@DiaryOneEditorScreen }
+                if(existing != null) { editingEntry=false; editorError=null; return@DiaryOneEditorScreen }
                 isCreating = false
                 editor = null
                 editorError = null
@@ -239,9 +253,8 @@ fun TherapistDiaryOneScreen(
                             )
                         }
                         isCreating = false
-                        editor = null
-                        if (existing == null) onCreated()
-                        if (returnDirectly && existing?.id == focusEntryId) onBack()
+                        editingEntry = false
+                        if (existing == null) { editor = null; onCreated() }
                     } catch (_: Exception) {
                         editorError = saveFailed
                     }

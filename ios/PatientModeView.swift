@@ -15,6 +15,7 @@ struct PatientModeView: View {
         case failed
     }
 
+    @State private var showConceptualization = false
     @State private var inboxFailed = false
     @State private var refreshingHome = false
     @State private var refreshHomeAgain = false
@@ -103,6 +104,7 @@ struct PatientModeView: View {
                         .task(id: openedAssignmentID) { await acknowledgeOpenedAssignment(type: .questionnaire) }
                 }
             }
+            .sheet(isPresented: $showConceptualization) { PatientConceptualizationView(patientID: appContext.current?.patientId?.uuidString, readOnly: true) }
             .sheet(isPresented: $isShowingMessages) {
                 NavigationStack {
                     ScrollView {
@@ -337,6 +339,7 @@ struct PatientModeView: View {
                 }
                 if loadState == .loading { ProgressView() }
                 messagesSection
+                Button { showConceptualization = true } label: { Label("המשגה", systemImage: "list.bullet.rectangle").frame(maxWidth: .infinity, alignment: .leading).padding(16) }.buttonStyle(.bordered)
                 VStack(alignment: .leading, spacing: 8) {
                     Divider().overlay(Theme.borderFaint)
                         .padding(.bottom, 4)

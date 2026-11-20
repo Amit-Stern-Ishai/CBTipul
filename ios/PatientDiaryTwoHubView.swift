@@ -208,31 +208,7 @@ struct PatientDiaryTwoDetailView: View {
                 Text(L10n.hebrewDateTime(entry.createdAt))
                     .font(BrandTypography.headline)
                     .foregroundStyle(Theme.textBright)
-                labeledBlock(L10n.diaryOneEventTitle, entry.event)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.diaryOneThoughtTitle)
-                        .font(BrandTypography.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    ForEach(Array(entry.automaticThoughts.enumerated()), id: \.offset) { _, thought in
-                        Text(thought)
-                            .font(BrandTypography.body)
-                            .foregroundStyle(Theme.textBright)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.diaryTwoFeelingsTitle).font(BrandTypography.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    ForEach(Array(entry.feelings.enumerated()), id: \.offset) { _, feeling in
-                        Text("\(feeling.name) — \(feeling.intensity)%")
-                    }
-                }
-                labeledBlock(L10n.diaryThinkingErrorsTitle, entry.thinkingErrors.map(\.title).joined(separator: "\n"))
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.diaryAlternativeThoughtsTitle).font(BrandTypography.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    ForEach(Array(entry.alternativeThoughts.enumerated()), id: \.offset) { _, thought in
-                        Text(thought).frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
+                DiaryTwoEntryContent(event: entry.event, automaticThoughts: entry.automaticThoughts, feelings: entry.feelings, thinkingErrors: entry.thinkingErrors, alternativeThoughts: entry.alternativeThoughts)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
