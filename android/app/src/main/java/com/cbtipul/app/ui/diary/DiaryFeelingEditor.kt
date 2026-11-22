@@ -167,6 +167,7 @@ internal fun DiaryFeelingIntensityControl(
     intensity: Int?,
     title: String = stringResource(R.string.diary_one_feeling_intensity_title),
     requiresExplicitChoice: Boolean = false,
+    enabled: Boolean = true,
     onIntensityChange: (Int) -> Unit,
 ) {
     val colors = Theme.colors
@@ -180,7 +181,7 @@ internal fun DiaryFeelingIntensityControl(
         }
         if (current != null && current in 0..100) {
             androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
-                Slider(value = current.toFloat(), onValueChange = { onIntensityChange(it.roundToInt()) },
+                Slider(enabled = enabled, value = current.toFloat(), onValueChange = { onIntensityChange(it.roundToInt()) },
                     valueRange = 0f..100f, steps = 99,
                     modifier = Modifier.semantics { contentDescription = title },
                     colors = SliderDefaults.colors(thumbColor = colors.gold, activeTrackColor = colors.gold, inactiveTrackColor = colors.goldGhost))
@@ -197,7 +198,7 @@ internal fun DiaryFeelingIntensityControl(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(0, 25, 50, 75, 100).forEach { value ->
                         val label = stringResource(R.string.diary_rating_percent, value)
-                        androidx.compose.material3.OutlinedButton(onClick = { onIntensityChange(value) },
+                        androidx.compose.material3.OutlinedButton(enabled = enabled, onClick = { onIntensityChange(value) },
                             modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "$title: $label" },
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) { Text(label) }
                     }

@@ -5,7 +5,7 @@ function flatten(children: ReactNode): ReactNode[] {
   return Children.toArray(children).flatMap(child => isValidElement<{children?:ReactNode}>(child) && child.type === Fragment ? flatten(child.props.children) : [child]);
 }
 /** Presentation state only: clinical values stay controlled by the parent worksheet. */
-export function DiaryFlow({children,presentation=false,reading=false,initialOverview=false}:{children:ReactNode;presentation?:boolean;reading?:boolean;initialOverview?:boolean}) {
+export function DiaryFlow({children,presentation=false,reading=false,initialOverview=false,staged=true}:{children:ReactNode;presentation?:boolean;reading?:boolean;initialOverview?:boolean;staged?:boolean}) {
   const [step,setStep]=useState(0), [all,setAll]=useState(initialOverview);
   const [textSize,setTextSize]=useState(4.6), [fullscreen,setFullscreen]=useState(false), [screenError,setScreenError]=useState('');
   useEffect(()=>{
@@ -45,8 +45,8 @@ export function DiaryFlow({children,presentation=false,reading=false,initialOver
         {screenError&&<span role="status">{screenError}</span>}
       </div>}
     </header>
-    <div className="ww-diary-grid">{presentation?parts.map((part,index)=><div key={index} className="diary-flow-panel" hidden={!all&&index!==step} data-stage={parts.length===7?(index<3?'before':index<5?'examine':'after'):undefined}>
-      {all&&<div className="diary-overview-section"><span>{index+1} / {parts.length}{parts.length===7?` · ${index<3?'לפני':index<5?'בחינה מחדש':'אחרי'}`:''}</span><button type="button" className="secondary" onClick={()=>move(index)}>התמקדות בחלק</button></div>}{part}
+    <div className="ww-diary-grid">{presentation?parts.map((part,index)=><div key={index} className="diary-flow-panel" hidden={!all&&index!==step} data-stage={staged&&parts.length===7?(index<3?'before':index<5?'examine':'after'):undefined}>
+      {all&&<div className="diary-overview-section"><span>{index+1} / {parts.length}{staged&&parts.length===7?` · ${index<3?'לפני':index<5?'בחינה מחדש':'אחרי'}`:''}</span><button type="button" className="secondary" onClick={()=>move(index)}>התמקדות בחלק</button></div>}{part}
     </div>):all?children:parts[step]}</div>
     {!all && <nav className="diary-flow-navigation" aria-label="ניווט בחלקי היומן">
       <button type="button" className="secondary" disabled={step===0} onClick={()=>move(step-1)}><ArrowRight size={20} aria-hidden="true"/>הקודם</button>

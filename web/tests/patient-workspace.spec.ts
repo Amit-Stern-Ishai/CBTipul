@@ -81,7 +81,7 @@ test('single shared entry is isolated and exiting requires confirmation',async({
  await page.getByRole('link',{name:'התחלת פגישה כעת',exact:true}).click();
  await expect(page).toHaveURL(new RegExp(`/shared/${patient}/questionnaire`));
  await expect(page.getByRole('heading',{name:'מטופלת לדוגמה א',exact:true})).toBeVisible();
- await expect(page.locator('.pw-tabs a')).toHaveCount(5);
+ await expect(page.locator('.pw-tabs a')).toHaveCount(6);
  await expect(page.locator('.cb-header,.pw-picker')).toHaveCount(0);
  await expect(page.locator('body')).not.toContainText(user.email);
  await page.screenshot({path:info.outputPath('workspace.png'),fullPage:true});
@@ -174,13 +174,13 @@ for(const type of ['diary_one','diary_two','diary_three'])test(`guided diary nav
 });
 for(const chosen of ['questionnaire','diary_one','diary_two','diary_three'])test(`shared tools and history scope ${chosen}`,async({context,page})=>{
  const f=await fixture(context);await page.goto(`/app/shared/${patient}/${chosen}?form=diary_one`);
- await expect(page.locator('.pw-tabs a')).toHaveCount(5);
+ await expect(page.locator('.pw-tabs a')).toHaveCount(6);
  await page.locator('.pw-history button').first().click();
  await expect(page.locator('body')).not.toContainText('PRIVATE_NOTE_SENTINEL');
  expect(f.requests.some(r=>r.path.endsWith('/load-sessions')||r.path.endsWith('/load-patients')||r.path.endsWith('/patient-names'))).toBe(false);
  expect(f.requests.filter(r=>r.path.endsWith('/load-questionnaires')).every(r=>r.body?.view==='shared')).toBe(true);
  for(const r of f.requests.filter(r=>/diary_.*entries/.test(r.path)))expect(r.patient).toBe(`eq.${patient}`);
- await page.reload();await expect(page.locator('.pw-tabs a')).toHaveCount(5);
+ await page.reload();await expect(page.locator('.pw-tabs a')).toHaveCount(6);
 });
 
 for(const width of [1280,1440])test(`laptop presentation remains legible when screen-shared ${width}`,async({context,page},info)=>{
@@ -560,4 +560,39 @@ for(const type of ['diary_one','diary_two','diary_three'])test(`reading ${type} 
  const f=await fixture(context,{readOnly:true});await page.goto(`/app/patients/${patient}/${type}?entry=entry`);
  await expect(page.locator('.diary-reading')).toBeVisible();await expect(page.getByRole('button',{name:'עריכה',exact:true})).toHaveCount(0);await expect(page.locator('.pw-editor textarea')).toHaveCount(0);
  expect(f.requests.filter(r=>r.method==='PATCH')).toHaveLength(0);
+});
+
+test('core belief worksheet partial saves, published snapshot, conflict, focused/full and privacy',async({context,page},info)=>{
+ const f=await fixture(context);let current:Record<string,unknown>={patient_id:patient,document:null,revision:null,updated_at:null,published_revision:null,published_at:null};let sent:unknown=null,serial=0;const calls:Record<string,unknown>[]=[];
+ await context.route('**/functions/v1/core-belief-restructuring',async route=>{const body=route.request().postDataJSON();calls.push(body);if(body.action==='load_draft')return route.fulfill({json:current});if(body.expected_revision!==current.revision)return route.fulfill({status:409,json:{error:'revision_conflict'}});if(body.action==='save')current={...current,document:structuredClone(body.document),revision:`revision-${++serial}`,updated_at:'2026-11-22T12:00:00Z'};if(body.action==='publish'){sent=structuredClone(current.document);current={...current,published_revision:current.revision,published_at:'2026-11-22T12:00:00Z'};}return route.fulfill({json:current});});
+ await page.setViewportSize({width:1440,height:1000});await page.goto(`/app/shared/${patient}/core_belief`);
+ await expect(page.getByRole('heading',{name:'ערעור אמונת יסוד',exact:true})).toBeVisible();
+ await page.getByLabel('האמונה',{exact:true}).first().fill('A — לפעמים אני חושב שעליי להצליח בכל דבר');await page.getByLabel('עכשיו — אחוז',{exact:true}).first().fill('0');
+ await page.getByLabel('עכשיו — מחוון',{exact:true}).first().fill('25');
+ await expect(page.getByLabel('עכשיו — אחוז',{exact:true}).first()).toHaveValue('25');
+ await page.getByLabel('עכשיו — אחוז',{exact:true}).first().fill('');
+ await expect(page.getByLabel('עכשיו — אחוז',{exact:true}).first()).toHaveValue('');
+ await page.getByLabel('עכשיו — מחוון',{exact:true}).first().fill('0');
+ await page.getByRole('button',{name:'הוספת רגש',exact:true}).first().click();
+ await page.getByRole('button',{name:'מודאג',exact:true}).click();
+ await page.getByRole('button',{name:'הוספת רגש',exact:true}).first().click();
+ await expect(page.locator('[popover]:popover-open').getByRole('button',{name:'מודאג',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'עצוב',exact:true}).click();
+ await page.getByRole('button',{name:'הסרת רגש: עצוב',exact:true}).click();
+ await page.screenshot({animations:'disabled',path:info.outputPath('core-focused.png')});
+ await page.getByRole('button',{name:'תצוגה מלאה',exact:true}).click();await expect(page.getByLabel('האמונה',{exact:true}).first()).toHaveValue('A — לפעמים אני חושב שעליי להצליח בכל דבר');
+ await page.getByLabel('התנהגות חדשה / ניסויים',{exact:true}).fill('לנסות צעד קטן ולבחון מה קורה בפועל.');
+ await page.screenshot({animations:'disabled',path:info.outputPath('core-overview-edit.png'),fullPage:true});
+ await expect(page.getByRole('button',{name:'שליחת עותק למטופל/ת',exact:true})).toBeDisabled();await page.getByRole('button',{name:'שמירה',exact:true}).click();await expect(page.getByText('המסמך נשמר',{exact:true})).toBeVisible();
+ expect((calls.find(c=>c.action==='save')?.document as Record<string,unknown>).old_now).toBe(0);expect((calls.find(c=>c.action==='save')?.document as Record<string,unknown>).old_most).toBeNull();expect((current.document as Record<string,unknown>).old_feelings).toBe('מודאג');expect(Object.keys(current.document as object)).toHaveLength(16);expect(sent).toBeNull();await expect(page.locator('textarea')).toHaveCount(0);
+ await page.getByRole('button',{name:'שליחת עותק למטופל/ת',exact:true}).click();await expect(page.getByText('המסמך נשלח למטופל/ת',{exact:true})).toBeVisible();const a=structuredClone(sent);
+ const second=await context.newPage();await second.goto(`/app/shared/${patient}/core_belief`);await second.getByRole('button',{name:'עריכה',exact:true}).click();await second.getByLabel('האמונה',{exact:true}).first().fill('B — אפשר ללמוד גם מטעות');await second.getByRole('button',{name:'שמירה',exact:true}).click();await expect(second.getByText('המסמך נשמר',{exact:true})).toBeVisible();expect(sent).toEqual(a);
+ await page.getByRole('button',{name:'שליחת עותק למטופל/ת',exact:true}).click();await expect(page.getByRole('alert')).toContainText('השתנה במכשיר אחר');expect(sent).toEqual(a);
+ await page.getByRole('button',{name:'עריכה',exact:true}).click();await page.getByLabel('האמונה',{exact:true}).first().fill('שינויים מקומיים');await page.getByRole('button',{name:'שמירה',exact:true}).click();await expect(page.getByLabel('האמונה',{exact:true}).first()).toHaveValue('שינויים מקומיים');
+ await second.getByRole('button',{name:'שליחת עותק למטופל/ת',exact:true}).click();await expect(second.getByText('המסמך נשלח למטופל/ת',{exact:true})).toBeVisible();expect(sent).not.toEqual(a);expect(sent).toEqual(current.document);
+ const mutationCount=calls.filter(c=>c.action!=='load_draft').length;
+ await second.getByRole('button',{name:'עריכה',exact:true}).click();await second.getByLabel('האמונה',{exact:true}).first().fill('שינוי לביטול');second.once('dialog',dialog=>dialog.accept());await second.getByRole('button',{name:'ביטול עריכה',exact:true}).click();await expect(second.getByText('B — אפשר ללמוד גם מטעות',{exact:true})).toBeVisible();expect(calls.filter(c=>c.action!=='load_draft')).toHaveLength(mutationCount);
+ await second.getByRole('button',{name:'תצוגה מלאה',exact:true}).click();await second.screenshot({animations:'disabled',path:info.outputPath('core-overview-read.png'),fullPage:true});
+ await second.setViewportSize({width:390,height:844});await second.screenshot({animations:'disabled',path:info.outputPath('core-narrow.png'),fullPage:true});expect(await second.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ expect(f.requests.some(r=>/load-sessions|load-patients|patient-names|suggest-|anonymize/.test(r.path))).toBe(false);await expect(second.locator('.cb-header,.pw-picker')).toHaveCount(0);await expect(second.getByText('PRIVATE_NOTE_SENTINEL')).toHaveCount(0);await second.close();
 });

@@ -53,7 +53,7 @@ function Section({ title, hint, kind = "event", children }: { title: string; hin
     </section>
   );
 }
-function Rating({
+export function Rating({
   title,
   label,
   value,
@@ -95,7 +95,7 @@ function Rating({
     </div>
   );
 }
-function FeelingPicker({
+export function FeelingPicker({
   values,
   third,
   disabled,

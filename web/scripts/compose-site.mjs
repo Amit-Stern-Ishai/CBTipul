@@ -12,6 +12,7 @@ const stores = `<div class="store-actions" aria-label="הורדת האפליקצ
 export const redirects = `/app /app/ 302
 /app/login /app/ 200
 /app/patients/:patient/conceptualization /app/ 200
+/app/patients/:patient/core_belief /app/ 200
 /app/patients/:patient/overview /app/ 200
 /app/patients/:patient/sessions /app/ 200
 /app/patients/:patient/questionnaire /app/ 200
@@ -19,6 +20,7 @@ export const redirects = `/app /app/ 302
 /app/patients/:patient/diary_two /app/ 200
 /app/patients/:patient/diary_three /app/ 200
 /app/shared/:patient/conceptualization /app/ 200
+/app/shared/:patient/core_belief /app/ 200
 /app/shared/:patient/questionnaire /app/ 200
 /app/shared/:patient/diary_one /app/ 200
 /app/shared/:patient/diary_two /app/ 200

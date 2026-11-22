@@ -689,7 +689,9 @@ internal fun PatientHomeContent(
     val openAssignments = assignments.filter { if (it.type == PatientAssignmentType.DiaryTwo || it.type == PatientAssignmentType.DiaryThree) it.cancelledAt == null else it.isOpen }
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
     var showConceptualization by remember(patientId) { mutableStateOf(false) }
+    var showCoreBelief by remember(patientId) { mutableStateOf(false) }
     if (showConceptualization) com.cbtipul.app.ui.patients.ConceptualizationDialog(app, patientId, readOnly = true, onDismiss = { showConceptualization = false })
+    if (showCoreBelief) com.cbtipul.app.ui.patients.CoreBeliefWorksheetDialog(app, patientId, readOnly = true, onDismiss = { showCoreBelief = false })
     val account = app.authRepository.currentUserId()
     var draftRevision by remember { mutableStateOf(0) }
     var resumable by remember(account, patientId) { mutableStateOf<List<PatientAssignment>>(emptyList()) }
@@ -781,6 +783,7 @@ internal fun PatientHomeContent(
                         Text(stringResource(R.string.entitlement_patient_unavailable), color = colors.textBody, fontSize = 13.sp)
                     }
                     androidx.compose.material3.OutlinedButton(onClick = { showConceptualization = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("המשגה") }
+                    androidx.compose.material3.OutlinedButton(onClick = { showCoreBelief = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("ערעור אמונת יסוד") }
                     PatientAssignmentType.entries.forEach { type ->
                         val active = openAssignments.any { it.type == type } && (type != PatientAssignmentType.DiaryThree || PatientAssignmentType.diaryThreeSendingEnabled)
                         if (type != PatientAssignmentType.Questionnaire || active || type in historyTypes) {

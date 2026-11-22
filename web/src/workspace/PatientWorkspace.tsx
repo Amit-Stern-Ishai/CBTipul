@@ -19,10 +19,11 @@ import { ww } from './he';
 import './patient-workspace.css';
 import './patient-guide.css';
 import './shared-workspace.css';
+import {CoreBeliefEditor} from './CoreBeliefEditor';
 import {ConceptualizationEditor} from './ConceptualizationEditor';
 import {PatientTimeline} from './PatientTimeline';
 
-const labels: Record<string,string> = {conceptualization:'המשגה',sessions:'פגישות',questionnaire:'שאלונים',diary_one:'יומן מחשבות 1',diary_two:'יומן מחשבות 2',diary_three:'יומן מחשבות 3'};
+const labels: Record<string,string> = {core_belief:'ערעור אמונת יסוד',conceptualization:'המשגה',sessions:'פגישות',questionnaire:'שאלונים',diary_one:'יומן מחשבות 1',diary_two:'יומן מחשבות 2',diary_three:'יומן מחשבות 3'};
 export function NamesConsent({children}:{children:ReactNode}) {
   const {session,logout}=useAuth();
   return <ConsentBoundary account={session!.user.id} type="patient_name_storage" title={copy.nameTitle} description={copy.nameNotice} accept={copy.accept} decline={logout} declineLabel={copy.decline}>{children}</ConsentBoundary>;
@@ -57,7 +58,7 @@ export function PatientWorkspace({shared=false,onDraftState}:{shared?:boolean;on
     </>}
     {patientId && (authorized.isPending?<Loading/>:authorized.isError?<ErrorBox error={authorized.error} retry={()=>void authorized.refetch()}/>:<>
       {!shared&&section==='overview'?<PatientTimeline key={`${account}:${patientId}`} patient={patientId} name={name} />:<div className="pw-clinical-layout"><nav className="pw-tabs" aria-label="כלים בתיק">{!shared&&<NavLink to={`${path}/overview`}>התיק הטיפולי</NavLink>}{available.map(([key,title])=><NavLink key={key} data-category={key==='sessions'?'session':key==='questionnaire'?'questionnaire':'diary'} to={`${path}/${key}`} state={shared?sharingState:undefined}>{key==='sessions'?<CalendarDays size={20}/>:key==='questionnaire'?<ClipboardList size={20}/>:<BookOpen size={20}/>} {title}</NavLink>)}</nav>
-      <div className="pw-clinical-content">{section==='conceptualization'?<ConceptualizationEditor key={`${account}:${patientId}:${shared}`} patient={patientId} shared={shared} onDraftState={onDraftState}/>:section==='sessions'&&!shared ? <PatientSessions key={`${account}:${patientId}`} patient={patientId}/> : available.some(([key])=>key===section) ? <Records key={`${account}:${patientId}:${section}:${shared}`} patient={patientId} type={section as WorksheetType} shared={shared} onDraftState={onDraftState}/> : <p>העמוד אינו זמין.</p>}</div></div>}
+      <div className="pw-clinical-content">{section==='core_belief'?<CoreBeliefEditor key={`${account}:${patientId}:${shared}`} patient={patientId} shared={shared} onDraftState={onDraftState}/>:section==='conceptualization'?<ConceptualizationEditor key={`${account}:${patientId}:${shared}`} patient={patientId} shared={shared} onDraftState={onDraftState}/>:section==='sessions'&&!shared ? <PatientSessions key={`${account}:${patientId}`} patient={patientId}/> : available.some(([key])=>key===section) ? <Records key={`${account}:${patientId}:${section}:${shared}`} patient={patientId} type={section as WorksheetType} shared={shared} onDraftState={onDraftState}/> : <p>העמוד אינו זמין.</p>}</div></div>}
     </>)}
   </main>;
 }
