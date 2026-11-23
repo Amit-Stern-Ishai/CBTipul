@@ -165,3 +165,24 @@ body:has(.pw-overview) .cb-header-inner {min-height:64px;padding:0 24px;}
 .pt-calendar-activities .pt-activity-links {flex-basis:auto;}
 .pt-mobile-activities {display:none;}
 @media(max-width:850px){.pt-treatment-goal{margin-inline-start:0}.pt-mobile-activities{display:block;padding:12px;margin-bottom:12px}.pt-mobile-activities h3{margin:0 0 10px;font-size:18px}.pt-calendar-activities{margin-inline:16px;justify-content:flex-start}}
+
+/* Weekly history keeps a stable rhythm regardless of card text or entry count. */
+.pt-week-column {flex-wrap:nowrap;align-items:flex-start;height:84px;overflow-x:auto;overflow-y:hidden;padding-block:4px 16px;scrollbar-width:thin;scrollbar-color:#a3b1c2 #e8f0f8;}
+.pt-week-column > .pt-entry {flex:1 1 0;height:64px;min-height:64px;max-height:64px;gap:8px;}
+
+.pt-week-column .pt-entry-icon {width:32px;}
+.pt-week-column .pt-entry-icon svg {width:20px;height:20px;}
+.pt-week-column .pt-entry-copy {display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:20px 18px;align-content:center;gap:4px;padding:8px 0;overflow:hidden;}
+.pt-week-column .pt-entry strong {grid-column:1;min-width:0;}
+.pt-week-column .pt-entry:not([data-kind=questionnaire]) strong {grid-column:1 / -1;}
+.pt-week-column .pt-entry small {grid-column:1 / -1;font-variant-numeric:tabular-nums;}
+.pt-week-column .pt-entry :is(strong,small,.pt-score) {display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pt-week-column .pt-entry .pt-score {grid-column:2;max-width:92px;padding:2px 4px;line-height:16px;}
+.pt-week-column .pt-entry-copy:last-child {margin-inline-end:8px;}
+.pt-week>h3 {white-space:nowrap;font-variant-numeric:tabular-nums;}
+@media(max-width:850px){
+ .pt-week-column > .pt-entry {flex:1 0 140px;}
+ .pt-week-column > .pt-entry[data-kind=questionnaire] {flex-basis:180px;}
+ .pt-week-column {position:relative;height:112px;padding-top:28px;}
+ .pt-week-column > h4 {position:absolute;top:0;inset-inline-start:12px;margin:0;line-height:20px;}
+}

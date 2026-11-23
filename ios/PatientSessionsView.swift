@@ -179,11 +179,13 @@ struct PatientSessionsView: View {
             }
         }
         .onAppear {
+            FeatureDiscovery.shared.enterContext("sessions-" + patient.id.queryValue)
             gettingStartedRouter.setPlacement(.sessions, viewingPatientID: patient.id)
             gettingStartedRouter.refresh(using: store)
             applyInitialActionIfNeeded()
         }
         .onDisappear {
+            FeatureDiscovery.shared.leaveContext("sessions-" + patient.id.queryValue)
             // Popped back to patient detail (not covered by a sheet).
             guard route == nil, questionnaireSession == nil else { return }
             guard gettingStartedRouter.placement == .sessions else { return }

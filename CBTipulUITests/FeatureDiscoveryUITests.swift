@@ -9,10 +9,17 @@ final class FeatureDiscoveryUITests: XCTestCase {
         app.buttons["הבנתי"].tap()
         XCTAssertTrue(app.staticTexts["ההסבר נסגר"].waitForExistence(timeout: 3))
         app.buttons["הקלטה"].tap()
-        XCTAssertTrue(app.staticTexts["אפשר גם להקליט"].waitForExistence(timeout: 3))
-        capture(app, "voice-light")
+        let editor = app.descendants(matching: .any)["discovery.review.notes"].firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts[DiscoveryTestCopy.voice].exists)
+        editor.tap(); editor.typeText("Synthetic notes")
+        XCTAssertTrue(app.staticTexts[DiscoveryTestCopy.voice].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        editor.typeText(" continue")
+        XCTAssertEqual(editor.value as? String, "Synthetic notes continue")
+        capture(app, "voice-inline-keyboard")
         app.buttons["הבנתי"].tap()
-        XCTAssertTrue(app.staticTexts["ההסבר נסגר"].waitForExistence(timeout: 3))
+        XCTAssertEqual(editor.value as? String, "Synthetic notes continue")
         app.buttons["מחשב"].tap()
         XCTAssertTrue(app.staticTexts["cbtipul.com/app"].waitForExistence(timeout: 3))
         app.buttons["העתקת כתובת"].tap()
@@ -20,7 +27,8 @@ final class FeatureDiscoveryUITests: XCTestCase {
         XCTAssertTrue(app.buttons["הבנתי"].exists)
         XCTAssertTrue(app.staticTexts["cbtipul.com/app"].exists)
         capture(app, "web-copy-light")
-        app.buttons["הבנתי"].tap()
+        XCTAssertTrue(app.buttons["הבנתי, אל תציגו שוב"].exists)
+        app.buttons["הבנתי, אל תציגו שוב"].tap()
         XCTAssertTrue(app.staticTexts["ההסבר נסגר"].waitForExistence(timeout: 3))
     }
     @MainActor func testLargeTextDarkCard() {
@@ -90,4 +98,8 @@ final class FeatureDiscoveryUITests: XCTestCase {
     @MainActor private func capture(_ app: XCUIApplication, _ name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = name; shot.lifetime = .keepAlways; add(shot)
     }
+}
+
+private enum DiscoveryTestCopy {
+    static let voice = "אפשר גם להקליט את רשימות הפגישה. הדיבור מתומלל אוטומטית לטקסט, ואפשר לערוך אותו לאחר מכן."
 }

@@ -223,6 +223,12 @@ fun PatientDetailScreen(
     DisposableEffect(recorder) {
         onDispose { recorder.release() }
     }
+    fun recordVoice() {
+        val owner = conceptApp.authRepository.currentUserId()
+        recorder.startRecording()
+        if (recorder.isRecording && !isDemo && owner != null && owner == conceptApp.authRepository.currentUserId() &&
+            com.cbtipul.app.data.Entitlements.state.value.role == com.cbtipul.app.data.AppRole.Therapist) conceptApp.preferences.discovery.usedVoice(owner)
+    }
     val permissionDenied = stringResource(R.string.mic_permission_denied)
     var requestingRecording by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -230,7 +236,7 @@ fun PatientDetailScreen(
     ) { granted ->
         requestingRecording = false
         if (granted) {
-            recorder.startRecording()
+            recordVoice()
         } else {
             recorder.errorMessage = permissionDenied
             recorderTick++
@@ -281,7 +287,7 @@ fun PatientDetailScreen(
             try {
                 conceptApp.aiConsentStore.ensureGranted()
                 val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-                if (granted) recorder.startRecording() else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                if (granted) recordVoice() else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             } catch (_: com.cbtipul.app.model.ConsentDeclinedException) {
                 // Manual editing remains available.
             } finally { requestingRecording = false }

@@ -17,6 +17,7 @@ struct PatientDetailView: View {
     @State private var discoveryInvitationOpened = false
 
     @Environment(AuthManager.self) private var auth
+    @Environment(AppContextService.self) private var appContext
     @Environment(PatientStore.self) private var store
     @Environment(GettingStartedRouter.self) private var gettingStartedRouter
     @Environment(TherapistProfileService.self) private var therapistProfiles
@@ -88,6 +89,7 @@ struct PatientDetailView: View {
     @State private var sendFeedbackTitle: String?
     @State private var sendFeedbackMessage: String?
     @State private var refreshedConnectionState: PatientConnectionState?
+    @State private var refreshingConnection = false
 
     private var connectionState: PatientConnectionState {
         #if DEBUG
@@ -96,6 +98,7 @@ struct PatientDetailView: View {
         guard !store.isDemoMode, !DemoData.isDemoID(patient.id), let patientId = patient.id.uuidValue else {
             return .unavailable
         }
+        if let refreshedConnectionState { return refreshedConnectionState }
         if let connected = assignmentService().cachedPatientConnection(patientId: patientId) {
             return connected ? .connected : .notConnected
         }
@@ -440,7 +443,13 @@ struct PatientDetailView: View {
             guard connectionState == .notConnected || connectionState == .connected else { return }
             startPatientInvitation()
         }) {
-            EmailInvitationView(patientID: patient.id.queryValue)
+            if connectionState == .failed || connectionState == .checking {
+                VStack(spacing: 16) {
+                    if connectionState == .checking { ProgressView() } else { Text(L10n.patientConnectionCheckError) }
+                    Button(L10n.retry) { Task { await refreshConnectionState() } }.disabled(refreshingConnection)
+                    Button(L10n.closeAction) { isShowingConnectionInfo = false }
+                }.padding(24).presentationDetents([.medium])
+            } else { EmailInvitationView(patientID: patient.id.queryValue) }
         }
         .sheet(isPresented: $isShowingDisplayNameForInvite, onDismiss: {
             resumeInvitationAfterDisplayNameIfNeeded()
@@ -483,6 +492,8 @@ struct PatientDetailView: View {
             .appTextSize()
         }
         .onAppear {
+            FeatureDiscovery.shared.enterContext("profile-" + patient.id.queryValue)
+            FeatureDiscovery.shared.enqueue("invite", account: auth.currentUserId, patient: patient.id, demo: store.isDemoMode, reminderOnly: true)
             if initialNotes == nil {
                 initialNotes = patient.notes
             }
@@ -495,7 +506,7 @@ struct PatientDetailView: View {
             gettingStartedRouter.refresh(using: store)
             applyGettingStartedFocusIfNeeded()
         }
-        .onDisappear { cancelPreparation(); AIDataSharingConsentStore.shared.cancelPending() }
+        .onDisappear { FeatureDiscovery.shared.leaveContext("profile-" + patient.id.queryValue); cancelPreparation(); AIDataSharingConsentStore.shared.cancelPending() }
         .onChange(of: auth.currentUserId) { _, _ in
             cancelPreparation()
             preparationAction.invalidate()
@@ -557,7 +568,7 @@ struct PatientDetailView: View {
             } else if discoverInvitation && !discoveryInvitationOpened && !store.isDemoMode {
                 discoveryInvitationOpened = true
                 await refreshConnectionState()
-                if connectionState == .notConnected { isShowingConnectionInfo = true }
+                isShowingConnectionInfo = true
             }
         }
         .refreshable { await refreshConnectionState() }
@@ -1014,6 +1025,7 @@ struct PatientDetailView: View {
         VStack(alignment: .leading, spacing: 6) {
             Label(L10n.patientSendingUnavailableTitle, systemImage: "lock.fill")
                 .font(BrandTypography.subheadline.weight(.semibold))
+            if connectionState == .failed { Button(L10n.retry) { Task { await refreshConnectionState() } } }
             Text(sendingUnavailableDescription)
                 .font(BrandTypography.footnote)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1049,7 +1061,11 @@ struct PatientDetailView: View {
     private var sendOptionsSheet: some View {
         NavigationStack {
             List {
-                if connectionState == .connected {
+                if appContext.loadError != nil {
+                    Text("לא ניתן לבדוק כרגע את ההרשאות.")
+                    Button(L10n.retry) { Task { _ = try? await appContext.getCurrentAppContext(); await refreshConnectionState() } }
+                        .disabled(appContext.isLoading)
+                } else if connectionState == .connected {
                     ForEach([PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo] +
                             (PatientAssignmentType.diaryThreeSendingEnabled ? [.diaryThree] : []), id: \.rawValue) { type in
                         activityAccessControl(type)
@@ -1156,6 +1172,9 @@ struct PatientDetailView: View {
     }
 
     private func refreshConnectionState() async {
+        guard !refreshingConnection else { return }
+        refreshingConnection = true
+        defer { refreshingConnection = false }
         if store.isDemoMode || DemoData.isDemoID(patient.id) {
             refreshedConnectionState = .unavailable
             return
@@ -1164,13 +1183,16 @@ struct PatientDetailView: View {
             refreshedConnectionState = .unavailable
             return
         }
+        let owner = auth.currentUserId
+        if refreshedConnectionState == .failed { refreshedConnectionState = .checking }
         do {
-            refreshedConnectionState = try await assignmentService().isPatientConnected(patientId: patientId)
-                ? .connected
-                : .notConnected
+            let connected = try await assignmentService().isPatientConnected(patientId: patientId)
+            guard owner == auth.currentUserId else { return }
+            refreshedConnectionState = connected ? .connected : .notConnected
         } catch is CancellationError {
             return
         } catch {
+            guard owner == auth.currentUserId else { return }
             refreshedConnectionState = .failed
         }
     }
@@ -1417,7 +1439,12 @@ struct PatientDetailView: View {
             }
         } else {
             Button {
-                Task { await voiceRecorder.startRecording() }
+                Task {
+                    let owner = auth.currentUserId
+                    await voiceRecorder.startRecording()
+                    if voiceRecorder.isRecording, !store.isDemoMode, let owner, owner == auth.currentUserId,
+                       EntitlementState.shared.role == .therapist { FeatureDiscovery.shared.usedVoice(account: owner) }
+                }
             } label: {
                 Label(L10n.recordVoiceNoteAction, systemImage: "mic.fill")
                     .font(BrandTypography.title3)

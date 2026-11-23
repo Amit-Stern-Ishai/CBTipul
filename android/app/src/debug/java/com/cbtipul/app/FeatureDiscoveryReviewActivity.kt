@@ -36,11 +36,15 @@ class FeatureDiscoveryReviewActivity: ComponentActivity() {
                 var kind by remember { mutableStateOf(intent.getIntExtra("kind", 0)) }; var closed by remember { mutableStateOf(false) }
                 Column(Modifier.fillMaxSize().background(Theme.colors.base).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(20.dp)) {
                     Row { listOf("הזמנה","הקלטה","מחשב").forEachIndexed { i,label -> TextButton(onClick = {kind=i;closed=false}) { Text(label) } } }
-                    if (!closed) FeatureDiscoveryCard(
+                    if (kind == 1) {
+                        var notes by remember { mutableStateOf("") }
+                        OutlinedTextField(notes, { notes = it }, label = { Text("סיכום הפגישה") }, modifier = Modifier.fillMaxWidth())
+                        if (!closed && notes.isNotEmpty()) VoiceDiscoveryHint(onPresented = {}, onDismiss = { closed = true })
+                    } else if (!closed) FeatureDiscoveryCard(
                         if(kind==0) DiscoveryCopy.inviteTitle else if(kind==1) DiscoveryCopy.voiceTitle else if(kind==3) getString(R.string.discovery_activities_title) else DiscoveryCopy.webTitle,
                         if(kind==0) DiscoveryCopy.inviteBody else if(kind==1) DiscoveryCopy.voiceBody else if(kind==3) getString(R.string.discovery_diary_one_body) else DiscoveryCopy.webBody,
                         web=kind==2, invite=if(kind==0 || kind==3) {{closed=true}} else null,
-                        actionLabel=if(kind==3) getString(R.string.discovery_activities_action) else null, onDismiss={closed=true})
+                        actionLabel=if(kind==3) getString(R.string.discovery_activities_action) else null, onSuppress=if(kind==2) ({closed=true}) else null, onDismiss={closed=true})
                     else Text("ההסבר נסגר")
                 }
                 }

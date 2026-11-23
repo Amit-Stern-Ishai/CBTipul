@@ -45,27 +45,29 @@ import kotlinx.coroutines.launch
 internal enum class ConnectionUi { Checking, Connected, NotConnected, Unavailable, Failed }
 
 @Composable
-internal fun rememberPatientConnection(patient: Patient?, repository: PatientAssignmentRepository?, isDemo: Boolean): Pair<ConnectionUi, () -> Unit> {
+internal fun rememberPatientConnection(patient: Patient?, repository: PatientAssignmentRepository?, isDemo: Boolean, requireFresh: Boolean = false): Pair<ConnectionUi, () -> Unit> {
     val id = patient?.id?.let(PatientAssignmentRepository::uuidOrNull)
     val available = patient != null && !isDemo && !DemoData.isDemoId(patient.id) && id != null && repository != null
     fun cachedState(): ConnectionUi? = if (available) repository?.cachedPatientConnection(id!!)?.let {
         if (it) ConnectionUi.Connected else ConnectionUi.NotConnected
     } else ConnectionUi.Unavailable
-    var state by remember(id, isDemo, repository) { mutableStateOf(cachedState() ?: ConnectionUi.Checking) }
+    var state by remember(id, isDemo, repository) { mutableStateOf(if (requireFresh && available) ConnectionUi.Checking else cachedState() ?: ConnectionUi.Checking) }
     var revision by remember { mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { revision++ }
     LaunchedEffect(id, isDemo, repository, revision) {
         if (!available) {
             state = ConnectionUi.Unavailable
         } else {
-            cachedState()?.let { state = it }
+            if (state == ConnectionUi.Failed) state = ConnectionUi.Checking
             try {
-                state = if (repository!!.isPatientConnected(id!!)) ConnectionUi.Connected else ConnectionUi.NotConnected
+                state = if (kotlinx.coroutines.withTimeout(15_000) { repository!!.isPatientConnected(id!!) }) ConnectionUi.Connected else ConnectionUi.NotConnected
+            } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+                state = ConnectionUi.Failed
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                // A failed refresh must not replace the last known status.
-                state = cachedState() ?: ConnectionUi.Failed
+                // Unknown is not disconnected; preserve the destination and offer a fresh check.
+                state = ConnectionUi.Failed
             }
         }
     }
@@ -77,14 +79,16 @@ internal fun rememberPatientConnection(patient: Patient?, repository: PatientAss
 internal fun PatientConnectionActions(patient: Patient, name: String, repository: PatientAssignmentRepository?, isDemo: Boolean,
     busy: Boolean, onInvite: () -> Unit, onMessage: () -> Unit, onNewSession: () -> Unit, initialSheet: String? = null, onSheetChanged: (Boolean) -> Unit = {}, review: Boolean = false) {
     val colors = Theme.colors
-    val (connection, refresh) = if (com.cbtipul.app.BuildConfig.DEBUG && review) ConnectionUi.Connected to {} else rememberPatientConnection(patient, repository, isDemo)
+    val (connection, refresh) = if (com.cbtipul.app.BuildConfig.DEBUG && review) ConnectionUi.Connected to {} else rememberPatientConnection(patient, repository, isDemo, requireFresh = initialSheet != null)
     var sheet by androidx.compose.runtime.saveable.rememberSaveable(patient.id.queryValue, initialSheet) {
         mutableStateOf(initialSheet?.takeIf { !isDemo && it in listOf("send", "invite") })
     }
     var sending by remember { mutableStateOf(false) }
     val appContext = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp).appContext
-    LaunchedEffect(sheet, patient.id) {
-        if (sheet == "invite" && !isDemo) {
+    val contextState by appContext.loadState.collectAsState()
+    val retryScope = rememberCoroutineScope()
+    LaunchedEffect(sheet, patient.id, connection) {
+        if (sheet == "invite" && !isDemo && connection in listOf(ConnectionUi.Connected, ConnectionUi.NotConnected)) {
             sheet = null
             onSheetChanged(false)
             onInvite()
@@ -169,7 +173,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
             }
         }
     }
-    if (sheet != null && sheet != "invite") ModalBottomSheet(onDismissRequest = { if (!sending) sheet = null },
+    if (sheet != null) ModalBottomSheet(onDismissRequest = { if (!sending) sheet = null },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !sending })) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { sheet = null }, enabled = !sending) {
@@ -184,7 +188,17 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
         }
         HorizontalDivider()
         Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(if (sheet == "send") 0.dp else 16.dp)) {
-            if (sheet == "invite") {
+            if (contextState is AppContextLoadState.Failed) {
+                Text("לא ניתן לבדוק כרגע את ההרשאות.", color = colors.error)
+                TextButton(onClick = { retryScope.launch { appContext.refreshOnForeground(); refresh() } }) { Text(stringResource(R.string.retry)) }
+            } else if (contextState is AppContextLoadState.Loading && sheet == "send") {
+                CircularProgressIndicator()
+            } else if (connection == ConnectionUi.Failed) {
+                Text("לא ניתן לבדוק כרגע את החיבור. אפשר לנסות שוב.", color = colors.error)
+                TextButton(onClick = { refresh() }) { Text(stringResource(R.string.retry)) }
+            } else if (connection == ConnectionUi.Checking) {
+                CircularProgressIndicator()
+            } else if (sheet == "invite") {
                 val connected = connection == ConnectionUi.Connected
                 Text(stringResource(if (connected) R.string.patient_reinvite_action else R.string.patient_connect_description))
                 if (connection == ConnectionUi.NotConnected || connected) {

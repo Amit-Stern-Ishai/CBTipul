@@ -110,7 +110,8 @@ internal fun PatientToolAccessControl(patient: Patient, repository: PatientAssig
             when {
                 isDemo -> Text(stringResource(R.string.questionnaire_demo_sending_unavailable), style = MaterialTheme.typography.bodySmall)
                 busy || (!loaded && !failed) -> Box(Modifier.size(48.dp).semantics { contentDescription = loadingLabel }, contentAlignment = androidx.compose.ui.Alignment.Center) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
-                failed -> TextButton(onClick = { revision++; refreshConnection() }, enabled = !parentBusy) { Text(stringResource(R.string.retry)) }
+                failed || connection == ConnectionUi.Failed -> TextButton(onClick = { revision++; refreshConnection() }, enabled = !parentBusy) { Text(stringResource(R.string.retry)) }
+                connection == ConnectionUi.Checking -> CircularProgressIndicator(Modifier.size(20.dp))
                 active -> TextButton(onClick = { confirmStop = true }, enabled = !parentBusy, modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "$stopLabel — $rowTitle" }) { Text(stringResource(R.string.access_stop), color = Theme.colors.error) }
                 connection == ConnectionUi.Connected -> OutlinedButton(onClick = ::changeAccess, enabled = !parentBusy,
                     modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "$enableLabel — $rowTitle" }.entitlementCreateControl(), contentPadding = PaddingValues(horizontal = 14.dp),

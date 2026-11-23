@@ -265,7 +265,7 @@ fun SessionEditorScreen(
         requestingRecording = false
         if (granted) {
             scope.launch {
-                if (checkAllowance(seconds = 0.0)) runCatching { recorder.startRecording(editorDraft.beginAudio(context)) }
+                if (checkAllowance(seconds = 0.0)) runCatching { recorder.startRecording(editorDraft.beginAudio(context)); if (recorder.isRecording && owner == recoveryApp.authRepository.currentUserId()) owner?.let { recoveryApp.preferences.discovery.usedVoice(it) } }
                     .onFailure { localError = com.cbtipul.app.data.SummaryFailure.Kind.Local.message }
             }
         } else {
@@ -291,7 +291,10 @@ fun SessionEditorScreen(
     var voiceEligible by remember(owner) { mutableStateOf(false) }
     var voicePending by remember(owner, initial.id) { mutableStateOf(false) }
     val aiDiscoveryBlocked by recoveryApp.aiConsentStore.promptVisible.collectAsStateWithLifecycle()
-    LaunchedEffect(owner, isDemo) { voiceEligible = !isDemo && owner != null && !recoveryApp.preferences.discoverySeen(owner, "voice") }
+    LaunchedEffect(owner, isDemo) {
+        voiceEligible = !isDemo && owner != null && recoveryApp.preferences.run { discoverySeen(owner, "voice"); discovery.eligible(owner, "voice") }
+        voicePending = voiceEligible && recoveryApp.preferences.discovery.pending.value.any { it.account.equals(owner, true) && it.feature == "voice" && it.patient == patient?.id?.queryValue }
+    }
     val discoveryBlocked = busy || showingNotesEditor || showDatePicker || typeExpanded || pendingTypeSave != null || showDelete || showDeleteCode || showDiscard || showAllFollowUps || overflow || confirmRetry || confirmDraftDelete || localError != null || allowanceMessage != null
     LaunchedEffect(discoveryBlocked) { onDiscoveryBlocked(discoveryBlocked) }
     DisposableEffect(Unit) { onDispose { onDiscoveryBlocked(false) } }
@@ -303,8 +306,8 @@ fun SessionEditorScreen(
             return
         }
         if (owner != recoveryApp.authRepository.currentUserId()) return
-        if (!editorDraft.persistRecovery()) return
         onManualSave()
+        if (!editorDraft.persistRecovery()) return
         voicePending = false
         onSave(currentSession(), leave)
     }
@@ -374,7 +377,7 @@ fun SessionEditorScreen(
                 try { recoveryApp.aiConsentStore.ensureGranted() } catch (_: com.cbtipul.app.model.ConsentDeclinedException) { return@launch }
                 if (!checkAllowance(seconds = 0.0)) return@launch
                 if (granted) {
-                    try { recorder.startRecording(editorDraft.beginAudio(context)) }
+                    try { recorder.startRecording(editorDraft.beginAudio(context)); if (recorder.isRecording && owner == recoveryApp.authRepository.currentUserId()) owner?.let { recoveryApp.preferences.discovery.usedVoice(it) } }
                     catch (_: Exception) { localError = com.cbtipul.app.data.SummaryFailure.Kind.Local.message }
                 } else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             } finally { requestingRecording = false }
@@ -495,8 +498,7 @@ fun SessionEditorScreen(
                     Surface(color = colors.surface, tonalElevation = 3.dp) {
                         Column {
                         if (voicePending && !busy && errorMessage == null && localError == null && !aiDiscoveryBlocked && !confirmLeavingNotes && allowanceMessage == null && !isDemo) {
-                            LaunchedEffect(owner) { owner?.let { recoveryApp.preferences.markDiscovery(it, "voice") }; voiceEligible = false }
-                            FeatureDiscoveryCard(DiscoveryCopy.voiceTitle, DiscoveryCopy.voiceBody, onDismiss = { voicePending = false })
+                            VoiceDiscoveryHint(onPresented = { owner?.let { recoveryApp.preferences.discovery.presentedVoice(it, patient?.id?.queryValue) }; voiceEligible = false }, onDismiss = { voicePending = false })
                         }
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(if (notes != baselineNotes) R.string.session_summary_unsaved else R.string.session_summary_section),
@@ -556,7 +558,12 @@ fun SessionEditorScreen(
                         Text(notes, style = MaterialTheme.typography.bodyLarge, color = colors.textBright,
                             modifier = Modifier.fillMaxWidth().clickable(enabled = canWrite && !busy && !blocksNewSummary) { editingSummaryText = true }.padding(24.dp))
                     } else BasicTextField(value = notes, onValueChange = {
-                        if (com.cbtipul.app.data.DiscoveryRules.voice(it != notes, it.isNotEmpty(), com.cbtipul.app.data.Entitlements.state.value.role == com.cbtipul.app.data.AppRole.Therapist, isDemo, !voiceEligible) && owner == recoveryApp.authRepository.currentUserId()) voicePending = true
+                        if (com.cbtipul.app.data.DiscoveryRules.voice(it != notes, it.isNotEmpty(), com.cbtipul.app.data.Entitlements.state.value.role == com.cbtipul.app.data.AppRole.Therapist, isDemo, !voiceEligible || owner == null || !recoveryApp.preferences.discovery.eligible(owner, "voice")) && owner == recoveryApp.authRepository.currentUserId()) {
+                            if (owner != null && patient != null) {
+                                recoveryApp.preferences.discovery.enqueue(owner, "voice", patient.id.queryValue)
+                                voicePending = recoveryApp.preferences.discovery.pending.value.any { pending -> pending.account.equals(owner, true) && pending.feature == "voice" && pending.patient == patient.id.queryValue }
+                            }
+                        }
                         notes = it
                     },
                         textStyle = TextStyle(color = colors.textBright, fontSize = 18.sp, lineHeight = 28.sp, textAlign = TextAlign.Start),

@@ -35,12 +35,12 @@ object DiscoveryCopy {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun FeatureDiscoveryCard(title: String, body: String, web: Boolean = false, invite: (() -> Unit)? = null, actionLabel: String? = null, onPresented: () -> Unit = {}, onDismiss: () -> Unit) {
+fun FeatureDiscoveryCard(title: String, body: String, web: Boolean = false, invite: (() -> Unit)? = null, actionLabel: String? = null, onPresented: () -> Unit = {}, onSuppress: (() -> Unit)? = null, onDismiss: () -> Unit) {
     val colors = Theme.colors
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     Dialog(onDismissRequest = onDismiss) {
-    LaunchedEffect(Unit) { onPresented() }
+    PresentedDiscoveryEffect(onPresented)
     Surface(color = colors.surface, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().heightIn(max = 640.dp)) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Column(Modifier.padding(if (web) 20.dp else 24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(if (web) 12.dp else 16.dp)) {
@@ -65,8 +65,32 @@ fun FeatureDiscoveryCard(title: String, body: String, web: Boolean = false, invi
                 if (!web && invite == null) Button(onClick = onDismiss) { Text("הבנתי") }
                 else TextButton(onClick = onDismiss) { Text("הבנתי", color = colors.gold) }
                 }
+                if (web && onSuppress != null) TextButton(onClick = onSuppress) { Text("הבנתי, אל תציגו שוב") }
             }
         }
     }
+    }
+}
+
+@Composable
+private fun PresentedDiscoveryEffect(onPresented: () -> Unit) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    val latest by rememberUpdatedState(onPresented)
+    LaunchedEffect(view) {
+        // The dialog/inline content must be attached and visible, not just its host composed.
+        do { withFrameNanos { } } while (!view.isShown || !view.hasWindowFocus())
+        latest()
+    }
+}
+
+@Composable
+fun VoiceDiscoveryHint(onPresented: () -> Unit, onDismiss: () -> Unit) {
+    PresentedDiscoveryEffect(onPresented)
+    Surface(color = Theme.colors.elevated, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+            Icon(Icons.Outlined.Mic, null, tint = Theme.colors.gold, modifier = Modifier.size(20.dp))
+            Text(DiscoveryCopy.voiceBody, style = MaterialTheme.typography.bodySmall, color = Theme.colors.textBody, modifier = Modifier.weight(1f))
+            TextButton(onClick = onDismiss) { Text("הבנתי") }
+        }
     }
 }

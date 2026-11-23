@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore by preferencesDataStore(name = "cbtipul_settings")
 
 class AppPreferences(private val context: Context) {
+    val discovery = com.cbtipul.app.data.DiscoveryLedger(java.io.File(context.noBackupFilesDir, "discovery.json"))
 
     val notificationsEnabledByUser: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[Keys.NOTIFICATIONS_ENABLED] ?: true
@@ -85,18 +86,30 @@ class AppPreferences(private val context: Context) {
     }
 
     suspend fun discoverySeen(account: String, feature: String): Boolean = try {
-        context.dataStore.data.first()[booleanPreferencesKey(com.cbtipul.app.data.DiscoveryRules.key(account, feature))] == true
-    } catch (_: java.io.IOException) {
-        // Optional education must never interrupt clinical work if preferences are unavailable.
-        true
-    }
+        if (feature.endsWith("recentVisit")) {
+            context.dataStore.data.first()[booleanPreferencesKey(com.cbtipul.app.data.DiscoveryRules.key(account, feature))] == true
+        } else {
+            val suffix = ".${feature.substringAfterLast('.')}.${account.lowercase(java.util.Locale.ROOT)}"
+            val legacy = context.dataStore.data.first().asMap().filter { (key, value) ->
+                key.name.startsWith("discovery.") && key.name.endsWith(suffix) && value == true
+            }
+            if (legacy.isNotEmpty() && discovery.mark(account, feature)) {
+                context.dataStore.edit { prefs -> legacy.keys.forEach { prefs.remove(booleanPreferencesKey(it.name)) } }
+            }
+            discovery.seen(account, feature)
+        }
+    } catch (_: java.io.IOException) { true }
 
     suspend fun markDiscovery(account: String, feature: String) {
-        try {
-            context.dataStore.edit { it[booleanPreferencesKey(com.cbtipul.app.data.DiscoveryRules.key(account, feature))] = true }
-        } catch (_: java.io.IOException) {
-            // Keep the current explanation usable; no clinical save depends on this write.
-        }
+        if (!feature.endsWith("recentVisit")) { discovery.mark(account, feature); return }
+        try { context.dataStore.edit { it[booleanPreferencesKey(com.cbtipul.app.data.DiscoveryRules.key(account, feature))] = true } }
+        catch (_: java.io.IOException) { }
+    }
+    suspend fun enqueueDiscovery(account: String, feature: String, patient: String, standalone: Boolean = false, session: String? = null, reminderOnly: Boolean = false, initialOnly: Boolean = false) {
+        val context = discovery.activeContext
+        val alreadyShown = discoverySeen(account, feature) // Migrate before determining the reminder budget.
+        if (alreadyShown && (!discovery.seen(account, feature) || context != discovery.activeContext)) return
+        discovery.enqueue(account, feature, patient, standalone, session, reminderOnly, initialOnly)
     }
 
     private fun termsKey(email: String) = "hasAcceptedTerms-$email"

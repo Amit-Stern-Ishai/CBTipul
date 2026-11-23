@@ -65,6 +65,7 @@ import com.cbtipul.app.ui.onboarding.DemoShowcaseIntroScreen
 import com.cbtipul.app.ui.onboarding.ShowcaseRevealPhase
 import com.cbtipul.app.ui.theme.hebrewDate
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 import java.util.Calendar
 import java.util.Date
 
@@ -113,33 +114,16 @@ fun PatientsNavHost(
         onDispose { app.aiConsentStore.cancelPending() }
     }
     val discoveryAccount = app.authRepository.currentUserId()
+    androidx.compose.runtime.SideEffect { app.preferences.discovery.enterContext(if (discoveryActive) "$discoveryAccount/${backStackEntry?.id}" else null) }
     val milestoneIdentity by com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle()
     val handledCreations = remember(discoveryAccount) { mutableSetOf<String>() }
-    val shownMilestones = remember(discoveryAccount) { mutableSetOf<String>() }
-    var milestone by remember(discoveryAccount) { mutableStateOf<com.cbtipul.app.data.PatientMilestoneRequest?>(null) }
-    var milestoneInvite by remember(discoveryAccount) { mutableStateOf<Boolean?>(null) }
-
     val aiPrompt by app.aiConsentStore.promptVisible.collectAsStateWithLifecycle()
-    var createdPatient by remember(discoveryAccount) { mutableStateOf<com.cbtipul.app.model.Patient?>(null) }
     var sessionDiscoveryBlocked by remember(discoveryAccount) { mutableStateOf(false) }
     val entitlementPrompt by com.cbtipul.app.data.Entitlements.explanationVisible.collectAsStateWithLifecycle()
-    var connectionVerified by remember(discoveryAccount) { mutableStateOf(false) }
-    var connectionFailed by remember(discoveryAccount) { mutableStateOf(false) }
-    var connectionChecking by remember(discoveryAccount) { mutableStateOf(false) }
-    var webPending by remember(discoveryAccount) { mutableStateOf<String?>(null) }
-    var webOrigin by remember(discoveryAccount) { mutableStateOf<String?>(null) }
-    var webReady by remember(discoveryAccount) { mutableStateOf(false) }
-    var webSaved by remember(discoveryAccount) { mutableStateOf(false) }
-    var webEligible by remember(discoveryAccount) { mutableStateOf(false) }
-    LaunchedEffect(discoveryAccount, isDemoMode) {
-        webEligible = !isDemoMode && discoveryAccount != null && !app.preferences.discoverySeen(discoveryAccount, "web")
-        if (isDemoMode) { createdPatient = null; webPending = null }
-    }
-    LaunchedEffect(ui.sessionError) { if (ui.sessionError != null) webReady = true }
-    LaunchedEffect(backStackEntry, patients) {
-        if (webPending != null && (patients.none { it.id.queryValue == webPending } || (!webSaved && backStackEntry?.id != webOrigin))) webPending = null
-        if (createdPatient != null && patients.none { it.id == createdPatient?.id }) createdPatient = null
-    }
+    val discoveryQueue by app.preferences.discovery.pending.collectAsStateWithLifecycle()
+    val discoveryOpportunity by app.preferences.discovery.opportunities.collectAsStateWithLifecycle()
+    var displayedDiscovery by remember(discoveryAccount) { mutableStateOf<com.cbtipul.app.data.DiscoveryIntent?>(null) }
+    var discoveryInvite by remember(discoveryAccount) { mutableStateOf(false) }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var resumed by remember { mutableStateOf(false) }
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
@@ -148,56 +132,57 @@ fun PatientsNavHost(
         resumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    fun requestMilestone(patient: String, kind: com.cbtipul.app.data.PatientMilestone, standalone: Boolean) {
-        if (!isDemoMode && discoveryAccount != null && discoveryAccount == app.authRepository.currentUserId() &&
-            milestoneIdentity.role == com.cbtipul.app.data.AppRole.Therapist && milestone == null &&
-            !shownMilestones.contains(com.cbtipul.app.data.DiscoveryRules.patientFeature(patient, kind.name)) &&
+    fun requestMilestone(patient: String, kind: com.cbtipul.app.data.PatientMilestone, standalone: Boolean, session: String? = null) {
+        val owner = discoveryAccount ?: return
+        if (!isDemoMode && owner == app.authRepository.currentUserId() && milestoneIdentity.role == com.cbtipul.app.data.AppRole.Therapist &&
             patients.firstOrNull { it.id.queryValue == patient }?.let { !DemoData.isDemoId(it.id) } == true) {
-            webPending = null
-            milestone = com.cbtipul.app.data.PatientMilestoneRequest(patient, kind, standalone)
+            inviteScope.launch { app.preferences.enqueueDiscovery(owner, kind.name, patient, standalone, session) }
         }
     }
-    LaunchedEffect(milestone?.id, discoveryAccount, isDemoMode) {
-        milestoneInvite = null
-        val pending = milestone ?: return@LaunchedEffect
+    val discoverySafe = discoveryActive && resumed && !isDemoMode && milestoneIdentity.role == com.cbtipul.app.data.AppRole.Therapist &&
+        !ui.isSavingSession && ui.sessionError == null && invitationError == null && !sessionDiscoveryBlocked && !entitlementPrompt &&
+        !aiPrompt && !showDisplayNamePrompt && !isCreatingInvitation && emailInvitePatient == null && backStackEntry?.destination?.route != "add" && backStackEntry?.arguments?.getString("connection").isNullOrBlank()
+    LaunchedEffect(backStackEntry?.id) {
+        displayedDiscovery?.takeIf { it.reminder && it.context != "$discoveryAccount/${backStackEntry?.id}" }?.let { displayedDiscovery = null }
+    }
+    LaunchedEffect(discoverySafe) {
+        val pending = displayedDiscovery
+        if (!discoverySafe && pending != null) displayedDiscovery = null
+    }
+    LaunchedEffect(discoveryAccount, discoveryQueue, discoveryOpportunity, backStackEntry?.id, discoverySafe, displayedDiscovery, patients, ui.hasLoaded, ui.loadError) {
         val owner = discoveryAccount ?: return@LaunchedEffect
-        try {
-            if (isDemoMode || milestoneIdentity.role != com.cbtipul.app.data.AppRole.Therapist ||
-                app.preferences.discoverySeen(owner, com.cbtipul.app.data.DiscoveryRules.patientFeature(pending.patient, pending.milestone.name))) { milestone = null; return@LaunchedEffect }
-            val patient = patients.firstOrNull { it.id.queryValue == pending.patient } ?: run { milestone = null; return@LaunchedEffect }
-            if (pending.standalone) {
-                val count = if (pending.milestone == com.cbtipul.app.data.PatientMilestone.DiaryOne) app.diaryOne.loadEntries(patient.id).size else app.diaryTwo.loadEntries(patient.id).size
-                if (count != 1) { milestone = null; return@LaunchedEffect }
+        if (!discoverySafe || displayedDiscovery != null) return@LaunchedEffect
+            for (pending in discoveryQueue.filter { it.account.equals(owner, true) && it.feature != "voice" }) {
+                try {
+                    if (!app.preferences.discovery.valid(pending)) { app.preferences.discovery.remove(pending); continue }
+                    val patient = patients.firstOrNull { it.id.queryValue == pending.patient }
+                    if (patient == null) {
+                        if (ui.hasLoaded && !ui.isLoading && ui.loadError == null) app.preferences.discovery.remove(pending)
+                        continue
+                    }
+                    if (pending.feature == "invite" && pending.reminder) {
+                        val status = kotlinx.coroutines.withTimeout(15_000) { app.invitations.emailInvitationStatus(pending.patient) }
+                        if (status != "no_invitation") { app.preferences.discovery.remove(pending); continue }
+                    }
+                    val invite = kotlinx.coroutines.withTimeout(15_000) {
+                        com.cbtipul.app.data.DiscoveryRules.resolve(pending,
+                            firstEntry = {
+                                val count = if (pending.feature == "DiaryOne") app.diaryOne.loadEntries(patient.id).size else app.diaryTwo.loadEntries(patient.id).size
+                                count == 1
+                            }, sessionExists = { patient.sessions.any { it.id.toString() == pending.session } },
+                            connected = { app.assignments.isPatientConnected(pending.patient) },
+                            enabled = { app.assignments.activeOngoingAssignment(pending.patient, it.assignment) != null })
+                    }
+                    if (invite == null) { app.preferences.discovery.remove(pending); continue }
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    if (owner != app.authRepository.currentUserId()) return@LaunchedEffect
+                    if (!app.preferences.discovery.valid(pending)) continue
+                    discoveryInvite = invite; displayedDiscovery = pending
+                    return@LaunchedEffect
+                } catch (_: kotlinx.coroutines.TimeoutCancellationException) { /* Keep for the next safe retry. */ }
+                catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                catch (_: Exception) { /* Keep the intent, try other eligible types, retry at a safe opportunity. */ }
             }
-            val connected = app.assignments.isPatientConnected(pending.patient)
-            val enabled = if (connected) app.assignments.activeOngoingAssignment(pending.patient, pending.milestone.assignment) != null else false
-            if (owner != app.authRepository.currentUserId() || milestone?.id != pending.id) return@LaunchedEffect
-            milestoneInvite = com.cbtipul.app.data.DiscoveryRules.suggestion(connected, enabled)
-            if (milestoneInvite == null) milestone = null
-        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-        catch (_: Exception) { if (milestone?.id == pending.id) milestone = null }
-    }
-    val showMilestone = com.cbtipul.app.data.DiscoveryRules.present(milestone != null && milestoneInvite != null, ui.isSavingSession,
-        ui.sessionError != null || invitationError != null,
-        sessionDiscoveryBlocked || entitlementPrompt || aiPrompt || showDisplayNamePrompt || isCreatingInvitation || createdPatient != null,
-        discoveryActive && resumed && !isDemoMode && discoveryAccount != null && milestoneIdentity.role == com.cbtipul.app.data.AppRole.Therapist && patients.any { it.id.queryValue == milestone?.patient })
-    LaunchedEffect(showMilestone, discoveryActive, resumed) {
-        val pending = milestone
-        if (!showMilestone && pending != null && shownMilestones.contains(com.cbtipul.app.data.DiscoveryRules.patientFeature(pending.patient, pending.milestone.name))) milestone = null
-    }
-    val showWeb = discoveryActive && milestone == null && com.cbtipul.app.data.DiscoveryRules.present(webPending != null && webReady, ui.isSavingSession, ui.sessionError != null || invitationError != null, sessionDiscoveryBlocked || entitlementPrompt || aiPrompt || showDisplayNamePrompt || isCreatingInvitation || createdPatient != null, !isDemoMode && discoveryAccount != null)
-    suspend fun checkCreatedConnection(created: com.cbtipul.app.model.Patient) {
-        val owner = discoveryAccount
-        connectionChecking = true; connectionFailed = false
-        val connected = runCatching { app.assignments.isPatientConnected(created.id.queryValue) }.getOrNull()
-        if (owner == app.authRepository.currentUserId() && navController.currentBackStackEntry?.destination?.route == "add") {
-            connectionChecking = false
-            when (connected) {
-                true -> { createdPatient = null; navController.popScreen() }
-                false -> connectionVerified = true
-                null -> connectionFailed = true
-            }
-        }
     }
     val atList = backStackEntry?.destination?.route == "list"
 
@@ -223,32 +208,27 @@ fun PatientsNavHost(
 
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
-        if (showMilestone) {
-            val pending = milestone!!
-            val invite = milestoneInvite == true
-            FeatureDiscoveryCard(
-                title = if (invite) DiscoveryCopy.inviteTitle else stringResource(R.string.discovery_activities_title),
-                body = if (invite) DiscoveryCopy.inviteBody else stringResource(when (pending.milestone) {
-                    com.cbtipul.app.data.PatientMilestone.SecondSession -> R.string.discovery_questionnaires_body
-                    com.cbtipul.app.data.PatientMilestone.DiaryOne -> R.string.discovery_diary_one_body
-                    com.cbtipul.app.data.PatientMilestone.DiaryTwo -> R.string.discovery_diary_two_body
-                }),
-                invite = action@{
-                    if (milestone?.id != pending.id) return@action
-                    milestone = null
-                    navController.openPatientConnection(pending.patient, invite)
-                },
-                actionLabel = stringResource(if (invite) R.string.discovery_invite_action else R.string.discovery_activities_action),
-                onPresented = {
-                    val feature = com.cbtipul.app.data.DiscoveryRules.patientFeature(pending.patient, pending.milestone.name)
-                    shownMilestones.add(feature)
-                    inviteScope.launch { discoveryAccount?.let { app.preferences.markDiscovery(it, feature) } }
-                },
-                onDismiss = { milestone = null },
-            )
-        } else if (showWeb) {
-            LaunchedEffect(webPending) { discoveryAccount?.let { app.preferences.markDiscovery(it, "web") }; webEligible = false }
-            FeatureDiscoveryCard(DiscoveryCopy.webTitle, DiscoveryCopy.webBody, web = true, onDismiss = { webPending = null })
+        if (discoverySafe) displayedDiscovery?.let { pending ->
+            if (pending.account.equals(discoveryAccount, true)) {
+                val invite = discoveryInvite
+                val isWeb = pending.feature == "web"
+                FeatureDiscoveryCard(
+                    title = if (isWeb) DiscoveryCopy.webTitle else if (invite) DiscoveryCopy.inviteTitle else stringResource(R.string.discovery_activities_title),
+                    body = if (isWeb) DiscoveryCopy.webBody else if (invite) DiscoveryCopy.inviteBody else stringResource(when (pending.feature) {
+                        "DiaryOne" -> R.string.discovery_diary_one_body
+                        "DiaryTwo" -> R.string.discovery_diary_two_body
+                        else -> R.string.discovery_questionnaires_body
+                    }), web = isWeb,
+                    invite = if (isWeb) null else ({
+                        displayedDiscovery = null
+                        if (pending.account.equals(app.authRepository.currentUserId(), true)) navController.openPatientConnection(pending.patient, invite)
+                    }),
+                    actionLabel = stringResource(if (invite) R.string.discovery_invite_action else R.string.discovery_activities_action),
+                    onPresented = { if (pending.account.equals(app.authRepository.currentUserId(), true)) app.preferences.discovery.presented(pending) },
+                    onSuppress = if (isWeb) ({ app.preferences.discovery.suppress(pending.account, "web"); displayedDiscovery = null }) else null,
+                    onDismiss = { displayedDiscovery = null },
+                )
+            }
         }
             val navigationDirection = LocalLayoutDirection.current
             NavHost(
@@ -278,45 +258,20 @@ fun PatientsNavHost(
             com.cbtipul.app.ui.workspaces.WebWorkspacePreviewScreen(entry.arguments!!.getString("workspaceId")!!) { navController.popScreen() }
         }
         composable("add") {
-            val created = createdPatient
-            if (created != null && !isDemoMode && !aiPrompt && !showDisplayNamePrompt) {
-                Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
-                    if (!connectionVerified) {
-                        Text("המטופל/ת נוצר/ה")
-                        Text(if (connectionFailed) "לא ניתן לבדוק כרגע את החיבור. אפשר לנסות שוב; המטופל/ת כבר נוצר/ה." else "בודקים אם אפשר לשלוח הזמנה לאפליקציה.")
-                        if (connectionChecking) androidx.compose.material3.CircularProgressIndicator()
-                        else {
-                            TextButton(onClick = { inviteScope.launch { checkCreatedConnection(created) } }) { Text("ניסיון נוסף") }
-                            TextButton(onClick = { createdPatient = null; navController.popScreen() }) { Text("סגירה") }
-                        }
-                    } else FeatureDiscoveryCard(DiscoveryCopy.inviteTitle, DiscoveryCopy.inviteBody, invite = {
-                        createdPatient = null
-                        navController.navigate("patient/${created.id.queryValue}") {
-                            popUpTo("add") { inclusive = true }
-                            launchSingleTop = true
-                        }
-                        inviteScope.launch {
-                            createAndShareInvitation(app, context, created.id, invalidInvite, inviteFailed,
-                                { isCreatingInvitation }, { isCreatingInvitation = it }, { invitationError = it },
-                                { uuid -> pendingInvitePatientId = uuid; displayNameDraft = ""; displayNameError = null; showDisplayNamePrompt = true },
-                                onEmailInvite = { emailInvitePatient = it })
-                        }
-                    }, onDismiss = { createdPatient = null; navController.popScreen() })
-                }
-            } else AddPatientScreen(
-                isSaving = ui.isSavingAdd || connectionChecking,
-                errorMessage = ui.addError,
-                onCancel = { if (!ui.isSavingAdd && !connectionChecking) navController.popScreen() },
+            AddPatientScreen(
+                isSaving = ui.isSavingAdd, errorMessage = ui.addError,
+                onCancel = { if (!ui.isSavingAdd) navController.popScreen() },
                 onSave = { first, last, status ->
                     val owner = app.authRepository.currentUserId()
                     viewModel.addPatient(first, last, status, notConfigured, rejected) { created ->
-                        if (owner == app.authRepository.currentUserId() && created != null && !isDemoMode) {
-                            createdPatient = created; connectionVerified = false
-                            inviteScope.launch { checkCreatedConnection(created) }
-                        } else if (owner == app.authRepository.currentUserId()) navController.popScreen()
+                        if (owner == app.authRepository.currentUserId()) {
+                            if (created != null && !isDemoMode && owner != null && milestoneIdentity.role == com.cbtipul.app.data.AppRole.Therapist) {
+                                inviteScope.launch { app.preferences.enqueueDiscovery(owner, "invite", created.id.queryValue, initialOnly = true) }
+                            }
+                            navController.popScreen()
+                        }
                     }
-                },
-                gettingStarted = viewModel.gettingStarted,
+                }, gettingStarted = viewModel.gettingStarted,
             )
         }
         composable(
@@ -326,7 +281,10 @@ fun PatientsNavHost(
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
             val patient = patients.find { it.id.queryValue == id } ?: viewModel.patient(id)
-            LaunchedEffect(id) {
+            LaunchedEffect(id, discoveryAccount) {
+                if (!isDemoMode && milestoneIdentity.role == com.cbtipul.app.data.AppRole.Therapist) {
+                    discoveryAccount?.let { app.preferences.enqueueDiscovery(it, "invite", id, reminderOnly = true) }
+                }
                 viewModel.loadSavedPreparation(id)
                 patient?.id?.let { viewModel.loadQuestionnaires(it, notConfigured, rejected) }
             }
@@ -761,8 +719,9 @@ fun PatientsNavHost(
                 },
                 onDiscoveryBlocked = { sessionDiscoveryBlocked = it },
                 onManualSave = {
-                    if (webEligible && !isDemoMode && discoveryAccount == app.authRepository.currentUserId() && webPending == null) {
-                        webPending = patient?.id?.queryValue; webOrigin = entry.id; webReady = false; webSaved = false
+                    val owner = discoveryAccount
+                    if (owner != null && !isDemoMode && owner == app.authRepository.currentUserId() && milestoneIdentity.role == com.cbtipul.app.data.AppRole.Therapist) {
+                        patient?.id?.queryValue?.let { id -> inviteScope.launch { app.preferences.enqueueDiscovery(owner, "web", id) } }
                     }
                 },
                 onSave = { edited, leave ->
@@ -781,19 +740,35 @@ fun PatientsNavHost(
                             if (isNew && handledCreations.add("${patientId.queryValue}/${saved.id}")) {
                                 val savedPatient = viewModel.patient(patientId.queryValue)
                                 if (savedPatient != null) {
-                                    val kind = com.cbtipul.app.data.DiscoveryRules.sessionMilestone(saved.type,
-                                        savedPatient.sessions.count { it.type == saved.type }, savedPatient.sessions.size)
-                                    if (kind != null) requestMilestone(patientId.queryValue, kind, false)
+                                    val allowedContexts = setOf(app.preferences.discovery.activeContext,
+                                        navController.previousBackStackEntry?.id?.let { "$discoveryAccount/$it" })
+                                    inviteScope.launch {
+                                    val kinds = com.cbtipul.app.data.DiscoveryRules.sessionMilestones(saved.type,
+                                        savedPatient.sessions.count { it.type == saved.type }, savedPatient.sessions.size).toMutableList()
+                                    com.cbtipul.app.data.PatientMilestone.entries.forEach { kind ->
+                                        if (discoveryAccount != null && app.preferences.discoverySeen(discoveryAccount, kind.name) &&
+                                            (kind == com.cbtipul.app.data.PatientMilestone.SecondSession ||
+                                             kind == com.cbtipul.app.data.PatientMilestone.DiaryOne && saved.type == com.cbtipul.app.model.SessionType.DiaryOne ||
+                                             kind == com.cbtipul.app.data.PatientMilestone.DiaryTwo && saved.type == com.cbtipul.app.model.SessionType.DiaryTwo) && kind !in kinds) kinds.add(kind)
+                                    }
+                                    kinds.forEach {
+                                        if (discoveryAccount != null && (!app.preferences.discovery.seen(discoveryAccount, it.name) || app.preferences.discovery.activeContext in allowedContexts)) {
+                                            requestMilestone(patientId.queryValue, it, false, saved.id.toString())
+                                        }
+                                    }
+                                    }
                                 }
                             }
-                            if (webPending != null) { webReady = true; webSaved = true }
                         },
                         recovery = draft,
                         accountActive = { recoveryAccount == recoveryApp.authRepository.currentUserId() },
                     ) {
                         viewModel.clearSessionError()
                         // A completed save is not a repeated Back tap. Only close its own editor.
-                        if (navController.currentBackStackEntry == entry) navController.popBackStack()
+                        if (navController.currentBackStackEntry == entry) {
+                            app.preferences.discovery.returnAfterSave(navController.previousBackStackEntry?.id?.let { "$discoveryAccount/$it" })
+                            navController.popBackStack()
+                        }
                     }
                 },
                 onDelete = { edited ->

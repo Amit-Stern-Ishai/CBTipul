@@ -322,6 +322,11 @@ test('source-matched patient overview: calendar, weekly columns, filters and rec
  await page.getByRole('button',{name:'רשימה',exact:true}).click();
  await expect(page.locator('.pt-week-columns .pt-entry')).toHaveCount(6);
  await expect(page.locator('.pt-toolbar')).toHaveCount(0);
+ const cardHeights=await page.locator('.pt-week-columns .pt-entry').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
+ expect(Math.max(...cardHeights)-Math.min(...cardHeights)).toBeLessThan(1);
+ await expect(page.locator('.pt-week-columns .pt-entry').first()).toHaveAttribute('title',/פגישה/);
+ await expect(page.locator('.pt-week-columns .pt-entry small').first()).toContainText(/\d{2}\.\d{2}\.\d{2}/);
+ expect(await page.locator('.pt-week-columns .pt-entry strong').first().evaluate(node=>getComputedStyle(node).textOverflow)).toBe('ellipsis');
  // Within each week, entries share a horizontal RTL row inside their category.
  for (const kind of ['questionnaire','diary']) {
   const cards=await page.locator(`.pt-week-column > .pt-entry[data-kind="${kind}"]`).evaluateAll(nodes=>nodes.map(node=>{

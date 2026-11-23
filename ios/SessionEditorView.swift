@@ -32,6 +32,22 @@ struct SessionEditorView: View {
     @State private var recovery = DeviceFormDraft<SessionRecovery>()
     @State private var recoveryClosed = false
     @State private var voiceDiscoveryPending = false
+    private var shouldShowVoiceHint: Bool {
+        guard !store.isDemoMode, EntitlementState.shared.role == .therapist else { return false }
+        if voiceDiscoveryPending { return true }
+        guard let owner = auth.currentUserId, let patient, !store.isDemoMode else { return false }
+        return FeatureDiscovery.shared.pending(account: owner).contains { $0.feature == "voice" && $0.patient == patient.id }
+    }
+    private func noteUserTyping(_ text: String) {
+        guard let owner = auth.currentUserId,
+              DiscoveryRules.voice(userEdit: text != session.notes, nonempty: !text.isEmpty,
+                therapist: EntitlementState.shared.role == .therapist, demo: store.isDemoMode,
+                seen: !FeatureDiscovery.shared.eligible("voice", account: owner)) else { return }
+        if let patient {
+            FeatureDiscovery.shared.enqueue("voice", account: owner, patient: patient.id, demo: store.isDemoMode)
+            voiceDiscoveryPending = FeatureDiscovery.shared.pending(account: owner).contains { $0.feature == "voice" && $0.patient == patient.id }
+        }
+    }
     @State private var recoveryAccount: String?
     @State private var audioFileName: String?
     @State private var transcriptReady = false
@@ -597,11 +613,11 @@ struct SessionEditorView: View {
                             GeometryReader { space in
                                 VStack(spacing: 0) {
                                     TextField(L10n.sessionSummaryFieldPlaceholder, text: Binding(get: { session.notes }, set: { text in
-                                        if let owner = auth.currentUserId, DiscoveryRules.voice(userEdit: text != session.notes, nonempty: !text.isEmpty, therapist: EntitlementState.shared.role == .therapist, demo: store.isDemoMode, seen: FeatureDiscovery.shared.seen("voice", account: owner)) { voiceDiscoveryPending = true }
+                                        noteUserTyping(text)
                                         session.notes = text
                                     }), axis: .vertical)
                                         .font(BrandTypography.body).lineSpacing(7)
-                                        .lineLimit(3...max(3, Int((space.size.height - 48) / summaryLineHeight)))
+                                        .lineLimit(3...max(3, Int((space.size.height - (shouldShowVoiceHint ? 170 : 48)) / summaryLineHeight)))
                                         .foregroundStyle(Theme.textBright)
                                         .tint(Theme.gold)
                                         .focused($notesEditorFocused)
@@ -611,9 +627,9 @@ struct SessionEditorView: View {
                                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
                                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(patientAccent.opacity(0.4), lineWidth: 1))
                                         .accessibilityIdentifier("session.summaryText")
-                                    if voiceDiscoveryPending && !isWorking && errorMessage == nil && !confirmLeavingNotes && allowanceMessage == nil, let owner = auth.currentUserId, owner == recoveryAccount {
-                                        DiscoveryCard(title: DiscoveryCopy.voiceTitle, bodyText: DiscoveryCopy.voiceBody) { voiceDiscoveryPending = false; notesEditorFocused = true }
-                                            .onAppear { FeatureDiscovery.shared.mark("voice", account: owner) }
+                                    if shouldShowVoiceHint && !isWorking && errorMessage == nil && !confirmLeavingNotes && allowanceMessage == nil, let owner = auth.currentUserId, owner == recoveryAccount {
+                                        VoiceDiscoveryHint(onPresented: { voiceDiscoveryPending = true; FeatureDiscovery.shared.presentedVoice(account: owner, patient: patient?.id); FeatureDiscovery.shared.inlineVisible = true }, dismiss: { voiceDiscoveryPending = false; FeatureDiscovery.shared.inlineVisible = false })
+                                            .onDisappear { FeatureDiscovery.shared.inlineVisible = false }
                                     }
                                     Spacer(minLength: 0)
                                 }
@@ -773,6 +789,7 @@ struct SessionEditorView: View {
                 // Save on each edit, without a termination-loss debounce window.
                 persistRecovery()
             }
+            .modifier(DiscoveryContext())
             .onDisappear { voiceDiscoveryPending = false; FeatureDiscovery.shared.feedbackVisible = false }
             .onChange(of: errorMessage) { _, value in FeatureDiscovery.shared.feedbackVisible = value != nil || allowanceMessage != nil }
             .onChange(of: allowanceMessage) { _, value in FeatureDiscovery.shared.feedbackVisible = value != nil || errorMessage != nil }
@@ -1182,6 +1199,7 @@ struct SessionEditorView: View {
                         transcriptReady = false
                         guard persistRecovery() else { throw ClientFailure.localDraft }
                         await voiceRecorder.startRecording(destination: url)
+                        if voiceRecorder.isRecording, owner == auth.currentUserId { FeatureDiscovery.shared.usedVoice(account: owner) }
                         guard owner == auth.currentUserId else { voiceRecorder.detach(); return }
                     } catch { voiceRecorder.errorMessage = error.userFacingMessage }
                     isRequestingRecording = false
@@ -1595,6 +1613,7 @@ struct SessionEditorView: View {
                     recoveryClosed = true
                     showingNotesEditor = false
                     gettingStartedRouter.refresh(using: store)
+                    FeatureDiscovery.shared.returnAfterSave()
                     dismiss()
                 } else {
                     try await store.updateSession(session, beforeUpdate: {
@@ -1610,7 +1629,7 @@ struct SessionEditorView: View {
                     initialStructuredNotes = session.structuredNotes
                     gettingStartedRouter.refresh(using: store)
                     if closeNotesEditor { showingNotesEditor = false }
-                    if thenDismiss { dismiss() }
+                    if thenDismiss { FeatureDiscovery.shared.returnAfterSave(); dismiss() }
                 }
             } catch {
                 if ClientFailure.from(error) == .monthlyAllowance {

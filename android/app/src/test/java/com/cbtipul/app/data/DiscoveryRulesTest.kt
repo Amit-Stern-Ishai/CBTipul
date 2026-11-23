@@ -21,14 +21,14 @@ class DiscoveryRulesTest {
         }
         assertFalse(DiscoveryRules.present(false,false,false,false,true))
     }
-    @Test fun sharedDiaryMilestonesBeatSecondSessionOnlyForFirstTypedSession() {
+    @Test fun diaryAndSecondSessionAreEvaluatedIndependently() {
         val one = com.cbtipul.app.model.SessionType.DiaryOne
         val two = com.cbtipul.app.model.SessionType.DiaryTwo
-        assertEquals(PatientMilestone.DiaryOne, DiscoveryRules.sessionMilestone(one, 1, 2))
-        assertEquals(PatientMilestone.DiaryTwo, DiscoveryRules.sessionMilestone(two, 1, 2))
-        assertEquals(PatientMilestone.SecondSession, DiscoveryRules.sessionMilestone(one, 2, 2))
-        assertNull(DiscoveryRules.sessionMilestone(two, 2, 3))
-        assertNull(DiscoveryRules.sessionMilestone(null, 1, 1))
+        assertEquals(listOf(PatientMilestone.DiaryOne, PatientMilestone.SecondSession), DiscoveryRules.sessionMilestones(one, 1, 2))
+        assertEquals(listOf(PatientMilestone.DiaryTwo, PatientMilestone.SecondSession), DiscoveryRules.sessionMilestones(two, 1, 2))
+        assertEquals(listOf(PatientMilestone.SecondSession), DiscoveryRules.sessionMilestones(one, 2, 2))
+        assertTrue(DiscoveryRules.sessionMilestones(two, 2, 3).isEmpty())
+        assertTrue(DiscoveryRules.sessionMilestones(null, 1, 1).isEmpty())
         val key = DiscoveryRules.patientFeature("p", PatientMilestone.DiaryOne.name)
         assertEquals(key, DiscoveryRules.patientFeature("P", PatientMilestone.DiaryOne.name))
         assertNotEquals(key, DiscoveryRules.patientFeature("p", PatientMilestone.DiaryTwo.name))

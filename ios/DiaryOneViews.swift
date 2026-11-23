@@ -79,6 +79,8 @@ struct PatientDiaryOneView: View {
         .patientAtmosphere(patientColor)
         .themedScreen()
         .navigationTitleWithSubtitle(L10n.diaryOneTitle, subtitle: patient.displayName)
+        .onAppear { FeatureDiscovery.shared.enterContext("diaryOneTitle-" + patient.id.queryValue) }
+        .onDisappear { FeatureDiscovery.shared.leaveContext("diaryOneTitle-" + patient.id.queryValue) }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             addDiaryEntryCTA
         }
@@ -462,6 +464,7 @@ struct DiaryOneEntryFormView: View {
         .demoModeChrome()
         .dismissesKeyboardOnTap()
         .navigationTitle(L10n.diaryOneTitle)
+        .modifier(DiscoveryContext())
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .busyOverlay(isBusy)
@@ -567,6 +570,7 @@ struct DiaryOneEntryFormView: View {
                 )
             }
             initialSnapshot = draft.comparableSnapshot
+            FeatureDiscovery.shared.returnAfterSave()
             dismiss()
         } catch {
             errorMessage = error.userFacingMessage(fallback: L10n.diaryOneSaveFailed)
@@ -582,6 +586,7 @@ struct DiaryOneEntryFormView: View {
         do {
             try await diary.deleteEntry(id: existing.id, patientId: patient.id)
             initialSnapshot = draft.comparableSnapshot
+            FeatureDiscovery.shared.returnAfterSave()
             dismiss()
         } catch {
             errorMessage = error.userFacingMessage(fallback: L10n.diaryOneDeleteFailed)

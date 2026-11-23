@@ -307,6 +307,7 @@ final class PatientStore {
     private let textGate: ClinicalTextGate
 
     var patients: [Patient] = []
+    private(set) var discoveryPatientsLoaded = false
 
     /// Local patientID → name store, populated whenever the patient list
     /// loads (Phase 1 of moving patient names off the backend).
@@ -391,6 +392,7 @@ final class PatientStore {
         AIDataSharingConsentStore.shared.setDemoBypass(true)
         showcaseDataLoaded = false
         patients = []
+        discoveryPatientsLoaded = false
         questionnairesByPatient = [:]
 
         clearDemoContent()
@@ -447,6 +449,7 @@ final class PatientStore {
         AIDataSharingConsentStore.shared.setDemoBypass(false)
         showcaseDataLoaded = false
         patients = []
+        discoveryPatientsLoaded = false
         questionnairesByPatient = [:]
         do {
             try await loadPatients()
@@ -859,6 +862,7 @@ final class PatientStore {
         #if DEBUG
         print("PatientLaunchTrace server_publish t=\(ProcessInfo.processInfo.systemUptime) count=\(loadedPatients.count) resolved=\(loadedPatients.filter { $0.localName != nil }.count)")
         #endif
+        discoveryPatientsLoaded = true
         patients = loadedPatients
         applySynchronizedNames()
         AppLog.store.info("Patients loaded from server: \(patientRows.count), sessions: \(sessionRows.count)")
@@ -954,6 +958,7 @@ final class PatientStore {
         }
         clearCachedPatients()
         patients = []
+        discoveryPatientsLoaded = false
         questionnairesByPatient = [:]
     }
 
@@ -975,6 +980,7 @@ final class PatientStore {
         isDemoMode = false
         clearCachedPatients()
         patients = []
+        discoveryPatientsLoaded = false
         questionnairesByPatient = [:]
         // Prefer Settings' pre-sign-out clear; this covers any wipe while
         // still signed in.
