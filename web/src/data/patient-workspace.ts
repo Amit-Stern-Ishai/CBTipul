@@ -1,3 +1,4 @@
+import type { Patient } from "../domain/types";
 import { clinicalSave } from "./clinical-save";
 import { loadClinical } from "./clinical-load";
 import { supabase as db } from "./client";
@@ -120,7 +121,7 @@ export async function savePatientName(account:string,id:string,name:string) {
 }
 export async function patientDirectory() {
   const done = await guard();
-  const value = await loadClinical<{ id: string; active: boolean }>(
+  const value = await loadClinical<{ id: string; active: boolean; formulation: Patient["formulation"] }>(
     "load-patients",
     {},
     done,

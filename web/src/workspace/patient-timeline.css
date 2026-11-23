@@ -153,3 +153,15 @@ body:has(.pw-overview) .cb-header-inner {min-height:64px;padding:0 24px;}
 .pt-week-column .pt-entry-icon {width:32px;}
 .pt-week-column .pt-entry-copy {overflow-wrap:anywhere;}
 @media(max-width:850px){.pt-week-column > .pt-entry {flex-basis:140px;}}
+
+/* Patient goals stay with identity; activity documents belong beside diaries. */
+.pt-treatment-goal {display:flex;flex-wrap:wrap;gap:4px 10px;margin:8px 52px 0 0;max-width:65ch;font-size:15px;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap;color:#0d3b66;}
+.pt-treatment-goal strong {font-weight:600;}
+.pt-activities-heading {flex-wrap:wrap;}
+.pt-activity-links {display:flex;flex-wrap:wrap;gap:8px;flex-basis:100%;}
+.pt .pt-activity-links a {display:flex;align-items:center;min-height:38px;padding:8px 12px;border:1px solid #a3b1c2;border-radius:8px;color:#0d3b66;background:#fff;font-size:14px;font-weight:500;text-decoration:none;}
+.pt .pt-activity-links a:hover {background:#d0f0ff;border-color:#008480;}
+.pt-calendar-activities {display:flex;justify-content:flex-end;margin:0 24px 16px;}
+.pt-calendar-activities .pt-activity-links {flex-basis:auto;}
+.pt-mobile-activities {display:none;}
+@media(max-width:850px){.pt-treatment-goal{margin-inline-start:0}.pt-mobile-activities{display:block;padding:12px;margin-bottom:12px}.pt-mobile-activities h3{margin:0 0 10px;font-size:18px}.pt-calendar-activities{margin-inline:16px;justify-content:flex-start}}

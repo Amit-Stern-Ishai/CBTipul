@@ -24,7 +24,7 @@ async function fixture(context:BrowserContext,options:{readOnly?:boolean;nameDel
    if(options.nameFailure){status=503;data={code:'service_unavailable'};}
    else data={names:[{patient_id:patient.toUpperCase(),name:options.missingName?null:'מטופלת לדוגמה א',revision:'1',updated_at:null},{patient_id:other,name:'מטופל לדוגמה ב',revision:'2',updated_at:null}],next_after:null};
   }
-  else if(path.endsWith('/load-patients'))data={records:[{id:patient,active:true,notes:null,formulation:null,_version:'v'},{id:other,active:true,notes:null,formulation:null,_version:'v'}].filter(r=>!body.id||r.id===body.id),next_cursor:null};
+  else if(path.endsWith('/load-patients'))data={records:[{id:patient,active:true,notes:null,formulation:{treatmentGoal:'להרגיש בטחון ולחזור לפעילויות החשובות לי'},_version:'v'},{id:other,active:true,notes:null,formulation:null,_version:'v'}].filter(r=>!body.id||r.id===body.id),next_cursor:null};
   else if(path.endsWith('/load-sessions')||path.endsWith('/load-questionnaires')) {
     const table=path.endsWith('/load-sessions')?'Sessions':'CombinedMood';
     data={records:records[table].filter(r=>!body.patient_id||r.patient_id===body.patient_id).map(r=>Object.fromEntries(Object.entries({...r,_version:'v'}).filter(([k])=>body.view!=='shared'||!['notes','combined_notes'].includes(k)))),next_cursor:null};
@@ -303,6 +303,13 @@ test('source-matched patient overview: calendar, weekly columns, filters and rec
  await page.setViewportSize({width:1440,height:1000});
  await page.goto(`/app/patients/${patient}/overview`);
  await expect(page.getByRole('button',{name:'רשימה',exact:true})).toHaveAttribute('aria-pressed','true');
+ await expect(page.locator('.pt-treatment-goal')).toContainText('להרגיש בטחון ולחזור לפעילויות החשובות לי');
+ await expect(page.locator('.pt-primary-actions').getByRole('link',{name:'המשגה',exact:true})).toHaveCount(0);
+ await expect(page.locator('.pt-primary-actions').getByRole('link',{name:'ערעור אמונת יסוד',exact:true})).toHaveCount(0);
+ await expect(page.locator('.pt-activities-heading').getByRole('heading',{name:'פעילויות',exact:true})).toBeVisible();
+ await expect(page.locator('.pt-activities-heading').getByRole('link',{name:'המשגה',exact:true})).toHaveAttribute('href',`/app/patients/${patient}/conceptualization`);
+ await expect(page.locator('.pt-activities-heading').getByRole('link',{name:'ערעור אמונת יסוד',exact:true})).toHaveAttribute('href',`/app/patients/${patient}/core_belief`);
+
  await expect(page.locator('.pt-week-columns .pt-entry')).toHaveCount(6);
  await page.getByRole('button',{name:'לוח שנה',exact:true}).click();
  await expect(page.locator('.pt-day .pt-entry')).toHaveCount(6);
