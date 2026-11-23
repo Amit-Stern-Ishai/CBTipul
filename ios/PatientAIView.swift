@@ -100,6 +100,8 @@ struct PatientAIView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             inputBar
         }
+        .onDisappear { typingTask?.cancel(); AIDataSharingConsentStore.shared.cancelPending() }
+        .onChange(of: patient.id) { _, _ in typingTask?.cancel(); AIDataSharingConsentStore.shared.cancelPending() }
         .demoModeChrome()
         .navigationTitle(L10n.aiPatientPickerTitle)
         .navigationBarTitleDisplayMode(.inline)

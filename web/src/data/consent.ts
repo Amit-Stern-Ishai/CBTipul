@@ -4,7 +4,7 @@ export const consentVersions = {
   patient_name_storage: "2026-10-29",
   terms_privacy: "2026-08-29",
   clinical_text_processing: "2026-10-14",
-  ai_data_sharing: "2026-08-29",
+  ai_data_sharing: "2026-11-22",
 } as const;
 export type ConsentType = keyof typeof consentVersions;
 export type ConsentDecision = "accepted" | "declined" | "revoked";
@@ -65,6 +65,7 @@ function errorName(error: unknown) {
     : (e.code ?? "");
 }
 export class ConsentStore {
+  presentAI?: () => Promise<void>;
   private account: string | null = null;
   private generation = 0;
   private receipts = new Map<ConsentType, ConsentRecord>();
@@ -319,10 +320,28 @@ export class ConsentStore {
     this.update(type, { record: null, error: "consent_lookup" });
   }
   async require(account: string, type: ConsentType) {
-    if (this.snapshot(account, type).pending)
-      throw new ConsentError("consent_persist");
-    if ((await this.lookup(account, type)).status !== "accepted")
-      throw new ConsentError("consent");
+    const accountCheck = this.context(account);
+    const presenter = this.presentAI;
+    const check = () => {
+      accountCheck();
+      if(type === "ai_data_sharing" && presenter !== this.presentAI) throw new ConsentError("stale");
+    };
+    try {
+      if (this.snapshot(account, type).pending) throw new ConsentError("consent_persist");
+      const receipt = await this.lookup(account, type);
+      check();
+      if (receipt.status === "accepted") return;
+    } catch (error) {
+      check();
+      if (type !== "ai_data_sharing" || !this.presentAI) throw error;
+    }
+    check();
+    if(type === "ai_data_sharing" && this.presentAI) {
+      await this.presentAI();
+      check();
+      if(this.snapshot(account,type).record?.status === "accepted") return;
+    }
+    throw new ConsentError("consent");
   }
 }
 export const consents = new ConsentStore(

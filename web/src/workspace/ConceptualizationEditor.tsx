@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {useWrite} from '../ui/hooks';
 import {DirtyGuard} from '../ui/shared';
 import {ApiError,api} from '../data/api';
+import {ConsentError} from '../data/consent';
 import {conceptualization,conceptualSections,emptyConcept,validConcept,type ConceptDocument,type ConceptRecord} from '../data/conceptualization';
 import './conceptualization.css';
 import './reading.css';
@@ -19,7 +20,7 @@ export function ConceptualizationEditor({patient,shared=false,onDraftState}:{pat
   try {const result=await conceptualization(action,patient,record?.revision??null,draft);if(!alive.current)return;
    setRecord(result);setDraft(result.document??emptyConcept());setLoaded(true);setConflict(false);setEditing(false);
    setMessage(action==='save'?'ההמשגה נשמרה':action==='publish'?'ההמשגה נשלחה למטופל/ת':'');
-  }catch(e){if(!alive.current)return;const code=e instanceof ApiError?e.code:'';setConflict(code==='revision_conflict');setError(code==='revision_conflict'?'ההמשגה השתנתה במכשיר אחר. השינויים שלכם נשארו כאן.':code==='access'?'אין הרשאה לפעולה זו.':'לא ניתן לאשר שהפעולה הושלמה. השינויים נשארו כאן. אפשר לנסות שוב.');}
+  }catch(e){if(!alive.current)return;const code=e instanceof ApiError?e.code:'';setConflict(code==='revision_conflict');setError(code==='revision_conflict'?'ההמשגה השתנתה במכשיר אחר. השינויים שלכם נשארו כאן.':code==='access'?'אין הרשאה לפעולה זו.':action==='load_draft'?'לא הצלחנו לטעון את ההמשגה. אפשר לנסות שוב.':'לא ניתן לאשר שהפעולה הושלמה. השינויים נשארו כאן. אפשר לנסות שוב.');}
   finally{if(alive.current)setBusy(false);}
  }
  useEffect(()=>{void run('load_draft');/* scoped by parent account/patient key */},[]);
@@ -51,4 +52,4 @@ function ConceptSuggestions({patient,section,draft,disabled,onAdd}:{patient:stri
  return <div className="concept-suggestions"><button className="concept-ai-option" disabled={disabled||loading} onClick={()=>void generate()}>{loading?'מכינים הצעות…':error?'ניסיון נוסף — הצעות AI':'הצעות AI'}</button>
  {error&&<p role="alert">{error}</p>}{values&&<div aria-live="polite">{values.length===0?<p>אין מספיק מידע להצעות</p>:<><p className="muted">הצעות לבדיקה — בחרו מה להוסיף</p>{values.map(text=><label className="concept-suggestion" key={text}><input type="checkbox" checked={picked.includes(text)} disabled={disabled} onChange={e=>setPicked(p=>e.target.checked?[...p,text]:p.filter(v=>v!==text))}/><span>{text}</span></label>)}<button className="secondary" disabled={disabled||!picked.length||draft[section].length+picked.filter(v=>!draft[section].includes(v)).length>30} onClick={()=>{onAdd(picked);setValues(null);setPicked([]);}}>הוספת הנבחרות</button></>}</div>}</div>;
 }
-function conceptSuggestionError(error:unknown){const code=error instanceof ApiError?error.code:'';return code==='access'?'אין הרשאה להצעות עבור המטופל/ת. חזרו לתיק ונסו שוב.':code==='too_large'?'המידע ארוך מדי לעיבוד. קצרו את הטיוטה ונסו שוב.':code==='quota'?'מכסת ה־AI נוצלה. אפשר להמשיך לערוך ידנית ולנסות לאחר חידוש המכסה.':code==='rate_limit'?'נשלחו בקשות רבות. המתינו מעט ונסו שוב.':code.startsWith('consent')?'יש לאשר שימוש ב־AI לפני קבלת הצעות. נסו שוב.':'לא הצלחנו לקבל הצעות. הטיוטה לא השתנתה. נסו שוב.';}
+export function conceptSuggestionError(error:unknown){const code=error instanceof ApiError||error instanceof ConsentError?error.code:'';if(code==='consent_lookup')return 'לא הצלחנו לבדוק את אישור השימוש ב־AI. אפשר לנסות שוב ולהמשיך לערוך ידנית.';if(code==='consent_unavailable')return 'בדיקת אישור השימוש ב־AI אינה זמינה כרגע. אפשר להמשיך לערוך ידנית.';return code==='access'?'אין הרשאה להצעות עבור המטופל/ת. חזרו לתיק ונסו שוב.':code==='too_large'?'המידע ארוך מדי לעיבוד. קצרו את הטיוטה ונסו שוב.':code==='quota'?'מכסת ה־AI נוצלה. אפשר להמשיך לערוך ידנית ולנסות לאחר חידוש המכסה.':code==='rate_limit'?'נשלחו בקשות רבות. המתינו מעט ונסו שוב.':code.startsWith('consent')?'יש לאשר שימוש ב־AI לפני קבלת הצעות. נסו שוב.':'לא הצלחנו לקבל הצעות. הטיוטה לא השתנתה. נסו שוב.';}

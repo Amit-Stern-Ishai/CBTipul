@@ -115,7 +115,7 @@ struct CoreBeliefWorksheetView: View {
     @ViewBuilder private func rating(_ title: String, value: Binding<Int?>) -> some View {
         if editing && !readOnly {
             VStack(alignment: .leading, spacing: 4) {
-                DiaryFeelingIntensityControl(intensity: value, title: title, requiresExplicitChoice: true)
+                DiaryFeelingIntensityControl(intensity: value, title: title, requiresExplicitChoice: false)
                 if value.wrappedValue != nil { Button("ניקוי דירוג") { value.wrappedValue = nil }.font(BrandTypography.caption) }
             }.disabled(busy || !canWrite)
         } else {

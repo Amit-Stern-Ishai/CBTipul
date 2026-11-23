@@ -276,11 +276,15 @@ fun PatientDetailScreen(
     }
 
     fun startMic() {
-        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-            PackageManager.PERMISSION_GRANTED
-        if (granted) recorder.startRecording() else {
-            requestingRecording = true
-            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        requestingRecording = true
+        scope.launch {
+            try {
+                conceptApp.aiConsentStore.ensureGranted()
+                val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                if (granted) recorder.startRecording() else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            } catch (_: com.cbtipul.app.model.ConsentDeclinedException) {
+                // Manual editing remains available.
+            } finally { requestingRecording = false }
         }
     }
 

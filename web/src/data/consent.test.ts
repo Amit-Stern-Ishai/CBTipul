@@ -454,3 +454,38 @@ describe("persistent consent revision contract (modeled RPC, not live Supabase)"
   });
 
 });
+
+describe('shared AI notice flow (mocked server)', () => {
+  it('acceptance on another client needs no second prompt', async()=>{
+    const {s,b}=store();
+    await s.decide('a','ai_data_sharing','accepted');
+    const other=new ConsentStore(b.rpc,true);other.setAccount('a');other.presentAI=vi.fn();
+    await other.require('a','ai_data_sharing');expect(other.presentAI).not.toHaveBeenCalled();
+  });
+  it('missing receipt waits for confirmed acceptance',async()=>{
+    const {s}=store();
+    s.presentAI=async()=>{await s.decide('a','ai_data_sharing','accepted');};
+    await s.require('a','ai_data_sharing');expect(s.snapshot('a','ai_data_sharing').record?.status).toBe('accepted');
+  });
+  it('decline or dialog dismissal never grants consent',async()=>{
+    const {s,b}=store();s.presentAI=async()=>{throw new Error('declined');};
+    await expect(s.require('a','ai_data_sharing')).rejects.toThrow();
+    expect(b.requests.size).toBe(0);
+  });
+  it('account switch while notice is open cancels original action',async()=>{
+    const {s}=store();s.presentAI=async()=>{s.setAccount('b');};
+    await expect(s.require('a','ai_data_sharing')).rejects.toMatchObject({code:'stale'});
+  });
+  it('failed receipt write does not resume clinical action',async()=>{
+    const {s,b}=store();s.presentAI=async()=>{b.refuse('consent_registry_not_ready');await s.decide('a','ai_data_sharing','accepted');};
+    await expect(s.require('a','ai_data_sharing')).rejects.toThrow();expect(s.snapshot('a','ai_data_sharing').record?.status).not.toBe('accepted');
+  });
+});
+
+it('cancels a receipt lookup when the private patient context disappears',async()=>{
+  const result=deferred<{data:unknown;error:null}>();
+  const s=new ConsentStore(()=>result.promise,true);s.setAccount('a');s.presentAI=async()=>{};
+  const action=s.require('a','ai_data_sharing');s.presentAI=undefined;
+  result.resolve({data:receipt('ai_data_sharing','accepted',1),error:null});
+  await expect(action).rejects.toMatchObject({code:'stale'});
+});

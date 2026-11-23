@@ -109,6 +109,9 @@ fun PatientsNavHost(
     val isDemoMode by viewModel.isDemoMode.collectAsStateWithLifecycle()
     val routerState by viewModel.gettingStartedState.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
+    androidx.compose.runtime.DisposableEffect(backStackEntry?.id) {
+        onDispose { app.aiConsentStore.cancelPending() }
+    }
     val discoveryAccount = app.authRepository.currentUserId()
     val milestoneIdentity by com.cbtipul.app.data.Entitlements.state.collectAsStateWithLifecycle()
     val handledCreations = remember(discoveryAccount) { mutableSetOf<String>() }

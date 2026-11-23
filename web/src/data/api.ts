@@ -139,7 +139,8 @@ async function clinical(
   checkpoint();
   if (!text.trim()) return "";
   if (!identity) throw new ApiError("access");
-  await consents.require(identity, consentType);
+  await consents.require(identity, "ai_data_sharing");
+  if (consentType !== "ai_data_sharing") await consents.require(identity, consentType);
   checkpoint();
   const r = await fn<{ anonymizedText: string }>(
     "anonymize-clinical-text",

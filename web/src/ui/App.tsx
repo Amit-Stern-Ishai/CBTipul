@@ -16,6 +16,8 @@ import { consents } from "../data/consent";
 import { useQuery } from "@tanstack/react-query";
 import { ConsentBoundary } from "./ConsentBoundary";
 
+import { AIConsentPrompt } from "./AIConsentPrompt";
+
 import nav from "../site-navigation.json";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: true, gcTime: 300_000 }, mutations: { retry: false } } });
@@ -30,7 +32,7 @@ function Gate() {
   if (access.isPending) return <Loading />;
   if (access.isError && !access.data) return <main className="gate"><ErrorBox error={access.error} retry={() => void access.refetch()} /><button onClick={() => void logout()}>{he.Profile001}</button></main>;
   if (!therapistAllowed(session.user, access.data ?? null)) return <Denied logout={logout} />;
-  return <ConsentBoundary key={id} account={id!} type="terms_privacy" title={he.App001} description={he.App002} accept={he.App003} decline={logout} declineLabel={he.Profile001} wording={<><details open><summary>{he.Login024}</summary><p className="prose">{legal.termsBody}</p></details><details><summary>{he.Login025}</summary><p className="prose">{legal.privacyBody}</p></details></>}><Outlet context={{ account: id, canWrite: access.data?.entitlement?.access === "full", logout }} /></ConsentBoundary>;
+  return <ConsentBoundary key={id} account={id!} type="terms_privacy" title={he.App001} description={he.App002} accept={he.App003} decline={logout} declineLabel={he.Profile001} wording={<><details open><summary>{he.Login024}</summary><p className="prose">{legal.termsBody}</p></details><details><summary>{he.Login025}</summary><p className="prose">{legal.privacyBody}</p></details></>}><AIConsentPrompt account={id!}/><Outlet context={{ account: id, canWrite: access.data?.entitlement?.access === "full", logout }} /></ConsentBoundary>;
 }
 function Denied({ logout }: { logout: () => Promise<void> }) { return <main className="gate"><h1>{he.App004}</h1><p>{he.App005}</p><button onClick={() => void logout()}>{he.Profile001}</button></main>; }
 function WorkspaceRoute() { const {session}=useAuth(); return <NamesConsent><PatientWorkspace key={session!.user.id}/></NamesConsent>; }

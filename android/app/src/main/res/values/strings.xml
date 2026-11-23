@@ -122,7 +122,7 @@
     <string name="privacy_policy_title">מדיניות פרטיות</string>
     <string name="settings_support_title">תמיכה</string>
     <string name="settings_privacy_choices_title">בחירות פרטיות</string>
-    <string name="ai_consent_title">שימוש בשירותי בינה מלאכותית</string>
+    <string name="ai_consent_title">שימוש בכלי בינה מלאכותית</string>
     <string name="ai_consent_accept_action">אישור והמשך</string>
     <string name="ai_consent_decline_action">לא עכשיו</string>
     <string name="settings_ai_consent_title">שיתוף מידע עם שירותי בינה מלאכותית</string>

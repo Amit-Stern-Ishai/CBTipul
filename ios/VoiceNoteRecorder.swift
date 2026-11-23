@@ -22,6 +22,8 @@ final class VoiceNoteRecorder {
     func startRecording(destination: URL? = nil) async {
         guard EntitlementState.shared.allowMutation() else { return }
         errorMessage = nil
+        do { try await AIDataSharingConsentStore.ensureGranted() }
+        catch { errorMessage = error.userFacingMessage; return }
 
         guard await AVAudioApplication.requestRecordPermission() else {
             errorMessage = L10n.micPermissionDenied

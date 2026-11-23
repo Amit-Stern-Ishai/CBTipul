@@ -1360,3 +1360,7 @@ a { text-underline-offset: .2em; }
   .auth-mobile-brand { display: flex; align-items: center; gap: 12px; direction: ltr; color: var(--brand); font-size: 23px; font-weight: 700; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid var(--gold); }
   .auth-mobile-brand img { width: 48px; height: 48px; border-radius: 12px; }
 }
+
+.ai-consent-dialog { max-width: min(38rem, calc(100vw - 2rem)); max-height: 85vh; overflow:auto; padding: 1.5rem; border:1px solid #c6dce5; border-radius: 18px; color:#123954; background:#fff; }
+.ai-consent-dialog::backdrop { background: rgb(4 30 50 / .55); }
+.ai-consent-dialog p { line-height:1.75; }

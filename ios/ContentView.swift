@@ -236,9 +236,10 @@ struct ContentView: View {
             hasAcceptedTerms = email.map(TermsAcceptance.hasAccepted) ?? false
             // AI data-sharing consent is per account too: switching users
             // swaps in that account's own stored decision.
-            AIDataSharingConsentStore.shared.setActiveUser(email: email)
+
         }
         .onChange(of: auth.currentUserId, initial: true) { _, userId in
+            AIDataSharingConsentStore.shared.configure(account: userId, client: auth.client)
             claimVerificationNotice = nil; resendingClaimVerification = false
             store.nameSync.setAccount(nil)
             entitlement.setIdentity(userId)

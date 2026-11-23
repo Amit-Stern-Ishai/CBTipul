@@ -567,6 +567,7 @@ test('core belief worksheet partial saves, published snapshot, conflict, focused
  await context.route('**/functions/v1/core-belief-restructuring',async route=>{const body=route.request().postDataJSON();calls.push(body);if(body.action==='load_draft')return route.fulfill({json:current});if(body.expected_revision!==current.revision)return route.fulfill({status:409,json:{error:'revision_conflict'}});if(body.action==='save')current={...current,document:structuredClone(body.document),revision:`revision-${++serial}`,updated_at:'2026-11-22T12:00:00Z'};if(body.action==='publish'){sent=structuredClone(current.document);current={...current,published_revision:current.revision,published_at:'2026-11-22T12:00:00Z'};}return route.fulfill({json:current});});
  await page.setViewportSize({width:1440,height:1000});await page.goto(`/app/shared/${patient}/core_belief`);
  await expect(page.getByRole('heading',{name:'ערעור אמונת יסוד',exact:true})).toBeVisible();
+ await expect(page.getByLabel('עכשיו — מחוון',{exact:true}).first()).toHaveValue('80');
  await page.getByLabel('האמונה',{exact:true}).first().fill('A — לפעמים אני חושב שעליי להצליח בכל דבר');await page.getByLabel('עכשיו — אחוז',{exact:true}).first().fill('0');
  await page.getByLabel('עכשיו — מחוון',{exact:true}).first().fill('25');
  await expect(page.getByLabel('עכשיו — אחוז',{exact:true}).first()).toHaveValue('25');
@@ -595,4 +596,41 @@ test('core belief worksheet partial saves, published snapshot, conflict, focused
  await second.getByRole('button',{name:'תצוגה מלאה',exact:true}).click();await second.screenshot({animations:'disabled',path:info.outputPath('core-overview-read.png'),fullPage:true});
  await second.setViewportSize({width:390,height:844});await second.screenshot({animations:'disabled',path:info.outputPath('core-narrow.png'),fullPage:true});expect(await second.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  expect(f.requests.some(r=>/load-sessions|load-patients|patient-names|suggest-|anonymize/.test(r.path))).toBe(false);await expect(second.locator('.cb-header,.pw-picker')).toHaveCount(0);await expect(second.getByText('PRIVATE_NOTE_SENTINEL')).toHaveCount(0);await second.close();
+});
+
+
+test('conceptualization load failure shows a load error and retries without writing',async({context,page})=>{
+ await fixture(context);const actions:string[]=[];let fail=true;
+ await context.route('**/functions/v1/patient-conceptualization',async route=>{
+  actions.push(route.request().postDataJSON().action);
+  if(fail)return route.abort('failed');
+  return route.fulfill({json:{patient_id:patient,document:null,revision:null,published_revision:null,published_at:null}});
+ });
+ await page.goto(`/app/patients/${patient}/conceptualization`);
+ await expect(page.getByRole('alert')).toContainText('לא הצלחנו לטעון את ההמשגה. אפשר לנסות שוב.');
+ await expect(page.getByRole('alert')).not.toContainText('השינויים נשארו כאן');
+ fail=false;await page.getByRole('button',{name:'טעינה מחדש',exact:true}).click();
+ await expect(page.getByRole('button',{name:'יצירת המשגה',exact:true})).toBeVisible();
+ expect(actions).toEqual(['load_draft','load_draft']);
+});
+
+test('new AI notice gates content, preserves manual edits on decline, and shares server acceptance',async({context,page},info)=>{
+ await conceptFixture(context);
+ let accepted=false, writes=0, aiCalls=0;
+ await context.route('**/rest/v1/rpc/*',async route=>{
+  const body=route.request().postDataJSON();if(body?.p_consent_type!=='ai_data_sharing')return route.fallback();
+  expect(body.p_required_version).toBe('2026-11-22');
+  if(route.request().url().endsWith('/record_my_consent')){writes++;expect(Object.keys(body)).toHaveLength(5);accepted=true;}
+  return route.fulfill({json:{therapist_id:user.id,consent_type:'ai_data_sharing',required_version:'2026-11-22',accepted_version:accepted?'2026-11-22':null,accepted_at:accepted?'2026-11-22T10:00:00Z':null,revoked_at:null,status:accepted?'accepted':'required',revision:accepted?1:0}});
+ });
+ await context.route('**/functions/v1/suggest-conceptualization-section',r=>{aiCalls++;return r.fulfill({json:{suggestions:[]}});});
+ await page.goto(`/app/patients/${patient}/conceptualization`);await page.getByRole('button',{name:'עריכה',exact:true}).click();
+ await page.getByLabel('אמונת יסוד 1',{exact:true}).fill('טיוטה סינתטית');
+ await page.getByRole('button',{name:'הצעות AI',exact:true}).first().click();
+ const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();await expect(dialog).toContainText('שימוש בכלי בינה מלאכותית');await expect(dialog).toContainText('פרטים מזהים אינם מוסרים באופן אוטומטי לפני השליחה.');
+ expect(aiCalls).toBe(0);await dialog.getByRole('button',{name:'לא עכשיו',exact:true}).click();await expect(dialog).not.toBeVisible();expect(writes).toBe(0);expect(aiCalls).toBe(0);await expect(page.getByLabel('אמונת יסוד 1',{exact:true})).toHaveValue('טיוטה סינתטית');
+ await page.getByRole('button',{name:'הצעות AI',exact:true}).first().click();await expect(dialog).toBeVisible();
+ await page.screenshot({path:info.outputPath('ai-consent-hebrew.png'),fullPage:true});
+ await dialog.getByRole('button',{name:'אישור והמשך',exact:true}).click();await expect(dialog).not.toBeVisible();await expect.poll(()=>aiCalls).toBe(1);
+ const second=await context.newPage();await second.goto(`/app/patients/${patient}/conceptualization`);await second.getByRole('button',{name:'עריכה',exact:true}).click();await second.getByRole('button',{name:'הצעות AI',exact:true}).first().click();await expect.poll(()=>aiCalls).toBe(2);await expect(second.getByRole('dialog')).not.toBeVisible();expect(writes).toBe(1);
 });

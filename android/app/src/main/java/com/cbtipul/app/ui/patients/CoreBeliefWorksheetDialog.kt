@@ -156,7 +156,7 @@ private fun CoreBeliefFields(draft: CoreBeliefWorksheet, editing: Boolean, enabl
 }
 @Composable private fun CoreRating(title:String,value:Int?,editing:Boolean,enabled:Boolean,change:(Int?)->Unit) {
     if(editing) {
-        DiaryFeelingIntensityControl(intensity=value,title=title,requiresExplicitChoice=true,enabled=enabled,onIntensityChange={change(it)})
+        DiaryFeelingIntensityControl(intensity=value,title=title,requiresExplicitChoice=false,enabled=enabled,onIntensityChange={change(it)})
         if(value!=null) TextButton(enabled=enabled,onClick={change(null)}) { Text("ניקוי דירוג") }
     } else Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
         Text(title,color=Theme.colors.textBody)

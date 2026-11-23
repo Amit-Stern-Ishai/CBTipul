@@ -371,6 +371,7 @@ fun SessionEditorScreen(
         requestingRecording = true
         scope.launch {
             try {
+                try { recoveryApp.aiConsentStore.ensureGranted() } catch (_: com.cbtipul.app.model.ConsentDeclinedException) { return@launch }
                 if (!checkAllowance(seconds = 0.0)) return@launch
                 if (granted) {
                     try { recorder.startRecording(editorDraft.beginAudio(context)) }

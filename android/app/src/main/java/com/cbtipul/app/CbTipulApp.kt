@@ -144,7 +144,7 @@ class CbTipulApp : Application() {
             onPushReceived = { applicationScope.launch { pushRevision.value += 1; notifications.refresh() } },
         )
         pushManager.start()
-        aiConsentStore = AiConsentStore(preferences)
+        aiConsentStore = AiConsentStore(call = { name, params -> com.cbtipul.app.data.PatientNameSync.callService(client, name, params) }, currentAccount = { authRepository.currentUserId() })
         onboardingStore = OnboardingStore(this)
         demoClinicStore = DemoClinicStore(this)
         val anonymizer = ClinicalTextAnonymizer(client, aiConsentStore)

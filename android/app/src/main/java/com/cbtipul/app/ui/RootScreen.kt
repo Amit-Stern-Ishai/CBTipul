@@ -145,10 +145,9 @@ fun RootScreen() {
     val consentPrompt by app.aiConsentStore.promptVisible.collectAsStateWithLifecycle()
     val textSize by app.preferences.textSize.collectAsStateWithLifecycle(AppTextSize.System)
     val appearance by app.preferences.appearance.collectAsStateWithLifecycle(AppAppearance.Dark)
-    val consentAcceptedFlow = remember(therapistIdentity) {
-        therapistIdentity?.let { app.preferences.hasAcceptedAiConsent(it) } ?: flowOf(false)
-    }
-    val aiConsentAccepted by consentAcceptedFlow.collectAsStateWithLifecycle(initialValue = false)
+    val aiConsentAccepted by app.aiConsentStore.accepted.collectAsStateWithLifecycle()
+    val aiConsentBusy by app.aiConsentStore.busy.collectAsStateWithLifecycle()
+    val aiConsentFailed by app.aiConsentStore.failed.collectAsStateWithLifecycle()
     val onboardingHydrated by app.onboardingStore.isHydrated.collectAsStateWithLifecycle()
     val onboardingIdentity by app.onboardingStore.hydratedIdentity.collectAsStateWithLifecycle()
     val shouldShowIntroduction by app.onboardingStore.shouldShowIntroduction.collectAsStateWithLifecycle()
@@ -157,8 +156,8 @@ fun RootScreen() {
     LaunchedEffect(therapistIdentity, isTherapist) {
         app.onboardingStore.setActiveUser(therapistIdentity.takeIf { isTherapist })
     }
-    LaunchedEffect(therapistIdentity) {
-        app.aiConsentStore.setActiveUser(therapistIdentity)
+    LaunchedEffect(signedIn?.userId, isTherapist) {
+        app.aiConsentStore.setActiveUser(signedIn?.userId.takeIf { isTherapist })
     }
     var showSettings by remember { mutableStateOf(false) }
     var showPatientSettings by remember { mutableStateOf(false) }
@@ -583,6 +582,7 @@ fun RootScreen() {
 
         if (consentPrompt && !recovering && isTherapist) {
             AiConsentDialog(
+                busy = aiConsentBusy, failed = aiConsentFailed,
                 onAccept = { scope.launch { app.aiConsentStore.accept() } },
                 onDecline = { scope.launch { app.aiConsentStore.decline() } },
             )

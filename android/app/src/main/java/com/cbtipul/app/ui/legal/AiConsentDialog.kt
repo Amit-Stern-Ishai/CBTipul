@@ -22,6 +22,8 @@ import com.cbtipul.app.ui.theme.Theme
 
 @Composable
 fun AiConsentDialog(
+    busy: Boolean = false,
+    failed: Boolean = false,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
 ) {
@@ -51,15 +53,17 @@ fun AiConsentDialog(
                 .verticalScroll(rememberScrollState()),
             textAlign = TextAlign.Right,
         )
+        if (failed) Text("לא ניתן לאשר את ההסכמה כרגע. אפשר לנסות שוב או להמשיך לעבוד ידנית.")
         Button(
+            enabled = !busy,
             onClick = onAccept,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = colors.accentFill,
                 contentColor = colors.textOnAccent,
             ),
-        ) { Text(stringResource(R.string.ai_consent_accept_action)) }
-        TextButton(onClick = onDecline, modifier = Modifier.fillMaxWidth()) {
+        ) { Text(if (busy) "בודק…" else if (failed) "ניסיון נוסף" else stringResource(R.string.ai_consent_accept_action)) }
+        TextButton(enabled = !busy, onClick = onDecline, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.ai_consent_decline_action), color = colors.gold)
         }
     }

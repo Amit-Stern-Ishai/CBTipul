@@ -800,6 +800,7 @@ struct SessionEditorView: View {
                 dismiss()
             }
             .onDisappear {
+                AIDataSharingConsentStore.shared.cancelPending()
                 voiceRecorder.stopRecording(); persistRecovery()
                 if isAnalyzing {
                     analysisTask?.cancel()
@@ -1103,6 +1104,7 @@ struct SessionEditorView: View {
         .pickerStyle(.menu)
         .accessibilityIdentifier("session.patient")
         .onChange(of: selectedPatientID) { _, _ in
+            AIDataSharingConsentStore.shared.cancelPending()
             gettingStartedRouter.setPlacement(.sessionEditor, viewingPatientID: storePatient?.id)
         }
     }
@@ -1173,6 +1175,7 @@ struct SessionEditorView: View {
                     do {
                         guard let owner = recoveryAccount, owner == auth.currentUserId else { throw ClientFailure.expiredLogin }
                         try await checkAllowance(needsTokens: true, recordingSeconds: 0)
+                        try await AIDataSharingConsentStore.ensureGranted()
                         guard owner == auth.currentUserId else { throw CancellationError() }
                         let url = try SessionAudioRecovery.create(account: owner)
                         audioFileName = url.lastPathComponent

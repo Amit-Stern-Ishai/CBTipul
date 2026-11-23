@@ -495,7 +495,7 @@ struct PatientDetailView: View {
             gettingStartedRouter.refresh(using: store)
             applyGettingStartedFocusIfNeeded()
         }
-        .onDisappear { cancelPreparation() }
+        .onDisappear { cancelPreparation(); AIDataSharingConsentStore.shared.cancelPending() }
         .onChange(of: auth.currentUserId) { _, _ in
             cancelPreparation()
             preparationAction.invalidate()

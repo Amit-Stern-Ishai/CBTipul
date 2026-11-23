@@ -56,12 +56,14 @@ function Section({ title, hint, kind = "event", children }: { title: string; hin
 export function Rating({
   title,
   label,
+  defaultValue = 50,
   value,
   disabled,
   onChange,
 }: {
   title: string;
   label?: string;
+  defaultValue?: number;
   value: unknown;
   disabled: boolean;
   onChange: (value: number | null) => void;
@@ -89,7 +91,7 @@ export function Rating({
         <span aria-hidden="true">%</span>
       </div>
       <div className="ww-rating-track" data-empty={current===null} style={{"--rating-fill":`${current??0}%`} as CSSProperties}>
-        <input aria-label={`${title} — מחוון`} aria-valuetext={current===null?'טרם נבחרה עוצמה':`${current}%`} type="range" dir="rtl" min={0} max={100} step={1} value={current??50} disabled={disabled} onChange={e=>onChange(Number(e.target.value))} onPointerUp={e=>{if(current===null)onChange(Number(e.currentTarget.value));}}/>
+        <input aria-label={`${title} — מחוון`} aria-valuetext={current===null?'טרם נבחרה עוצמה':`${current}%`} type="range" dir="rtl" min={0} max={100} step={1} value={current??defaultValue} disabled={disabled} onChange={e=>onChange(Number(e.target.value))} onPointerUp={e=>{if(current===null)onChange(Number(e.currentTarget.value));}}/>
         <div className="ww-rating-scale" aria-hidden="true" dir="rtl"><span>0%</span>{current===null&&<span>בחירת עוצמה</span>}<span>100%</span></div>
       </div>
     </div>
