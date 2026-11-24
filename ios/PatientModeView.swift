@@ -37,6 +37,24 @@ struct PatientModeView: View {
     @State private var showingDiaryOneHistory = false
     @State private var loadState: LoadState = .loading
     @State private var assignments: [PatientAssignment] = []
+    @State private var activitiesLoadFailed = false
+    @State private var activitiesLoadedOwner: String?
+    @State private var activityRequest = PatientActivitiesRequest()
+    private var emptyActivitiesKey: String? {
+        guard let owner = auth.currentUserId, let patient = appContext.current?.patientId,
+              activitiesLoadedOwner == "\(owner):\(patient)", openAssignments.isEmpty else { return nil }
+        return "\(owner):\(patient)"
+    }
+    private func requestActivities(send: Bool) async {
+        guard let key = emptyActivitiesKey else { return }
+        let request = activityRequest
+        await request.run(send: send, current: { emptyActivitiesKey == key && activityRequest === request }) {
+            try await PatientAssignmentService(client: auth.client).requestActivities(send: $0)
+        }
+        if emptyActivitiesKey == key, activityRequest === request, request.state == .available {
+            await loadAssignments()
+        }
+    }
     @State private var messages: [PatientMessage] = []
     @State private var isShowingMessages = false
     @State private var openedMessageID: UUID?
@@ -364,17 +382,22 @@ struct PatientModeView: View {
                         compactToolRow(type, active: active)
                     }
                 }
-                if openAssignments.isEmpty && ![PatientAssignmentType.questionnaire, .diaryOne, .diaryTwo, .diaryThree].contains(where: { homeSnapshot.hasHistory($0) }) {
+                if emptyActivitiesKey != nil {
                     emptyState
                 }
-                if case .failed = loadState {
+                if activitiesLoadFailed || loadState == .failed {
                     Text(L10n.patientTasksLoadError).font(BrandTypography.footnote).foregroundStyle(Theme.error)
+                    Button("ניסיון נוסף") { Task { await loadAssignments() } }
                 }
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
         }
         .brandNavigationTitle(L10n.appTitle)
         .onAppear { refreshDrafts() }
+        .task(id: emptyActivitiesKey) {
+            activityRequest = PatientActivitiesRequest()
+            if emptyActivitiesKey != nil { await requestActivities(send: false) }
+        }
         .refreshable { await manualRefresh() }
     }
 
@@ -537,13 +560,28 @@ struct PatientModeView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.patientTasksEmptyTitle)
+            Text("אין כרגע פעילויות למילוי")
                 .font(BrandTypography.headline)
                 .foregroundStyle(Theme.textBright)
-            Text(L10n.patientTasksEmptyBody)
+            Text("כשהמטפל/ת יפעילו פעילות, היא תופיע כאן ותוכלו למלא אותה באפליקציה.")
                 .font(BrandTypography.body)
                 .foregroundStyle(Theme.textBody)
                 .fixedSize(horizontal: false, vertical: true)
+            if activityRequest.uncertain {
+                Text("לא ניתן לוודא שהבקשה נשלחה. אפשר לבדוק שוב.").font(BrandTypography.footnote).foregroundStyle(Theme.error)
+            }
+            switch activityRequest.state {
+            case .loading, .sending: ProgressView()
+            case .pending: Text("הבקשה נשלחה למטפל/ת").foregroundStyle(Theme.textBody)
+            case .ready:
+                Button("בקשה להפעלת פעילויות") { Task { await requestActivities(send: true) } }
+                    .buttonStyle(.borderedProminent)
+            case .failed:
+                Text("לא ניתן לבדוק את מצב הבקשה כרגע.").foregroundStyle(Theme.error)
+                Button("ניסיון נוסף") { Task { await requestActivities(send: false) } }
+            case .available:
+                Button("רענון פעילויות") { Task { await loadAssignments() } }
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -750,6 +788,8 @@ struct PatientModeView: View {
         async let diaryThree = try? PatientDiaryThreeService(client: client).loadPatientCreatedEntries(patientId: patientID)
         let results = await (fetchedAssignments, questionnaires, diaryOne, diaryTwo, diaryThree)
         guard userID == auth.currentUserId, patientID == appContext.current?.patientId else { return }
+        activitiesLoadFailed = results.0 == nil
+        activitiesLoadedOwner = results.0 == nil ? nil : "\(userID):\(patientID)"
         if let value = results.0 { assignments = value; homeSnapshot.assignments = value }
         if let value = results.1 { homeSnapshot.questionnaires = value }
         if let value = results.2 { homeSnapshot.diaryOne = value }
@@ -790,9 +830,10 @@ struct PatientModeView: View {
 
     private func refreshTools(lightweight: Bool) async {
         guard lightweight else { await loadAssignments(); return }
-        guard let patientID = appContext.current?.patientId,
+        guard let userID = auth.currentUserId, let patientID = appContext.current?.patientId,
               let loaded = try? await PatientAssignmentService(client: auth.client).patientAssignments(patientId: patientID),
-              patientID == appContext.current?.patientId else { return }
+              userID == auth.currentUserId, patientID == appContext.current?.patientId else { return }
+        activitiesLoadedOwner = "\(userID):\(patientID)"
         assignments = loaded
         homeSnapshot.assignments = loaded
         if let userID = auth.currentUserId {

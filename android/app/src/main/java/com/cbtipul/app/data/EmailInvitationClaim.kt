@@ -36,7 +36,8 @@ internal class EmailInvitationClaim(
         if (state.value in setOf(State.Confirmation, State.Unavailable)) mutableState.value = State.Done
     }
     suspend fun resolve(context: AppContext, reload: suspend () -> AppContext): AppContext? {
-        if (context.role == AppRole.Patient) { mutableState.value = State.Done; return context }
+        if (context.isActivePatient) { awaitingPatient = false; mutableState.value = State.Done; return context }
+        if (context.role == AppRole.Patient && !eligible()) return context
         if (state.value == State.Done) return context
         if (state.value != State.Idle) return null
         if (!attempted && !eligible()) return context
@@ -57,8 +58,8 @@ internal class EmailInvitationClaim(
                 "connected" -> {
                     awaitingPatient = true
                     val updated = reload(); ensureCurrent()
-                    check(updated.role == AppRole.Patient) { "claim_role_not_confirmed" }
-                    mutableState.value = State.Done; return updated
+                    check(updated.isActivePatient) { "claim_role_not_confirmed" }
+                    awaitingPatient = false; mutableState.value = State.Done; return updated
                 }
                 "no_match" -> {
                     val updated = if (wasConfirmation) reload() else context

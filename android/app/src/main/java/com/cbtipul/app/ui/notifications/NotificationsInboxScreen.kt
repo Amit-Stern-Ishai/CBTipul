@@ -188,13 +188,13 @@ private fun InboxRow(item: AppNotification, patient: Patient?, patientName: Stri
     val colors = Theme.colors
     val kind = NotificationRouting.inboxCopy(item.type)
     val eventColor = when (kind) {
-        InboxCopyKind.PatientConnected -> colors.success
+        InboxCopyKind.PatientConnected, InboxCopyKind.PatientActivitiesRequested -> colors.success
         InboxCopyKind.DiaryOneEntryAdded, InboxCopyKind.DiaryTwoEntryAdded, InboxCopyKind.DiaryThreeEntryAdded -> colors.accentFill
         else -> colors.gold
     }
     val icon = when (kind) {
         InboxCopyKind.QuestionnaireCompleted -> Icons.Outlined.Assignment
-        InboxCopyKind.PatientConnected -> Icons.Outlined.HowToReg
+        InboxCopyKind.PatientConnected, InboxCopyKind.PatientActivitiesRequested -> Icons.Outlined.HowToReg
         InboxCopyKind.DiaryOneEntryAdded, InboxCopyKind.DiaryTwoEntryAdded, InboxCopyKind.DiaryThreeEntryAdded -> Icons.Outlined.Book
         InboxCopyKind.WebWorkspaceReady, InboxCopyKind.Generic -> Icons.Outlined.NotificationsNone
     }
@@ -250,6 +250,7 @@ private fun inboxTimestamp(date: Date): String {
 @Composable
 private fun inboxMessage(type: String): String = when (NotificationRouting.inboxCopy(type)) {
     InboxCopyKind.QuestionnaireCompleted -> stringResource(R.string.notification_questionnaire_completed)
+    InboxCopyKind.PatientActivitiesRequested -> "המטופל/ת ביקשו להפעיל פעילויות"
     InboxCopyKind.PatientConnected -> stringResource(R.string.notification_patient_connected)
     InboxCopyKind.DiaryTwoEntryAdded -> stringResource(R.string.notification_diary_two_entry_added)
     InboxCopyKind.DiaryThreeEntryAdded -> stringResource(R.string.notification_diary_three_entry_added)

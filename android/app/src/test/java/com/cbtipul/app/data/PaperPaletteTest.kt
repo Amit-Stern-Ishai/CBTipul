@@ -21,9 +21,8 @@ class PaperPaletteTest {
    assertTrue(contrast(QuestionnaireHistoryColors.foreground(paper),fill)>=4.5f)
   }
  }
- @Test fun darkIdentityRemainsSeparate() {
-  assertEquals(DarkPalette.base,cbTipulColors(true).base)
-  assertEquals(DarkPalette.gold,cbTipulColors(true).accentFill)
+ @Test fun legacyAppearancePreferencesUseSingleBrandPalette() {
+  assertEquals(cbTipulColors(false),cbTipulColors(true))
   assertNotEquals(cbTipulColors(false).accentFill,cbTipulColors(false).success)
  }
 }

@@ -1,5 +1,7 @@
 package com.cbtipul.app.ui.patient
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.outlined.MenuBook
@@ -143,6 +145,8 @@ fun PatientModeScreen(
     var refreshing by remember(cacheKey) { mutableStateOf(false) }
     var refreshAgain by remember(cacheKey) { mutableStateOf(false) }
     var loadState by remember(cacheKey) { mutableStateOf(if (cached.assignments != null) TasksLoadState.Loaded else TasksLoadState.Loading) }
+    var activitiesLoadFailed by remember(cacheKey) { mutableStateOf(false) }
+    var activitiesLoadSucceeded by remember(cacheKey) { mutableStateOf(false) }
     var assignments by remember(cacheKey) { mutableStateOf(cached.assignments.orEmpty()) }
     var messages by remember(cacheKey) { mutableStateOf<List<PatientMessage>>(emptyList()) }
     var questionnaireHistory by remember(cacheKey) { mutableStateOf(cached.questionnaires.orEmpty()) }
@@ -248,6 +252,8 @@ fun PatientModeScreen(
                 val fetchedTwo = two.await()
                 val fetchedThree = three.await()
                 if (cacheKey != "${app.authRepository.currentUserId()}:$patientId") return@coroutineScope
+                activitiesLoadFailed = fetchedTasks == null
+                activitiesLoadSucceeded = fetchedTasks != null
                 fetchedTasks?.let { assignments = it }
                 fetchedInbox?.let { messages = it }
                 fetchedQuestionnaires?.let { questionnaireHistory = it }
@@ -319,6 +325,8 @@ fun PatientModeScreen(
         composable("home") {
             PatientHomeContent(
                 loadState = loadState,
+                activitiesLoadSucceeded = activitiesLoadSucceeded,
+                activitiesLoadFailed = activitiesLoadFailed,
                 assignments = assignments,
                 messages = messages,
                 inboxItems = inboxItems,
@@ -684,6 +692,8 @@ internal fun PatientHomeContent(
     onOpenDiaryThree: () -> Unit,
     onOpenMessage: (String) -> Unit,
     onOpenAllMessages: () -> Unit,
+    activitiesLoadSucceeded: Boolean = false,
+    activitiesLoadFailed: Boolean = false,
 ) {
     val colors = Theme.colors
     val openAssignments = assignments.filter { if (it.type == PatientAssignmentType.DiaryTwo || it.type == PatientAssignmentType.DiaryThree) it.cancelledAt == null else it.isOpen }
@@ -693,6 +703,18 @@ internal fun PatientHomeContent(
     if (showConceptualization) com.cbtipul.app.ui.patients.ConceptualizationDialog(app, patientId, readOnly = true, onDismiss = { showConceptualization = false })
     if (showCoreBelief) com.cbtipul.app.ui.patients.CoreBeliefWorksheetDialog(app, patientId, readOnly = true, onDismiss = { showCoreBelief = false })
     val account = app.authRepository.currentUserId()
+    val request = remember(account, patientId) { com.cbtipul.app.data.PatientActivitiesRequest() }
+    val requestState by request.state.collectAsStateWithLifecycle()
+    val requestUncertain by request.uncertain.collectAsStateWithLifecycle()
+    val requestScope = rememberCoroutineScope()
+    val emptyLoaded = activitiesLoadSucceeded && openAssignments.isEmpty()
+    suspend fun requestActivities(send: Boolean) {
+        request.run(send, { account != null && account == app.authRepository.currentUserId() }, app.assignments::requestActivities)
+        if (account == app.authRepository.currentUserId() && request.state.value == com.cbtipul.app.data.PatientActivitiesRequest.State.Available) onBackgroundRefresh()
+    }
+    LaunchedEffect(account, patientId, emptyLoaded) {
+        if (emptyLoaded) requestActivities(false)
+    }
     var draftRevision by remember { mutableStateOf(0) }
     var resumable by remember(account, patientId) { mutableStateOf<List<PatientAssignment>>(emptyList()) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { draftRevision++ }
@@ -826,9 +848,25 @@ internal fun PatientHomeContent(
                             }
                         }
                     }
-                    if (openAssignments.isEmpty() && historyTypes.isEmpty()) {
-                        Text(stringResource(R.string.patient_tasks_empty_title), color = colors.textBright, fontWeight = FontWeight.SemiBold)
-                        Text(stringResource(R.string.patient_tasks_empty_body), color = colors.textBody)
+                    if (activitiesLoadFailed) {
+                        Text("לא ניתן לטעון את הפעילויות כרגע.", color = colors.error)
+                        TextButton(onClick = onRefresh) { Text("ניסיון נוסף") }
+                    }
+                    if (emptyLoaded) {
+                        Text("אין כרגע פעילויות למילוי", color = colors.textBright, fontWeight = FontWeight.SemiBold)
+                        Text("כשהמטפל/ת יפעילו פעילות, היא תופיע כאן ותוכלו למלא אותה באפליקציה.", color = colors.textBody)
+                        if (requestUncertain) Text("לא ניתן לוודא שהבקשה נשלחה. אפשר לבדוק שוב.", color = colors.error)
+                        when (requestState) {
+                            com.cbtipul.app.data.PatientActivitiesRequest.State.Loading,
+                            com.cbtipul.app.data.PatientActivitiesRequest.State.Sending -> CircularProgressIndicator()
+                            com.cbtipul.app.data.PatientActivitiesRequest.State.Pending -> Text("הבקשה נשלחה למטפל/ת", color = colors.textBody)
+                            com.cbtipul.app.data.PatientActivitiesRequest.State.Ready -> Button(onClick = { requestScope.launch { requestActivities(true) } }) { Text("בקשה להפעלת פעילויות") }
+                            com.cbtipul.app.data.PatientActivitiesRequest.State.Failed -> {
+                                Text("לא ניתן לבדוק את מצב הבקשה כרגע.", color = colors.error)
+                                TextButton(onClick = { requestScope.launch { requestActivities(false) } }) { Text("ניסיון נוסף") }
+                            }
+                            com.cbtipul.app.data.PatientActivitiesRequest.State.Available -> TextButton(onClick = onBackgroundRefresh) { Text("רענון פעילויות") }
+                        }
                     }
 
                 }

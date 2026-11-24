@@ -1,75 +1,67 @@
 ---
-name: CBTipul — iOS Brand System
-description: Native Hebrew RTL workspace in the approved navy, turquoise and Rubik identity
+name: CBTipul — Botanical Mobile System
+description: Single light botanical mobile palette with emerald actions, forest ink, sage surfaces and Rubik typography
 colors:
-  base-light: "#FFFFFF"
-  base-dark: "#071C2E"
-  surface-light: "#FFFFFF"
-  surface-dark: "#0C2A44"
-  elevated-light: "#E8F0F8"
-  elevated-dark: "#123751"
-  hover-light: "#D6EAF8"
-  hover-dark: "#19445F"
-  borderFaint-light: "#DCE6EF"
-  borderFaint-dark: "#25465E"
-  borderDefault-light: "#CBD5E1"
-  borderDefault-dark: "#3C607A"
-  borderStrong-light: "#A3B1C2"
-  borderStrong-dark: "#7994AB"
-  textBody-light: "#5B6B82"
-  textBody-dark: "#B4C0D0"
-  gold-light: "#0D3B66"
-  gold-dark: "#00E3DB"
-  accentFill-light: "#0D3B66"
-  accentFill-dark: "#00E3DB"
-  accentFillPressed-light: "#09345F"
-  accentFillPressed-dark: "#00CCC7"
-  textOnAccent-light: "#FFFFFF"
-  textOnAccent-dark: "#071C2E"
-  patientHomeHeader-light: "#D0F0FF"
-  patientHomeHeader-dark: "#0C304C"
-  headerInk-light: "#00244E"
-  headerInk-dark: "#FFFFFF"
-  accentLine-light: "#008480"
-  accentLine-dark: "#00E3DB"
-  sessionTint-light: "#F2EFFF"
-  sessionTint-dark: "#182F50"
-  sessionInk-light: "#235DB5"
-  sessionInk-dark: "#88B8FF"
-  questionnaireTint-light: "#D8FEF5"
-  questionnaireTint-dark: "#103E3B"
-  questionnaireInk-light: "#356B53"
-  questionnaireInk-dark: "#8BDAC5"
-  diaryTint-light: "#FFF5D5"
-  diaryTint-dark: "#3A3222"
-  diaryInk-light: "#845921"
-  diaryInk-dark: "#E5BD7C"
-  success-light: "#18724D"
-  success-dark: "#42D98B"
-  warning-light: "#946000"
-  warning-dark: "#FFC94A"
-  error-light: "#BC3346"
-  error-dark: "#FF5C68"
-  historyBase-light: "#E8F0F8"
-  historyBase-dark: "#213143"
-  historyInk-light: "#00244E"
-  historyInk-dark: "#F3F7FA"
-  historyLow-light: "#D6EAF8"
-  historyLow-dark: "#263F56"
-  historyMedium-light: "#B6D8EB"
-  historyMedium-dark: "#355C78"
-  historyHigh-light: "#85BBD7"
-  historyHigh-dark: "#46728F"
-  textBright-light: "#00244E"
-  textBright-dark: "#F3F5F8"
-  textFaint-light: "#5B6B82"
-  textFaint-dark: "#9CADBF"
-  turquoise: "#00E3DB"
-  turquoiseInk: "#00244E"
-  severityMinimal: "#B9FFEF"
-  severityMild: "#FFC516"
-  severityModerate: "#FF9C45"
-  severitySevere: "#FB513A"
+  historyBase: "#E8F1EF"
+  historyInk: "#153D35"
+  historyLow: "#DCEBE6"
+  historyMedium: "#BDD6CD"
+  historyHigh: "#91BBAA"
+  patientHomeHeader: "#DDECE7"
+  headerInk: "#153D35"
+  headerLine: "#6C8D81"
+  turquoise: "#BDDCD2"
+  turquoiseInk: "#153D35"
+  accentLine: "#2B7B77"
+  sessionTint: "#E8F1F5"
+  sessionInk: "#365D70"
+  questionnaireTint: "#E5F1E9"
+  questionnaireInk: "#30664A"
+  diaryTint: "#F7EFDF"
+  diaryInk: "#775B2A"
+  severityMinimal: "#DBEEE3"
+  severityMild: "#F4DFA4"
+  severityModerate: "#F0C49F"
+  severitySevere: "#EFB6B2"
+  base: "#F5F8F6"
+  surface: "#FFFFFF"
+  elevated: "#E8F1EF"
+  hover: "#DCEBE6"
+  surfaceWarm: "#E8F1EF"
+  borderFaint: "#D5E2DD"
+  borderDefault: "#B9CEC5"
+  borderStrong: "#6C8D81"
+  textBody: "#49665F"
+  gold: "#087052"
+  goldVivid: "#096B50"
+  goldDim: "#05583F"
+  goldGhost: "#0870521A"
+  accentFill: "#087052"
+  accentFillPressed: "#05583F"
+  textOnAccent: "#FFFFFF"
+  prestige: "#087052"
+  prestigeGhost: "#0870521A"
+  brandSecondary: "#087052"
+  brandAccentSoft: "#E8F1EF"
+  brandSoft: "#E8F1EF"
+  success: "#28734E"
+  warning: "#886019"
+  warningSoft: "#8860191F"
+  error: "#B33D49"
+  positiveMedium: "#28734E"
+  positiveSoft: "#28734E1F"
+  negativeMedium: "#B33D49"
+  negativeSoft: "#B33D491F"
+  neutral: "#49665F"
+  neutralMedium: "#49665F"
+  neutralSoft: "#E8F1EF"
+  critical: "#B33D49"
+  criticalSoft: "#B33D492E"
+  uiTextBright: "#153D35"
+  uiTextFaint: "#49665F"
+  uiAccentFill: "#087052"
+  uiTextOnAccent: "#FFFFFF"
+  uiElevated: "#E8F1EF"
 typography:
   largeTitle:
     fontFamily: "Rubik, system-ui, sans-serif"
@@ -117,13 +109,13 @@ spacing:
   inset: "16px"
 components:
   button-primary-light:
-    backgroundColor: "{colors.accentFill-light}"
-    textColor: "{colors.textOnAccent-light}"
+    backgroundColor: "{colors.accentFill}"
+    textColor: "{colors.textOnAccent}"
     rounded: "{rounded.primary-light}"
     padding: "13px 16px"
   button-primary-dark:
-    backgroundColor: "{colors.accentFill-dark}"
-    textColor: "{colors.textOnAccent-dark}"
+    backgroundColor: "{colors.accentFill}"
+    textColor: "{colors.textOnAccent}"
     rounded: "{rounded.primary-dark}"
     padding: "13px 16px"
   button-new-session:
@@ -139,7 +131,7 @@ components:
 
 **Creative North Star: "Operate — native RTL"**
 
-The approved iOS replacement uses the supplied CBTipul color guide, Rubik typography and a native Hebrew RTL workspace. White and pale-blue surfaces in light appearance become layered navy surfaces in dark appearance, with the same clear action hierarchy and record-type meaning. The existing logo is retained; no new raster imagery is introduced.
+The approved iOS replacement uses the supplied CBTipul color guide, Rubik typography and a native Hebrew RTL workspace. White and pale-blue surfaces in light appearance become layered navy surfaces in dark appearance, with the same clear action hierarchy and record-type meaning. The user-supplied blue-gray/emerald branching mark supersedes the previous logo as of 24 November 2026; see `assets/brand/README.md`. This asset-only update preserves the palette, typography, native controls and component contracts.
 
 This is the app-wide iOS visual system. It supersedes the earlier iOS paper/plum palette, system-type direction and patient-colored header planes. Source authority is ios/Theme.swift and ios/BrandTypography.swift. Existing surface briefs retain interaction contracts; conflicting historical palette and typography descriptions defer here. Android and web have not been migrated by this work.
 
@@ -220,4 +212,16 @@ The overview follows the inspected “מסך מטופל כחול שמיים” l
 - Don't reintroduce paper/plum iOS tokens or patient-colored header planes.
 - Don't treat entity tints as clinical severity or infer improvement from raw score direction.
 - Don't claim this iOS replacement migrated Android or web.
-- Don't replace the retained logo or native controls with new raster assets or web controls.
+- Preserve the approved branching mark (see `assets/brand/README.md`); do not replace native controls with raster assets or web controls.
+
+
+## Botanical mobile palette — 24 November 2026
+
+This supersedes earlier mobile light/dark and navy/plum color directions. iOS and Android use one light appearance regardless of stored preference or OS mode. The branch logo anchors emerald actions (#087052), forest ink (#153D35), sage surfaces (#E8F1EF), and blue-gray information (#365D70). White cards sit on #F5F8F6 canvas. Amber #886019 and rose #B33D49 retain warning/destructive meaning. Clinical labels and severity remain distinct; user-selected patient identity colors are preserved. Appearance selectors are removed, text-size accessibility stays. Web colors are unchanged by this mobile-only task. Full tokens: `assets/brand/palette.json`.
+
+Soft tokens use #RRGGBBAA where alpha is present; render them over the specified base/surface. Earlier appearance descriptions are historical and are superseded by the botanical mobile section.
+
+
+## Palette balance — 2026-11-24
+
+Current iOS, Android and web application surfaces use white (#FFFFFF), neutral off-white (#F7F8FA), and neutral elevated surfaces (#F2F4F6). Navy (#00244E) anchors headings and navigation. Brand blue (#285A8C), pressed navy (#0D3B66), and selective pale blue (#E5EFF9) identify actions, selected states and focus. Green (#28734E) is reserved for success/completion and small accents; patient avatar hues remain intact. Full-page patient-color washes and nested green panels are removed. Layout, typography and RTL are unchanged. This supersedes the previous green surface palette; the icon is unchanged.

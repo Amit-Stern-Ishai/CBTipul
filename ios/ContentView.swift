@@ -213,6 +213,7 @@ struct ContentView: View {
             Text(entitlement.role == .patient ? L10n.entitlementPatientUnavailable : entitlement.isLocalDemo ? L10n.entitlementDemoOnlineUnavailable : L10n.entitlementReadOnlyExplanation)
         }
         .onChange(of: entitlementScenePhase) { _, phase in
+            if !invitationFlow.isActive && !AuthManager.isUITesting { appContext.suspendPatientAccess() }
             if phase == .active && !store.isDemoMode { Task { await store.nameSync.refresh() } }
             if phase == .active && !invitationFlow.isActive && !AuthManager.isUITesting { Task { await appContext.refreshOnForeground() } }
         }
@@ -399,6 +400,7 @@ struct ContentView: View {
             PatientModeView().id(auth.currentUserId)
         case .incomplete:
             PatientActivationIncompleteView {
+                appContext.emailClaim?.retry()
                 Task { await resolveAnonymousAppContext() }
             }
         case .loading:
@@ -417,6 +419,7 @@ struct ContentView: View {
             }
         case .retry:
             PatientContextRetryView {
+                appContext.emailClaim?.retry()
                 Task { await resolveAnonymousAppContext() }
             }
         }

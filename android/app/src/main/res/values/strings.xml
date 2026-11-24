@@ -554,11 +554,11 @@
     <string name="patient_activation_claim_failed">לא ניתן היה לשייך את ההזמנה. נסו שוב או בקשו הזמנה חדשה מהמטפל/ת.</string>
     <string name="patient_activation_context_failed">ההזמנה שויכה, אך לא ניתן היה לאמת את החיבור. נסו שוב.</string>
     <string name="patient_activation_retry">ניסיון חוזר</string>
-    <string name="patient_activation_incomplete_title">החיבור עדיין לא הושלם</string>
-    <string name="patient_activation_incomplete_body">לא ניתן להיכנס למסך ההתחברות של מטפלים. פתחו מחדש את קישור ההזמנה או נסו לאמת את החיבור שוב.</string>
+    <string name="patient_activation_incomplete_title">אין כרגע חיבור פעיל למטפל/ת</string>
+    <string name="patient_activation_incomplete_body">החשבון שלכם עדיין מחובר, אבל אין כרגע גישה לתיק. אם הגישה הופסקה, בקשו מהמטפל/ת הזמנה חדשה לכתובת המייל של החשבון הזה. לאחר ההזמנה לחצו על ניסיון נוסף. התיק והמידע שבו לא נמחקו.</string>
     <string name="patient_activation_therapist_sign_in">מעבר להתחברות מטפלים</string>
     <string name="patient_context_retry_title">לא ניתן היה לאמת את החיבור</string>
-    <string name="patient_context_retry_body">נסו שוב לאמת את החיבור. אין צורך לפתוח מחדש את קישור ההזמנה.</string>
+    <string name="patient_context_retry_body">לא הצלחנו לבדוק את הגישה לתיק כרגע. החשבון נשאר מחובר. אם קיבלתם הזמנה חדשה, נסו שוב בעוד רגע. שגיאה בבדיקה אינה אישור שהגישה הופסקה.</string>
     <string name="invite_expired_title">ההזמנה פגה</string>
     <string name="invite_expired_body">יש לבקש מהמטפל/ת הזמנה חדשה.</string>
     <string name="invite_claimed_title">ההזמנה כבר נוצלה</string>

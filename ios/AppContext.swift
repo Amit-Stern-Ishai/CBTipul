@@ -114,7 +114,18 @@ final class AppContextService {
         }
     }
 
+    /// Hide all patient-owned views (including presented shared copies) until a fresh
+    /// server context confirms access. This does not clear the Auth session.
+    func suspendPatientAccess() {
+        guard resolved?.role == .patient else { return }
+        generation += 1
+        resolved = nil; lastRefresh = nil; isLoading = false; loadError = nil
+        PatientHomeCache.clear()
+        EntitlementState.shared.invalidate()
+    }
+
     func refreshOnForeground() async {
+        if current?.role == .patient { suspendPatientAccess() }
         guard identity() != nil, !isLoading else { return }
         if let lastRefresh, Date().timeIntervalSince(lastRefresh) < 60 { return }
         _ = try? await getCurrentAppContext()

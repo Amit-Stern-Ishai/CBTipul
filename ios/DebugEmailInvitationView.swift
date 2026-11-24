@@ -30,6 +30,7 @@ struct EmailInvitationView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(\.dismiss) private var dismiss
     @State private var email = ""
+    @State private var confirmedEmail: String?
     @State private var saving = false
     @State private var sharing = false
     @State private var loading = true
@@ -49,6 +50,10 @@ struct EmailInvitationView: View {
                 if !loading && !statusFailed {
                 if let status = pending.status, let label = Self.result(status) {
                     Text(label).accessibilityAddTraits(.updatesFrequently)
+                    if pending.canCorrect, let confirmedEmail {
+                        Text("כתובת המייל להזמנה")
+                        Text(confirmedEmail).textSelection(.enabled).environment(\.layoutDirection, .leftToRight)
+                    }
                 }
                 if pending.canShare && !saving {
                     Button { sharing = true } label: {
@@ -77,6 +82,8 @@ struct EmailInvitationView: View {
                                 options: .init(body: Request(patient_id: patientID, email: entered)))
                             guard owner == auth.currentUserId else { return }
                             pending.receive(response.status)
+                            if ["waiting_for_sign_in", "waiting_for_confirmation"].contains(response.status) { confirmedEmail = entered }
+                            else if response.status == "already_connected" { confirmedEmail = nil }
                             message = pending.editing ? Self.result(response.status) ?? L10n.emailInvitationFailed : nil
                         } catch {
                             guard owner == auth.currentUserId else { return }
@@ -106,6 +113,7 @@ struct EmailInvitationView: View {
                 params: Parameters(p_patient_id: patientID)).execute().value
             guard owner != nil, owner == auth.currentUserId, !Task.isCancelled else { return }
             try pending.load(status)
+            confirmedEmail = nil
         } catch {
             guard owner == auth.currentUserId, !Task.isCancelled else { return }
             statusFailed = true

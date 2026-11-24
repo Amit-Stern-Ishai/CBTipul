@@ -7,6 +7,27 @@ import Supabase
     let revision = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"
     let therapist = AppContext(version: 1, role: .therapist, activation: nil, patientId: nil)
     let patient = AppContext(version: 1, role: .patient, activation: .active, patientId: UUID())
+    @Test func incompleteEmailPatientCanCheckFreshInvitationOnExplicitRetry() async throws {
+        var calls = 0
+        let incomplete = AppContext(version: 1, role: .patient, activation: .incomplete, patientId: nil)
+        let gate = EmailInvitationClaim(eligible: { true }) { value in
+            #expect(value == nil); calls += 1; return .init("connected")
+        }
+        _ = try await gate.resolve(therapist) { patient }
+        #expect(calls == 1)
+        _ = try await gate.resolve(incomplete) { incomplete }
+        #expect(calls == 1)
+        gate.retry()
+        let restored = try await gate.resolve(incomplete) { patient }
+        #expect(restored == patient && calls == 2)
+    }
+    @Test func incompleteAnonymousPatientDoesNotClaimEmail() async throws {
+        let incomplete = AppContext(version: 1, role: .patient, activation: .incomplete, patientId: nil)
+        var calls = 0
+        let gate = EmailInvitationClaim(eligible: { false }) { _ in calls += 1; return .init("no_match") }
+        #expect(try await gate.resolve(incomplete) { incomplete } == incomplete)
+        #expect(calls == 0)
+    }
     @Test func changedInvitationRequiresNewDeliberateConfirmation() async throws {
         let next = "BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB"
         var sent: [String?] = []

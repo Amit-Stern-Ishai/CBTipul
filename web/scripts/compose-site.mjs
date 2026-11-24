@@ -55,6 +55,7 @@ export async function composeSite(output = path.join(webRoot, "dist"), publicAss
     const url = page ? `/${page}/` : "/";
     let html = await readFile(path.join(webRoot, "site/source", page, "index.html"), "utf8");
     html = html.replace(/href="\/style\.css"/g, `href="${themeUrl}"`);
+    html = html.replace("</head>", '<link rel="icon" type="image/png" sizes="32x32" href="/site-assets/favicon-32.png"><link rel="apple-touch-icon" href="/site-assets/apple-touch-icon.png"></head>');
     if (page === "terms" || page === "privacy") {
       const body = legal[page === "terms" ? "termsBody" : "privacyBody"];
       html = html.replace(/<article[^>]*>[\s\S]*?<\/article>/, `<article class="card"><h1>${page === "terms" ? "תנאי שימוש" : "מדיניות פרטיות"}</h1><div class="canonical-legal">${escapeHtml(body).replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, address => `<a href="mailto:${address}">${address}</a>`)}</div></article>`);
@@ -82,6 +83,7 @@ export async function composeSite(output = path.join(webRoot, "dist"), publicAss
   await mkdir(path.join(output, "site-assets"), { recursive: true });
   for (const name of ["store-apple.svg", "store-google-play.svg"]) await cp(path.join(webRoot, "site", name), path.join(output, "site-assets", name));
   await cp(path.join(webRoot, "public/brand.png"), path.join(output, "site-assets/brand.png"));
+  for (const name of ["favicon-32.png", "favicon-16.png", "apple-touch-icon.png"]) await cp(path.join(webRoot, "public", name), path.join(output, "site-assets", name));
   await writeFile(path.join(output, "404.html"), `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>העמוד לא נמצא — CBTipul</title><link rel="stylesheet" href="${themeUrl}">${publicAssets.styles.map(href=>`<link rel="stylesheet" href="${href}">`).join("")}<script type="module" src="${publicAssets.script}"></script></head><body>${fallbackHeader}<main id="content" tabindex="-1"><article class="card"><h1>העמוד לא נמצא</h1><p>אפשר לחזור לעמוד הבית או להיכנס למרחב למטפלים.</p><a href="/">בית</a> · <a href="/app/">כניסה למטפלים</a></article></main>${fallbackFooter}</body></html>`);
   await rm(path.join(output,"app/.vite"),{recursive:true,force:true});
   await writeFile(path.join(output, "_redirects"), redirects);

@@ -173,6 +173,24 @@ class PatientAssignmentRepository(
     private val client: SupabaseClient,
     private val connectionCache: PatientConnectionCache = PatientConnectionCache(),
 ) {
+    suspend fun revokeAccess(patientId: String) {
+        val id = java.util.UUID.fromString(patientId).toString()
+        val result = client.postgrest.rpc("revoke_patient_access", buildJsonObject { put("p_patient_id", id) }).decodeAs<String>()
+        check(RevokePatientAccess.confirmed(result)) { "Unexpected revocation status" }
+    }
+    suspend fun requestActivities(send: Boolean): String {
+        if (send) {
+            val response = client.functions.invoke("request-patient-activities", body = buildJsonObject {})
+            val status = Json.parseToJsonElement(response.bodyAsText()).let { it as? JsonObject }
+                ?.get("status")?.jsonPrimitive?.contentOrNull
+            check(status in setOf("pending", "activities_available")) { "Unexpected activities request status" }
+            return status!!
+        }
+        return client.postgrest.rpc(
+            "request_patient_activities", buildJsonObject { put("p_send", false) }
+        ).decodeAs<String>()
+    }
+
     private val assignmentCache = AssignmentStatusCache()
     private fun currentAccount() = client.auth.currentSessionOrNull()?.user?.id
     fun cachedOngoingAssignment(patientId: String, type: PatientAssignmentType) =

@@ -230,13 +230,6 @@ fun SettingsScreen(
                     )
                     GroupedListCard(accent = colors.gold) {
                         SettingsRow(
-                            title = stringResource(R.string.settings_appearance_title),
-                            trailing = stringResource(if (appearance == AppAppearance.Light) R.string.appearance_light else R.string.appearance_dark),
-                            icon = Icons.Outlined.Contrast,
-                            onClick = { page = SettingsPage.Appearance },
-                        )
-                        GroupedListDivider()
-                        SettingsRow(
                             title = stringResource(R.string.settings_text_size_title),
                             trailing = stringResource(textSize.labelRes()),
                             icon = Icons.Outlined.FormatSize,

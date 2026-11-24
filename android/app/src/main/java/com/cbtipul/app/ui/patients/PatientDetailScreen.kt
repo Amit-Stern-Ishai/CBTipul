@@ -346,22 +346,9 @@ fun PatientDetailScreen(
         ) {
             val accent = PatientAvatarColor.background(patient.id)
             if (!showNotes) {
-            // One patient-colored identity region, matching the iOS material hierarchy.
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(
-                Brush.linearGradient(if (colors.isPaper) listOf(lerp(colors.elevated, accent, .08f), colors.elevated) else listOf(lerp(Color(0xFF0C1420), accent, .42f), lerp(Color(0xFF0C1420), accent, .18f))),
-                RoundedCornerShape(20.dp)).drawBehind {
-                    // Translucent planes preserve the approved layered material without blurring text.
-                    val plane = Path().apply {
-                        moveTo(size.width * .12f, 0f); lineTo(size.width * .43f, 0f)
-                        lineTo(size.width * .76f, size.height); lineTo(size.width * .36f, size.height); close()
-                    }
-                    drawPath(plane, Color.White.copy(alpha = .045f))
-                    val second = Path().apply {
-                        moveTo(size.width * .62f, 0f); lineTo(size.width, 0f)
-                        lineTo(size.width * .46f, size.height); lineTo(size.width * .19f, size.height); close()
-                    }
-                    drawPath(second, Color.White.copy(alpha = .035f))
-                }.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Keep the identity region neutral; patient color belongs to the avatar.
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+                .background(colors.surface).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             val statusLabel = stringResource(if (patient.status == PatientStatus.Active) R.string.patient_status_active else R.string.patient_status_inactive)
             val statusTitle = stringResource(R.string.status_label)
             val statusColor = if (patient.status == PatientStatus.Active) (if (colors.isPaper) colors.success else Color(0xFF8CE4B7)) else colors.headerInk
@@ -478,7 +465,7 @@ fun PatientDetailScreen(
                         }
                     }
                     androidx.compose.material3.FilledTonalButton(onClick = onOpenChat, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFF9B59CE).copy(alpha = .16f), contentColor = colors.textBright)) {
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = colors.goldGhost, contentColor = colors.textBright)) {
                         Icon(Icons.Outlined.AutoAwesome, null); Spacer(Modifier.width(8.dp))
                         Text("שיחת AI")
                     }

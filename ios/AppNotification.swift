@@ -6,6 +6,7 @@ enum AppNotificationType: Hashable, Sendable {
     case webWorkspaceReady
     case questionnaireAssigned
     case questionnaireCompleted
+    case patientActivitiesRequested
     case patientConnected
     case messageReceived
     case diaryOneAssigned
@@ -23,6 +24,7 @@ enum AppNotificationType: Hashable, Sendable {
             self = .questionnaireAssigned
         case "questionnaire_completed":
             self = .questionnaireCompleted
+        case "patient_activities_requested": self = .patientActivitiesRequested
         case "patient_connected":
             self = .patientConnected
         case "message_received":
@@ -45,6 +47,7 @@ enum AppNotificationType: Hashable, Sendable {
         case .webWorkspaceReady: "web_workspace_ready"
         case .questionnaireAssigned: "questionnaire_assigned"
         case .questionnaireCompleted: "questionnaire_completed"
+        case .patientActivitiesRequested: "patient_activities_requested"
         case .patientConnected: "patient_connected"
         case .messageReceived: "message_received"
         case .diaryOneAssigned: "diary_1_assigned"
@@ -62,7 +65,7 @@ enum AppNotificationType: Hashable, Sendable {
         switch self {
         case .questionnaireAssigned, .messageReceived, .diaryOneAssigned, .diaryTwoAssigned, .diaryThreeAssigned:
             true
-        case .webWorkspaceReady, .questionnaireCompleted, .patientConnected,
+        case .webWorkspaceReady, .questionnaireCompleted, .patientConnected, .patientActivitiesRequested,
              .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded, .unknown:
             false
         }
@@ -203,6 +206,7 @@ enum NotificationInboxCopy {
         case .webWorkspaceReady: L10n.wwInbox
         case .questionnaireCompleted:
             L10n.notificationQuestionnaireCompleted
+        case .patientActivitiesRequested: "המטופל/ת ביקשו להפעיל פעילויות"
         case .patientConnected:
             L10n.notificationPatientConnected
         case .diaryOneEntryAdded:

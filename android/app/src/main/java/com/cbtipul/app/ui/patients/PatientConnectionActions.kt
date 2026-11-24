@@ -84,6 +84,18 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
         mutableStateOf(initialSheet?.takeIf { !isDemo && it in listOf("send", "invite") })
     }
     var sending by remember { mutableStateOf(false) }
+    var showRevoke by remember(patient.id) { mutableStateOf(false) }
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
+    if (showRevoke) RevokePatientAccessDialog(onDismiss = { showRevoke = false }) {
+        val owner = app.authRepository.currentUserId() ?: error("No session")
+        check(Entitlements.allowMutation() && !isDemo)
+        val id = PatientAssignmentRepository.uuidOrNull(patient.id) ?: error("Invalid profile")
+        repository!!.revokeAccess(id)
+        check(owner == app.authRepository.currentUserId())
+        app.invitations.emailInvitationStatus(id)
+        check(owner == app.authRepository.currentUserId())
+        refresh()
+    }
     val appContext = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp).appContext
     val contextState by appContext.loadState.collectAsState()
     val retryScope = rememberCoroutineScope()
@@ -220,6 +232,9 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
                         }
                         if (index < tools.lastIndex) HorizontalDivider(color = colors.borderFaint)
                     }
+                }
+                TextButton(onClick = { showRevoke = true }, enabled = !busy && !sending && !isDemo) {
+                    Text(RevokePatientAccess.phrase, color = colors.error)
                 }
             } else if (connection == ConnectionUi.Checking) {
                 CircularProgressIndicator()

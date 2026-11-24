@@ -210,7 +210,20 @@ class AppContextRepository internal constructor(private val dependencies: AppCon
         error("context_attempts_exhausted")
     }
 
+    /** Remove patient views and session-only activity caches, never the login. */
+    fun suspendPatientAccess() {
+        if (_current.value?.role != AppRole.Patient) return
+        generation++
+        _current.value = null
+        lastRefresh = 0
+        _isLoading.value = false
+        _loadState.value = AppContextLoadState.Unresolved
+        PatientHomeCache.clear()
+        Entitlements.invalidate()
+    }
+
     suspend fun refreshOnForeground() {
+        if (_current.value?.role == AppRole.Patient) suspendPatientAccess()
         if (dependencies.identity() == null || _isLoading.value) return
         // The cooldown applies only to confirmed access, never failed/missing context.
         if (_loadState.value is AppContextLoadState.Ready && Entitlements.state.value.access != null &&

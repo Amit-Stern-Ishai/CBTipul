@@ -33,7 +33,8 @@ final class EmailInvitationClaim {
     }
     func decline() { guard state == .confirmation || state == .unavailable else { return }; state = .done }
     func resolve(_ context: AppContext, reload: () async throws -> AppContext) async throws -> AppContext? {
-        if context.role == .patient { state = .done; return context }
+        if context.isActivePatient { awaitingPatient = false; state = .done; return context }
+        if context.role == .patient && !eligible() { return context }
         if state == .done { return context }
         guard state == .idle else { return nil }
         if !attempted && !eligible() { return context }
@@ -55,8 +56,8 @@ final class EmailInvitationClaim {
                 awaitingPatient = true
                 let updated = try await reload()
                 guard epoch == generation else { throw CancellationError() }
-                guard updated.role == .patient else { throw ClaimFailure.unconfirmedRole }
-                state = .done; return updated
+                guard updated.isActivePatient else { throw ClaimFailure.unconfirmedRole }
+                awaitingPatient = false; state = .done; return updated
             case "no_match":
                 if wasConfirmation {
                     let updated = try await reload()

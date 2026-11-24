@@ -76,12 +76,7 @@ private struct AppTextSizeModifier: ViewModifier {
     @AppStorage("appTextSize") private var textSize: AppTextSize = .system
     @AppStorage("appAppearance") private var appearance: AppAppearance = .dark
 
-    private var resolvedScheme: ColorScheme {
-        switch appearance {
-        case .light: .light
-        case .dark: .dark
-        }
-    }
+    private var resolvedScheme: ColorScheme { .light }
 
     func body(content: Content) -> some View {
         content
@@ -300,16 +295,6 @@ struct SettingsView: View {
                 NotificationsSettingsSection(explanation: L10n.settingsNotificationsTherapistExplanation)
 
                 Section(L10n.settingsAccessibilitySectionTitle) {
-                    NavigationLink {
-                        AppearancePickerView()
-                    } label: {
-                        HStack {
-                            Label(L10n.settingsAppearanceTitle, systemImage: "circle.lefthalf.filled")
-                            Spacer()
-                            Text(appearance.label).foregroundStyle(.secondary)
-                        }
-                    }
-                    .accessibilityIdentifier("settings.appearance")
                     NavigationLink {
                         TextSizePickerView()
                     } label: {

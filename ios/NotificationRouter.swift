@@ -88,7 +88,7 @@ enum NotificationRouter {
         case .diaryThreeEntryAdded:
             guard let patientId = payload.patientId, !patientId.isEmpty else { return .none }
             return .diaryThreeEntry(patientId: patientId, resourceType: payload.resourceType, resourceId: payload.resourceId)
-        case .patientConnected:
+        case .patientConnected, .patientActivitiesRequested:
             guard let patientId = payload.patientId, !patientId.isEmpty else {
                 return .none
             }

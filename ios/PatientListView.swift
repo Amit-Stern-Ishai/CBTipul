@@ -316,11 +316,11 @@ struct PatientListView: View {
                     .fill(Theme.surface)
                     .overlay {
                         RoundedRectangle(cornerRadius: 14)
-                            .fill(PatientAvatarColor.background(for: patient.id).opacity(0.055))
+                            .fill(Theme.surface)
                     }
                     .overlay {
                         RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(PatientAvatarColor.background(for: patient.id).opacity(0.30), lineWidth: 1)
+                            .strokeBorder(Theme.borderFaint, lineWidth: 1)
                     }
                     .padding(.horizontal, 12).padding(.vertical, 4)
             )

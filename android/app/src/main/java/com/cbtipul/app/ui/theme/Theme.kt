@@ -26,7 +26,7 @@ import androidx.core.view.WindowCompat
 import com.cbtipul.app.settings.AppAppearance
 import com.cbtipul.app.settings.AppTextSize
 
-private val LocalCbTipulColors = staticCompositionLocalOf { cbTipulColors(dark = true) }
+private val LocalCbTipulColors = staticCompositionLocalOf { cbTipulColors(dark = false) }
 
 object Theme {
     val colors: CbTipulColors
@@ -37,39 +37,33 @@ object Theme {
 
 @Composable
 fun CbTipulTheme(
-    appearance: AppAppearance = AppAppearance.Dark,
+    appearance: AppAppearance = AppAppearance.Light,
     textSize: AppTextSize = AppTextSize.System,
     content: @Composable () -> Unit,
 ) {
-    val dark = appearance == AppAppearance.Dark
+    val dark = false
     val colors = cbTipulColors(dark)
-    val scheme = if (dark) {
-        darkColorScheme(
-            primary = colors.gold,
-            onPrimary = colors.textOnAccent,
-            secondary = colors.goldVivid,
-            background = colors.base,
-            onBackground = colors.textBright,
-            surface = colors.surface,
-            onSurface = colors.textBright,
-            surfaceVariant = colors.elevated,
-            onSurfaceVariant = colors.textBody,
-            error = colors.error,
-            outline = colors.borderDefault,
-            outlineVariant = colors.borderFaint,
-            primaryContainer = colors.goldGhost,
-            onPrimaryContainer = colors.gold,
-            secondaryContainer = colors.elevated,
-            onSecondaryContainer = colors.textBright,
-            surfaceContainer = colors.surface,
-            surfaceContainerHigh = colors.elevated,
-            surfaceContainerHighest = colors.hover,
-        )
-    } else {
-        lightColorScheme(
+    val scheme = lightColorScheme(
             primary = colors.gold,
             onPrimary = Color.White,
             secondary = colors.goldVivid,
+            onSecondary = colors.textOnAccent,
+            tertiary = Color(0xFF365D70),
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFE8F1F5),
+            onTertiaryContainer = Color(0xFF365D70),
+            surfaceTint = Color.Transparent,
+            inverseSurface = colors.textBright,
+            inverseOnSurface = Color.White,
+            inversePrimary = Color(0xFFE5EFF9),
+            surfaceBright = colors.surface,
+            surfaceDim = colors.elevated,
+            surfaceContainerLow = colors.base,
+            surfaceContainerLowest = colors.surface,
+            onError = Color.White,
+            errorContainer = Color(0xFFF7E7E9),
+            onErrorContainer = colors.error,
+            scrim = Color(0xFF00244E),
             background = colors.base,
             onBackground = colors.textBright,
             surface = colors.surface,
@@ -87,7 +81,6 @@ fun CbTipulTheme(
             surfaceContainerHigh = colors.elevated,
             surfaceContainerHighest = colors.hover,
         )
-    }
     val density = LocalDensity.current
     val view = LocalView.current
     SideEffect {

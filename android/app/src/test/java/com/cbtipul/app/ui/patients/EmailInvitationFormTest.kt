@@ -6,6 +6,24 @@ import org.junit.Test
 import org.junit.Assert.*
 
 class EmailInvitationFormTest {
+    @Test fun addressIsOnlyFromConfirmedSaveAndNeverReconstructedOnReopen() = runTest {
+        val form = EmailInvitationFormState()
+        form.load({ true }) { "no_invitation" }
+        form.edit("first@example.invalid")
+        form.submit({ true }) { "waiting_for_sign_in" }
+        assertEquals("first@example.invalid", form.confirmedEmail)
+        form.correct(); form.edit("replacement@example.invalid")
+        form.submit({ true }) { throw java.io.IOException() }
+        assertEquals("first@example.invalid", form.confirmedEmail)
+        form.submit({ true }) { "waiting_for_confirmation" }
+        assertEquals("replacement@example.invalid", form.confirmedEmail)
+        form.load({ true }) { "pending" }
+        assertNull(form.confirmedEmail)
+        form.correct(); form.edit("unrelated@example.invalid")
+        form.submit({ true }) { "already_connected" }
+        assertNull(form.confirmedEmail)
+    }
+
     @Test fun genericShareOnlyForConfirmedPending() = runTest {
         assertEquals("הוזמנת להשתמש ב־CBTipul. פתחו את האפליקציה והירשמו או התחברו עם כתובת המייל שמסרתם למטפל/ת.\n\nhttps://cbtipul.com/", EmailInvitationShare.text)
         val form = EmailInvitationFormState()

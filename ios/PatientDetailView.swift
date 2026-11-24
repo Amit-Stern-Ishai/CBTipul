@@ -1,3 +1,4 @@
+import Supabase
 import SwiftUI
 
 /// Patient workspace with grouped sending actions, explicit connection guidance,
@@ -88,6 +89,7 @@ struct PatientDetailView: View {
     @State private var isSendingToPatient = false
     @State private var sendFeedbackTitle: String?
     @State private var sendFeedbackMessage: String?
+    @State private var showRevokeAccess = false
     @State private var refreshedConnectionState: PatientConnectionState?
     @State private var refreshingConnection = false
 
@@ -780,8 +782,8 @@ struct PatientDetailView: View {
                 }
                 .font(BrandTypography.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 44)
-                .foregroundStyle(Theme.turquoiseInk)
-                .background(Theme.turquoise, in: RoundedRectangle(cornerRadius: 12))
+                .foregroundStyle(Theme.textOnAccent)
+                .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain).entitlementCreateControl()
             .accessibilityIdentifier("patient.newSession")
@@ -1072,7 +1074,22 @@ struct PatientDetailView: View {
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                             .listRowBackground(Theme.surface)
                     }
+                    Button(RevokePatientAccess.phrase, role: .destructive) { showRevokeAccess = true }
+                        .disabled(changingPatientAccess || store.isDemoMode)
                 } else { sendingUnavailableNotice }
+            }
+            .revokePatientAccessConfirmation(isPresented: $showRevokeAccess) {
+                    guard EntitlementState.shared.allowMutation(allowLocalDemo: false),
+                          let owner = auth.currentUserId, let id = patient.id.uuidValue else { throw URLError(.userAuthenticationRequired) }
+                    changingPatientAccess = true
+                    defer { changingPatientAccess = false }
+                    try await assignmentService().revokeAccess(patientId: id)
+                    guard owner == auth.currentUserId else { throw CancellationError() }
+                    refreshedConnectionState = .notConnected
+                    struct Parameters: Encodable { let p_patient_id: UUID }
+                    let _: String = try await auth.client.rpc("get_patient_email_invitation_status", params: Parameters(p_patient_id: id)).execute().value
+                    guard owner == auth.currentUserId else { throw CancellationError() }
+                    await refreshConnectionState()
             }
             .listStyle(.insetGrouped).scrollContentBackground(.hidden)
             .themedScreen()
@@ -1692,7 +1709,7 @@ private enum PatientConnectionState {
     .environment(TherapistProfileService(client: auth.client))
 }
 
-/// The approved header uses visible translucent planes over a patient-colored
+/// The neutral header separates identity from the patient-colored
 /// light source, rather than a single tinted rectangle. No clinical imagery.
 private struct PatientHeaderBackdrop: View {
     let accent: Color

@@ -36,8 +36,8 @@ internal fun PatientJourneySection(patient: Patient, inHeader: Boolean = false) 
     val stages = patientJourney(patient.sessions)
     var expanded by remember { mutableStateOf(false) }
     val foreground = if (inHeader) colors.headerInk else colors.textBright
-    Surface(color = if (inHeader && !colors.isPaper) Color.Black.copy(alpha = .12f) else accent.copy(alpha = .12f), shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, accent.copy(alpha = .4f))) {
+    Surface(color = colors.surface, shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, colors.borderFaint)) {
         Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
         Text(stringResource(R.string.patient_journey_title), style = MaterialTheme.typography.titleSmall, color = foreground)
         Row(Modifier.padding(horizontal = 0.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -59,7 +59,7 @@ internal fun PatientJourneySection(patient: Patient, inHeader: Boolean = false) 
                                         SessionType.DiaryOne, SessionType.DiaryTwo, SessionType.DiaryThree -> Icons.AutoMirrored.Outlined.MenuBook
                                         else -> Icons.Outlined.Description
                                     }, null, tint = foreground,
-                                        modifier = Modifier.size(28.dp).background(accent.copy(alpha = .25f), CircleShape).padding(5.dp))
+                                        modifier = Modifier.size(28.dp).background(colors.goldGhost, CircleShape).padding(5.dp))
                                     Text(stringResource(stage.type?.labelRes() ?: R.string.session_type_none), style = MaterialTheme.typography.labelLarge)
                                     Text(stringResource(R.string.patient_journey_count, stage.sessions.size), style = MaterialTheme.typography.labelSmall)
                                 }

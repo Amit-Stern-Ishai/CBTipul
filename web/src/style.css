@@ -1,23 +1,22 @@
 :root {
-  /* Mobile light theme: ios/Theme.swift and Android ui/theme/Color.kt.
-     Gold is the shared dark-theme brand accent, reserved for brand details. */
+  /* Neutral surfaces, navy content, brand-blue actions; green denotes success. */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-  color: #182c46;
-  background: #f1f4f8;
+  color: #00244e;
+  background: #f7f8fa;
   font-synthesis: none;
   font-size: 16px;
   line-height: 1.6;
-  --ink: #182c46;
+  --ink: #00244e;
   --muted: #4b5e75;
   --teal: #285a8c;
-  --line: #cad5e2;
-  --warm: #ebf2fa;
+  --line: #dfe3e8;
+  --warm: #f2f4f6;
   --surface: #fff;
-  --canvas: #f1f4f8;
-  --elevated: #e8eef5;
+  --canvas: #f7f8fa;
+  --elevated: #f2f4f6;
   --hover: #dce6f1;
-  --brand: #203e61;
-  --brand-pressed: #172f4c;
+  --brand: #285a8c;
+  --brand-pressed: #0d3b66;
   --gold: #e2bb76;
   --good: #18724d;
   --warning: #946000;

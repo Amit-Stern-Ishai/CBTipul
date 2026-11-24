@@ -94,7 +94,7 @@ struct PatientJourneySection: View {
             if inHeader { RoundedRectangle(cornerRadius: 14).fill(Theme.isPaper ? Theme.surface : Color.black.opacity(0.16)) }
         }
         .overlay {
-            if inHeader { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.headerLine, lineWidth: 1) }
+            if inHeader { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.borderFaint, lineWidth: 1) }
         }
     }
 

@@ -10,6 +10,25 @@ class EmailInvitationClaimTest {
     private val revision = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"
     private val therapist = AppContext(role = AppRole.Therapist)
     private val patient = AppContext(role = AppRole.Patient, activation = PatientActivation.Active, patientId = "synthetic")
+    @Test fun incompleteEmailPatientChecksFreshInvitationOnlyOnExplicitRetry() = runTest {
+        var calls = 0
+        val incomplete = AppContext(role = AppRole.Patient, activation = PatientActivation.Incomplete)
+        val gate = EmailInvitationClaim({ true }) { value -> assertNull(value); calls++; EmailInvitationClaim.Response("connected") }
+        gate.resolve(therapist) { patient }
+        assertEquals(1, calls)
+        gate.resolve(incomplete) { incomplete }
+        assertEquals(1, calls)
+        gate.retry()
+        assertEquals(patient, gate.resolve(incomplete) { patient })
+        assertEquals(2, calls)
+    }
+    @Test fun incompleteAnonymousPatientDoesNotClaimEmail() = runTest {
+        val incomplete = AppContext(role = AppRole.Patient, activation = PatientActivation.Incomplete)
+        var calls = 0
+        val gate = EmailInvitationClaim({ false }) { calls++; EmailInvitationClaim.Response("no_match") }
+        assertEquals(incomplete, gate.resolve(incomplete) { incomplete })
+        assertEquals(0, calls)
+    }
     @Test fun changedInvitationRequiresNewConfirmation() = runTest {
         val next = "BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB"
         val sent = mutableListOf<String?>()

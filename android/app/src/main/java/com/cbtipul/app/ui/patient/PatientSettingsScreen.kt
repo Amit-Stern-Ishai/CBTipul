@@ -174,19 +174,6 @@ fun PatientSettingsScreen(
                             icon = Icons.Outlined.FormatSize,
                             onClick = { page = PatientSettingsPage.TextSize },
                         )
-                        GroupedListDivider()
-                        SettingsRow(
-                            title = stringResource(R.string.settings_appearance_title),
-                            trailing = stringResource(
-                                if (appearance == AppAppearance.Light) {
-                                    R.string.appearance_light
-                                } else {
-                                    R.string.appearance_dark
-                                },
-                            ),
-                            icon = Icons.Outlined.Contrast,
-                            onClick = { page = PatientSettingsPage.Appearance },
-                        )
                     }
 
                     val privacy = stringResource(R.string.privacy_policy_title)

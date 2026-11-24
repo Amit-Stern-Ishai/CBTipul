@@ -76,7 +76,11 @@ fun RootScreen() {
     val entitlementExplanation by com.cbtipul.app.data.Entitlements.explanationVisible.collectAsStateWithLifecycle()
     // AuthRepository owns entitlement identity. Loading/refreshing is not a sign-out.
     val entitlementScope = rememberCoroutineScope()
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
+        if (!app.invitationFlow.isActive) app.appContext.suspendPatientAccess()
+    }
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        if (!app.invitationFlow.isActive) app.appContext.suspendPatientAccess()
         entitlementScope.launch { if (!app.invitationFlow.isActive) app.appContext.refreshOnForeground() }
     }
     val isAnonymous = signedIn?.isAnonymous == true
@@ -366,7 +370,7 @@ fun RootScreen() {
                     )
                     }
                     AnonymousPatientDestination.Incomplete -> PatientActivationIncompleteScreen(
-                        onRetry = { scope.launch { runCatching { app.appContext.getCurrentAppContext() } } },
+                        onRetry = { app.appContext.emailClaim?.retry(); scope.launch { runCatching { app.appContext.getCurrentAppContext() } } },
                         onLeaveToTherapistSignIn = {
                             isLeavingPatientMode = true
                             leavePatientError = null
@@ -392,7 +396,7 @@ fun RootScreen() {
                         }
                     }
                     AnonymousPatientDestination.Retry -> PatientContextRetryScreen(
-                        onRetry = { scope.launch { runCatching { app.appContext.getCurrentAppContext() } } },
+                        onRetry = { app.appContext.emailClaim?.retry(); scope.launch { runCatching { app.appContext.getCurrentAppContext() } } },
                         onLeaveToTherapistSignIn = {
                             isLeavingPatientMode = true
                             leavePatientError = null

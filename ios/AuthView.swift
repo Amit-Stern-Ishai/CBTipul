@@ -21,6 +21,8 @@ struct AuthView: View {
     @State private var showingEmailForm = false
     @State private var email = ""
     @State private var password = ""
+    @State private var isPasswordVisible = false
+    @FocusState private var isPasswordFocused: Bool
     @State private var confirmPassword = ""
     @State private var isWorking = false
     @State private var errorMessage: String?
@@ -61,6 +63,7 @@ struct AuthView: View {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             showingEmailForm = false
+                            isPasswordVisible = false
                             errorMessage = nil
                             infoMessage = nil
                         } label: {
@@ -219,7 +222,7 @@ struct AuthView: View {
         .subtleAnimation(value: showingEmailForm)
         .subtleAnimation(value: errorMessage)
         .subtleAnimation(value: infoMessage)
-        .onChange(of: mode) { confirmPassword = "" }
+        .onChange(of: mode) { confirmPassword = ""; isPasswordVisible = false }
     }
 
     private var emailForm: some View {
@@ -352,14 +355,41 @@ struct AuthView: View {
     }
 
     private var passwordField: some View {
-        let field = SecureField(L10n.passwordPlaceholder, text: $password, prompt: Text(""))
+        HStack(spacing: 8) {
+            Group {
+                if isPasswordVisible && mode == .signIn {
+                    TextField(L10n.passwordPlaceholder, text: $password, prompt: Text(""))
+                } else {
+                    SecureField(L10n.passwordPlaceholder, text: $password, prompt: Text(""))
+                }
+            }
+            .focused($isPasswordFocused)
             .stablePlaceholder(L10n.passwordPlaceholder, isShown: password.isEmpty)
-        #if os(iOS)
-        return field
+            .autocorrectionDisabled()
+            #if os(iOS)
+            .textInputAutocapitalization(.never)
             .textContentType(mode == .signUp ? .newPassword : .password)
-        #else
-        return field
-        #endif
+            #endif
+            .accessibilityIdentifier("auth.password")
+
+            if mode == .signIn {
+                Button {
+                    let restoreFocus = isPasswordFocused
+                    isPasswordVisible.toggle()
+                    if restoreFocus {
+                        DispatchQueue.main.async { isPasswordFocused = true }
+                    }
+                } label: {
+                    Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                        .foregroundStyle(Theme.textBody)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isPasswordVisible ? L10n.hidePassword : L10n.showPassword)
+                .accessibilityIdentifier("auth.togglePasswordVisibility")
+            }
+        }
     }
 
     private var confirmPasswordField: some View {

@@ -284,7 +284,7 @@ private struct NotificationInboxRow: View {
         switch item.type {
         case .webWorkspaceReady: "desktopcomputer"
         case .questionnaireCompleted: "list.clipboard"
-        case .patientConnected: "person.crop.circle.badge.checkmark"
+        case .patientConnected, .patientActivitiesRequested: "person.crop.circle.badge.checkmark"
         case .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded: "book.closed"
         default: "bell"
         }
@@ -292,7 +292,7 @@ private struct NotificationInboxRow: View {
 
     private var eventColor: Color {
         switch item.type {
-        case .patientConnected: Theme.success
+        case .patientConnected, .patientActivitiesRequested: Theme.success
         case .diaryOneEntryAdded, .diaryTwoEntryAdded, .diaryThreeEntryAdded: Theme.accentFill
         default: Theme.gold
         }

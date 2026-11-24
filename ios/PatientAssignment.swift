@@ -378,6 +378,22 @@ final class AssignmentStatusCache {
 /// `is_patient_connected` RPC — never by reading `patient_access`.
 @MainActor
 final class PatientAssignmentService {
+    func revokeAccess(patientId: UUID) async throws {
+        struct Parameters: Encodable { let p_patient_id: UUID }
+        let result: String = try await client.rpc("revoke_patient_access", params: Parameters(p_patient_id: patientId)).execute().value
+        guard RevokePatientAccess.confirmed(result) else { throw URLError(.cannotParseResponse) }
+    }
+    func requestActivities(send: Bool) async throws -> String {
+        if send {
+            struct Request: Encodable {}
+            struct Response: Decodable { let status: String }
+            let response: Response = try await client.functions.invoke("request-patient-activities", options: .init(body: Request()))
+            guard ["pending", "activities_available"].contains(response.status) else { throw URLError(.cannotParseResponse) }
+            return response.status
+        }
+        struct Parameters: Encodable { let p_send = false }
+        return try await client.rpc("request_patient_activities", params: Parameters()).execute().value
+    }
     private let client: SupabaseClient
     private static var connectionCache: [UUID: [UUID: Bool]] = [:]
     private static let assignmentCache = AssignmentStatusCache()

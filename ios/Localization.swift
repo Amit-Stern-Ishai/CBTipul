@@ -324,6 +324,8 @@ enum L10n {
 
     static let emailPlaceholder = "אימייל"
     static let passwordPlaceholder = "סיסמה"
+    static let showPassword = "הצגת סיסמה"
+    static let hidePassword = "הסתרת סיסמה"
     static let forgotPasswordAction = "איפוס סיסמה"
     static let verifyEmailTitle = "אימות כתובת האימייל"
     /// The post-sign-up screen: where the verification link went and that
@@ -1706,15 +1708,15 @@ amitishai@gmail.com
     static let patientLeaveModeFailed =
         "לא ניתן היה לצאת ממצב מטופל/ת. נסו שוב."
 
-    static let patientActivationIncompleteTitle = "החיבור עדיין לא הושלם"
+    static let patientActivationIncompleteTitle = "אין כרגע חיבור פעיל למטפל/ת"
 
     static let patientActivationIncompleteBody =
-        "לא ניתן להיכנס למסך ההתחברות של מטפלים. פתחו מחדש את קישור ההזמנה או נסו לאמת את החיבור שוב."
+        "החשבון שלכם עדיין מחובר, אבל אין כרגע גישה לתיק. אם הגישה הופסקה, בקשו מהמטפל/ת הזמנה חדשה לכתובת המייל של החשבון הזה. לאחר ההזמנה לחצו על ניסיון נוסף. התיק והמידע שבו לא נמחקו."
 
     static let patientContextRetryTitle = "לא ניתן היה לאמת את החיבור"
 
     static let patientContextRetryBody =
-        "נסו שוב לאמת את החיבור. אין צורך לפתוח מחדש את קישור ההזמנה."
+        "לא הצלחנו לבדוק את הגישה לתיק כרגע. החשבון נשאר מחובר. אם קיבלתם הזמנה חדשה, נסו שוב בעוד רגע. שגיאה בבדיקה אינה אישור שהגישה הופסקה."
 
     static let inviteExpiredTitle = "ההזמנה פגה"
 

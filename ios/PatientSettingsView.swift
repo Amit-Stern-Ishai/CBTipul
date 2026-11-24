@@ -59,23 +59,7 @@ struct PatientSettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .listRowBackground(groupBorderedRow(.first, accent: Theme.gold))
-
-                    NavigationLink {
-                        AppearancePickerView()
-                    } label: {
-                        HStack {
-                            Label {
-                                Text(L10n.settingsAppearanceTitle)
-                            } icon: {
-                                settingsGlyph("circle.lefthalf.filled")
-                            }
-                            Spacer()
-                            Text(appearance.label)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .listRowBackground(groupBorderedRow(.last, accent: Theme.gold))
+                    .listRowBackground(groupBorderedRow(.only, accent: Theme.gold))
                 }
 
                 Section {

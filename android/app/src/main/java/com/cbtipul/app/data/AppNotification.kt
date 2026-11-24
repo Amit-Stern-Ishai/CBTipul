@@ -6,6 +6,7 @@ import java.util.UUID
 
 object AppNotificationTypes {
     const val WEB_WORKSPACE_READY = "web_workspace_ready"
+    const val PATIENT_ACTIVITIES_REQUESTED = "patient_activities_requested"
     const val PATIENT_CONNECTED = "patient_connected"
     const val QUESTIONNAIRE_ASSIGNED = "questionnaire_assigned"
     const val QUESTIONNAIRE_COMPLETED = "questionnaire_completed"
@@ -138,7 +139,7 @@ object NotificationRouting {
 
     fun destination(payload: NotificationPayload): AppDestination? = when (payload.type) {
         AppNotificationTypes.WEB_WORKSPACE_READY -> if (payload.resourceType == "web_workspace") uuidOrNull(payload.resourceId)?.let(AppDestination::WebWorkspace) else null
-        AppNotificationTypes.PATIENT_CONNECTED ->
+        AppNotificationTypes.PATIENT_CONNECTED, AppNotificationTypes.PATIENT_ACTIVITIES_REQUESTED ->
             payload.patientId?.let(AppDestination::PatientDetail)
         AppNotificationTypes.QUESTIONNAIRE_COMPLETED ->
             payload.patientId?.let { AppDestination.QuestionnaireResult(it, combinedMoodId(payload.resourceType, payload.resourceId)) }
@@ -219,6 +220,7 @@ object NotificationRouting {
     fun inboxCopy(type: String): InboxCopyKind = when (type) {
         AppNotificationTypes.WEB_WORKSPACE_READY -> InboxCopyKind.WebWorkspaceReady
         AppNotificationTypes.QUESTIONNAIRE_COMPLETED -> InboxCopyKind.QuestionnaireCompleted
+        AppNotificationTypes.PATIENT_ACTIVITIES_REQUESTED -> InboxCopyKind.PatientActivitiesRequested
         AppNotificationTypes.PATIENT_CONNECTED -> InboxCopyKind.PatientConnected
         AppNotificationTypes.DIARY_TWO_ENTRY_ADDED -> InboxCopyKind.DiaryTwoEntryAdded
         AppNotificationTypes.DIARY_THREE_ENTRY_ADDED -> InboxCopyKind.DiaryThreeEntryAdded
@@ -231,6 +233,7 @@ enum class InboxCopyKind {
     WebWorkspaceReady,
     QuestionnaireCompleted,
     PatientConnected,
+    PatientActivitiesRequested,
     DiaryOneEntryAdded,
     DiaryTwoEntryAdded,
     DiaryThreeEntryAdded,

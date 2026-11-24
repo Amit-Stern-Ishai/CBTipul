@@ -39,6 +39,7 @@ internal class EmailInvitationFormState {
     var message by mutableStateOf<Int?>(null); private set
     var confirmed by mutableStateOf(false); private set
     var pendingStatus by mutableStateOf<String?>(null); private set
+    var confirmedEmail by mutableStateOf<String?>(null); private set
     val canCorrect get() = pendingStatus in setOf("pending", "waiting_for_sign_in", "waiting_for_confirmation")
     var loading by mutableStateOf(true); private set
     var loadFailed by mutableStateOf(false); private set
@@ -48,6 +49,7 @@ internal class EmailInvitationFormState {
         try {
             val status = fetch()
             if (!isCurrent()) return
+            confirmedEmail = null
             when (status) {
                 "pending" -> { pendingStatus = "pending"; confirmed = true; message = emailInvitationResult("pending") }
                 "connected" -> { pendingStatus = "already_connected"; confirmed = true; message = emailInvitationResult("already_connected") }
@@ -70,6 +72,8 @@ internal class EmailInvitationFormState {
             message = emailInvitationResult(status)
             confirmed = status in setOf("waiting_for_sign_in", "waiting_for_confirmation", "already_connected")
             if (confirmed) pendingStatus = status
+            if (status in setOf("waiting_for_sign_in", "waiting_for_confirmation")) confirmedEmail = email.trim()
+            else if (status == "already_connected") confirmedEmail = null
         } catch (error: CancellationException) { throw error }
         catch (error: Exception) {
             if (isCurrent()) message = emailInvitationFailure(EdgePayload.httpStatus(error), EdgePayload.codeAndMessage(EdgePayload.responseBody(error)).first,
@@ -103,6 +107,12 @@ internal fun EmailInvitationDialog(app: CbTipulApp, patientId: String, onDismiss
                     } }) { Text(stringResource(R.string.retry)) }
                 }
                 if (!form.loading && !form.loadFailed) {
+                if (form.canCorrect) form.confirmedEmail?.let { address ->
+                    Text("כתובת המייל להזמנה")
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) { Text(address) }
+                    }
+                }
                 if (!form.confirmed) form.pendingStatus?.let { Text(stringResource(emailInvitationResult(it))) }
                 if (form.canShare) OutlinedButton(onClick = {
                     context.startActivity(Intent.createChooser(EmailInvitationShare.intent(), shareLabel))
