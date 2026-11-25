@@ -330,7 +330,8 @@ nonisolated struct PatientAssignment: Decodable, Sendable {
 
     var type: PatientAssignmentType? { PatientAssignmentType(rawValue: typeValue) }
 
-    var isOpen: Bool { cancelledAt == nil && (type == .questionnaire || completedAt == nil) }
+    var isExposureHierarchy: Bool { typeValue == "exposure_hierarchy" }
+    var isOpen: Bool { cancelledAt == nil && (isExposureHierarchy || type == .questionnaire || completedAt == nil) }
 }
 
 

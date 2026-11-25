@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
                 // Own and consume system-bar, cutout and keyboard insets once.
                 // Nested Scaffolds then measure their bars inside this safe viewport.
                 Box(Modifier.fillMaxSize().background(Theme.colors.base).safeDrawingPadding()) {
-                    com.cbtipul.app.ui.AppVersionGate((application as CbTipulApp).appVersion) { RootScreen() }
+                    if(BuildConfig.DEBUG&&intent.getBooleanExtra("exposure_review",false)) { com.cbtipul.app.ui.patients.ExposureHierarchyDialog(application as CbTipulApp,"11111111-1111-4111-8111-111111111111",review=true,reviewEditing=intent.getBooleanExtra("exposure_editing",false)){finish()} } else com.cbtipul.app.ui.AppVersionGate((application as CbTipulApp).appVersion) { RootScreen() }
                 }
             }
         }

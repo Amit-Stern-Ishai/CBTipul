@@ -699,8 +699,10 @@ internal fun PatientHomeContent(
     val openAssignments = assignments.filter { if (it.type == PatientAssignmentType.DiaryTwo || it.type == PatientAssignmentType.DiaryThree) it.cancelledAt == null else it.isOpen }
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
     var showConceptualization by remember(patientId) { mutableStateOf(false) }
+    var showExposure by remember(patientId) { mutableStateOf(false) }
     var showCoreBelief by remember(patientId) { mutableStateOf(false) }
     if (showConceptualization) com.cbtipul.app.ui.patients.ConceptualizationDialog(app, patientId, readOnly = true, onDismiss = { showConceptualization = false })
+    if (showExposure) com.cbtipul.app.ui.patients.ExposureHierarchyDialog(app, null, onDismiss = { showExposure = false })
     if (showCoreBelief) com.cbtipul.app.ui.patients.CoreBeliefWorksheetDialog(app, patientId, readOnly = true, onDismiss = { showCoreBelief = false })
     val account = app.authRepository.currentUserId()
     val request = remember(account, patientId) { com.cbtipul.app.data.PatientActivitiesRequest() }
@@ -806,6 +808,7 @@ internal fun PatientHomeContent(
                     }
                     androidx.compose.material3.OutlinedButton(onClick = { showConceptualization = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("המשגה") }
                     androidx.compose.material3.OutlinedButton(onClick = { showCoreBelief = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("ערעור אמונת יסוד") }
+                    if (openAssignments.any { it.isExposureHierarchy }) androidx.compose.material3.OutlinedButton(onClick = { showExposure = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("מדרג חשיפות") }
                     PatientAssignmentType.entries.forEach { type ->
                         val active = openAssignments.any { it.type == type } && (type != PatientAssignmentType.DiaryThree || PatientAssignmentType.diaryThreeSendingEnabled)
                         if (type != PatientAssignmentType.Questionnaire || active || type in historyTypes) {

@@ -34,6 +34,7 @@ struct PatientDetailView: View {
     @State private var headerBottom: CGFloat = 340
     @State private var showConceptualization = false
     @State private var showCoreBelief = false
+    @State private var showExposure = false
     @State private var recordRoute: RecordRoute?
     @State private var journeyRoute: PatientJourneyRoute?
     @State private var newSession: Session?
@@ -258,6 +259,7 @@ struct PatientDetailView: View {
     var body: some View {
         patientScreenContent
         .sheet(isPresented: $showConceptualization) { PatientConceptualizationView(patientID: patient.id.queryValue) }
+        .sheet(isPresented: $showExposure) { ExposureHierarchyView(patientID: patient.id.queryValue) }
         .sheet(isPresented: $showCoreBelief) { CoreBeliefWorksheetView(patientID: patient.id.queryValue) }
         .navigationDestination(item: $recordRoute) { route in
             switch route {
@@ -818,6 +820,7 @@ struct PatientDetailView: View {
 
     @ViewBuilder private var recordActions: some View {
         Button { showConceptualization = true } label: { recordLabel("list.bullet.rectangle", "המשגה") }.disabled(store.isDemoMode)
+        Button { showExposure = true } label: { recordLabel("list.number", "מדרג חשיפות") }.disabled(store.isDemoMode)
         Button { showCoreBelief = true } label: { recordLabel("list.bullet.rectangle", "ערעור אמונת יסוד") }.disabled(store.isDemoMode)
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
                                 count: dynamicTypeSize.isAccessibilitySize ? 1 : 2), spacing: 4) {
@@ -1063,6 +1066,7 @@ struct PatientDetailView: View {
     private var sendOptionsSheet: some View {
         NavigationStack {
             List {
+                if !store.isDemoMode, let id = patient.id.uuidValue { ExposureAccessRow(patientID: id, connected: connectionState == .connected) }
                 if appContext.loadError != nil {
                     Text("לא ניתן לבדוק כרגע את ההרשאות.")
                     Button(L10n.retry) { Task { _ = try? await appContext.getCurrentAppContext(); await refreshConnectionState() } }

@@ -17,6 +17,7 @@ struct PatientModeView: View {
 
     @State private var showConceptualization = false
     @State private var showCoreBelief = false
+    @State private var showExposure = false
     @State private var inboxFailed = false
     @State private var refreshingHome = false
     @State private var refreshHomeAgain = false
@@ -124,6 +125,7 @@ struct PatientModeView: View {
                 }
             }
             .sheet(isPresented: $showConceptualization) { PatientConceptualizationView(patientID: appContext.current?.patientId?.uuidString, readOnly: true) }
+            .sheet(isPresented: $showExposure) { ExposureHierarchyView(patientID: nil) }
             .sheet(isPresented: $showCoreBelief) { CoreBeliefWorksheetView(patientID: appContext.current?.patientId?.uuidString, readOnly: true) }
             .sheet(isPresented: $isShowingMessages) {
                 NavigationStack {
@@ -381,6 +383,9 @@ struct PatientModeView: View {
                     if type != .questionnaire || homeSnapshot.isVisible(type, active: active) {
                         compactToolRow(type, active: active)
                     }
+                }
+                if openAssignments.contains(where: { $0.isExposureHierarchy }) {
+                    Button { showExposure = true } label: { Label("מדרג חשיפות", systemImage: "list.number").frame(maxWidth: .infinity, alignment: .leading).padding(16) }.buttonStyle(.bordered)
                 }
                 if emptyActivitiesKey != nil {
                     emptyState

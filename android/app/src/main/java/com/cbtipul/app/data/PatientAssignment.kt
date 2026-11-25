@@ -60,7 +60,8 @@ data class PatientAssignment(
     val cancelledAt: Date?,
 ) {
     val type: PatientAssignmentType? get() = PatientAssignmentType.fromRaw(typeValue)
-    val isOpen: Boolean get() = cancelledAt == null && (type == PatientAssignmentType.Questionnaire || completedAt == null)
+    val isExposureHierarchy: Boolean get() = typeValue == "exposure_hierarchy"
+    val isOpen: Boolean get() = cancelledAt == null && (isExposureHierarchy || type == PatientAssignmentType.Questionnaire || completedAt == null)
 }
 
 @Serializable

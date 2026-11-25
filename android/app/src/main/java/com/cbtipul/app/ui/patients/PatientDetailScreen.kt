@@ -192,9 +192,11 @@ fun PatientDetailScreen(
         return
     }
     var showConceptualization by remember(patient.id) { mutableStateOf(false) }
+    var showExposure by remember(patient.id) { mutableStateOf(false) }
     var showCoreBelief by remember(patient.id) { mutableStateOf(false) }
     val conceptApp = LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp
     if (showConceptualization) ConceptualizationDialog(conceptApp, patient.id.queryValue, onDismiss = { showConceptualization = false })
+    if (showExposure) ExposureHierarchyDialog(conceptApp, patient.id.queryValue, onDismiss = { showExposure = false })
     if (showCoreBelief) CoreBeliefWorksheetDialog(conceptApp, patient.id.queryValue, onDismiss = { showCoreBelief = false })
     var showNotes by remember { mutableStateOf(false) }
     var diariesExpanded by remember { mutableStateOf(false) }
@@ -445,6 +447,7 @@ fun PatientDetailScreen(
                     Triple(Icons.AutoMirrored.Outlined.ShowChart, stringResource(R.string.graphs_and_trends_title), onOpenGraphs),
                     Triple(Icons.AutoMirrored.Outlined.LibraryBooks, stringResource(R.string.patient_diaries_title), { diariesExpanded = true }),
                     Triple(Icons.Outlined.Assignment, stringResource(R.string.questionnaires_title), onOpenQuestionnaires),
+                    Triple(Icons.Outlined.Assignment, "מדרג חשיפות", { if (!isDemo) showExposure = true }),
                     Triple(Icons.Outlined.Assignment, "המשגה", { if (!isDemo) showConceptualization = true }),
                     Triple(Icons.Outlined.Assignment, "ערעור אמונת יסוד", { if (!isDemo) showCoreBelief = true }),
                 )

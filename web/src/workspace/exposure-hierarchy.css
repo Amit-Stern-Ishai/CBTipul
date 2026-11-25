@@ -1,0 +1,126 @@
+.exposure-editor {
+  color: var(--ink);
+  max-width: 1100px;
+  margin-inline: auto;
+}
+.exposure-editor header,
+.exposure-editor footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-block: 16px;
+}
+.exposure-list {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0;
+  display: grid;
+  gap: 12px;
+}
+.exposure-list > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.exposure-position {
+  color: var(--muted);
+  min-width: 28px;
+  font-variant-numeric: tabular-nums;
+  padding-top: 8px;
+}
+.exposure-content {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+  margin: 0;
+}
+.exposure-content textarea {
+  width: 100%;
+  resize: vertical;
+  background: white;
+}
+.exposure-rating {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-block: 12px;
+}
+.exposure-rating input {
+  grid-column: 1/-1;
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--brand);
+}
+.exposure-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.exposure-controls button {
+  padding: 8px;
+  min-width: 44px;
+}
+.exposure-handle {
+  cursor: grab;
+}
+.exposure-handle:active {
+  cursor: grabbing;
+}
+.exposure-score {
+  white-space: nowrap;
+  color: var(--brand);
+  padding-top: 8px;
+}
+.pw-shared .exposure-editor {
+  font-size: 22px;
+}
+.pw-shared .exposure-editor textarea {
+  font-size: 22px;
+  line-height: 1.8;
+}
+.exposure-editor :focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .exposure-list > li {
+    padding: 12px;
+    gap: 8px;
+  }
+  .exposure-position {
+    min-width: 20px;
+  }
+  .exposure-score {
+    font-size: 14px;
+  }
+}
+
+.exposure-edit-header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: #fff;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.exposure-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+@media (max-width: 600px) {
+  .exposure-edit-header {
+    flex-wrap: wrap;
+  }
+  .exposure-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

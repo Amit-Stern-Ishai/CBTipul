@@ -200,6 +200,7 @@ internal fun PatientConnectionActions(patient: Patient, name: String, repository
         }
         HorizontalDivider()
         Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(if (sheet == "send") 0.dp else 16.dp)) {
+            if (!isDemo) ExposureAccessRow(androidx.compose.ui.platform.LocalContext.current.applicationContext as com.cbtipul.app.CbTipulApp, patient.id.queryValue, connection == ConnectionUi.Connected, onBusy = { sending = it })
             if (contextState is AppContextLoadState.Failed) {
                 Text("לא ניתן לבדוק כרגע את ההרשאות.", color = colors.error)
                 TextButton(onClick = { retryScope.launch { appContext.refreshOnForeground(); refresh() } }) { Text(stringResource(R.string.retry)) }

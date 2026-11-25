@@ -85,6 +85,7 @@ struct MyApp: App {
             AppVersionGateView {
                 #if DEBUG
                 if ProcessInfo.processInfo.environment["CBTIPUL_NAME_SYNC_TESTS"] == "1" { Color.clear }
+                else if ProcessInfo.processInfo.arguments.contains("-ExposureHierarchyReview") { ExposureHierarchyView(patientID: "11111111-1111-4111-8111-111111111111") }
                 else if ProcessInfo.processInfo.arguments.contains("-PatientHomeDesignReview") { PatientModeView().id(auth.currentUserId) }
                 else if ProcessInfo.processInfo.arguments.contains("-ActivityActionsReview") { PatientDetailView.activityActionsReview() }
                 else if ProcessInfo.processInfo.arguments.contains("-FeatureDiscoveryReview") { FeatureDiscoveryReview() }

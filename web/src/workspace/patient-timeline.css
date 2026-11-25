@@ -124,9 +124,7 @@ body:has(.pw-overview) .cb-header .therapist-link {display:none;}
 .pt-week:hover {background:#00244e0d;}
 .pt-week-now {background:#e5eff9;}
 .pt-week-now:hover {background:#e5eff9;}
-.pt-week-column {display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;padding:0 16px;background:transparent;}
-.pt-week-column > .pt-entry {flex:1 1 0;min-width:0;margin-bottom:0;}
-.pt-week-column > h4 {flex-basis:100%;}
+.pt-week-column {padding:0 16px;background:transparent;}
 .pt-entry {gap:12px;border-radius:10px;min-height:64px;margin-bottom:10px;}
 .pt-entry-icon {width:52px;}
 .pt-entry-icon svg {width:22px;height:22px;}
@@ -148,11 +146,6 @@ body:has(.pw-overview) .cb-header-inner {min-height:64px;padding:0 24px;}
 .pt-diary-add>div a {border:0;display:block;padding:10px;}
 @media(max-width:850px){.pt-mobile-add{display:block;margin:0 0 16px;width:max-content}.pt-mobile-add>div{inset-inline-start:0;inset-inline-end:auto;}}
 
-/* Keep horizontal weekly cards readable when several entries share a column. */
-.pt-week-column > .pt-entry {gap:8px;}
-.pt-week-column .pt-entry-icon {width:32px;}
-.pt-week-column .pt-entry-copy {overflow-wrap:anywhere;}
-@media(max-width:850px){.pt-week-column > .pt-entry {flex-basis:140px;}}
 
 /* Patient goals stay with identity; activity documents belong beside diaries. */
 .pt-treatment-goal {display:flex;flex-wrap:wrap;gap:4px 10px;margin:8px 52px 0 0;max-width:65ch;font-size:15px;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap;color:#0d3b66;}
@@ -166,14 +159,19 @@ body:has(.pw-overview) .cb-header-inner {min-height:64px;padding:0 24px;}
 .pt-mobile-activities {display:none;}
 @media(max-width:850px){.pt-treatment-goal{margin-inline-start:0}.pt-mobile-activities{display:block;padding:12px;margin-bottom:12px}.pt-mobile-activities h3{margin:0 0 10px;font-size:18px}.pt-calendar-activities{margin-inline:16px;justify-content:flex-start}}
 
-/* Weekly history keeps a stable rhythm regardless of card text or entry count. */
-.pt-week-column {flex-wrap:nowrap;align-items:flex-start;height:84px;overflow-x:auto;overflow-y:hidden;padding-block:4px 16px;scrollbar-width:thin;scrollbar-color:#a3b1c2 #e8f0f8;}
-.pt-week-column > .pt-entry {flex:1 1 0;height:64px;min-height:64px;max-height:64px;gap:8px;}
+/* Each week/type owns its tracks: one card fills the cell, peers share
+   equal widths, and the last row retains those widths in RTL order.
+   240px accommodates the icon, questionnaire title/score and alert marker. */
+.pt-week-column {padding-block:4px 12px;}
+.pt-week-items {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;align-content:start;}
+.pt-week-items > .pt-entry {height:64px;min-height:64px;max-height:64px;min-width:0;margin:0;gap:8px;}
 
 .pt-week-column .pt-entry-icon {width:32px;}
 .pt-week-column .pt-entry-icon svg {width:20px;height:20px;}
 .pt-week-column .pt-entry-copy {display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:20px 18px;align-content:center;gap:4px;padding:8px 0;overflow:hidden;}
 .pt-week-column .pt-entry strong {grid-column:1;min-width:0;}
+/* Keep Latin questionnaire names readable LTR while aligning with the RTL card. */
+.pt-entry[data-kind=questionnaire] strong {text-align:right;}
 .pt-week-column .pt-entry:not([data-kind=questionnaire]) strong {grid-column:1 / -1;}
 .pt-week-column .pt-entry small {grid-column:1 / -1;font-variant-numeric:tabular-nums;}
 .pt-week-column .pt-entry :is(strong,small,.pt-score) {display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -181,8 +179,5 @@ body:has(.pw-overview) .cb-header-inner {min-height:64px;padding:0 24px;}
 .pt-week-column .pt-entry-copy:last-child {margin-inline-end:8px;}
 .pt-week>h3 {white-space:nowrap;font-variant-numeric:tabular-nums;}
 @media(max-width:850px){
- .pt-week-column > .pt-entry {flex:1 0 140px;}
- .pt-week-column > .pt-entry[data-kind=questionnaire] {flex-basis:180px;}
- .pt-week-column {position:relative;height:112px;padding-top:28px;}
- .pt-week-column > h4 {position:absolute;top:0;inset-inline-start:12px;margin:0;line-height:20px;}
+ .pt-week-column > h4 {margin:10px 0 8px;line-height:20px;}
 }

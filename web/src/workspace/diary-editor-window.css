@@ -1,0 +1,25 @@
+/* Private diary work owns the viewport; patient navigation remains behind the modal. */
+.pw-modal.pw-diary-window{width:100%;height:100dvh;max-height:100dvh;max-width:none;margin:0;border:0;border-radius:0;overscroll-behavior:contain;background:var(--surface)}
+.pw-diary-window .pw-modal-heading{padding:12px clamp(16px,3vw,48px);min-height:68px;box-sizing:border-box}
+.pw-diary-window .pw-modal-heading h2{font-size:1.25rem}
+.pw-diary-window .pw-modal-body{padding:12px clamp(16px,3vw,48px) 24px}
+.pw-diary-window .pw-editor{container-type:normal;margin:0}
+.pw-diary-window .pw-editor>.pw-section-heading{margin:0 0 8px;min-height:20px;font-size:.875rem;color:var(--muted)}
+.pw-diary-window .pw-editor>.pw-section-heading h3{font-size:inherit;font-weight:500}
+.pw-diary-window .reading-actions{margin:4px 0 12px}
+.pw-diary-window .diary-flow{width:100%;max-width:none;margin:0;--diary-body:1.25rem;scroll-margin-top:80px}
+.pw-diary-window .diary-flow-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px 32px;flex-wrap:wrap;padding:0 0 12px;margin:0 0 16px}
+.pw-diary-window .diary-flow-toolbar>p{display:none}
+.pw-diary-window .diary-flow-location{flex:1;max-width:620px;gap:12px}
+.pw-diary-window .diary-flow-location select{flex:1;min-width:120px}
+.pw-diary-window .diary-flow-location label{font-size:.875rem}
+.pw-diary-window .diary-flow-mode button{min-height:44px}
+.pw-diary-window .diary-flow-focus>.ww-diary-grid{max-width:1160px;margin-inline:auto}
+.pw-diary-window .diary-flow .ww-diary-grid>.ww-diary-section{padding:20px 24px;border:0;border-radius:0}
+.pw-diary-window .diary-flow .ww-diary-heading{margin-bottom:12px;padding-bottom:12px;min-height:40px}
+.pw-diary-window .diary-flow-focus .ww-diary-section textarea{min-height:clamp(160px,30dvh,340px)}
+.pw-diary-window .diary-flow-navigation{padding-block:12px;margin-top:16px;max-width:1160px;margin-inline:auto}
+.pw-diary-window .pw-save{position:static;margin-top:8px;padding-block:12px}
+.pw-diary-window .diary-flow-all .ww-diary-grid{gap:16px}
+.pw-diary-window .diary-flow-all .ww-diary-grid>.ww-diary-section{border:1px solid var(--line);border-radius:12px;padding:16px}
+@media(max-width:700px){.pw-diary-window .pw-modal-heading{padding:12px 16px}.pw-diary-window .pw-modal-heading h2{font-size:1.05rem}.pw-diary-window .pw-modal-body{padding:12px 16px}.pw-diary-window .diary-flow-toolbar{gap:12px}.pw-diary-window .diary-flow-mode{width:100%}.pw-diary-window .diary-flow-location{max-width:none;width:100%;flex:auto;margin:0}.pw-diary-window .diary-flow-location select{flex-basis:auto}.pw-diary-window .diary-flow-location>span{font-size:.875rem}.pw-diary-window .diary-flow .ww-diary-grid>.ww-diary-section{padding:12px 0}.pw-diary-window .diary-flow-focus .ww-diary-section textarea{min-height:180px}.pw-diary-window .diary-flow-all .ww-diary-grid{grid-template-columns:1fr}}
